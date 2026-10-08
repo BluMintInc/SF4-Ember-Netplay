@@ -415,9 +415,10 @@ target_link_libraries(
     PUBLIC imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog  ggpo::GGPO
 )
 
-# The session server core has no game or helper dependency, so the transport test and
-# the host benchmark compile it directly instead of linking all of Session.
-set(SF4E_SESSION_SERVER_SOURCES
+# The session server core has no game or helper dependency. It is its own
+# library so Session, the room host, the server tests and the host benchmark
+# all link one build of it, with the flags the shipped binaries use.
+add_library(sf4e_session_server STATIC
     "src/session/MatchAuthority.cxx"
     "src/session/sf4e__SessionServer.cxx"
     "src/session/sf4e__SessionServer__Handlers.cxx"
@@ -426,20 +427,27 @@ set(SF4E_SESSION_SERVER_SOURCES
     "src/session/sf4e__SessionServer__Tournament.cxx"
     "src/session/sf4e__SessionProtocol.cxx"
 )
+target_compile_features(sf4e_session_server PUBLIC cxx_std_17)
+target_compile_definitions(sf4e_session_server PRIVATE NOMINMAX)
+target_link_libraries(sf4e_session_server PUBLIC
+    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+# The Iroh room over the session server, shared by Session and the room host.
+# It talks to the helper and still has no game dependency.
+add_library(sf4e_iroh_room STATIC
+    "src/session/IrohRoom.cxx"
+    "src/session/IrohRoomAdapters.cxx"
+    "src/session/IrohRoomCheckpoint.cxx"
+    "src/session/IrohRoomPeers.cxx"
+    "src/session/IrohRoomPublic.cxx"
+    "src/session/IdentityEvents.cxx"
+    "src/session/TournamentAnswers.cxx")
+target_link_libraries(sf4e_iroh_room PUBLIC sf4e_session_server sf4e_helper_platform)
 add_library(Session STATIC
-    ${SF4E_SESSION_SERVER_SOURCES}
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
     "src/session/sf4e__SessionClient__Room.cxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
-    "src/session/IrohRoom.cxx"
-    "src/session/IdentityEvents.cxx"
-    "src/session/TournamentAnswers.cxx"
-    "src/session/IrohRoomAdapters.cxx"
-    "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/IrohRoomPeers.cxx"
-    "src/session/IrohRoomPublic.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
@@ -448,28 +456,19 @@ target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
-    PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
+    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
 )
 
-# The public room host: the room authority with no game. It compiles the
-# session server and the Iroh room directly and links none of the game
-# libraries (Session would bring Dimps), so the same sources port to Linux.
+# The public room host: the room authority with no game. It links the session
+# server and Iroh room libraries and none of the game libraries (Session would
+# bring Dimps), so the same sources port to Linux.
 add_executable(sf4e-room-host
     "server/roomhost/main.cxx"
     "server/roomhost/RoomHost.cxx"
     "server/roomhost/RoomHostStatus.cxx"
-    "server/roomhost/RoomHostHelperWindows.cxx"
-    ${SF4E_SESSION_SERVER_SOURCES}
-    "src/session/IrohRoom.cxx"
-    "src/session/IrohRoomAdapters.cxx"
-    "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/IrohRoomPeers.cxx"
-    "src/session/IrohRoomPublic.cxx"
-    "src/session/IdentityEvents.cxx"
-    "src/session/TournamentAnswers.cxx")
+    "server/roomhost/RoomHostHelperWindows.cxx")
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
-target_link_libraries(sf4e-room-host PRIVATE
-    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common sf4e_helper_platform "bcrypt")
+target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
 
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SessionClientTransport SOURCES "src/tests/session_client_transport_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
@@ -591,22 +590,14 @@ if(BUILD_TESTING)
             set_tests_properties(IrohAuthorizedTerminalRecovery IrohAuthorizedTerminalRelayRecovery PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE)
         endif()
     endif()
-    set(session_server_test_libs nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" ${SF4E_SESSION_SERVER_SOURCES}
-        STD 14 LIBS ${session_server_test_libs})
+    sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES} STD 17 LIBS ${session_server_test_libs})
-    sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" ${SF4E_SESSION_SERVER_SOURCES}
-        STD 17 LIBS ${session_server_test_libs})
-    sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" ${SF4E_SESSION_SERVER_SOURCES}
-        STD 17 LIBS ${session_server_test_libs})
+        LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" LIBS sf4e_session_server)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
-    add_executable(RoomHostBench
-        "src/tests/room_host_bench.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(RoomHostBench PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(RoomHostBench PRIVATE cxx_std_17)
+    add_executable(RoomHostBench "src/tests/room_host_bench.cxx")
+    target_link_libraries(RoomHostBench PRIVATE sf4e_session_server)
     sf4e_add_unit_test(NAME GgpoUdpValidation SOURCES "src/tests/ggpo_udp_validation_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15)
     sf4e_add_unit_test(NAME GgpoInputBits SOURCES "src/tests/ggpo_input_bits_test.cxx" TIMEOUT 15)
     add_executable(GgpoSpectatorCapacityTest "src/tests/ggpo_spectator_capacity_test.cxx")
