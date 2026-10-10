@@ -58,6 +58,7 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
 	if (runtime->attached && UserApp::netplay) {
 		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
 		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
+		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
 		if (snapshot.room.roomEpoch) {
 			for (const auto& member : snapshot.room.members) {
 				netplay::MemberView view(member.name);
@@ -290,7 +291,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
-    mix(runtime->opponentChangeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
+    mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());

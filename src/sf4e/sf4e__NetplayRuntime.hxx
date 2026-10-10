@@ -53,6 +53,7 @@
 #include "../platform/JoinLinkMailbox.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <algorithm>
+#include <deque>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -233,6 +234,11 @@ struct Runtime {
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 	// When the room was last told whether the player is in Training.
 	std::uint64_t trainingSaidAtMs = 0;
+	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
+	// roomNoticeSequence. The interface takes each once by its number.
+	static constexpr std::size_t RoomNoticesKept = 16;
+	std::deque<ui::RoomNotice> roomNotices;
+	std::uint64_t roomNoticeSequence = 0;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
