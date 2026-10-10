@@ -428,28 +428,25 @@ static void TestASlotWhoseIndexIsBehind() {
 }
 
 // A slot whose file is newer than its record: archived from the file when its
-// ".0" says it is whole, not otherwise; with a record that names it, as Export,
-// unless that record was saved over a minute before the replay was played.
+// ".0" says it is whole, not otherwise; with a record that names it and is
+// known to be its own, as Export.
 static void TestASlotFileAheadOfItsRecord() {
 	Bytes list = EmptyList(), swan = EmptySwan(), exported;
-	Bytes old = Replay(0x10, 5000);
-	SetPlayed(old, 1549657000); // before the record's save time (Fill)
+	const Bytes old = Replay(0x10, 5000);
 	Fill(list, swan, 301, old, 0x55);
 	Bytes fresh = Replay(0x00, 8000);
 	WriteU32(fresh.data() + 0x20, 11); WriteU32(fresh.data() + 0x170, 1);
 	bool fromRecord = true;
-	CHECK(ExportSlotFile(list, swan, 301, fresh, Sidecar(fresh), exported, fromRecord) && !fromRecord);
+	CHECK(ExportSlotFile(list, swan, 301, fresh, Sidecar(fresh), true, exported, fromRecord) && !fromRecord);
 	CHECK(Bytes(exported.begin() + kExportHeaderBytes, exported.end()) == fresh);
 	CHECK(ReadU32(exported.data() + 8 + 5) == Crc32(fresh.data(), fresh.size()));
-	CHECK(!ExportSlotFile(list, swan, 301, fresh, Sidecar(old), exported, fromRecord));
-	CHECK(!ExportSlotFile(list, swan, 301, fresh, Bytes(), exported, fromRecord));
-	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), exported, fromRecord) && fromRecord);
-	// The same file played after that record was saved: the record is an older
-	// match's, and the file goes with one made from its header.
-	Bytes later = old;
-	SetPlayed(later, 1549657440 + 61);
-	Fill(list, swan, 301, later, 0x55);
-	CHECK(ExportSlotFile(list, swan, 301, later, Sidecar(later), exported, fromRecord) && !fromRecord);
+	CHECK(!ExportSlotFile(list, swan, 301, fresh, Sidecar(old), true, exported, fromRecord));
+	CHECK(!ExportSlotFile(list, swan, 301, fresh, Bytes(), true, exported, fromRecord));
+	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), true, exported, fromRecord) && fromRecord);
+	// A record not known to be the file's own: the file goes with one made from
+	// its header, or not at all without its ".0".
+	CHECK(ExportSlotFile(list, swan, 301, old, Sidecar(old), false, exported, fromRecord) && !fromRecord);
+	CHECK(!ExportSlotFile(list, swan, 301, old, Bytes(), false, exported, fromRecord));
 }
 
 // A list that names a slot nowhere: its position serves only when the record

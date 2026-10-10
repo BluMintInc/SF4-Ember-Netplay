@@ -144,12 +144,14 @@ ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 // ArchiveSaves and BackUp are the only copiers, under one lock, so a pass and
 // an import's backup of the slot it replaces never decide on a slot together.
 replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cache; return cache; }
-// A pass settles at most this many outbox entries, so a backlog never holds up
-// the next reading of the slots; the next pass goes on from where it stopped.
+// Sidecar's passes settle at most this many outbox entries, so a backlog
+// never holds up the next reading of the slots; the next pass goes on from
+// where it stopped. The launcher's settle them all.
 constexpr std::size_t kSettleBudget = 32;
-replayfiles::ArchiveTarget Target(const Folders& folders) {
+replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget) {
 	static std::size_t settleFrom = 0;
-	return {folders.archive, folders.outbox, kSettleBudget, settleFrom, Index().Held(), SlotFiles(), PublishFile};
+	static replayfiles::SlotSightings sightings;
+	return {folders.archive, folders.outbox, settleBudget, settleFrom, Index().Held(), SlotFiles(), sightings, PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
@@ -158,9 +160,9 @@ std::mutex& CopyLock() { static std::mutex lock; return lock; }
 constexpr int kOutboxWarning = 1000;
 
 // A pass over the outbox and these save folders, none at all being fine.
-replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts) {
+replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	const auto pass = replayfiles::RunPass(Target(folders), accounts, kFirstMatchSlot, kLastMatchSlot);
+	const auto pass = replayfiles::RunPass(Target(folders, settleBudget), accounts, kFirstMatchSlot, kLastMatchSlot);
 	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) to {}", pass.copied, pass.fromFile, folders.archive.c_str());
 	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
 	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
@@ -172,7 +174,7 @@ replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<
 bool BackUp(const Folders& folders, const fs::path& saves, int slot, const slots::Bytes& list, const slots::Bytes& swan,
 	const slots::Bytes& body, replayfiles::BackupEvidence& evidence) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	return replayfiles::EnsureBackup(Target(folders), saves, slot, list, swan, body, evidence);
+	return replayfiles::EnsureBackup(Target(folders, kSettleBudget), saves, slot, list, swan, body, evidence);
 }
 
 // Pre-encode while no save has been changed. If recovery fails, persist this
@@ -230,7 +232,7 @@ int Archive() {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
 		Index().Refresh(folders.archive);
-		return ArchiveSaves(folders, folders.saves).copied;
+		return ArchiveSaves(folders, folders.saves, replayfiles::kSettleAll).copied;
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: archiving stopped: {}", e.what());
@@ -420,7 +422,7 @@ replayfiles::ArchivePass ArchiveActiveAccount() {
  }
  if (!indexed) { Index().Refresh(folders.archive); indexed = true; }
  // The outbox is drained without a signed-in account too.
- return ArchiveSaves(folders, folders.active.empty() ? std::vector<fs::path>{} : std::vector<fs::path>{folders.active});
+ return ArchiveSaves(folders, folders.active.empty() ? std::vector<fs::path>{} : std::vector<fs::path>{folders.active}, kSettleBudget);
 }
 // Passes a second apart, then two, four and so on up to thirty: for two
 // minutes after a match ends, which covers the game's save after the battle

@@ -8,8 +8,8 @@
 // A pass reads the slots first, since they are what the next match takes. A
 // whole replay the archive is not known to hold, byte for byte, goes into the
 // outbox, a folder of its own outside the archive, as its export: with the
-// game's record or one made from its header, by the one rule in
-// ReplaySlots.hxx (ExportSlotFile). The pass then settles outbox entries, a
+// game's record when the pass has seen that it is the replay's own
+// (SlotSightings), else with one made from its header (ExportSlotFile). The pass then settles outbox entries, a
 // bounded number of them, so a backlog never holds up the next reading of the
 // slots. Settling archives the replay unless the archive holds it, and keeps
 // the game's record an entry carries beside an archive copy that has a
@@ -25,6 +25,7 @@
 #include <cstring>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -40,18 +41,51 @@ namespace sf4e { namespace replayfiles {
 // at 44 KB.
 constexpr std::size_t kMostIndexBytes = 1 << 20;
 
+// What this process has seen of each slot: the proof that the slot's record in
+// the game's index is the record of the replay in the slot's file. The game
+// writes a slot's record only when it saves that slot's replay, and Ember
+// writes the two together when it imports one, so a record the slot did not
+// have when its previous replay was first seen, and that names the replay
+// there now, was written for it. A record the slot had already then may be an
+// older match's that happens to share the new replay's CRC, size and fighters,
+// so it proves nothing, and nor does anything about a slot this process has
+// not yet seen hold another replay. A replay without that proof goes with a
+// record made from its header. An empty slot counts as a replay, so a slot's
+// first match is proven too.
+class SlotSightings {
+public:
+	// Notes the slot's replay as read now and its record in the index read in
+	// the same pass (null for none); true when that record is proven the
+	// replay's own, as above. Export then checks that it names the replay.
+	bool Sight(const std::filesystem::path& saves, int slot, const replayslots::Bytes& replay, const std::uint8_t* record) {
+		const replayslots::Bytes now = record ? replayslots::Bytes(record, record + replayslots::kRecordBytes) : replayslots::Bytes{};
+		auto& seen = slots_[{saves, slot}];
+		if (!seen.sighted || seen.replay != replay) {
+			if (seen.sighted) seen.before = seen.first;
+			seen.sighted = true; seen.replay = replay; seen.first = now;
+		}
+		return seen.before && now != *seen.before;
+	}
+private:
+	// The replay in the slot, the record it had when that replay was first
+	// seen, and the record it had when the replay before was first seen.
+	struct Seen { bool sighted = false; replayslots::Bytes replay, first; std::optional<replayslots::Bytes> before; };
+	std::map<std::pair<std::filesystem::path, int>, Seen> slots_;
+};
+
 // Where a pass copies to: the archive folder and the outbox; how many outbox
 // entries a pass settles at most, and where the next pass starts on them, so
 // an entry that cannot be settled does not keep others waiting; the index of
 // the replays the archive holds (each copy is added to it); the cache of the
-// game's slot files; and the writer that creates a file only where there is
-// none.
+// game's slot files and what has been seen of them; and the writer that
+// creates a file only where there is none.
 struct ArchiveTarget {
 	std::filesystem::path folder, outbox;
 	std::size_t settleBudget;
 	std::size_t& settleFrom;
 	ArchiveCandidates& held;
 	SlotFileCache& slots;
+	SlotSightings& sightings;
 	std::function<bool(const std::filesystem::path&, const replayslots::Bytes&)> createOnly;
 };
 
@@ -213,7 +247,8 @@ inline bool Settle(const ArchiveTarget& target, const std::filesystem::path& pat
 }
 
 // Settles up to the budget of outbox entries, starting where the last pass
-// stopped and going round.
+// stopped and going round. A budget of kSettleAll settles every entry.
+constexpr std::size_t kSettleAll = static_cast<std::size_t>(-1);
 inline void DrainOutbox(const ArchiveTarget& target, ArchivePass& pass) {
 	if (target.outbox.empty()) return;
 	std::vector<std::filesystem::path> entries;
@@ -239,19 +274,20 @@ inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::pat
 	const std::filesystem::path file = saves / std::to_wstring(slot);
 	const SlotFile current = ReadSlotFile(target.slots, file);
 	std::error_code missing;
-	if (current.replay.empty()) return std::filesystem::exists(file, missing) ? SlotCopy::Retry : SlotCopy::Nothing;
+	if (current.replay.empty() && std::filesystem::exists(file, missing)) return SlotCopy::Retry;
+	const bool recordOwned = target.sightings.Sight(saves, slot, current.replay, replayslots::Record(list, swan, slot));
 	replayslots::ReplayHeaderInfo header;
 	if (!replayslots::ReadReplayHeader(current.replay, header)) return SlotCopy::Nothing;
 	replayslots::Bytes exported;
 	bool fromRecord = false;
-	if (!replayslots::ExportSlotFile(list, swan, slot, current.replay, current.sidecar, exported, fromRecord))
+	if (!replayslots::ExportSlotFile(list, swan, slot, current.replay, current.sidecar, recordOwned, exported, fromRecord))
 		return current.sidecar == replayslots::Sidecar(current.replay) ? SlotCopy::Nothing : SlotCopy::Retry;
 	if (replayslots::ArchiveName(exported).empty()) return SlotCopy::Nothing;
 	BackupEvidence evidence;
 	const bool held = Holds(target, current.replay, evidence) == Holding::Held;
 	// Held: only the game's record may be wanted still, beside a copy with a
 	// made-up one, and it goes through the outbox like a replay.
-	if (held && (!fromRecord || evidence.replay.bodyOffset != replayslots::kExportHeaderBytes ||
+	if (held && (!fromRecord || replayslots::MadeUp(exported.data() + 8) || evidence.replay.bodyOffset != replayslots::kExportHeaderBytes ||
 		!replayslots::MadeUp(evidence.replay.contents.data() + 8) || GameRecordKept(target, current.replay))) return SlotCopy::Held;
 	if (Enqueue(target, current.replay, exported)) return SlotCopy::Queued;
 	return !held && Publish(target, current.replay, exported) ? SlotCopy::Copied : SlotCopy::Failed;
@@ -285,9 +321,10 @@ inline bool EnsureBackup(const ArchiveTarget& target, const std::filesystem::pat
 	const replayslots::Bytes& list, const replayslots::Bytes& swan, const replayslots::Bytes& body, BackupEvidence& evidence) {
 	if (Holds(target, body, evidence) == Holding::Held) return true;
 	const SlotFile current = ReadSlotFile(target.slots, saves / std::to_wstring(slot));
+	const bool recordOwned = target.sightings.Sight(saves, slot, current.replay, replayslots::Record(list, swan, slot));
 	replayslots::Bytes exported;
 	bool fromRecord = false;
-	if (current.replay == body && replayslots::ExportSlotFile(list, swan, slot, body, current.sidecar, exported, fromRecord)) {
+	if (current.replay == body && replayslots::ExportSlotFile(list, swan, slot, body, current.sidecar, recordOwned, exported, fromRecord)) {
 		ArchivePass pass;
 		if (const auto queued = Enqueue(target, body, exported)) Settle(target, *queued, pass);
 		else Publish(target, body, exported);

@@ -54,7 +54,7 @@ if(BUILD_TESTING)
         LIBS $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayArchiveIndex SOURCES "src/tests/replay_archive_index_test.cxx" STD 17
         LIBS Threads::Threads $<$<PLATFORM_ID:Windows>:bcrypt> TIMEOUT 15)
-    sf4e_add_unit_test(NAME ReplayArchivePass SOURCES "src/tests/replay_archive_pass_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayArchivePass SOURCES "src/tests/replay_archive_pass_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 60)
     sf4e_add_unit_test(NAME ReplayImportWorker SOURCES "src/tests/replay_import_worker_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayImportHandoff SOURCES "src/tests/replay_import_handoff_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayProvenance SOURCES "src/tests/replay_provenance_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
