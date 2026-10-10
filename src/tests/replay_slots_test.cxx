@@ -269,6 +269,11 @@ static void TestAnImportedReplayIsKnownByItsCrc() {
 	CHECK(!ParseArchiveName(L"20261305-213503-69991186.emberreplay", time, crc)); // month 13
 	CHECK(!ParseArchiveName(L"2026100x-213503-69991186.emberreplay", time, crc));
 	CHECK(!ParseArchiveName(L"watched.txt", time, crc));
+	// The name an export is archived under reads back as its record's save
+	// time (8 February 2019, 20:24:00) and the replay's CRC.
+	CHECK(!ArchiveName(exported).compare(0, 16, L"20190208-202400-"));
+	CHECK(ParseArchiveName(ArchiveName(exported), time, crc) && time == 1549657440 && crc == Crc32(replay.data(), replay.size()));
+	CHECK(ArchiveName(Bytes(8, 0)).empty());
 	// The archive holds it only when the file is that replay: an export whose
 	// record describes its body, under the body's own CRC.
 	CHECK(WholeArchived(exported, Crc32(replay.data(), replay.size())));

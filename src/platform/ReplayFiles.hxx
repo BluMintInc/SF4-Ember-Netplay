@@ -3,8 +3,8 @@
 // The game's replay files on this PC (ReplaySlots.hxx has their layout):
 // copying every match replay out of the game's slots into Ember's archive,
 // and putting an archived one back. Shared by the launcher, which archives
-// around and during a game run, and Sidecar, which lists the archive and
-// imports from it while the game runs.
+// before and after a game run, and Sidecar, which archives as the game saves,
+// lists the archive and imports from it while the game runs.
 
 #include <cstdint>
 #include <filesystem>
@@ -38,17 +38,15 @@ struct Folders {
 Folders FindFolders();
 
 // Copies every match replay not yet in the archive, one file each, named by
-// its save time (UTC) and CRC. The archive holds a replay when one of its
-// files is that replay, whatever its save time: a replay put back into the
-// game is saved there under a new time. A file counts by its contents, not
-// its name. It is the slot's file that is read: one the game's index does not
-// list yet is archived two minutes after it was written, with a record made
-// from its own header. A slot caught while the game is writing it fails the
-// size and CRC check and is copied on a later call. The archive is read
-// through one index kept for this process. Refresh reads bounded contents;
-// summaries are reused only for byte-identical files. Returns how many were copied, or -1 when there is
-// nowhere to copy from or to. The launcher's: it walks every account's slots
-// and the whole archive folder.
+// its save time (UTC) and CRC (ReplayArchivePass.hxx). The archive holds a
+// replay when one of its files is that replay, whatever its save time: a
+// replay put back into the game is saved there under a new time. Sidecar
+// copies the signed-in account's replays as the game saves them: each match
+// start and end and each change to the save folder asks for a pass, and a file
+// the game's index does not list yet waits two minutes for it. This is the
+// launcher's sweep before and after a game run, for every account and with no
+// wait, since no game is left to write an index. Returns how many were copied,
+// or -1 when there is nowhere to copy from or to.
 int Archive();
 
 // Preparation reads slots/indexes, verifies the backup and encodes recovery on
@@ -102,6 +100,7 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // join is performed. Native metadata has no verified Ember player/session ID,
 // so initial attribution uses account, slot change, fighters and native save
 // time within this match's lifetime. Body-bound notes thereafter are exact.
+// Both also ask for an archive pass (Archive).
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled);
 void NoteMatchEnd();
 
