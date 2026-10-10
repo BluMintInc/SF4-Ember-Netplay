@@ -831,6 +831,9 @@ msgstr "Framemeter in matches"
 msgid "settings.match_frame_meter_detail"
 msgstr "Toont de framemeter over onlinewedstrijden die je speelt of bekijkt. Alleen jij ziet deze. De meter kan enkele frames achterlopen op het gevecht."
 
+msgid "settings.match_frame_meter_private"
+msgstr "Alleen in privékamers."
+
 msgid "room.training.detail"
 msgstr "Oefen in Training terwijl je wacht. Ember roept je terug zodra iemand tegenover je gaat zitten."
 

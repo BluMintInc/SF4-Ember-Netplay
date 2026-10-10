@@ -831,6 +831,9 @@ msgstr "Medidor de frames en combates"
 msgid "settings.match_frame_meter_detail"
 msgstr "Muestra el medidor de frames sobre las partidas en línea que juegas o ves. Solo tú lo ves. Puede ir unos frames por detrás del combate."
 
+msgid "settings.match_frame_meter_private"
+msgstr "Solo en salas privadas."
+
 msgid "room.training.detail"
 msgstr "Practica en el modo Entrenamiento mientras esperas. Ember te llama cuando alguien se sienta enfrente."
 

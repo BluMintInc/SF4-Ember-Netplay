@@ -18,6 +18,7 @@
 #include "../platform/ReplayFiles.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
+#include "../common/MatchFrameMeter.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -477,8 +478,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Before the HUD, the match meter and the hotkeys, which read the lab's settings.
     static bool trainingDirectorySet=false;
     if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
-    // The meter in a match is the player's choice; the runtime reads nothing for it otherwise.
-    sf4e::training::WatchMatches(snapshot.preferences.matchFrameMeter || snapshot.replays.meterShown);
+    // The meter in a match is the player's choice, in private rooms only; the runtime reads nothing for it otherwise.
+    sf4e::training::WatchMatches((snapshot.preferences.matchFrameMeter && sf4e::match_frame_meter::Allowed(snapshot.room.serverOwned)) || snapshot.replays.meterShown);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();

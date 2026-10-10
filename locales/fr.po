@@ -831,6 +831,9 @@ msgstr "Compteur de frames en match"
 msgid "settings.match_frame_meter_detail"
 msgstr "Affiche les frames sur les matchs en ligne que vous jouez ou suivez. Vous seul les voyez. L'affichage peut avoir quelques frames de retard."
 
+msgid "settings.match_frame_meter_private"
+msgstr "Salons privés uniquement."
+
 msgid "room.training.detail"
 msgstr "Entraînez-vous en attendant. Ember vous rappelle quand quelqu'un s'assoit en face de vous."
 

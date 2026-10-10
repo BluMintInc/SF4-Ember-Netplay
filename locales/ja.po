@@ -831,6 +831,9 @@ msgstr "対戦中のフレームメーター"
 msgid "settings.match_frame_meter_detail"
 msgstr "プレイ中や観戦中のオンライン対戦にフレームメーターを表示します。自分だけに見えます。対戦より数フレーム遅れることがあります。"
 
+msgid "settings.match_frame_meter_private"
+msgstr "プライベートルームのみ。"
+
 msgid "room.training.detail"
 msgstr "待っている間にトレーニングで練習できます。向かいの席に誰かが座るとEmberが呼び戻します。"
 

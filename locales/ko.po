@@ -831,6 +831,9 @@ msgstr "대전 중 프레임 미터"
 msgid "settings.match_frame_meter_detail"
 msgstr "직접 플레이하거나 관전하는 온라인 대전 위에 프레임 미터를 표시합니다. 자신에게만 보이며 대전보다 몇 프레임 늦을 수 있습니다."
 
+msgid "settings.match_frame_meter_private"
+msgstr "비공개 방에서만 사용할 수 있습니다."
+
 msgid "room.training.detail"
 msgstr "기다리는 동안 트레이닝 모드에서 연습하세요. 맞은편에 누군가 앉으면 Ember가 다시 부릅니다."
 

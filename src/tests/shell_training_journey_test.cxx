@@ -38,6 +38,15 @@ void TrainingSettingsAndHome() {
  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");
  SetMenuEntriesProbe({});h.Choose("offline");
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
+ // In a public room the frame meter row says why it is not offered; in a private room it keeps its own detail.
+ for(const bool publicRoom:{false,true}){
+  JoinedRoom(h,9);h.view.room.serverOwned=publicRoom;h.view.canEditPreferences=false;
+  std::vector<MenuEntry> shown;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){shown=entries;});
+  h.Frame();h.Screen("training-replays");
+  Check(!shown.empty()&&shown[0].id=="match-frame-meter"&&!shown[0].enabled,"Frame meter row changed in a room");
+  Check(shown[0].detail==loc::T(publicRoom?"settings.match_frame_meter_private":"settings.match_frame_meter_detail"),"Frame meter detail ignores the room kind");
+ }
+ SetMenuEntriesProbe({});
 }
 // Training from inside a room: the row sends no room command, and a player
 // called back from Training lands on their table, readied for them only once

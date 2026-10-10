@@ -831,6 +831,9 @@ msgstr "Měřič snímků v zápasech"
 msgid "settings.match_frame_meter_detail"
 msgstr "Zobrazuje měřič snímků nad online zápasy, které hraješ nebo sleduješ. Vidíš ho jen ty. Může být o několik snímků za soubojem."
 
+msgid "settings.match_frame_meter_private"
+msgstr "Jen v soukromých místnostech."
+
 msgid "room.training.detail"
 msgstr "Trénuj, zatímco čekáš. Ember tě zavolá zpět, když si někdo sedne naproti tobě."
 
