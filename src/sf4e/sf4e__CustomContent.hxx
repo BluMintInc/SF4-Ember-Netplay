@@ -1,17 +1,16 @@
 #pragma once
-// Custom costumes, installed by a separate setup program (it downloads them and adds them to the game; Ember
-// never downloads anything). A custom costume is slot 8..99 of a fighter (costume index 7..98) with its files in
-// the game's patch folder: patch_ae2_tu3\battle\chara\<CHR>\<CHR>_<NN>.obj.emo and the rest. Nothing extra goes
-// over the network: the costume number already travels in each pick. Each PC shows the costume it has in that
-// slot, and a PC without one shows the fighter's original costume instead.
+// Custom costumes, colors and stages, installed by a separate setup program (it downloads them and adds them to the
+// game; Ember never downloads anything). A custom costume is slot 8..99 of a fighter (costume index 7..98) with its
+// files in the game's patch folder: patch_ae2_tu3\battle\chara\<CHR>\<CHR>_<NN>.obj.emo and the rest. Nothing extra
+// goes over the network: the costume, color and stage numbers already travel in each pick. Each PC shows what it
+// has, and a PC without it the fighter's original costume, color 1, or a stock stage (selection::ResolveAppearance,
+// selection::CustomStageFallback).
 //
 // The game itself never sees a custom costume number: its per-costume tables hold only the fighter's own
 // costumes (7 or 8; Dimps::Game::Battle::Chara::CharaResourceHolder, RVA 0x1e30b0 reads them unchecked). A
 // custom costume plays as a stand-in, one of the fighter's first three costumes (always owned), and while the
-// game builds that stand-in's file names it is given the custom slot instead (ApplyPicks, Install).
-#include "../common/FighterCatalog.hxx"
-
-#include <vector>
+// game builds that stand-in's file names it is given the custom slot instead (UseAppearance, Install).
+#include "../common/InstalledContent.hxx"
 
 namespace sf4e { namespace custom {
 
@@ -21,21 +20,10 @@ namespace sf4e { namespace custom {
 // Call inside the sidecar's Detours transaction.
 void Install();
 
-// Custom costume indices installed on this PC for a fighter (with all ten colors), ascending. Read once per game
-// start (the setup program only changes them while the game is closed). SF4E_IGNORE_CUSTOM=1 in the environment pretends none
-// are installed, to play a player without them (testing with a second copy).
-const std::vector<int>& InstalledCostumes(int fighterId);
-bool CostumeInstalled(int fighterId, int costumeId);
-// Custom colors installed on this PC for one of a fighter's own costumes (battle\chara\<CHR>\<CHR>_<CC>_<NN>.col.emb
-// and .obj.emm, colors 30..99), ascending.
-const std::vector<int>& InstalledColors(int fighterId, int costumeId);
-bool ColorInstalled(int fighterId, int costumeId, int colorId);
-// Custom stage ids installed on this PC (battle\stage\STG_<code>.emz and .tex.emz in the patch folder with a custom
-// code, see StageCatalog), ascending.
-const std::vector<int>& InstalledStages();
-// A fighter's availability for the selectors and the ready check: the game's own (Dimps::Selection) plus the custom
-// costumes, colors and stages installed on this PC, which need no licence.
-selection::Availability ReadAvailability(int fighterId);
+// What is installed on this PC, scanned once (the setup program only changes it while the game is closed) and
+// never changed after: the same object for the whole run. SF4E_IGNORE_CUSTOM=1 in the environment pretends nothing
+// is installed, to play a player without it (testing with a second copy).
+selection::InstalledContentPtr Installed();
 
 // The stage this PC hands the game for a match's stage id: a stock stage stays; a custom stage plays as its
 // fallback stage (its effects), and if this PC has it, the stage loader is given its code (C12: STG_C12.emz and
@@ -43,57 +31,9 @@ selection::Availability ReadAvailability(int fighterId);
 // (battle\sound\bgm\BGM_C12.csb in the patch folder); otherwise the fallback's music plays.
 int ApplyStage(int stageId);
 
-// Battle side `side` plays custom costume `custom` of `fighter` as costume `standIn` until EndBattle; likewise custom
-// color `custom` of a costume (as the game sees it: a custom costume's stand-in) as color `standIn`.
-void SetStandIn(int side, int fighter, int standIn, int custom);
-void SetColorStandIn(int side, int fighter, int costume, int standIn, int custom);
+// Installs a match's swaps (selection::ResolveAppearance) until EndBattle: the hooks give the game each side's
+// custom costume and color while it loads their stand-ins.
+void UseAppearance(const selection::Appearance& appearance);
 void EndBattle();
-
-// What this PC hands the game for both picks of a match (fighters and spectators alike):
-// - a custom costume it doesn't have becomes the fighter's original costume in color 1, a custom color it doesn't
-//   have color 1 of that costume; either becomes color 2 if that would look identical to the other side's pick
-//   (same fighter, costume and color);
-// - a custom costume it has plays as a stand-in: the fighter's original costume, or in a mirror match where the
-//   other side wears that, the next of the first three it isn't using (the file-name swap can't tell the two
-//   sides' loads apart); a custom color it has (of a game costume or a custom one) plays as color 1 the same way,
-//   or the next the other side isn't using. Replays record the stand-ins, so they never hold custom content.
-template<class Native> void ApplyPicks(Native (&picks)[2]) {
-    bool fellBack[2] = {};
-    for (int i = 0; i < 2; i++)
-        if (selection::IsCustomCostume(picks[i].costume) && !CostumeInstalled(picks[i].charaID, picks[i].costume)) {
-            picks[i].costume = 0;
-            picks[i].color = 0;
-            fellBack[i] = true;
-        } else if (selection::IsCustomColor(picks[i].color) && !ColorInstalled(picks[i].charaID, picks[i].costume, picks[i].color)) {
-            picks[i].color = 0;
-            fellBack[i] = true;
-        }
-    for (int i = 0; i < 2; i++) {
-        const Native& other = picks[1 - i];
-        if (fellBack[i] && other.charaID == picks[i].charaID && other.costume == picks[i].costume &&
-            other.color == picks[i].color)
-            picks[i].color = picks[i].color == 0 ? 1 : 0;
-    }
-    for (int i = 0; i < 2; i++) {
-        SetStandIn(i, -1, -1, -1);
-        SetColorStandIn(i, -1, -1, -1, -1);
-        const Native& other = picks[1 - i];
-        if (selection::IsCustomCostume(picks[i].costume))
-            for (int standIn : {0, 1, 2})
-                if (other.charaID != picks[i].charaID || other.costume != standIn) {
-                    SetStandIn(i, picks[i].charaID, standIn, picks[i].costume);
-                    picks[i].costume = static_cast<decltype(picks[i].costume)>(standIn);
-                    break;
-                }
-        // then a custom color, on the costume the game sees (a custom costume's stand-in)
-        if (selection::IsCustomColor(picks[i].color))
-            for (int standIn : {0, 1, 2})
-                if (other.charaID != picks[i].charaID || other.costume != picks[i].costume || other.color != standIn) {
-                    SetColorStandIn(i, picks[i].charaID, picks[i].costume, standIn, picks[i].color);
-                    picks[i].color = static_cast<decltype(picks[i].color)>(standIn);
-                    break;
-                }
-    }
-}
 
 } }

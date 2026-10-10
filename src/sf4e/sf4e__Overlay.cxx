@@ -44,8 +44,7 @@ static sf4e::ui::OpenRequests s_openRequests;
 static bool trainingOpen = false, trainingHud = true;
 static std::atomic<bool> trainingAvailable{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
-static sf4e::selection::StageMask lobbyStageExcluded = 0;
-static sf4e::selection::CustomStageExclusions lobbyCustomExcluded{};
+static sf4e::selection::RandomPool lobbyRandomPool;
 // The thread that draws the overlay (NoteMessageThread).
 static std::atomic<DWORD> s_drawThread{0};
 // SF4 can pump the window's messages on another thread than the one that
@@ -130,8 +129,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		s_prefs = prefs;
         sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, prefs.lobby);
         lobbyMenuCharaID = prefs.lobby.charaID; lobbyStageID = prefs.stageID;
-        lobbyStageExcluded = prefs.randomStageExcluded;
-        lobbyCustomExcluded = prefs.randomCustomExcluded;
+        lobbyRandomPool = prefs.randomPool;
 	}
 }
 
@@ -141,25 +139,25 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	pick.fighter = menuCharaID;
 	const bool editionSelect = snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
     int stagedStage = stageId ? *stageId : 0;
-    sf4e::selection::StageMask stagedPool = lobbyStageExcluded;
-    sf4e::selection::CustomStageExclusions stagedCustomPool = lobbyCustomExcluded;
+    sf4e::selection::RandomPool stagedPool = lobbyRandomPool;
+    const sf4e::selection::InstalledContent* installed = snapshot.installedContent.get();
 	// The room screens direct the player here when a selection is unusable, so
 	// say what is wrong on this screen too, not only on the table.
-	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter]) ? std::string() :
+	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter], installed) ? std::string() :
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
-		stageId ? &stagedPool : nullptr, stageId ? &stagedCustomPool : nullptr);
+		stageId ? &stagedPool : nullptr, installed);
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
 		// what is unlocked and to the room's edition rule.
 		pick = sf4e::selection::FromNative(s_prefs.fighters[pick.fighter]);
-		sf4e::selection::Normalize(pick, editionSelect, &snapshot.fighterAvailability[pick.fighter]);
+		sf4e::selection::Normalize(pick, editionSelect, &snapshot.fighterAvailability[pick.fighter], installed);
 	}
 	if (snapshot.canEditSelection) {
         sf4e::selection::ToNative(pick, charaConditions);
         menuCharaID = pick.fighter;
-        if (stageId) { *stageId = stagedStage; lobbyStageExcluded = stagedPool; lobbyCustomExcluded = stagedCustomPool; }
+        if (stageId) { *stageId = stagedStage; lobbyRandomPool = stagedPool; }
     }
 
 }
@@ -216,7 +214,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canReplaceRoom = snapshot.canReplaceRoom;
 	view.canReady = snapshot.canReady;
 	view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
-		snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyConditions.charaID]);
+		snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
 	view.canEditSelection = snapshot.canEditSelection;
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
@@ -270,21 +268,21 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
-        sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
+        sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
     view.appearanceName = !fighter ? std::string() :
-        sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick), lobbyConditions.color + 1);
-    view.stageName = sf4e::ui::StageLabel(lobbyStageID);
+        sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1);
+    view.stageName = sf4e::ui::StageLabel(lobbyStageID, snapshot.installedContent.get());
     view.fighterOptionsName = sf4e::loc::Tf("room.fighter_options.value",
         lobbyConditions.personalAction == 255 ? std::string(sf4e::loc::T("common.none")) : std::to_string(lobbyConditions.personalAction + 1),
         lobbyConditions.winQuote == 255 ? std::string(sf4e::loc::T("selection.random")) : std::to_string(lobbyConditions.winQuote + 1));
     view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
-        snapshot.fighterAvailability[lobbyMenuCharaID]).size() > 1;
+        snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()).size() > 1;
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
-        snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID]))
+        snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
     // Outside a fight the shell status line carries the notice; transient
     // info ("Connection restored.") belongs to the match HUD only.
@@ -297,7 +295,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
 			const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
 			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
-				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID]), step.delta);
+				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step.delta);
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
@@ -319,8 +317,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
-		request.randomStageExcluded = lobbyStageExcluded;
-		request.randomCustomExcluded = lobbyCustomExcluded;
+		request.randomPool = lobbyRandomPool;
 		return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -484,11 +481,10 @@ void Overlay::DrawOverlay() {
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
-    prefs.randomStageExcluded = lobbyStageExcluded;
-    prefs.randomCustomExcluded = lobbyCustomExcluded;
+    prefs.randomPool = lobbyRandomPool;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
-    if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
+    if (!sf4e::OverlayPrefs::Same(prefs, s_prefs) && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
     ImGui::Render(); ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
 }

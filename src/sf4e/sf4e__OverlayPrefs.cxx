@@ -67,15 +67,20 @@ namespace OverlayPrefs {
 		// Picks of custom content the setup program has removed since: the original costume (color kept unless it's a
 		// custom one), color 1 of the costume, and the default stage. The selectors only offer what is installed (scanned once per game start).
 		void DropRemovedCustom(Data& data) {
-			auto costume = [](CharaPick& c) {
-				if (selection::IsCustomCostume(c.costume) && !custom::CostumeInstalled(c.charaID, c.costume)) c.costume = 0;
-				if (selection::IsCustomColor(c.color) && !custom::ColorInstalled(c.charaID, c.costume, c.color)) c.color = 0;
+			const auto installed = custom::Installed();
+			auto costume = [&](CharaPick& c) {
+				if (selection::IsCustomCostume(c.costume) && !installed->HasCostume(c.charaID, c.costume)) c.costume = 0;
+				if (selection::IsCustomColor(c.color) && !installed->HasColor(c.charaID, c.costume, c.color)) c.color = 0;
 			};
 			costume(data.lobby);
 			for (auto& fighter : data.fighters) costume(fighter);
-			const auto& stages = custom::InstalledStages();
-			if (selection::IsCustomStage(data.stageID) && std::find(stages.begin(), stages.end(), data.stageID) == stages.end())
+			if (selection::IsCustomStage(data.stageID) && !installed->HasStage(data.stageID))
 				data.stageID = Data{}.stageID;
+		}
+
+		bool SamePick(const CharaPick& a, const CharaPick& b) {
+			return a.charaID == b.charaID && a.costume == b.costume && a.color == b.color && a.personalAction == b.personalAction &&
+				a.winQuote == b.winQuote && a.ultraCombo == b.ultraCombo && a.handicap == b.handicap && a.unc_edition == b.unc_edition;
 		}
 
 
@@ -110,6 +115,14 @@ namespace OverlayPrefs {
 		out.unc_edition = in.unc_edition;
 	}
 
+	bool Same(const Data& a, const Data& b) {
+		if (!SamePick(a.lobby, b.lobby)) return false;
+		for (std::size_t id = 0; id < a.fighters.size(); ++id) if (!SamePick(a.fighters[id], b.fighters[id])) return false;
+		return a.stageID == b.stageID && a.randomPool == b.randomPool && a.lobbyRoundCountIdx == b.lobbyRoundCountIdx &&
+			a.lobbyRoundTimeIdx == b.lobbyRoundTimeIdx && a.lobbyEditionSelect == b.lobbyEditionSelect &&
+			a.deviceIdx == b.deviceIdx && a.deviceType == b.deviceType;
+	}
+
 	void Clamp(Data& data) {
         DropRemovedCustom(data);
         ClampChara(data.lobby, data.lobbyEditionSelect);
@@ -121,7 +134,7 @@ namespace OverlayPrefs {
         }
         if (data.lobby.charaID < data.fighters.size()) data.fighters[data.lobby.charaID] = data.lobby;
         data.stageID = selection::NormalizeStageChoice(data.stageID);
-        data.randomStageExcluded = selection::NormalizeRandomExclusions(data.randomStageExcluded);
+        data.randomPool = selection::RandomPool(std::vector<std::int64_t>(data.randomPool.Excluded().begin(), data.randomPool.Excluded().end()));
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
         if ((data.deviceType != input::PadKeyboard && data.deviceType != input::PadXInput) || (data.deviceType == input::PadXInput && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
@@ -144,14 +157,9 @@ namespace OverlayPrefs {
 		}
 		out.stageID = selection::PreferenceStage(j, "stageID", out.stageID);
 		if (j.contains("randomStageExcluded") && j["randomStageExcluded"].is_array()) {
-			std::uint64_t excluded = 0;
-			out.randomCustomExcluded = {};
-			for (const auto& id : j["randomStageExcluded"]) {
-				if (!id.is_number_integer()) continue;
-				if (selection::IsCustomStage(id.get<std::int64_t>())) selection::ExcludeCustomStage(id.get<int>(), true, out.randomCustomExcluded);
-				else if (selection::FindStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
-			}
-			out.randomStageExcluded = selection::NormalizeRandomExclusions(excluded);
+			std::vector<std::int64_t> excluded;
+			for (const auto& id : j["randomStageExcluded"]) if (id.is_number_integer()) excluded.push_back(id.get<std::int64_t>());
+			out.randomPool = selection::RandomPool(excluded);
 		}
 
 		if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
@@ -179,10 +187,7 @@ namespace OverlayPrefs {
 		}
 		j["stageID"] = data.stageID;
 		j["randomStageExcluded"] = nlohmann::json::array();
-		for (const auto& stage : selection::StageList())
-			if (!selection::InRandomPool(stage.id, data.randomStageExcluded)) j["randomStageExcluded"].push_back(stage.id);
-		for (int id : data.randomCustomExcluded)
-			if (id) j["randomStageExcluded"].push_back(id);
+		for (int id : data.randomPool.Excluded()) j["randomStageExcluded"].push_back(id);
 
 		j["lobbySettings"] = {
 			{"roundCountIdx", data.lobbyRoundCountIdx},

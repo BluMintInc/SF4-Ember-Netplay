@@ -512,7 +512,7 @@ int main(int argc, char** argv) {
             ApplicationShell shell;ShellView view;bool open=true;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
-            FighterSelector selector;selection::Pick pick;int stage=0;selection::StageMask stagePool=(1u<<0)|(1u<<15);
+            FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
             training::View training;training.available=training.ready=training.checkpoint=true;training.generation=static_cast<unsigned>(size.w+size.dpi*100);
@@ -670,7 +670,7 @@ int main(int argc, char** argv) {
             // opens on the Training Stage, which the fixture skips).
             selector.Navigation().Home();selector.Navigation().Push("random-pool");draw();
             draw(nullptr,MenuInput::Select,1);draw();
-            Require(stagePool==(1u<<15),"Select did not put a skipped stage back in the Random pool");
+            Require(stagePool.Excluded()==std::vector<int>{15},"Select did not put a skipped stage back in the Random pool");
             selector.Navigation().Home();selector.Navigation().Push("roster");draw();
             // The grid opens on its first card (not Ryu in USFIV's order), so two steps right land on a fighter other than the saved Ryu.
             const int saved=pick.fighter;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");

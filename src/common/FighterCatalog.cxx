@@ -1,9 +1,7 @@
 #include "FighterCatalog.hxx"
+#include "InstalledContent.hxx"
 #include <algorithm>
-#include <map>
-#include <mutex>
 #include <sstream>
-#include <tuple>
 
 namespace sf4e { namespace selection {
 namespace {
@@ -189,7 +187,7 @@ bool FighterLocked(int fighterId, const Availability& availability) {
     // roster's bit 16 comes from a default table, so it never locks them.
     return fighterId >= 35 && availability.ready && !(availability.costumes & 1u);
 }
-std::vector<int> AllowedCostumes(int fighterId, const Availability& availability) {
+std::vector<int> AllowedCostumes(int fighterId, const Availability& availability, const InstalledContent* installed) {
     std::vector<int> result;
     // A fighter's other costume bits can be set without the fighter itself
     // (the title grants costume 1 to 39-43), so an unowned fighter has none.
@@ -197,39 +195,30 @@ std::vector<int> AllowedCostumes(int fighterId, const Availability& availability
         for (int costume = 0; costume < CostumeCount(fighterId); ++costume)
             if (availability.costumes & (1u << costume)) result.push_back(costume);
     // Custom costumes need no licence of their own, only the fighter's.
-    if (availability.ready && !FighterLocked(fighterId, availability) && FindFighter(fighterId))
-        result.insert(result.end(), availability.customCostumes.begin(), availability.customCostumes.end());
+    if (installed && availability.ready && !FighterLocked(fighterId, availability) && FindFighter(fighterId)) {
+        const auto& customs = installed->Costumes(fighterId);
+        result.insert(result.end(), customs.begin(), customs.end());
+    }
     return result;
 }
-std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability) {
+std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability, const InstalledContent* installed) {
     std::vector<int> result;
-    const auto costumes = AllowedCostumes(fighterId, availability);
+    const auto costumes = AllowedCostumes(fighterId, availability, installed);
     if (std::find(costumes.begin(), costumes.end(), costumeId) == costumes.end()) return result;
     if (IsCustomCostume(costumeId))
         for (int color = 0; color < CustomColorCount; ++color) result.push_back(color);
     else
         for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
             if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
-    if (availability.ready && costumeId < static_cast<int>(availability.customColors.size()))
-        result.insert(result.end(), availability.customColors[costumeId].begin(), availability.customColors[costumeId].end());
+    if (installed && availability.ready) {
+        const auto& customs = installed->Colors(fighterId, costumeId);
+        result.insert(result.end(), customs.begin(), customs.end());
+    }
     return result;
 }
 // The costume's own colors, or a custom color.
 bool ColorInRange(int fighterId, int costumeId, int color) {
     return color >= 0 && (color < ColorCount(fighterId, costumeId) || IsCustomColor(color));
-}
-namespace {
-std::mutex customNamesLock;
-std::map<std::tuple<int, int, int>, std::string> customNames;
-}
-void SetCustomName(int fighterId, int costumeId, int colorId, const std::string& name) {
-    std::lock_guard<std::mutex> hold(customNamesLock);
-    customNames[std::make_tuple(fighterId, costumeId, colorId)] = name;
-}
-std::string CustomName(int fighterId, int costumeId, int colorId) {
-    std::lock_guard<std::mutex> hold(customNamesLock);
-    const auto found = customNames.find(std::make_tuple(fighterId, costumeId, colorId));
-    return found == customNames.end() ? std::string() : found->second;
 }
 bool Valid(const Pick& pick, bool editionSelect) {
     // The native menus wrap PA over -1..9 and quotes over -1..10.
@@ -243,14 +232,14 @@ bool Valid(const Pick& pick, bool editionSelect) {
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     return std::find(ultras.begin(), ultras.end(), pick.ultra) != ultras.end();
 }
-bool Available(const Pick& pick, bool editionSelect, const Availability& availability) {
+bool Available(const Pick& pick, bool editionSelect, const Availability& availability, const InstalledContent* installed) {
     if (!Valid(pick, editionSelect)) return false;
     const auto actions = AllowedPersonalActions(availability);
     if (std::find(actions.begin(), actions.end(), pick.personalAction) == actions.end()) return false;
-    const auto colors = AllowedColors(pick.fighter, pick.costume, availability);
+    const auto colors = AllowedColors(pick.fighter, pick.costume, availability, installed);
     return std::find(colors.begin(), colors.end(), pick.color) != colors.end();
 }
-bool Normalize(Pick& pick, bool editionSelect, const Availability* availability) {
+bool Normalize(Pick& pick, bool editionSelect, const Availability* availability, const InstalledContent* installed) {
     const Pick before = pick;
     if (pick.personalAction != 255 && (pick.personalAction < 0 || pick.personalAction > 9)) pick.personalAction = 255;
     if (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) pick.winQuote = 255;
@@ -270,10 +259,10 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability)
     } else if (availability && availability->ready) {
         const auto actions = AllowedPersonalActions(*availability);
         if (std::find(actions.begin(), actions.end(), pick.personalAction) == actions.end()) pick.personalAction = 255;
-        const auto costumes = AllowedCostumes(pick.fighter, *availability);
+        const auto costumes = AllowedCostumes(pick.fighter, *availability, installed);
         if (!costumes.empty() && std::find(costumes.begin(), costumes.end(), pick.costume) == costumes.end())
             pick.costume = costumes.front();
-        const auto colors = AllowedColors(pick.fighter, pick.costume, *availability);
+        const auto colors = AllowedColors(pick.fighter, pick.costume, *availability, installed);
         if (!colors.empty() && std::find(colors.begin(), colors.end(), pick.color) == colors.end()) pick.color = colors.front();
     }
     return before.fighter != pick.fighter || before.costume != pick.costume || before.color != pick.color ||

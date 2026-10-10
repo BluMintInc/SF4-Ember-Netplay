@@ -79,25 +79,35 @@ static int CheckPerFighterPicks() {
         "a custom color that isn't installed stayed picked");
     // Stages taken out of Random round-trip as ids; unknown ids are dropped,
     // and a list that would leave Random nothing is forgotten.
-    random.randomStageExcluded = (1u << 0) | (1u << 26);
+    const int c71 = sf4e::selection::CustomStageId("C71");
+    random.randomPool = sf4e::selection::RandomPool(std::vector<std::int64_t>{0, 26, c71});
     Prefs::Data pool;
     Prefs::FromJson(Prefs::ToJson(random), pool);
     Prefs::Clamp(pool);
-    check(pool.randomStageExcluded == random.randomStageExcluded, "the Random stage pool did not round-trip");
-    // Custom stages taken out of Random are saved in the same list, by id.
-    Prefs::Data customs;
-    sf4e::selection::ExcludeCustomStage(sf4e::selection::CustomStageId("C71"), true, customs.randomCustomExcluded);
-    Prefs::Data customsBack;
-    Prefs::FromJson(Prefs::ToJson(customs), customsBack);
-    check(customsBack.randomCustomExcluded == customs.randomCustomExcluded && customsBack.randomStageExcluded == 0,
-        "custom stages taken out of Random did not round-trip");
+    check(pool.randomPool == random.randomPool && !pool.randomPool.Contains(c71) && pool.randomPool.Contains(1),
+        "the Random stage pool did not round-trip (custom stages are saved in the same list, by id)");
     Prefs::Data odd;
     Prefs::FromJson({{"randomStageExcluded", {1, 22, 99, -3, "x"}}}, odd);
-    check(odd.randomStageExcluded == (1u << 1), "unknown stages entered the Random exclusions");
+    check(odd.randomPool.Excluded() == std::vector<int>{1}, "unknown stages entered the Random exclusions");
     Prefs::Data none;
-    none.randomStageExcluded = ~0u;
+    std::vector<std::int64_t> everyStage;
+    for (const auto& stage : sf4e::selection::StageList()) everyStage.push_back(stage.id);
+    Prefs::FromJson({{"randomStageExcluded", everyStage}}, none);
     Prefs::Clamp(none);
-    check(none.randomStageExcluded == 0, "clamping kept exclusions that leave Random nothing");
+    check(none.randomPool.Excluded().empty(), "a list that leaves Random no game stage was kept");
+    // Any number of custom stages can be taken out, and none comes back to make room.
+    Prefs::Data many;
+    for (int n = 0; n < 100; ++n) {
+        const char code[4] = {'E', static_cast<char>('0' + n / 10), static_cast<char>('0' + n % 10), 0};
+        many.randomPool.Toggle(sf4e::selection::CustomStageId(code));
+    }
+    Prefs::Data manyBack;
+    Prefs::FromJson(Prefs::ToJson(many), manyBack);
+    check(manyBack.randomPool.Excluded().size() == 100 && manyBack.randomPool == many.randomPool, "a long Random exclusion list lost stages");
+    // The preferences compare field by field: a pool change counts, an identical copy doesn't.
+    Prefs::Data same = many, changed = many;
+    changed.randomPool.Toggle(1);
+    check(Prefs::Same(many, same) && !Prefs::Same(many, changed), "the preferences comparison missed the Random pool");
     return failures;
 }
 

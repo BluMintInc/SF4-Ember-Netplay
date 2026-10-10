@@ -379,11 +379,11 @@ SelectionImage SelectionArt::Stage(int nativeId) {
             return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/chara_select/chara/sel_RND.tex.emz"};
         }, MaximumImageSide, tile);
     }
-    const auto* stage = selection::FindStage(nativeId);
-    if (!stage) return {};
-    const std::string key = std::string("stages/") + stage->code;
+    const std::string code = selection::StageCode(nativeId);
+    if (code.empty()) return {};
+    const std::string key = "stages/" + code;
     if (selection::IsCustomStage(nativeId))
-        return impl_->Request(key, [&] { return impl_->CustomStagePaths(stage->code); }, MaximumImageSide);
+        return impl_->Request(key, [&] { return impl_->CustomStagePaths(code.c_str()); }, MaximumImageSide);
     return impl_->Request(key, [&] { return impl_->ImagePaths(key); }, MaximumImageSide);
 }
 } }

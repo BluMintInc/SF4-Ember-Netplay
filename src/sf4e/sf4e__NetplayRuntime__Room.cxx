@@ -237,11 +237,12 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
 		const auto availability = command.character.charaID < 44 ?
-			custom::ReadAvailability(command.character.charaID) : selection::Availability{};
+			Dimps::Selection::ReadAvailability(command.character.charaID) : selection::Availability{};
+		const auto installed = custom::Installed();
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
-		else if (!selection::IsRandomStage(command.stage) && !selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+		else if (!selection::IsRandomStage(command.stage) && !selection::ValidStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (command.character.charaID >= 44 || selection::FighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");
-		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect, availability))
+		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect, availability, installed.get()))
 			refusal = loc::T("runtime.ready.selection_unavailable");
 		else if (published.session.room != netplay::RoomState::Joined || published.localSlot < 0 || published.localSlot > 1)
 			refusal = loc::T("runtime.ready.take_seat");
@@ -402,8 +403,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
-			const auto customs = selection::CustomStagesInRandom(custom::InstalledStages(), command.randomCustomExcluded);
-			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomStageExcluded, customs)) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomPool, custom::Installed()->stages)) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));

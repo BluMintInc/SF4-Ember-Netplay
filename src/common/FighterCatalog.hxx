@@ -58,30 +58,25 @@ struct Availability {
     std::uint32_t costumes = 0;
     std::array<std::uint32_t, 8> colors{};
     std::uint16_t personalActions = 0;
-    std::vector<int> customCostumes;    // installed custom costumes (see IsCustomCostume), ascending
-    std::vector<int> customStages;      // installed custom stages (StageCatalog's IsCustomStage), ascending
-    std::array<std::vector<int>, 99> customColors;  // installed custom colors (IsCustomColor) of each costume (CostumeLimit)
 };
+// The custom content installed on this PC (InstalledContent.hxx); the selection queries below take it alongside the
+// native availability, and without it offer the game's own content only.
+struct InstalledContent;
 
 // Custom costumes, added by a separate setup program: slots 8..99 (indices 7..98) of every fighter, ten colors
 // each. Any of them is a valid pick on the network; each PC shows its own install of that slot, or the
-// fighter's original costume (sf4e::custom::ApplyPicks).
+// fighter's original costume (ResolveAppearance).
 constexpr int FirstCustomCostume = 7;
 constexpr int CostumeLimit = 99;
 constexpr int CustomColorCount = 10;
 inline bool IsCustomCostume(int costumeId) { return costumeId >= FirstCustomCostume && costumeId < CostumeLimit; }
 // Custom colors, added the same way: colors 30..99 (indices 29..98) of any costume, the game's or a custom one,
 // leaving the game's own colors (up to 22) room.
-// Each PC shows its own install of that color, or the costume's color 1 (sf4e::custom::ApplyPicks).
+// Each PC shows its own install of that color, or the costume's color 1 (ResolveAppearance).
 constexpr int FirstCustomColor = 29;
 inline bool IsCustomColor(int colorId) { return colorId >= FirstCustomColor && colorId < CostumeLimit; }
-static_assert(std::tuple_size<decltype(Availability::customColors)>::value == CostumeLimit, "custom colors for every costume");
 // The costume's own colors, or a custom color.
 bool ColorInRange(int fighterId, int costumeId, int colorId);
-// The names the setup program gives the custom costumes (colorId -1) and colors installed on this PC
-// (sf4e::custom reads them); empty for none. Display only: each PC names what it has.
-void SetCustomName(int fighterId, int costumeId, int colorId, const std::string& name);
-std::string CustomName(int fighterId, int costumeId, int colorId = -1);
 
 int BaseCostumeCount(int fighterId);
 int CostumeCount(int fighterId);      // the game's own costumes
@@ -101,15 +96,15 @@ std::string UltraNotation(const std::string& tokens);
 // The player does not own this fighter. Only 35-43 are sold separately;
 // unknown availability is not locked.
 bool FighterLocked(int fighterId, const Availability& availability);
-std::vector<int> AllowedCostumes(int fighterId, const Availability& availability);
-std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability);
+std::vector<int> AllowedCostumes(int fighterId, const Availability& availability, const InstalledContent* installed = nullptr);
+std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability, const InstalledContent* installed = nullptr);
 std::vector<int> AllowedPersonalActions(const Availability& availability);
 // Network validity uses the game's supported options; local availability also
 // applies the current player's unlock/DLC state. Never compare a peer's DLC
 // ownership against the receiving player's ownership.
 bool Valid(const Pick& pick, bool editionSelect);
-bool Available(const Pick& pick, bool editionSelect, const Availability& availability);
-bool Normalize(Pick& pick, bool editionSelect, const Availability* availability = nullptr);
+bool Available(const Pick& pick, bool editionSelect, const Availability& availability, const InstalledContent* installed = nullptr);
+bool Normalize(Pick& pick, bool editionSelect, const Availability* availability = nullptr, const InstalledContent* installed = nullptr);
 
 template<class Native> Pick FromNative(const Native& native) {
     Pick pick;

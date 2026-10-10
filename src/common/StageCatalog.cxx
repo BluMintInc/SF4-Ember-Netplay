@@ -1,11 +1,7 @@
 #include "StageCatalog.hxx"
 #include <algorithm>
 
-#include <cstdio>
 #include <cstring>
-#include <map>
-#include <memory>
-#include <mutex>
 
 namespace sf4e { namespace selection {
 const std::array<Stage, VersusStageCount>& StageList() {
@@ -48,40 +44,17 @@ namespace {
 // TRN or DET.
 constexpr int customFallbacks[] = {1, 3, 4, 5, 6, 7, 8, 10, 11, 13, 14, 16, 17, 18, 19, 20, 25, 26};
 constexpr int FallbackCount = sizeof(customFallbacks) / sizeof(customFallbacks[0]);
-// Every code the game has (native table RVA 0x66b678, ids 0..29, the bonus rounds GAS and SCX included).
-const char* const gameCodes[] = {"TRN", "CHN", "USA", "RUS", "BRA", "AFR", "VIE", "EUR", "RVR", "VCN", "SCO", "JPN", "LAB",
-    "IND", "KOR", "BLD", "CNX", "BRX", "VNX", "JPX", "AFX", "LBX", "GAS", "SCX", "DET", "ELV", "HFP", "MAD", "BFU", "JUR"};
+// The codes the game has besides the versus stages: the bonus rounds (native ids 22, 23).
+const char* const bonusCodes[] = {"GAS", "SCX"};
 bool CodeCharacter(char c) { return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); }
-// A lasting Stage for any custom id, made the first time it is asked for (customLock held).
-struct CustomEntry { char code[4]; char name[64]; Stage stage; };
-std::mutex customLock;
-std::map<std::int64_t, std::unique_ptr<CustomEntry>> customMade;
-CustomEntry* CustomStageEntry(std::int64_t id) {
-    auto& entry = customMade[id];
-    if (!entry) {
-        entry.reset(new CustomEntry());
-        entry->code[0] = static_cast<char>(id >> 16);
-        entry->code[1] = static_cast<char>(id >> 8 & 0xff);
-        entry->code[2] = static_cast<char>(id & 0xff);
-        std::snprintf(entry->name, sizeof(entry->name), "Custom stage %s", entry->code);
-        entry->stage = {static_cast<int>(id), entry->code, entry->name};
-    }
-    return entry.get();
+bool GameCode(const char* code) {
+    for (const auto& stage : StageList()) if (std::strcmp(stage.code, code) == 0) return true;
+    for (const char* bonus : bonusCodes) if (std::strcmp(bonus, code) == 0) return true;
+    return false;
 }
-const Stage* CustomStage(std::int64_t id) {
-    if (!IsCustomStage(id)) return nullptr;
-    std::lock_guard<std::mutex> hold(customLock);
-    return &CustomStageEntry(id)->stage;
-}
-}
-void SetCustomStageName(std::int64_t id, const char* name) {
-    if (!IsCustomStage(id) || !name || !*name) return;
-    std::lock_guard<std::mutex> hold(customLock);
-    std::snprintf(CustomStageEntry(id)->name, sizeof(CustomEntry::name), "%s", name);
 }
 int CustomStageId(const char* code) {
-    if (!code || std::strlen(code) != 3 || !CodeCharacter(code[0]) || !CodeCharacter(code[1]) || !CodeCharacter(code[2])) return -1;
-    for (const char* game : gameCodes) if (std::strcmp(game, code) == 0) return -1;
+    if (!code || std::strlen(code) != 3 || !CodeCharacter(code[0]) || !CodeCharacter(code[1]) || !CodeCharacter(code[2]) || GameCode(code)) return -1;
     return code[0] << 16 | code[1] << 8 | code[2];
 }
 bool IsCustomStage(std::int64_t id) {
@@ -90,9 +63,15 @@ bool IsCustomStage(std::int64_t id) {
     return CustomStageId(code) == id;
 }
 const Stage* FindStage(std::int64_t nativeId) {
-    if (IsCustomStage(nativeId)) return CustomStage(nativeId);
     for (const auto& stage : StageList()) if (stage.id == nativeId) return &stage;
     return nullptr;
+}
+bool ValidStage(std::int64_t id) { return FindStage(id) != nullptr || IsCustomStage(id); }
+std::string StageCode(std::int64_t id) {
+    if (const Stage* stage = FindStage(id)) return stage->code;
+    if (!IsCustomStage(id)) return std::string();
+    const char code[4] = {static_cast<char>(id >> 16), static_cast<char>(id >> 8 & 0xff), static_cast<char>(id & 0xff), 0};
+    return code;
 }
 int CustomStageFallback(std::int64_t id) {
     if (!IsCustomStage(id)) return NormalizeStage(id);
@@ -102,51 +81,49 @@ int CustomStageFallback(std::int64_t id) {
     return customFallbacks[(numbered ? number - 1 : a + b + c) % FallbackCount];
 }
 int NormalizeStage(std::int64_t nativeId) {
-    const auto* stage = FindStage(nativeId);
-    return stage ? stage->id : 0;
+    return ValidStage(nativeId) ? static_cast<int>(nativeId) : 0;
 }
 bool IsRandomStage(std::int64_t id) { return id == RandomStageId; }
 int NormalizeStageChoice(std::int64_t id) {
     return IsRandomStage(id) ? RandomStageId : NormalizeStage(id);
 }
-bool InRandomPool(int id, StageMask excluded) {
-    return !IsCustomStage(id) && FindStage(id) && !(excluded >> id & 1u);
+RandomPool::RandomPool(const std::vector<std::int64_t>& excluded) {
+    for (std::int64_t id : excluded)
+        if (ValidStage(id)) excluded_.push_back(static_cast<int>(id));
+    std::sort(excluded_.begin(), excluded_.end());
+    excluded_.erase(std::unique(excluded_.begin(), excluded_.end()), excluded_.end());
+    // Every game stage taken out leaves Random nowhere it can always go: they all come back.
+    if (StockIn() == 0)
+        excluded_.erase(std::remove_if(excluded_.begin(), excluded_.end(), [](int id) { return FindStage(id) != nullptr; }), excluded_.end());
 }
-int RandomPoolSize(StageMask excluded) {
-    int size = 0;
-    for (const auto& stage : StageList()) size += InRandomPool(stage.id, excluded);
-    return size;
-}
-StageMask NormalizeRandomExclusions(std::uint64_t excluded) {
-    StageMask known = 0;
-    for (const auto& stage : StageList()) known |= StageMask(1) << stage.id;
-    const StageMask kept = static_cast<StageMask>(excluded) & known;
-    return kept == known ? 0 : kept;
-}
-bool CustomStageExcluded(int id, const CustomStageExclusions& excluded) {
-    return IsCustomStage(id) && std::find(excluded.begin(), excluded.end(), id) != excluded.end();
-}
-void ExcludeCustomStage(int id, bool out, CustomStageExclusions& excluded) {
-    if (!IsCustomStage(id) || CustomStageExcluded(id, excluded) == out) return;
-    if (!out) {
-        std::fill(std::remove(excluded.begin(), excluded.end(), id), excluded.end(), 0);
-        return;
-    }
-    auto place = std::find(excluded.begin(), excluded.end(), 0);
-    if (place == excluded.end()) { std::rotate(excluded.begin(), excluded.begin() + 1, excluded.end()); place = excluded.end() - 1; }
-    *place = id;
-}
-std::vector<int> CustomStagesInRandom(const std::vector<int>& installed, const CustomStageExclusions& excluded) {
-    std::vector<int> in;
-    for (int id : installed) if (IsCustomStage(id) && !CustomStageExcluded(id, excluded)) in.push_back(id);
+int RandomPool::StockIn() const {
+    int in = 0;
+    for (const auto& stage : StageList()) in += !std::binary_search(excluded_.begin(), excluded_.end(), stage.id);
     return in;
 }
-int ResolveStage(int choice, std::uint32_t roll, StageMask excluded, const std::vector<int>& customs) {
+bool RandomPool::Contains(int id) const {
+    return ValidStage(id) && !std::binary_search(excluded_.begin(), excluded_.end(), id);
+}
+bool RandomPool::CanToggle(int id) const {
+    if (!ValidStage(id)) return false;
+    return !(FindStage(id) && Contains(id) && StockIn() == 1);
+}
+bool RandomPool::Toggle(int id) {
+    if (!CanToggle(id)) return false;
+    const auto at = std::lower_bound(excluded_.begin(), excluded_.end(), id);
+    if (at != excluded_.end() && *at == id) excluded_.erase(at);
+    else excluded_.insert(at, id);
+    return true;
+}
+std::vector<int> RandomPool::Stages(const std::vector<int>& installedCustoms) const {
+    std::vector<int> in;
+    for (const auto& stage : StageList()) if (Contains(stage.id)) in.push_back(stage.id);
+    for (int id : installedCustoms) if (IsCustomStage(id) && Contains(id)) in.push_back(id);
+    return in;
+}
+int ResolveStage(int choice, std::uint32_t roll, const RandomPool& pool, const std::vector<int>& installedCustoms) {
     if (!IsRandomStage(choice)) return NormalizeStage(choice);
-    excluded = NormalizeRandomExclusions(excluded);
-    std::vector<int> pool;
-    for (const auto& stage : StageList()) if (InRandomPool(stage.id, excluded)) pool.push_back(stage.id);
-    for (int id : customs) if (IsCustomStage(id)) pool.push_back(id);
-    return pool[roll % static_cast<std::uint32_t>(pool.size())];
+    const std::vector<int> stages = pool.Stages(installedCustoms);
+    return stages[roll % static_cast<std::uint32_t>(stages.size())];
 }
 } }

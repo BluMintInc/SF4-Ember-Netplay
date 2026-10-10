@@ -13,7 +13,7 @@ include(CTest)
 
 option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Windows/game dependencies" OFF)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
-add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx")
+add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx" "src/common/InstalledContent.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 if(BUILD_TESTING)
