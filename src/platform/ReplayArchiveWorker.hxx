@@ -24,8 +24,9 @@ namespace sf4e { namespace replayfiles {
 //                   find whole) starts `attempts` more passes on the schedule,
 //                   unless they are running already; when they run out, the
 //                   next asked pass starts them again.
-//   outbox          while the outbox holds replays still to be archived, a
-//                   pass every `steady`, for as long as that lasts.
+//   outbox          while the outbox holds entries still to be settled, a
+//                   pass every `steady`, for as long as that lasts, or after
+//                   `first` when a pass left some for the next one.
 // The first two space their passes from `first`, doubling up to `most`.
 // Want asks for a pass now (the save folder changed, a match started); it
 // never moves a schedule. Asks made during a pass are kept for one more.
@@ -83,7 +84,7 @@ private:
    else if (retryDue) { if (retried < schedule_.attempts) retry = after + Delay(retried); else { retry.reset(); retried = 0; } }
    else if (asked && !retry) { retried = 0; retry = after + Delay(retried); }
    outbox.reset();
-   if (pass.waiting) outbox = after + schedule_.steady;
+   if (pass.waiting) outbox = after + (pass.more ? schedule_.first : schedule_.steady);
    lock.lock();
   }
  }

@@ -255,12 +255,18 @@ inline int RecordWinner(const std::uint8_t* record) { return !MadeUp(record) && 
 // The export of a slot from its file, whatever the index says of it. The
 // game writes a replay's file and its ".0" when a match ends, and its indexes
 // at a save of their own, which a slot's file can be ahead of (or never get:
-// the file is then on disk with the record of the replay it replaced). With
-// a record that names the file this is Export. Without one the file has to
-// be whole, which its ".0" says, and the record is made up from its header
-// (ExportFromReplayAlone); fromRecord tells which.
+// the file is then on disk with the record of the replay it replaced). This
+// is the one rule for when a replay read from a slot goes with the game's
+// record: the index read with it has, for that slot, a used record naming the
+// file's CRC, size and fighters (Export), saved no more than a minute before
+// the time the replay's header gives (the game writes the two together), so
+// not one an older match left that happens to share them: a match lasts
+// longer than that.
+// Otherwise the file has to be whole, which its ".0" says, and the record is
+// made up from its header (ExportFromReplayAlone); fromRecord tells which.
 inline bool ExportSlotFile(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, const Bytes& sidecar, Bytes& out, bool& fromRecord) {
-	fromRecord = Export(list, swan, slot, replay, out);
+	ReplayHeaderInfo header;
+	fromRecord = ReadReplayHeader(replay, header) && Export(list, swan, slot, replay, out) && ReadU32(out.data() + 8 + 13) + 60ull >= header.time;
 	return fromRecord || (sidecar.size() == 4 && sidecar == Sidecar(replay) && ExportFromReplayAlone(replay, out));
 }
 

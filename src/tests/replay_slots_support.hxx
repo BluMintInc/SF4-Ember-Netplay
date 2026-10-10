@@ -12,6 +12,13 @@ static Bytes Replay(std::uint8_t fill, std::size_t size) {
 	return replay;
 }
 
+// Sets when a replay's header says it was played, in seconds since 1970.
+static void SetPlayed(Bytes& replay, std::uint32_t played) {
+	const std::uint64_t filetime = played * 10000000ull + 116444736000000000ull;
+	WriteU32(replay.data() + 0x10, static_cast<std::uint32_t>(filetime));
+	WriteU32(replay.data() + 0x14, static_cast<std::uint32_t>(filetime >> 32));
+}
+
 static void Seal(Bytes& swan) { WriteU32(swan.data(), Crc32(swan.data() + 4, swan.size() - 4)); }
 
 // Both indexes with every slot empty, the sizes the game writes.

@@ -428,10 +428,12 @@ static void TestASlotWhoseIndexIsBehind() {
 }
 
 // A slot whose file is newer than its record: archived from the file when its
-// ".0" says it is whole, not otherwise; with a record that names it, as Export.
+// ".0" says it is whole, not otherwise; with a record that names it, as Export,
+// unless that record was saved over a minute before the replay was played.
 static void TestASlotFileAheadOfItsRecord() {
 	Bytes list = EmptyList(), swan = EmptySwan(), exported;
-	const Bytes old = Replay(0x10, 5000);
+	Bytes old = Replay(0x10, 5000);
+	SetPlayed(old, 1549657000); // before the record's save time (Fill)
 	Fill(list, swan, 301, old, 0x55);
 	Bytes fresh = Replay(0x00, 8000);
 	WriteU32(fresh.data() + 0x20, 11); WriteU32(fresh.data() + 0x170, 1);
@@ -442,6 +444,12 @@ static void TestASlotFileAheadOfItsRecord() {
 	CHECK(!ExportSlotFile(list, swan, 301, fresh, Sidecar(old), exported, fromRecord));
 	CHECK(!ExportSlotFile(list, swan, 301, fresh, Bytes(), exported, fromRecord));
 	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), exported, fromRecord) && fromRecord);
+	// The same file played after that record was saved: the record is an older
+	// match's, and the file goes with one made from its header.
+	Bytes later = old;
+	SetPlayed(later, 1549657440 + 61);
+	Fill(list, swan, 301, later, 0x55);
+	CHECK(ExportSlotFile(list, swan, 301, later, Sidecar(later), exported, fromRecord) && !fromRecord);
 }
 
 // A list that names a slot nowhere: its position serves only when the record

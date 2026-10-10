@@ -1,6 +1,7 @@
 #pragma once
 #include "ReplaySlots.hxx"
 #include "ReplayFileSafety.hxx"
+#include "Sha256.hxx"
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
@@ -64,19 +65,20 @@ inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const rep
  if (note) NamesForBody(*note, body, names);
  return names;
 }
+// A replay's name among Ember's files that stand for it (the outbox's, the
+// game's records): the SHA-256 of its bytes.
+inline std::string ReplayKey(const std::uint8_t* body, std::size_t size) {
+ return Sha256Portable(std::string(reinterpret_cast<const char*>(body), size));
+}
 // The game's own record of a replay archived before the game's index listed
 // it, so with a record made from its header (ReplaySlots.hxx: MadeUp),
-// written when the index catches up while the slot still holds the replay
+// written when the replay's outbox entry carrying it is settled
 // (ReplayArchivePass.hxx). It names the winner of a deciding round, which a
 // made-up record cannot. Kept as the game's export of that replay, body and
-// all, in .records/<crc>-<size>-<n>.record: n tells apart different replays
-// that share a CRC and size, and a file counts for a replay only when its
-// body is that replay byte for byte.
-constexpr int kRecordNames = 4;
-inline std::filesystem::path RecordPath(const std::filesystem::path& archive, const std::uint8_t* body, std::size_t size, int n) {
- char key[64] = {};
- std::snprintf(key, sizeof key, "%08x-%u-%d.record", replayslots::Crc32(body, size), static_cast<unsigned>(size), n);
- return archive / ".records" / key;
+// all, in .records/<ReplayKey>.record; a file counts for a replay only when
+// its body is that replay byte for byte.
+inline std::filesystem::path RecordPath(const std::filesystem::path& archive, const std::uint8_t* body, std::size_t size) {
+ return archive / ".records" / (ReplayKey(body, size) + ".record");
 }
 // Whether a .records file holds the game's record of exactly this replay.
 inline bool RecordsReplay(const replayslots::Bytes& kept, const std::uint8_t* body, std::size_t size) {
@@ -92,12 +94,8 @@ inline replayslots::Bytes WithGameRecord(const std::filesystem::path& archive, r
  if (archive.empty() || contents.size() < kExportHeaderBytes || std::memcmp(contents.data(), kExportMagic, 8) || !MadeUp(contents.data() + 8)) return contents;
  const std::uint8_t* body = contents.data() + kExportHeaderBytes;
  const std::size_t size = contents.size() - kExportHeaderBytes;
- for (int n = 0; n < kRecordNames; n++) {
-  const auto kept = ReadFile(RecordPath(archive, body, size, n));
-  if (!kept || !RecordsReplay(*kept, body, size)) continue;
-  std::copy(kept->begin() + 8, kept->begin() + 8 + kRecordBytes, contents.begin() + 8);
-  break;
- }
+ const auto kept = ReadFile(RecordPath(archive, body, size));
+ if (kept && RecordsReplay(*kept, body, size)) std::copy(kept->begin() + 8, kept->begin() + 8 + kRecordBytes, contents.begin() + 8);
  return contents;
 }
 // Existing unreadable/invalid/different-body targets are terminal refusals.

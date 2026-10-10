@@ -144,8 +144,12 @@ ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 // ArchiveSaves and BackUp are the only copiers, under one lock, so a pass and
 // an import's backup of the slot it replaces never decide on a slot together.
 replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cache; return cache; }
+// A pass settles at most this many outbox entries, so a backlog never holds up
+// the next reading of the slots; the next pass goes on from where it stopped.
+constexpr std::size_t kSettleBudget = 32;
 replayfiles::ArchiveTarget Target(const Folders& folders) {
-	return {folders.archive, folders.outbox, Index().Held(), SlotFiles(), PublishFile};
+	static std::size_t settleFrom = 0;
+	return {folders.archive, folders.outbox, kSettleBudget, settleFrom, Index().Held(), SlotFiles(), PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
