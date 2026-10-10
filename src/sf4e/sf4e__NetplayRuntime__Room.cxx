@@ -402,9 +402,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         }
         const bool automatic=selected==AutoInputDelayChoice;
         if(!automatic) {
-            // A 0 (an older recommendation) plays at the smallest delay.
-            if(selected<0 || selected>MaximumInputDelay) break;
-            selected=PlayableInputDelay(selected);
+            if(selected<MinimumInputDelay || selected>MaximumInputDelay) break;
             runtime->selectedDelay=selected;
             runtime->preferences.inputDelay=selected;
         }

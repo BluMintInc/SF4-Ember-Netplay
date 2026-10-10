@@ -133,11 +133,13 @@ void PresentationJourneys(){
  Check(status=="Saving...","Queued settings falsely reported Saved before acknowledgement");
  h.view.preferences=h.actions.back().preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
  Check(h.shell.Navigation().Focus()=="hud-layout","Controller did not move to the row following the mouse-selected row");
- // 0 frames of input delay is withdrawn: Left from a chosen 1 goes to Auto, keeping 1, never to 0.
+ // Gameplay defaults step through 0 frames: Left from a chosen 1 saves 0, and Left from 0 goes to Auto, keeping 0.
  h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("defaults");h.FocusOn("delay");const auto delaySaves=h.actions.size();
  h.Press(MenuInput::Left);h.Frame(0,40);
- Check(h.actions.size()>delaySaves&&h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==1,
-  "Gameplay defaults offered 0 frames of input delay");
+ Check(h.actions.size()>delaySaves&&!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,
+  "Gameplay defaults did not offer 0 frames of input delay");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,40);
+ Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Left from 0 frames did not choose Auto");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");

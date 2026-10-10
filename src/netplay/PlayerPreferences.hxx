@@ -28,7 +28,7 @@ struct PlayerPreferences {
     std::string displayName = "Player";
     int mainFighter = 0;
     ProfileRecord record;
-    int inputDelay = 2;
+    int inputDelay = DefaultInputDelay;
     // Auto readies with the connection check's delay (AutoInputDelay) instead of
     // inputDelay. It is on until the player chooses a number.
     bool autoInputDelay = true;
