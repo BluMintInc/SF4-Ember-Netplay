@@ -45,6 +45,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RollbackAudit SOURCES "src/tests/rollback_audit_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME AfterimageMemento SOURCES "src/tests/afterimage_memento_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME MementoGuards SOURCES "src/tests/memento_guards_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME PacingController SOURCES "src/tests/pacing_controller_test.cxx" STD 11 TIMEOUT 15)
     # The public room soak's verdict (src/tests/soak), on made-up rooms.
     sf4e_add_unit_test(NAME SoakVerdict SOURCES "src/tests/soak/soak_verdict_test.cxx" "src/tests/soak/soak_verdict.cxx" STD 17 TIMEOUT 15)
     sf4e_add_unit_test(NAME InputDelay SOURCES "src/tests/input_delay_test.cxx" STD 11 TIMEOUT 15)
@@ -617,7 +618,6 @@ if(BUILD_TESTING)
     set_tests_properties(GgpoSpectatorBacklog PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "GGPO spectator backlog passed")
 
     sf4e_add_unit_test(NAME RollbackDiagnostics SOURCES "src/tests/rollback_diagnostics_test.cxx" LIBS sf4e_common TIMEOUT 15)
-    sf4e_add_unit_test(NAME PacingController SOURCES "src/tests/pacing_controller_test.cxx" TIMEOUT 15)
     sf4e_add_unit_test(NAME StateHash SOURCES "src/tests/state_hash_test.cxx" TIMEOUT 15)
 endif()
 
