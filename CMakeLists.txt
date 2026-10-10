@@ -252,11 +252,9 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
     add_test(NAME UiRender COMMAND UiRenderTest)
-    # Every fighter now has a portrait (the packaged cutout stands in for the
-    # game's), and sweeping twenty configurations cycles more art than the
-    # 32 MB selection cache holds, so the run decodes it repeatedly. It takes
-    # about five minutes on its own, so it gets the same budget as the locale
-    # sweep.
+    # Each sweep takes under a minute with the GPU transforming vertices. The
+    # budgets cover an adapter without hardware transform, where the CPU does
+    # it and a sweep takes several minutes.
     set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
     # Each translation at three sizes, in its own run so neither sweep nears
     # its timeout as languages are added.

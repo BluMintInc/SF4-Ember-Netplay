@@ -46,7 +46,7 @@ struct Renderer {
     HWND window = nullptr;
     IDirect3D9* d3d = nullptr;
     IDirect3DDevice9* device = nullptr;
-    bool headless = false;
+    bool headless = false, hardwareVertices = false;
     Renderer(bool withoutDevice = false) : headless(withoutDevice) {
         if (headless) return;
         window = CreateWindowA("STATIC", "SF4 UI rendering check", WS_OVERLAPPEDWINDOW,
@@ -58,8 +58,13 @@ struct Renderer {
         p.Windowed = TRUE; p.SwapEffect = D3DSWAPEFFECT_DISCARD;
         p.BackBufferFormat = D3DFMT_A8R8G8B8; p.BackBufferWidth = 2560; p.BackBufferHeight = 1440;
         p.hDeviceWindow = window;
+        // Transforming ImGui's vertices on the CPU cost about 9 ms a frame,
+        // nearly all of the sweeps' time, so the GPU does it where it can.
+        D3DCAPS9 caps{};
+        hardwareVertices = SUCCEEDED(d3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &caps)) &&
+            (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT);
         const HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
-            D3DCREATE_SOFTWARE_VERTEXPROCESSING, &p, &device);
+            hardwareVertices ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING, &p, &device);
         char message[64];
         std::snprintf(message, sizeof(message), "DX9 device creation failed (0x%08lx)", static_cast<unsigned long>(hr));
         Require(SUCCEEDED(hr), message);
@@ -516,7 +521,8 @@ int main(int argc, char** argv) {
         const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
-        std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" : "DX9");
+        std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
+            renderer.hardwareVertices ? "DX9" : "DX9, vertices on the CPU");
         int frames = 0;
         // Overflows are collected rather than thrown, so one run lists every
         // row a translation needs shortened, with the locale and size it hit.
