@@ -279,7 +279,7 @@ void NoteWindowsCrashDump(DWORD processId) {
 // for what Sidecar could not copy while it ran. Never blocks a start.
 void ArchiveReplays() {
 	static bool noted = false;
-	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no Steam path or settings folder, nothing archived"); }
+	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no settings folder, nothing archived"); }
 }
 
 HANDLE CreateSF4Process(

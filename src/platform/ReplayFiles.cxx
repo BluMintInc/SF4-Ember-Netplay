@@ -143,23 +143,25 @@ ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 // Where this process copies the game's replays to (ReplayArchivePass.hxx).
 // ArchiveSaves and BackUp are the only copiers, under one lock, so a pass and
 // an import's backup of the slot it replaces never decide on a slot together.
-// The outbox's safety limit: a thousand replays, about 50 MB, far past what
-// a session leaves when the archive cannot be written.
-constexpr std::size_t kOutboxLimit = 1000;
 replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cache; return cache; }
 replayfiles::ArchiveTarget Target(const Folders& folders) {
-	return {folders.archive, folders.outbox, kOutboxLimit, Index().Held(), SlotFiles(), PublishFile};
+	return {folders.archive, folders.outbox, Index().Held(), SlotFiles(), PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
-replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const fs::path& saves) {
+// More replays than this waiting in the outbox, about 10 MB, is worth a
+// warning: the archive has not been writable for a long while.
+constexpr int kOutboxWarning = 1000;
+
+// A pass over the outbox and these save folders, none at all being fine.
+replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	const auto pass = replayfiles::CopySlots(Target(folders), saves, kFirstMatchSlot, kLastMatchSlot);
-	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) from {}", pass.copied, pass.fromFile, saves.c_str());
-	if (pass.waiting) spdlog::warn(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
-	if (pass.failed) spdlog::warn(L"Replays: {} replays of {} could not be archived or kept in the outbox yet", pass.failed, saves.c_str());
-	if (pass.full) spdlog::error(L"Replays: the outbox {} holds {} replays and takes no more; new replays are archived straight away or left in the game's slots", folders.outbox.c_str(), kOutboxLimit);
-	if (pass.refused) spdlog::warn(L"Replays: the game's record of {} replays from {} was not kept: every name for it holds another file", pass.refused, saves.c_str());
+	const auto pass = replayfiles::RunPass(Target(folders), accounts, kFirstMatchSlot, kLastMatchSlot);
+	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) to {}", pass.copied, pass.fromFile, folders.archive.c_str());
+	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
+	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
+	if (pass.failed) spdlog::warn("Replays: {} replays could not be archived or kept in the outbox yet", pass.failed);
+	if (pass.refused) spdlog::warn("Replays: the game's record of {} replays was not kept: every name for it holds another file", pass.refused);
 	return pass;
 }
 
@@ -197,12 +199,14 @@ Folders FindFolders() {
 	wchar_t steamPath[1024] = { 0 };
 	DWORD steamPathBytes = sizeof(steamPath);
 	PWSTR appData = NULL, localAppData = NULL;
-	if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS ||
-		SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) != S_OK) return folders;
-	folders.archive = fs::path(appData) / L"sf4e" / L"replays";
+	// Where replays go does not depend on Steam, so an outbox is drained even
+	// when no game's saves can be found.
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / L"sf4e" / L"replays";
 	CoTaskMemFree(appData);
 	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
 	CoTaskMemFree(localAppData);
+	if (folders.archive.empty() ||
+		RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) return folders;
 	// The account signed in to the running Steam client, which is the one a
 	// running game reads and writes as.
 	DWORD active = 0, activeBytes = sizeof(active);
@@ -222,9 +226,7 @@ int Archive() {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
 		Index().Refresh(folders.archive);
-		int copied = 0;
-		for (const fs::path& saves : folders.saves) copied += ArchiveSaves(folders, saves).copied;
-		return copied;
+		return ArchiveSaves(folders, folders.saves).copied;
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: archiving stopped: {}", e.what());
@@ -400,19 +402,21 @@ ImportResult CommitImport(const ImportTransaction& value, const Writer& write, c
 }
 
 namespace {
-// Sidecar's pass: the signed-in account's slots, as the game saves them. The
-// archive is read once for what it holds, then each copy is added to that.
+// Sidecar's pass: the outbox and the signed-in account's slots, as the game
+// saves them. The archive is read once for what it holds, then each copy is
+// added to that.
 replayfiles::ArchivePass ArchiveActiveAccount() {
  // Only the worker's thread runs this: what it has done once.
  static bool indexed = false, unwatched = false;
  const Folders folders = FindFolders();
- if (folders.active.empty() || folders.archive.empty()) return {};
- if (!Changes().Watch(folders.active) && !unwatched) {
+ if (folders.archive.empty()) return {};
+ if (!folders.active.empty() && !Changes().Watch(folders.active) && !unwatched) {
   unwatched = true;
   spdlog::warn("Replays: the save folder cannot be watched; replays are archived at each match start and for two minutes after each match end");
  }
  if (!indexed) { Index().Refresh(folders.archive); indexed = true; }
- return ArchiveSaves(folders, folders.active);
+ // The outbox is drained without a signed-in account too.
+ return ArchiveSaves(folders, folders.active.empty() ? std::vector<fs::path>{} : std::vector<fs::path>{folders.active});
 }
 // Passes a second apart, then two, four and so on up to thirty: for two
 // minutes after a match ends, which covers the game's save after the battle

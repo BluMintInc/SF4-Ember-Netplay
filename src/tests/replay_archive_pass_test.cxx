@@ -26,7 +26,6 @@ static void Save(const fs::path& path, const Bytes& bytes) {
 // written into the archive.
 struct Folders {
 	fs::path root, saves, archive, outbox;
-	std::size_t outboxLimit = 1000;
 	Bytes list = EmptyList(), swan = EmptySwan();
 	files::ArchiveCandidates held;
 	files::SlotFileCache cache;
@@ -42,7 +41,7 @@ struct Folders {
 	// The pass's view; a process that starts afresh has an index and a slot
 	// cache of its own.
 	files::ArchiveTarget Target(files::ArchiveCandidates& index, files::SlotFileCache& slots) {
-		return {archive, outbox, outboxLimit, index, slots, [this](const fs::path& path, const Bytes& bytes) {
+		return {archive, outbox, index, slots, [this](const fs::path& path, const Bytes& bytes) {
 			if (archiveBroken && *path.lexically_relative(archive).begin() != "..") return false;
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
@@ -67,11 +66,12 @@ struct Folders {
 		Seal(swan);
 		WriteIndexes();
 	}
-	files::ArchivePass Pass() { return files::CopySlots(Target(), saves, kFirst, kLast); }
+	files::ArchivePass Pass() { return files::RunPass(Target(), {saves}, kFirst, kLast); }
 	// The archive's replay files, each a different replay, and their replays.
 	std::vector<fs::path> Archived() const {
 		std::vector<fs::path> paths;
-		CHECK(Bodies(&paths).size() == paths.size());
+		const std::size_t bodies = Bodies(&paths).size();
+		CHECK(bodies == paths.size());
 		return paths;
 	}
 	std::set<Bytes> Bodies(std::vector<fs::path>* paths = nullptr) const {
@@ -226,36 +226,26 @@ static void TestAnUnreadableCandidateKeepsTheReplay() {
 	CHECK(folders.Bodies() == std::set<Bytes>({earlier, later, next}));
 }
 
-// The outbox takes at most its limit, keeping its oldest entries, and says it
-// is full; what it cannot take stays in its slot and is archived as soon as
-// the archive can be written.
-static void TestAFullOutbox() {
-	Folders folders("ember-archive-full");
-	folders.outboxLimit = 2;
+// The outbox has no limit: forty matches through ten slots while the archive
+// cannot be written all wait there, and all reach the archive once it can.
+static void TestManyReplaysAllWait() {
+	Folders folders("ember-archive-many");
 	folders.archiveBroken = true;
-	std::set<Bytes> all, oldest;
-	for (int match = 0; match < 4; match++) {
+	std::set<Bytes> all;
+	for (int match = 0; match < 40; match++) {
 		const Bytes replay = Match(match, 1791600000u + match * 180);
 		all.insert(replay);
-		if (match < 2) oldest.insert(replay);
-		folders.SaveMatch(kFirst + match, replay, 0, false);
-		const auto pass = folders.Pass();
-		CHECK(pass.full == (match >= 2) && pass.retry == (match >= 2));
+		folders.SaveMatch(kFirst + match % 10, replay, 0, false);
+		CHECK(folders.Pass().waiting == match + 1);
 	}
-	std::set<Bytes> outboxed;
-	for (const auto& entry : fs::directory_iterator(folders.outbox)) {
-		const Bytes bytes = *files::ReadFile(entry.path());
-		outboxed.insert(Bytes(bytes.begin() + kExportHeaderBytes, bytes.end()));
-	}
-	CHECK(outboxed == oldest);
 	folders.archiveBroken = false;
 	const auto pass = folders.Pass();
-	CHECK(pass.copied == 4 && !pass.full && pass.waiting == 0 && folders.Bodies() == all);
+	CHECK(pass.copied == 40 && pass.waiting == 0 && folders.Outboxed() == 0 && folders.Bodies() == all);
 }
 
-// A game that closes with replays in the outbox leaves them there, and the
-// next process, the launcher's sweep, archives them, with an index and a slot
-// cache of its own.
+// A game that closes with replays in the outbox leaves them there. The next
+// process archives them with an index and a slot cache of its own, and needs
+// no game's saves to find them.
 static void TestTheOutboxOutlivesTheProcess() {
 	Folders folders("ember-archive-closed");
 	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u);
@@ -266,9 +256,67 @@ static void TestTheOutboxOutlivesTheProcess() {
 	folders.archiveBroken = false;
 	files::ArchiveCandidates index;
 	files::SlotFileCache slots;
-	const auto pass = files::CopySlots(folders.Target(index, slots), folders.saves, kFirst, kLast);
-	CHECK(pass.copied == 2 && pass.waiting == 0 && folders.Outboxed() == 0);
-	CHECK(folders.Bodies() == std::set<Bytes>({first, second}));
+	auto pass = files::RunPass(folders.Target(index, slots), {}, kFirst, kLast);
+	CHECK(pass.copied == 1 && pass.waiting == 0 && folders.Outboxed() == 0);
+	pass = files::RunPass(folders.Target(index, slots), {folders.saves}, kFirst, kLast);
+	CHECK(pass.copied == 1 && folders.Bodies() == std::set<Bytes>({first, second}));
+}
+
+// An outbox that cannot be listed counts as waiting, not as empty.
+static void TestAnOutboxThatCannotBeListed() {
+	Folders folders("ember-archive-unlisted");
+	folders.archiveBroken = true;
+	folders.SaveMatch(kFirst, Match(1, 1791600000u), 0, false);
+	CHECK(folders.Pass().waiting == 1);
+	fs::rename(folders.outbox, folders.root / "away");
+	Save(folders.outbox, Bytes(8, 1)); // a file where the outbox was
+	folders.archiveBroken = false;
+	files::ArchiveCandidates index;
+	files::SlotFileCache slots;
+	CHECK(files::RunPass(folders.Target(index, slots), {}, kFirst, kLast).waiting > 0);
+}
+
+// The game's record of a replay seen while its archive copy cannot be read is
+// kept with it in the outbox, and kept beside the archive copy when the
+// outbox is drained, after the slot has been taken.
+static void TestTheGameRecordSurvivesTheOutbox() {
+	Folders folders("ember-archive-outbox-record");
+	const Bytes replay = Match(1, 1791600000u);
+	folders.SaveMatch(kFirst, replay, 0, false);
+	CHECK(folders.Pass().copied == 1);
+	const fs::path copy = folders.Archived().at(0);
+	const Bytes contents = *files::ReadFile(copy);
+	CHECK(fs::remove(copy) && fs::create_directory(copy));
+	folders.Index(kFirst, replay, 1791600010u);
+	CHECK(folders.Pass().waiting == 1);
+	folders.SaveMatch(kFirst, Match(2, 1791600200u), 0, false);
+	CHECK(fs::remove(copy));
+	Save(copy, contents);
+	const auto pass = folders.Pass();
+	CHECK(pass.waiting == 0 && folders.Outboxed() == 0);
+	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == 1);
+
+	// A replay in the outbox with a made-up record gets its game record beside
+	// it when the index catches up, though the slot is taken before the
+	// archive can be written.
+	Folders later("ember-archive-outbox-richer");
+	const Bytes other = Match(3, 1791600300u);
+	later.archiveBroken = true;
+	later.SaveMatch(kFirst, other, 0, false);
+	CHECK(later.Pass().waiting == 1);
+	later.Index(kFirst, other, 1791600310u);
+	CHECK(later.Pass().waiting == 2);
+	later.SaveMatch(kFirst, Match(4, 1791600400u), 0, false);
+	later.archiveBroken = false;
+	CHECK(later.Pass().waiting == 0 && later.Outboxed() == 0);
+	bool found = false;
+	for (const auto& path : later.Archived()) {
+		const Bytes read = files::WithGameRecord(later.archive, *files::ReadFile(path));
+		if (Bytes(read.begin() + kExportHeaderBytes, read.end()) != other) continue;
+		found = true;
+		CHECK(RecordWinner(read.data() + 8) == 1);
+	}
+	CHECK(found);
 }
 
 // The game's record kept for a replay is that replay's own: another replay
@@ -428,17 +476,38 @@ static void TestArchiveWorkerWithPasses() {
 	again.Stop();
 
 	// The archive cannot be written past every retry and match window: the
-	// outbox keeps the worker coming back until it can, unasked.
+	// outbox keeps the worker coming back until it can, unasked, though no
+	// account is signed in any more.
 	Folders broken("ember-archive-worker-broken");
 	broken.archiveBroken = true;
 	broken.SaveMatch(kFirst, Match(4, 1791600000u), 0, false);
+	CHECK(broken.Pass().waiting == 1);
 	std::atomic<int> tries{0};
-	files::ArchiveWorker steady([&] { const auto pass = broken.Pass(); ++tries; return pass; },
+	files::ArchiveWorker steady([&] { const auto pass = files::RunPass(broken.Target(), {}, kFirst, kLast); ++tries; return pass; },
 		{std::chrono::milliseconds(1), std::chrono::milliseconds(2), 2, std::chrono::milliseconds(5), std::chrono::milliseconds(20)});
 	steady.MatchEnded();
 	CHECK(Eventually([&] { return tries >= 12; }));
 	broken.archiveBroken = false;
 	CHECK(Eventually([&] { return broken.Archived().size() == 1 && broken.Outboxed() == 0; }));
+	steady.Stop();
+
+	// An outbox that cannot be listed keeps the worker coming back too, until
+	// it can be.
+	Folders unlisted("ember-archive-worker-unlisted");
+	unlisted.archiveBroken = true;
+	unlisted.SaveMatch(kFirst, Match(5, 1791600000u), 0, false);
+	CHECK(unlisted.Pass().waiting == 1);
+	fs::rename(unlisted.outbox, unlisted.root / "away");
+	Save(unlisted.outbox, Bytes(8, 1));
+	unlisted.archiveBroken = false;
+	std::atomic<int> lists{0};
+	files::ArchiveWorker listing([&] { const auto pass = files::RunPass(unlisted.Target(), {}, kFirst, kLast); ++lists; return pass; },
+		{std::chrono::milliseconds(1), std::chrono::milliseconds(2), 2, {}, std::chrono::milliseconds(20)});
+	listing.Want();
+	CHECK(Eventually([&] { return lists >= 4; }));
+	fs::remove(unlisted.outbox);
+	fs::rename(unlisted.root / "away", unlisted.outbox);
+	CHECK(Eventually([&] { return unlisted.Archived().size() == 1 && unlisted.Outboxed() == 0; }));
 }
 
 int main() {
@@ -448,8 +517,10 @@ int main() {
 	TestRetriesAndADamagedIndex();
 	TestTheOutboxOutlivesTheSlot();
 	TestAnUnreadableCandidateKeepsTheReplay();
-	TestAFullOutbox();
+	TestManyReplaysAllWait();
 	TestTheOutboxOutlivesTheProcess();
+	TestAnOutboxThatCannotBeListed();
+	TestTheGameRecordSurvivesTheOutbox();
 	TestGameRecordsBelongToTheirOwnReplay();
 	TestAnUnreadableCopy();
 	TestAReplayPutBackAndItsBackup();
