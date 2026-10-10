@@ -225,7 +225,7 @@ std::error_code UnlessInUse(const fs::path& file, const InUsePolicy& policy, con
         const bool inUse=code.category()==std::system_category() && (value==ERROR_SHARING_VIOLATION ||
             value==ERROR_LOCK_VIOLATION || value==ERROR_ACCESS_DENIED || value==ERROR_USER_MAPPED_FILE);
         if(!inUse || GetTickCount64()>=deadline) {
-            if(waited) Tell(policy.activity,InstallActivity::None);
+            if(waited) Tell(policy.activity,InstallActivity::WaitEnded);
             return code;
         }
         if(!waited) Tell(policy.activity,InstallActivity::WaitingForFile,file);
@@ -307,20 +307,21 @@ void ValidateRecoveryBackups(const fs::path& backup, const std::map<std::wstring
     }
 }
 // A backup set whose every needed file matched the journal. Restoration takes
-// only this, so the backups are hashed once and never skipped.
+// only this, so the backups are hashed once and never skipped. Restoring
+// starts here: `activity` hears it before the backups are hashed.
 struct ValidatedBackup { fs::path path; };
-ValidatedBackup ValidateRestoreBackup(const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files) {
+ValidatedBackup ValidateRestoreBackup(const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files, const Activity& activity) {
+    Tell(activity,InstallActivity::Restoring);
     ValidateRecoveryBackups(backup,files,true);
     return {backup};
 }
 // Restore only recorded operations, from their validated backup set. Files
 // left out of the transaction remain exactly as the player left them, even
 // when they changed while this install was running. Nothing interrupts it;
-// `activity` hears that it runs and any wait for a file.
+// `activity` hears any wait for a file.
 void RestoreOperations(const fs::path& install, const ValidatedBackup& validated, const std::map<std::wstring,RecoveryFile>& files, const Activity& activity) {
     const auto& backup=validated.path;
     const InUsePolicy uninterrupted{NeverCancelled,activity};
-    Tell(activity,InstallActivity::Restoring);
     for(const auto& [key,file]:files) if(file.operation) {
         const auto path=install/file.relative;
         if(fs::is_directory(path)) throw std::runtime_error("Recovery destination is not a file");
@@ -448,7 +449,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         validating=false;
         stream.close();
         if(rollingBack) {
-            RestoreOperations(install,ValidateRestoreBackup(backup,files),files,activity);
+            RestoreOperations(install,ValidateRestoreBackup(backup,files,activity),files,activity);
         } else if(!committed) {
             ObserveRecoveryFiles(install,files);
             const auto observation=ClassifyRecovery(files);
@@ -459,7 +460,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
                 if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
                 error.clear(); return true;
             case RecoveryOutcome::Restore: {
-                const auto validated=ValidateRestoreBackup(backup,files);
+                const auto validated=ValidateRestoreBackup(backup,files,activity);
                 transaction["state"]="rolling-back";
                 // Only what this look found is carried into the rollback.
                 transaction.erase("missingSkipped");

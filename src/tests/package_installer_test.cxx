@@ -559,7 +559,7 @@ int wmain(int argc, wchar_t** argv) {
         if(handle!=INVALID_HANDLE_VALUE) CloseHandle(handle);
         sf4e::launcher::testing::InUseWaitMilliseconds=0;
         CHECK(installed && Read(install/L"Launcher.exe")=="older" && !fs::exists(install/L"docs"));
-        CHECK(heard.size()==2 && heard[0].first==InstallActivity::WaitingForFile && heard[0].second==fs::path(held).filename() && heard[1].first==InstallActivity::None);
+        CHECK(heard.size()==2 && heard[0].first==InstallActivity::WaitingForFile && heard[0].second==fs::path(held).filename() && heard[1].first==InstallActivity::WaitEnded);
         CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
     };
     releasedOnWait(L"docs\\TRAINING_LAB.md");
@@ -650,6 +650,20 @@ int wmain(int argc, wchar_t** argv) {
         op["priorSha256"]=digest;
     }
     Write(journalPath,journal.dump().c_str());
+    // The restoration is told before its backups are checked, so a check that
+    // takes long, or fails as here on a backup that cannot be read, is shown
+    // as restoring; the journal stays for another try.
+    {
+        fs::path backupFile;
+        for(const auto& op:originalJournal["operations"])
+            if(op["existed"].get<bool>()) backupFile=fs::u8path(originalJournal["backup"].get<std::string>())/fs::u8path(op["path"].get<std::string>());
+        HANDLE unreadable=CreateFileW(backupFile.c_str(),GENERIC_READ,FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(unreadable!=INVALID_HANDLE_VALUE);
+        std::vector<InstallActivity> heard;
+        const bool recovered=sf4e::launcher::RecoverPackage(crashInstall,error,false,[&](InstallActivity activity,const fs::path&){ heard.push_back(activity); });
+        CloseHandle(unreadable);
+        CHECK(!recovered && (heard==std::vector<InstallActivity>{InstallActivity::Restoring}) && fs::exists(journalPath));
+    }
     // Finished as Updater.exe -RecoverOnly finishes it, the restoration is
     // told, and so is the wait for a file it must undo (one the update wrote)
     // that another process holds, which is let go only then.
@@ -670,7 +684,7 @@ int wmain(int argc, wchar_t** argv) {
         });
         if(held!=INVALID_HANDLE_VALUE) CloseHandle(held);
         sf4e::launcher::testing::InUseWaitMilliseconds=0;
-        CHECK(recovered && (heard==std::vector<InstallActivity>{InstallActivity::Restoring,InstallActivity::WaitingForFile,InstallActivity::None}));
+        CHECK(recovered && (heard==std::vector<InstallActivity>{InstallActivity::Restoring,InstallActivity::WaitingForFile,InstallActivity::WaitEnded}));
     }
     CHECK(Read(crashInstall/L"Launcher.exe")=="prior-launcher");
     CHECK(Read(crashInstall/L"sf4-net.exe")=="user-collision");

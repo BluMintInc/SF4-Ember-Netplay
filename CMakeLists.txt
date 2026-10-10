@@ -706,6 +706,11 @@ add_executable(Updater WIN32
     src/launcher/updater.cxx
 )
 target_link_options(Updater PRIVATE "/ENTRY:wmainCRTStartup")
+# Updater.exe's run under its window, with the process boundaries passed in
+# so tests drive it.
+add_library(sf4e_updater_run STATIC src/launcher/update/UpdaterRun.cxx)
+target_compile_features(sf4e_updater_run PUBLIC cxx_std_17)
+target_link_libraries(sf4e_updater_run PUBLIC sf4e_package_installer comctl32 user32)
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
 target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file)
@@ -716,12 +721,13 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SoundPoolRestore SOURCES src/tests/sound_pool_restore_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 15)
     sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer shell32)
     sf4e_add_unit_test(NAME ProgressWindow SOURCES src/tests/progress_window_test.cxx LIBS comctl32 user32 STD 17 TIMEOUT 30)
+    sf4e_add_unit_test(NAME UpdaterRun SOURCES src/tests/updater_run_test.cxx LIBS sf4e_updater_run STD 17 TIMEOUT 60)
     add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
     set_tests_properties(UpgradeRecoveryPowerShell PROPERTIES TIMEOUT 120)
     add_test(NAME FramePacingCaptureValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-capture-frame-pacing.ps1)
     set_tests_properties(FramePacingCaptureValidation PROPERTIES TIMEOUT 60)
 endif()
-target_link_libraries(Updater PRIVATE sf4e_package_installer sf4e_selection "pathcch" "shell32" "comctl32")
+target_link_libraries(Updater PRIVATE sf4e_updater_run sf4e_selection "pathcch" "shell32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Updater "SF4 Ember Netplay Updater" "Updater.exe" "VFT_APP")
 

@@ -122,19 +122,44 @@ static void TestEnglishNames() {
     ProgressWindow window(L"SF4 Ember Netplay",options);
     window.Report(UpdateStage::BackingUp,1,19);
     CHECK(Shows(window.Control(ProgressWindow::Part::Step),InstallerSteps[2].english));
-    window.Note(UpdaterNotice::Restoring);
-    CHECK(Shows(window.Control(ProgressWindow::Part::Note),sf4e::launcher::UpdaterNotices[2].english));
+    window.Hear(InstallActivity::Restoring,{});
+    CHECK(Shows(window.Control(ProgressWindow::Part::Step),sf4e::launcher::UpdaterNotices[2].english));
 }
 
-// The notices' texts and the clock, and the notice for each installer activity.
+// The notices' texts, the clock, and what each phase shows.
 static void TestNoticeText() {
     CHECK(sf4e::launcher::FillNotice(L"Waiting for {0}...",L"sf4-net.exe")==L"Waiting for sf4-net.exe...");
     CHECK(sf4e::launcher::FillNotice(L"No value",L"x")==L"No value");
     CHECK(sf4e::launcher::ElapsedText(0)==L"0:00" && sf4e::launcher::ElapsedText(42999)==L"0:42");
     CHECK(sf4e::launcher::ElapsedText(725000)==L"12:05" && sf4e::launcher::ElapsedText(3729000)==L"1:02:09");
-    CHECK(sf4e::launcher::NoticeFor(InstallActivity::WaitingForFile)==UpdaterNotice::WaitingForFile);
-    CHECK(sf4e::launcher::NoticeFor(InstallActivity::Restoring)==UpdaterNotice::Restoring);
-    CHECK(!sf4e::launcher::NoticeFor(InstallActivity::None));
+    const std::vector<std::wstring> stages(InstallerStepCount,L"Step"), notices=sf4e::launcher::NoticeTexts({});
+    using sf4e::launcher::ViewPhase;
+    CHECK(ViewPhase(sf4e::launcher::WindowPhase{},stages,notices,ProgressWindow::Range).step.empty());
+    const auto restoring=ViewPhase(UpdaterNotice::Restoring,stages,notices,ProgressWindow::Range);
+    CHECK(restoring.step==notices[2] && restoring.count.empty() && restoring.percent.empty() && restoring.position==0);
+    const auto step=ViewPhase(sf4e::launcher::StepReport{UpdateStage::Comparing,1,2},stages,notices,ProgressWindow::Range);
+    CHECK(step.step==L"Step" && !step.count.empty() && !step.percent.empty());
+}
+
+// The phase and a wait for a file are separate: a wait shows beside the
+// phase and ending it leaves the phase as it was; a restoration holds the
+// phase until the next counted step, as a recovery before an install.
+static void TestPhaseAndWait() {
+    ProgressWindow::Options options;
+    options.visible=false;
+    for(std::size_t i=0; i<sf4e::launcher::UpdaterNoticeCount; ++i) options.notices.push_back(L"Notice "+std::to_wstring(i)+L" {0}");
+    ProgressWindow window(L"SF4 Ember Netplay",options);
+    const auto part=[&](ProgressWindow::Part which){ return window.Control(which); };
+    // Restoration, then a wait within it, then the restoration goes on.
+    window.Hear(InstallActivity::Restoring,{});
+    CHECK(Shows(part(ProgressWindow::Part::Step),L"Notice 2 ") && Text(part(ProgressWindow::Part::Percent)).empty());
+    window.Hear(InstallActivity::WaitingForFile,L"C:\\Games\\Ember\\sf4-net.exe");
+    CHECK(Shows(part(ProgressWindow::Part::Wait),L"Notice 1 sf4-net.exe") && Text(part(ProgressWindow::Part::Step))==L"Notice 2 ");
+    window.Hear(InstallActivity::WaitEnded,{});
+    CHECK(Shows(part(ProgressWindow::Part::Wait),L"") && Text(part(ProgressWindow::Part::Step))==L"Notice 2 ");
+    // A pending recovery before an install: the install's first step takes over.
+    window.Report(UpdateStage::Preparing,0,10);
+    CHECK(Shows(part(ProgressWindow::Part::Step),InstallerSteps[0].english) && Text(part(ProgressWindow::Part::Count))==L"0 / 10");
 }
 
 // While a step's count does not move, as when a file is waited for, the
@@ -147,20 +172,17 @@ static void TestLiveness() {
     ProgressWindow window(L"SF4 Ember Netplay",options);
     const auto part=[&](ProgressWindow::Part which){ return window.Control(which); };
     // Before the first report, while the launcher closes.
-    window.Note(UpdaterNotice::WaitingForLauncher);
-    CHECK(Shows(part(ProgressWindow::Part::Note),L"Notice 0 "));
+    window.Enter(UpdaterNotice::WaitingForLauncher);
+    CHECK(Shows(part(ProgressWindow::Part::Step),L"Notice 0 "));
     CHECK(Text(part(ProgressWindow::Part::Elapsed)).find(L"Notice 3 0:0")==0);
-    window.Note(std::nullopt);
     window.Report(UpdateStage::Replacing,3,19);
-    window.Note(UpdaterNotice::WaitingForFile,L"sf4-net.exe");
-    CHECK(Shows(part(ProgressWindow::Part::Note),L"Notice 1 sf4-net.exe"));
+    window.Hear(InstallActivity::WaitingForFile,L"sf4-net.exe");
+    CHECK(Shows(part(ProgressWindow::Part::Wait),L"Notice 1 sf4-net.exe"));
     const auto percent=Text(part(ProgressWindow::Part::Percent)), count=Text(part(ProgressWindow::Part::Count));
     const auto clock=Text(part(ProgressWindow::Part::Elapsed));
     bool ticked=false;
     for(int i=0; i<250 && !ticked; ++i) { Sleep(10); ticked=Text(part(ProgressWindow::Part::Elapsed))!=clock; }
     CHECK(ticked && Text(part(ProgressWindow::Part::Percent))==percent && Text(part(ProgressWindow::Part::Count))==count);
-    window.Note(std::nullopt);
-    CHECK(Shows(part(ProgressWindow::Part::Note),L""));
 }
 
 int main() {
@@ -169,6 +191,7 @@ int main() {
     TestReports();
     TestEnglishNames();
     TestNoticeText();
+    TestPhaseAndWait();
     TestLiveness();
     return 0;
 }

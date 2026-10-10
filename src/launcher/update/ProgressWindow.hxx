@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "UpdaterArguments.hxx"
 
@@ -35,15 +36,13 @@ inline std::wstring ElapsedText(std::uint64_t milliseconds) {
     else swprintf_s(text,L"%llu:%02llu",minutes,seconds%60);
     return text;
 }
-// The notice for what the installer is doing while no count moves; none once
-// a wait for a file ends.
-inline std::optional<UpdaterNotice> NoticeFor(InstallActivity activity) {
-    switch(activity) {
-    case InstallActivity::WaitingForFile: return UpdaterNotice::WaitingForFile;
-    case InstallActivity::Restoring: return UpdaterNotice::Restoring;
-    default: return std::nullopt;
-    }
-}
+// One counted step as Progress reports it.
+struct StepReport { UpdateStage stage=UpdateStage::Preparing; std::uint64_t done=0, total=0; };
+// The phase the window shows: none yet, a counted installer step, or a phase
+// no count measures (waiting for the launcher to close, restoring the prior
+// files), named by its notice. A wait for a file is not a phase: it is shown
+// beside whichever phase it happens in.
+using WindowPhase = std::variant<std::monostate, StepReport, UpdaterNotice>;
 // What the window shows of the installer's report: the step's name, how many
 // of its files are done ("412 / 4,756", nothing while its total is unknown),
 // the bar's position and the whole install's percentage.
@@ -61,13 +60,22 @@ inline InstallProgressView ViewInstallProgress(const std::vector<std::wstring>& 
     view.percent=std::to_wstring(view.position*100/range)+L"%";
     return view;
 }
+// What the window shows of a phase: a step with its counts, or an uncounted
+// phase's notice alone over an empty bar.
+inline InstallProgressView ViewPhase(const WindowPhase& phase, const std::vector<std::wstring>& stages, const std::vector<std::wstring>& notices, int range) {
+    if(const auto* step=std::get_if<StepReport>(&phase)) return ViewInstallProgress(stages,step->stage,step->done,step->total,range);
+    InstallProgressView view;
+    if(const auto* notice=std::get_if<UpdaterNotice>(&phase)) view.step=FillNotice(notices[static_cast<std::size_t>(*notice)],{});
+    return view;
+}
 
 // The Updater's window: what is happening and that Ember opens again (the
-// headline, UpdaterHeadline), then the step the install is at with its count,
-// the bar with the whole install's percentage, empty until a step is
-// reported, as through a recovery, and a line with what it waits for, if
-// anything, beside the time taken so far. The installer reports from any thread
-// (Report, Note); the window's own thread shows the latest ten times a second
+// headline, UpdaterHeadline), then its phase (WindowPhase: the step the
+// install is at with its count, and the bar with the whole install's
+// percentage, or an uncounted phase), and a line with the file it waits for,
+// if any, beside the time taken so far. The phase and the wait are reported
+// separately from any thread (Report, Enter, Hear); the window's own thread
+// shows the latest ten times a second
 // and the clock moves every second, so the window never looks stopped, even
 // while a count does not move, and is never flooded. The worker thread owns
 // the windows; the constructor waits for them to be ready, and closing joins
@@ -88,7 +96,7 @@ public:
         // either does not hold one per entry.
         std::vector<std::wstring> stages, notices;
     };
-    enum class Part { Headline, Step, Count, Bar, Percent, Note, Elapsed };
+    enum class Part { Headline, Step, Count, Bar, Percent, Wait, Elapsed };
     static constexpr int Parts=7;
     ProgressWindow(const wchar_t* title, Options options) : title_(title), options_(std::move(options)) {
         if(options_.stages.size()!=InstallerStepCount) {
@@ -107,16 +115,24 @@ public:
     ~ProgressWindow() { Close(); }
     // One of the window's controls; null when the window did not open.
     HWND Control(Part part) const { return open_?parts_[static_cast<int>(part)]:nullptr; }
-    // The installer's latest report, a Progress call. Any thread may call it.
+    // Any thread may call these three. The installer's latest report, a
+    // Progress call: the phase becomes that step.
     void Report(UpdateStage stage, std::uint64_t done, std::uint64_t total) {
         std::lock_guard<std::mutex> lock(mutex_);
-        report_={stage,done,total,true};
+        phase_=StepReport{stage,done,total};
     }
-    // What the install waits for now, with the {0} of its text (a file's
-    // name); none clears the line. Any thread may call it.
-    void Note(std::optional<UpdaterNotice> notice, std::wstring value={}) {
+    // An uncounted phase: WaitingForLauncher or Restoring.
+    void Enter(UpdaterNotice phase) {
         std::lock_guard<std::mutex> lock(mutex_);
-        note_=notice ? FillNotice(options_.notices[static_cast<std::size_t>(*notice)],value) : std::wstring();
+        phase_=phase;
+    }
+    // An Activity call: Restoring enters that phase; a wait for a file shows
+    // the file until it ends, whatever the phase.
+    void Hear(InstallActivity activity, const std::filesystem::path& file) {
+        if(activity==InstallActivity::Restoring) { Enter(UpdaterNotice::Restoring); return; }
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(activity==InstallActivity::WaitingForFile) waitingFor_=file.filename().wstring();
+        else waitingFor_.reset();
     }
     void Close() noexcept {
         if(thread_) {
@@ -132,7 +148,6 @@ public:
 private:
     static constexpr UINT_PTR RefreshTimer=1;
     static constexpr UINT RefreshMilliseconds=100;
-    struct Latest { UpdateStage stage=UpdateStage::Preparing; std::uint64_t done=0,total=0; bool any=false; };
     static DWORD WINAPI Run(void* parameter) {
         return static_cast<ProgressWindow*>(parameter)->Run();
     }
@@ -152,15 +167,16 @@ private:
         GetWindowTextW(control,shown,256);
         if(text!=shown) SetWindowTextW(control,text.c_str());
     }
+    std::wstring Notice(UpdaterNotice notice, const std::wstring& value) const {
+        return FillNotice(options_.notices[static_cast<std::size_t>(notice)],value);
+    }
     void Refresh() {
-        Latest latest;
-        std::wstring note;
-        { std::lock_guard<std::mutex> lock(mutex_); latest=report_; note=note_; }
-        Show(At(Part::Elapsed),FillNotice(options_.notices[static_cast<std::size_t>(UpdaterNotice::Elapsed)],ElapsedText(GetTickCount64()-started_)));
-        Show(At(Part::Note),note);
-        if(!latest.any) return;
-        const auto view=ViewInstallProgress(options_.stages,latest.stage,latest.done,latest.total,Range);
-        if(view.step.empty()) return;
+        WindowPhase phase;
+        std::optional<std::wstring> waitingFor;
+        { std::lock_guard<std::mutex> lock(mutex_); phase=phase_; waitingFor=waitingFor_; }
+        Show(At(Part::Elapsed),Notice(UpdaterNotice::Elapsed,ElapsedText(GetTickCount64()-started_)));
+        Show(At(Part::Wait),waitingFor ? Notice(UpdaterNotice::WaitingForFile,*waitingFor) : std::wstring());
+        const auto view=ViewPhase(phase,options_.stages,options_.notices,Range);
         Show(At(Part::Step),view.step);
         Show(At(Part::Count),view.count);
         Show(At(Part::Percent),view.percent);
@@ -197,7 +213,7 @@ private:
             make(Part::Count,L"STATIC",L"",SS_RIGHT|label,334,76,90,20) &&
             make(Part::Bar,PROGRESS_CLASSW,nullptr,PBS_SMOOTH,16,102,356,22) &&
             make(Part::Percent,L"STATIC",L"",SS_RIGHT|SS_CENTERIMAGE|label,376,102,48,22) &&
-            make(Part::Note,L"STATIC",L"",SS_LEFT|SS_NOPREFIX,16,134,300,36) &&
+            make(Part::Wait,L"STATIC",L"",SS_LEFT|SS_NOPREFIX,16,134,300,36) &&
             make(Part::Elapsed,L"STATIC",L"",SS_RIGHT|label,316,134,108,20);
         if(!made) { DestroyWindow(frame_); frame_=nullptr; return false; }
         SendMessageW(At(Part::Bar),PBM_SETRANGE32,0,Range);
@@ -245,7 +261,7 @@ private:
     HWND parts_[Parts]={};
     HFONT font_=nullptr;
     std::mutex mutex_;
-    Latest report_;
-    std::wstring note_;
+    WindowPhase phase_;
+    std::optional<std::wstring> waitingFor_;
 };
 } }

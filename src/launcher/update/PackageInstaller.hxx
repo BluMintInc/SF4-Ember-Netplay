@@ -55,10 +55,11 @@ inline int InstallerBarPosition(UpdateStage stage, std::uint64_t done, std::uint
 // How far a step is: bytes while downloading and verifying, files after. Each
 // step counts from zero to its own total; a total of 0 is not known.
 using Progress = std::function<void(UpdateStage stage, std::uint64_t done, std::uint64_t total)>;
-// What an install is doing while no count moves: waiting for a file another
-// process holds (heard with that file), or restoring the prior files after a
-// failure. None when a wait for a file ends.
-enum class InstallActivity { None, WaitingForFile, Restoring };
+// What an install does that no count shows, two separate things: the phase
+// it enters when it restores the prior files (Restoring, until its next
+// counted step), and, within any phase, a wait for a file another process
+// holds (WaitingForFile with that file, until WaitEnded).
+enum class InstallActivity { Restoring, WaitingForFile, WaitEnded };
 using Activity = std::function<void(InstallActivity activity, const std::filesystem::path& file)>;
 // Every pass that takes a `cancel` stops soon after it is set. For a caller
 // that cannot cancel.
