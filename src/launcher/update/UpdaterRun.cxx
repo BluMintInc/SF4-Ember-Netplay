@@ -42,8 +42,10 @@ bool InstallFiles(const UpdaterArguments& arguments, ProgressWindow& window, con
 }
 
 // No step counts a recovery: the window shows its phase, its clock and any
-// file it waits for.
+// file it waits for. The phase is finishing the update from the start, while
+// the folder is looked over, until a restoration, if one is needed, takes over.
 bool RecoverFiles(const UpdaterArguments& arguments, ProgressWindow& window, const UpdaterHost& host) {
+    window.Enter(UpdaterNotice::Recovering);
     std::string error;
     const bool recovered = RecoverPackage(arguments.installDir, error, false,
         [&](InstallActivity activity, const std::filesystem::path& file) { window.Hear(activity, file); });

@@ -565,18 +565,22 @@ int wmain(int argc, wchar_t** argv) {
     releasedOnWait(L"docs\\TRAINING_LAB.md");
     releasedOnWait(L"Launcher.exe");
     // A cancel is heard while a file is waited for: the install stops there,
-    // not when the wait runs out, and the prior files come back.
+    // not when the wait runs out, the wait is told to end before the
+    // restoration starts, and the prior files come back.
     {
         sf4e::launcher::testing::InUseWaitMilliseconds=5000;
         HANDLE handle=CreateFileW((install/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
         CHECK(handle!=INVALID_HANDLE_VALUE);
         std::atomic<bool> stop{false};
+        std::vector<InstallActivity> heard;
         CHECK(!sf4e::launcher::InstallPackage(older,install,error,stop,{},[&](InstallActivity activity,const fs::path&){
+            heard.push_back(activity);
             if(activity==InstallActivity::WaitingForFile) stop=true;
         }));
         CloseHandle(handle);
         sf4e::launcher::testing::InUseWaitMilliseconds=0;
         CHECK(error=="Cancelled. Previous files restored.");
+        CHECK((heard==std::vector<InstallActivity>{InstallActivity::WaitingForFile,InstallActivity::WaitEnded,InstallActivity::Restoring}));
         CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
     }
     // An observer that throws changes nothing: a replacement that fails after

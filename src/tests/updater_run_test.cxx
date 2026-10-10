@@ -22,10 +22,12 @@ static std::string HashOf(const fs::path& scratch, const char* text) { Write(scr
 
 // An install folder whose update stopped after replacing Launcher.exe and
 // before Updater.exe: finishing it restores Launcher.exe from the backup.
-static void Interrupted(const fs::path& root, const fs::path& install) {
+// With `replacedAll`, it stopped after both, before the journal was cleared:
+// finishing it only clears the journal.
+static void Interrupted(const fs::path& root, const fs::path& install, bool replacedAll=false) {
     fs::remove_all(install);
     const auto backup=install/L".ember-update-backups"/L"1-1-1";
-    Write(install/L"Launcher.exe","new-launcher"); Write(install/L"Updater.exe","old-updater");
+    Write(install/L"Launcher.exe","new-launcher"); Write(install/L"Updater.exe",replacedAll?"new-updater":"old-updater");
     Write(backup/L"Launcher.exe","old-launcher"); Write(backup/L"Updater.exe","old-updater");
     const auto scratch=root/L"hash.tmp";
     const nlohmann::json journal={{"schema",1},{"state","prepared"},{"installation",install.u8string()},{"backup",backup.u8string()},
@@ -35,10 +37,23 @@ static void Interrupted(const fs::path& root, const fs::path& install) {
     Write(install/UpdateTransactionName,journal.dump().c_str());
 }
 
+// This process's Updater window, hidden or not; another process's, such as a
+// test running beside this one, is never it.
+static HWND OwnWindow() {
+    HWND found=nullptr;
+    EnumWindows([](HWND window,LPARAM out)->BOOL{
+        DWORD pid=0; GetWindowThreadProcessId(window,&pid);
+        wchar_t type[64]={}; GetClassNameW(window,type,64);
+        if(pid!=GetCurrentProcessId() || std::wstring(type)!=L"SF4EmberUpdaterProgress") return TRUE;
+        *reinterpret_cast<HWND*>(out)=window;
+        return FALSE;
+    },reinterpret_cast<LPARAM>(&found));
+    return found;
+}
 // The texts of the Updater window's controls, read from outside it.
 static std::vector<std::wstring> WindowTexts() {
     std::vector<std::wstring> texts;
-    const HWND frame=FindWindowW(L"SF4EmberUpdaterProgress",nullptr);
+    const HWND frame=OwnWindow();
     if(!frame) return texts;
     EnumChildWindows(frame,[](HWND child,LPARAM list)->BOOL{
         wchar_t text[256]={}; GetWindowTextW(child,text,256);
@@ -68,9 +83,12 @@ struct Host {
     std::vector<std::uint32_t> waited;
     bool launcherExits=true;
     std::function<void()> whileWaiting;
+    // Called when the run logs that its recovery is done, while the window
+    // still shows the phase it ended in.
+    std::function<void()> whenRecovered;
     Host() {
         host.window.visible=false;
-        host.log=[](const char*){};
+        host.log=[this](const char* line){ if(whenRecovered && std::string(line)=="Update recovery complete") whenRecovered(); };
         host.waitForLauncher=[this](std::uint32_t pid){ waited.push_back(pid); if(whileWaiting) whileWaiting(); return launcherExits; };
         host.startLauncher=[this](const wchar_t*,const wchar_t* arguments){ started.push_back(arguments?arguments:L"<none>"); return true; };
     }
@@ -90,10 +108,13 @@ int main() {
     HANDLE held=CreateFileW((install/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     CHECK(held!=INVALID_HANDLE_VALUE);
     Host recovery;
-    bool waitShown=false;
+    bool waitShown=false, restoringAtEnd=false;
+    HWND window=nullptr;
     recovery.whileWaiting=[&]{
-        waitShown=Shows(English(UpdaterNotice::Recovering)+L"\n"+English(UpdaterNotice::Reopens)) && Shows(English(UpdaterNotice::WaitingForLauncher));
+        window=OwnWindow();
+        waitShown=window && Shows(English(UpdaterNotice::Recovering)+L"\n"+English(UpdaterNotice::Reopens)) && Shows(English(UpdaterNotice::WaitingForLauncher));
     };
+    recovery.whenRecovered=[&]{ restoringAtEnd=Shows(English(UpdaterNotice::Restoring)); };
     std::atomic<bool> restorationShown{false}, fileShown{false}, clockMoved{false};
     std::thread release([&]{
         restorationShown=Shows(English(UpdaterNotice::Restoring));
@@ -107,10 +128,23 @@ int main() {
     const int code=RunUpdater(arguments,recovery.host);
     release.join();
     testing::InUseWaitMilliseconds=0;
-    CHECK(waitShown && restorationShown && fileShown && clockMoved);
+    CHECK(waitShown && restorationShown && fileShown && clockMoved && restoringAtEnd);
     CHECK(code==0 && recovery.waited==std::vector<std::uint32_t>{4242} && recovery.started==std::vector<std::wstring>{L"<none>"});
     CHECK(Read(install/L"Launcher.exe")=="old-launcher" && !fs::exists(install/UpdateTransactionName));
-    CHECK(!FindWindowW(L"SF4EmberUpdaterProgress",nullptr));
+    // The run closed the window it opened.
+    CHECK(!IsWindow(window) && !OwnWindow());
+
+    // A recovery that needs no restoration, its update already complete:
+    // once the launcher has closed, the phase is finishing the update, not
+    // waiting for the launcher, until the end.
+    Interrupted(root,install,true);
+    Host complete;
+    bool finishingShown=false;
+    complete.whenRecovered=[&]{
+        finishingShown=Shows(English(UpdaterNotice::Recovering)) && !Showing(English(UpdaterNotice::WaitingForLauncher));
+    };
+    CHECK(RunUpdater(arguments,complete.host)==0 && finishingShown && complete.started==std::vector<std::wstring>{L"<none>"});
+    CHECK(Read(install/L"Launcher.exe")=="new-launcher" && !fs::exists(install/UpdateTransactionName));
 
     // Started by hand, without -WaitPid: the same work, and no launcher.
     Interrupted(root,install);

@@ -217,19 +217,21 @@ struct InUsePolicy { const std::atomic<bool>& cancel; const Activity& activity; 
 // few seconds, with the wait announced and a cancel heard between attempts;
 // any other failure, or one that outlasts the wait, is returned.
 std::error_code UnlessInUse(const fs::path& file, const InUsePolicy& policy, const std::function<std::error_code()>& attempt) {
+    // A wait, once told, is told to end however it ends: done, out of time,
+    // cancelled or failed.
+    struct Wait {
+        const InUsePolicy& policy; const fs::path& file; bool told=false;
+        void Begin() { if(!told) Tell(policy.activity,InstallActivity::WaitingForFile,file); told=true; }
+        ~Wait() { if(told) Tell(policy.activity,InstallActivity::WaitEnded); }
+    } wait{policy,file};
     const ULONGLONG deadline=GetTickCount64()+testing::InUseWaitMilliseconds;
-    bool waited=false;
     for(;;) {
         const auto code=attempt();
         const int value=code.value();
         const bool inUse=code.category()==std::system_category() && (value==ERROR_SHARING_VIOLATION ||
             value==ERROR_LOCK_VIOLATION || value==ERROR_ACCESS_DENIED || value==ERROR_USER_MAPPED_FILE);
-        if(!inUse || GetTickCount64()>=deadline) {
-            if(waited) Tell(policy.activity,InstallActivity::WaitEnded);
-            return code;
-        }
-        if(!waited) Tell(policy.activity,InstallActivity::WaitingForFile,file);
-        waited=true;
+        if(!inUse || GetTickCount64()>=deadline) return code;
+        wait.Begin();
         Sleep(100);
         if(policy.cancel) throw Cancelled();
     }
