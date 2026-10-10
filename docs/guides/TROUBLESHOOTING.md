@@ -13,6 +13,21 @@
 - **Room still opening after 30 seconds:** Ember says the room has not finished opening. Check your connection, or choose **Stop creating** or **Stop joining** and try again.
 - **Connection lost:** check the status line on the room screen, or use Help & About > Export diagnostics to save the connection state. Leave and rejoin with a current invitation. A continuing fight may have unavailable control-plane verification; its health should not be inferred from the HUD alone.
 - **Check connection says Relayed:** your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay, which already accounts for the extra distance. A direct connection usually needs only one of the two players on a friendlier network: turn on UPnP (sometimes called automatic port forwarding) in the router, turn off any VPN, or play from a home connection instead of a mobile hotspot, school or work network. Matches and room control prefer UDP port 45760 (45761 to 45763 for extra copies on the same PC; Help & About > Export diagnostics shows the one in use). Forwarding UDP 45760 to your PC in the router and allowing `sf4-net.exe` in Windows Firewall usually gives other players a direct path for the match even when both networks are strict; a forwarded port does nothing while the firewall blocks it. Some internet providers share one public address between many customers; those players cannot forward a port and often stay relayed.
+- **Allowing Ember in Windows Firewall:** the Windows Security prompt at first launch usually does this. If it was dismissed, or the folder was moved, open PowerShell as Administrator in the Ember folder and run:
+
+  ```powershell
+  $ember = (Get-Location).Path
+  New-NetFirewallRule -DisplayName 'Ember sf4-net.exe' -Direction Inbound -Program "$ember\sf4-net.exe" -Action Allow -Profile Private,Public
+  New-NetFirewallRule -DisplayName 'Ember Launcher.exe' -Direction Inbound -Program "$ember\Launcher.exe" -Action Allow -Profile Private,Public
+  New-NetFirewallRule -DisplayName 'Ember UDP 45760-45763' -Direction Inbound -Protocol UDP -LocalPort 45760-45763 -Action Allow -Profile Private,Public
+  ```
+
+  The program rules are enough on a default firewall. The port rule also keeps a forwarded port working after Ember is moved to another folder. SSFIV.exe needs no rule: the game reaches the network only through sf4-net.exe. To review or remove the rules:
+
+  ```powershell
+  Get-NetFirewallRule -DisplayName 'Ember*' | Format-Table DisplayName, Enabled, Direction, Action
+  Get-NetFirewallRule -DisplayName 'Ember*' | Remove-NetFirewallRule
+  ```
 - **Ready pending:** wait for the other player and preparation acknowledgement. Selections remain locked while readiness is pending. Leave is explicit.
 - **Preferences could not be saved:** keep the window open, resolve a read-only or busy settings directory, then choose **Retry saving**. Original settings and migration backups remain under `%APPDATA%\sf4e`.
 - **Update failed:** retry from Help & About, or double-click `Updater.exe` with the game closed. Installation requires orderly game shutdown. Logs are in `%TEMP%\sf4-netplay-update.log`; the files the last update replaced or removed are kept in `.ember-update-backups`. Do not delete those recovery copies while investigating. If an update was interrupted, the launcher restores it on the next start. One that cannot be restored is reported once and its record is kept as `.ember-update-transaction-v1.json.failed` in the install folder; include it in a report.
