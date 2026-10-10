@@ -65,38 +65,10 @@ inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const rep
  if (note) NamesForBody(*note, body, names);
  return names;
 }
-// A replay's name among Ember's files that stand for it (the outbox's, the
-// game's records): the SHA-256 of its bytes.
+// A replay's name among Ember's files that stand for it (the outbox's): the
+// SHA-256 of its bytes.
 inline std::string ReplayKey(const std::uint8_t* body, std::size_t size) {
  return Sha256Portable(std::string(reinterpret_cast<const char*>(body), size));
-}
-// The game's own record of a replay archived before the game's index listed
-// it, so with a record made from its header (ReplaySlots.hxx: MadeUp),
-// written when the replay's outbox entry carrying it is settled
-// (ReplayArchivePass.hxx). It names the winner of a deciding round, which a
-// made-up record cannot. Kept as the game's export of that replay, body and
-// all, in .records/<ReplayKey>.record; a file counts for a replay only when
-// its body is that replay byte for byte.
-inline std::filesystem::path RecordPath(const std::filesystem::path& archive, const std::uint8_t* body, std::size_t size) {
- return archive / ".records" / (ReplayKey(body, size) + ".record");
-}
-// Whether a .records file holds the game's record of exactly this replay.
-inline bool RecordsReplay(const replayslots::Bytes& kept, const std::uint8_t* body, std::size_t size) {
- using namespace replayslots;
- return kept.size() == kExportHeaderBytes + size && !std::memcmp(kept.data(), kExportMagic, 8) &&
-  std::equal(body, body + size, kept.begin() + kExportHeaderBytes) && !MadeUp(kept.data() + 8) && Describes(kept.data() + 8, body, size);
-}
-// An archive file's contents with that record in place of a made-up one, when
-// one was kept for its replay; the contents as they are otherwise. What the
-// replay's summary, its detail and an import read.
-inline replayslots::Bytes WithGameRecord(const std::filesystem::path& archive, replayslots::Bytes contents) {
- using namespace replayslots;
- if (archive.empty() || contents.size() < kExportHeaderBytes || std::memcmp(contents.data(), kExportMagic, 8) || !MadeUp(contents.data() + 8)) return contents;
- const std::uint8_t* body = contents.data() + kExportHeaderBytes;
- const std::size_t size = contents.size() - kExportHeaderBytes;
- const auto kept = ReadFile(RecordPath(archive, body, size));
- if (kept && RecordsReplay(*kept, body, size)) std::copy(kept->begin() + 8, kept->begin() + 8 + kRecordBytes, contents.begin() + 8);
- return contents;
 }
 // Existing unreadable/invalid/different-body targets are terminal refusals.
 // Only a missing destination authorizes a create-only publication attempt.

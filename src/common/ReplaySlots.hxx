@@ -252,21 +252,6 @@ inline bool MadeUp(const std::uint8_t* record) { return ReadU32(record + 22) != 
 // -1 for a made-up record or any other value.
 inline int RecordWinner(const std::uint8_t* record) { return !MadeUp(record) && record[49] <= 1 ? record[49] : -1; }
 
-// The export of a slot from its file, whatever the index says of it. The
-// game writes a replay's file and its ".0" when a match ends, and its indexes
-// at a save of their own, which a slot's file can be ahead of (or never get:
-// the file is then on disk with the record of the replay it replaced). A
-// record that names the file's CRC, size and fighters may still be an older
-// match's that shares them, so the slot's record goes with the file only when
-// the caller has seen that it is the file's own (recordOwned:
-// ReplayArchivePass.hxx, SlotSightings) and it names the file (Export).
-// Otherwise the file has to be whole, which its ".0" says, and the record is
-// made up from its header (ExportFromReplayAlone); fromRecord tells which.
-inline bool ExportSlotFile(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, const Bytes& sidecar, bool recordOwned, Bytes& out, bool& fromRecord) {
-	fromRecord = recordOwned && Export(list, swan, slot, replay, out);
-	return fromRecord || (sidecar.size() == 4 && sidecar == Sidecar(replay) && ExportFromReplayAlone(replay, out));
-}
-
 // An archived replay's file name, "20261005-213503-69991186.emberreplay":
 // the save time (UTC, seconds since 1970) and the replay's CRC, both from the
 // export's record. Empty for an export too short to hold one.

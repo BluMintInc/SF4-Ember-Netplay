@@ -38,6 +38,10 @@ namespace slots = sf4e::replayslots;
 namespace sf4e { namespace platform { namespace replays {
 namespace {
 
+// The largest index read: the game writes LIST at 76 KB and replays-swan.dat
+// at 44 KB.
+constexpr std::size_t kMostIndexBytes = 1 << 20;
+
 // Every file Ember publishes here is create-only: a destination that appears
 // during the write wins, and neither unreadable nor confirmed damaged files
 // are replaced.
@@ -110,26 +114,15 @@ public:
  std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
   std::vector<ArchivedReplay> replays;
   candidates_.Refresh([&] {
-   std::map<std::uint32_t, replayfiles::ArchiveCandidates::Paths> paths;
    summaries_.NextListing();
-   std::error_code error;
-   for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, error), end;
-    !error && at != end; at.increment(error)) {
-    const fs::path path = at->path();
-    if (path.extension() != L".emberreplay" && path.extension() != L".usf4replay") continue;
-    replayfiles::ArchiveFile read;
-    if (replayfiles::ReadArchive(path, path.parent_path() == archive, read) != replayfiles::ArchiveState::Valid) continue;
+   return replayfiles::ScanArchive(archive, [&](const fs::path& path, const replayfiles::ArchiveFile& read) {
     ArchivedReplay replay{path};
     replay.label = replayfiles::ReplayDateLabel(read.time); replay.time = read.time;
     replay.fighters[0] = read.fighters[0]; replay.fighters[1] = read.fighters[1];
-    replay.summary = summaries_.Read(replayfiles::WithGameRecord(archive, read.contents));
+    replay.summary = summaries_.Read(read.contents);
     ReadNames(archive, read.Body(), replay);
     replays.push_back(std::move(replay));
-    paths[read.crc].push_back(path);
-   }
-   replayfiles::ArchiveCandidates::Map seen;
-   for (auto& item : paths) seen.emplace(item.first, std::make_shared<const replayfiles::ArchiveCandidates::Paths>(std::move(item.second)));
-   return seen;
+   });
   });
   return replays;
  }
@@ -150,8 +143,7 @@ replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cach
 constexpr std::size_t kSettleBudget = 32;
 replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget) {
 	static std::size_t settleFrom = 0;
-	static replayfiles::SlotSightings sightings;
-	return {folders.archive, folders.outbox, settleBudget, settleFrom, Index().Held(), SlotFiles(), sightings, PublishFile};
+	return {folders.archive, folders.outbox, settleBudget, settleFrom, Index().Held(), SlotFiles(), PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
@@ -163,18 +155,16 @@ constexpr int kOutboxWarning = 1000;
 replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
 	std::lock_guard<std::mutex> lock(CopyLock());
 	const auto pass = replayfiles::RunPass(Target(folders, settleBudget), accounts, kFirstMatchSlot, kLastMatchSlot);
-	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) to {}", pass.copied, pass.fromFile, folders.archive.c_str());
+	if (pass.copied) spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str());
 	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
 	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
 	if (pass.failed) spdlog::warn("Replays: {} replays could not be archived or kept in the outbox yet", pass.failed);
-	if (pass.refused) spdlog::warn("Replays: the game's record of {} replays was not kept: every name for it holds another file", pass.refused);
 	return pass;
 }
 
-bool BackUp(const Folders& folders, const fs::path& saves, int slot, const slots::Bytes& list, const slots::Bytes& swan,
-	const slots::Bytes& body, replayfiles::BackupEvidence& evidence) {
+bool BackUp(const Folders& folders, const fs::path& saves, int slot, const slots::Bytes& body, replayfiles::BackupEvidence& evidence) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	return replayfiles::EnsureBackup(Target(folders, kSettleBudget), saves, slot, list, swan, body, evidence);
+	return replayfiles::EnsureBackup(Target(folders, kSettleBudget), saves, slot, body, evidence);
 }
 
 // Pre-encode while no save has been changed. If recovery fails, persist this
@@ -278,7 +268,7 @@ PreparedImport PrepareImport(const fs::path& file) {
   replayfiles::ImportFiles files;
   const auto snapshot = [&](replayfiles::Change& change, const std::string& name) {
    change.name = kSavePrefix + name; change.path = saves / name;
-   return replayfiles::Snapshot(change.path, replayfiles::kMostIndexBytes, change);
+   return replayfiles::Snapshot(change.path, kMostIndexBytes, change);
   };
   const bool indexesRead = snapshot(files.list, "LIST") && snapshot(files.listSidecar, "LIST.0") &&
    snapshot(files.swan, "replays-swan.dat") && snapshot(files.swanSidecar, "replays-swan.dat.0");
@@ -309,7 +299,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		}
 		const int slot = slots::SlotToReplace(list, swan, kFirstMatchSlot, kLastMatchSlot);
 		if (slot < 0) { spdlog::warn("Replays: the game's index has no match slot"); return ImportResult::IndexDamaged; }
-		slots::Bytes exported = replayfiles::WithGameRecord(folders.archive, LoadFile(source));
+		slots::Bytes exported = LoadFile(source);
 		// usf4-replay-saver keeps the game's replay as it is and the slot
 		// record beside it, in .index/<crc>.entry.
 		if (exported.size() >= 4 && !std::memcmp(exported.data(), "#BRP", 4)) {
@@ -330,7 +320,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		const replayfiles::SlotFile held = replayfiles::ReadSlotFile(SlotFiles(), saves / std::to_wstring(slot));
 
   slots::ReplayHeaderInfo header;
-  if (slots::ReadReplayHeader(held.replay, header) && !BackUp(folders, saves, slot, list, swan, held.replay, transaction.backup)) {
+  if (slots::ReadReplayHeader(held.replay, header) && !BackUp(folders, saves, slot, held.replay, transaction.backup)) {
    spdlog::warn("Replays: slot {} could not be backed up and verified; it is not replaced", slot);
    return ImportResult::ArchiveFailed;
   }
@@ -426,7 +416,7 @@ replayfiles::ArchivePass ArchiveActiveAccount() {
 }
 // Passes a second apart, then two, four and so on up to thirty: for two
 // minutes after a match ends, which covers the game's save after the battle
-// closes and an index save after it, and eight times after a retry. Every
+// closes, and eight times after a retry. Every
 // thirty seconds while the outbox holds replays.
 replayfiles::ArchiveWorker& Archiver() {
  static auto* const worker = [] {

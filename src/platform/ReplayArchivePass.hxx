@@ -7,25 +7,20 @@
 //
 // A pass reads the slots first, since they are what the next match takes. A
 // whole replay the archive is not known to hold, byte for byte, goes into the
-// outbox, a folder of its own outside the archive, as its export: with the
-// game's record when the pass has seen that it is the replay's own
-// (SlotSightings), else with one made from its header (ExportSlotFile). The pass then settles outbox entries, a
-// bounded number of them, so a backlog never holds up the next reading of the
-// slots. Settling archives the replay unless the archive holds it, and keeps
-// the game's record an entry carries beside an archive copy that has a
-// made-up one (ReplayProvenance.hxx: RecordPath), which readers then use
-// (WithGameRecord). An entry goes only once settled, so every record and
-// replay has one owner on disk until it is in the archive. Sidecar runs
-// passes as the game saves; the launcher before and after a game run, so an
-// outbox left by a game that closed is drained too, whether or not any game's
-// saves are found (ReplayFiles.hxx). Portable, so ReplayArchivePassTest runs
-// it on folders it builds.
+// outbox, a folder of its own outside the archive, as its export with a
+// record made from its own header (ExportFromFile). The pass then settles
+// outbox entries, a bounded number of them, so a backlog never holds up the
+// next reading of the slots: settling archives an entry's replay unless the
+// archive holds it, and an entry goes only once settled. Sidecar runs passes
+// as the game saves; the launcher before and after a game run, settling the
+// whole outbox, so one left by a game that closed is drained too, whether or
+// not any game's saves are found (ReplayFiles.hxx). Portable, so
+// ReplayArchivePassTest runs it on folders it builds.
 
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <functional>
-#include <map>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -37,55 +32,18 @@
 
 namespace sf4e { namespace replayfiles {
 
-// The largest index read: the game writes LIST at 76 KB and replays-swan.dat
-// at 44 KB.
-constexpr std::size_t kMostIndexBytes = 1 << 20;
-
-// What this process has seen of each slot: the proof that the slot's record in
-// the game's index is the record of the replay in the slot's file. The game
-// writes a slot's record only when it saves that slot's replay, and Ember
-// writes the two together when it imports one, so a record the slot did not
-// have when its previous replay was first seen, and that names the replay
-// there now, was written for it. A record the slot had already then may be an
-// older match's that happens to share the new replay's CRC, size and fighters,
-// so it proves nothing, and nor does anything about a slot this process has
-// not yet seen hold another replay. A replay without that proof goes with a
-// record made from its header. An empty slot counts as a replay, so a slot's
-// first match is proven too.
-class SlotSightings {
-public:
-	// Notes the slot's replay as read now and its record in the index read in
-	// the same pass (null for none); true when that record is proven the
-	// replay's own, as above. Export then checks that it names the replay.
-	bool Sight(const std::filesystem::path& saves, int slot, const replayslots::Bytes& replay, const std::uint8_t* record) {
-		const replayslots::Bytes now = record ? replayslots::Bytes(record, record + replayslots::kRecordBytes) : replayslots::Bytes{};
-		auto& seen = slots_[{saves, slot}];
-		if (!seen.sighted || seen.replay != replay) {
-			if (seen.sighted) seen.before = seen.first;
-			seen.sighted = true; seen.replay = replay; seen.first = now;
-		}
-		return seen.before && now != *seen.before;
-	}
-private:
-	// The replay in the slot, the record it had when that replay was first
-	// seen, and the record it had when the replay before was first seen.
-	struct Seen { bool sighted = false; replayslots::Bytes replay, first; std::optional<replayslots::Bytes> before; };
-	std::map<std::pair<std::filesystem::path, int>, Seen> slots_;
-};
-
 // Where a pass copies to: the archive folder and the outbox; how many outbox
 // entries a pass settles at most, and where the next pass starts on them, so
 // an entry that cannot be settled does not keep others waiting; the index of
 // the replays the archive holds (each copy is added to it); the cache of the
-// game's slot files and what has been seen of them; and the writer that
-// creates a file only where there is none.
+// game's slot files; and the writer that creates a file only where there is
+// none.
 struct ArchiveTarget {
 	std::filesystem::path folder, outbox;
 	std::size_t settleBudget;
 	std::size_t& settleFrom;
 	ArchiveCandidates& held;
 	SlotFileCache& slots;
-	SlotSightings& sightings;
 	std::function<bool(const std::filesystem::path&, const replayslots::Bytes&)> createOnly;
 };
 
@@ -115,24 +73,13 @@ inline SlotFile ReadSlotFile(SlotFileCache& cache, const std::filesystem::path& 
 	return slot;
 }
 
-// Whether the game's record of exactly this replay is kept beside the archive.
-inline bool GameRecordKept(const ArchiveTarget& target, const replayslots::Bytes& body) {
-	const auto kept = ReadFile(RecordPath(target.folder, body.data(), body.size()));
-	return kept && RecordsReplay(*kept, body.data(), body.size());
-}
-
-// Keeps the game's export of an archived replay. Refused: a file that is not
-// it is where it goes, and is left as it is. Failed: it could not be read or
-// written, which a later pass may settle.
-enum class RecordKept { Kept, Refused, Failed };
-inline RecordKept KeepGameRecord(const ArchiveTarget& target, const replayslots::Bytes& body, const replayslots::Bytes& exported) {
-	const std::filesystem::path path = RecordPath(target.folder, body.data(), body.size());
-	Change existing;
-	if (!Snapshot(path, kMostArchiveBytes, existing)) return RecordKept::Failed;
-	if (existing.existed) return RecordsReplay(existing.before, body.data(), body.size()) ? RecordKept::Kept : RecordKept::Refused;
-	std::error_code ignored;
-	std::filesystem::create_directories(path.parent_path(), ignored);
-	return target.createOnly(path, exported) ? RecordKept::Kept : RecordKept::Failed;
+// A slot's file as an export, with a record made from its own header, when
+// its ".0" says it is whole. Never with the slot's record in the game's
+// index: a record there that names the file's CRC, size and fighters may be
+// an older match's that shares them, which nothing read from the save folder
+// can rule out, and a wrong record would name a wrong winner.
+inline bool ExportFromFile(const SlotFile& slot, replayslots::Bytes& out) {
+	return slot.sidecar.size() == 4 && slot.sidecar == replayslots::Sidecar(slot.replay) && replayslots::ExportFromReplayAlone(slot.replay, out);
 }
 
 // Writes a replay's archive file and adds it to the index. False when it
@@ -152,12 +99,11 @@ inline bool Publish(const ArchiveTarget& target, const replayslots::Bytes& body,
 	return true;
 }
 
-// An outbox entry: a replay's export, named after the replay (ReplayKey), with
-// .game before .export when it carries the game's record. It stands for that
-// replay only when its body is the replay byte for byte, so writing it twice
-// keeps one.
-inline std::filesystem::path OutboxPath(const ArchiveTarget& target, const replayslots::Bytes& body, const replayslots::Bytes& exported) {
-	return target.outbox / (ReplayKey(body.data(), body.size()) + (replayslots::MadeUp(exported.data() + 8) ? ".export" : ".game.export"));
+// An outbox entry: a replay's export, <ReplayKey>.export after its replay. It
+// stands for that replay only when its body is the replay byte for byte, so
+// writing it twice keeps one.
+inline std::filesystem::path OutboxPath(const ArchiveTarget& target, const replayslots::Bytes& body) {
+	return target.outbox / (ReplayKey(body.data(), body.size()) + ".export");
 }
 inline bool Exports(const replayslots::Bytes& entry, const std::uint8_t* body, std::size_t size) {
 	using namespace replayslots;
@@ -169,7 +115,7 @@ inline bool Exports(const replayslots::Bytes& entry, const std::uint8_t* body, s
 // is no outbox or the entry could not be written.
 inline std::optional<std::filesystem::path> Enqueue(const ArchiveTarget& target, const replayslots::Bytes& body, const replayslots::Bytes& exported) {
 	if (target.outbox.empty()) return std::nullopt;
-	const std::filesystem::path path = OutboxPath(target, body, exported);
+	const std::filesystem::path path = OutboxPath(target, body);
 	Change existing;
 	if (!Snapshot(path, kMostArchiveBytes, existing)) return std::nullopt;
 	if (existing.existed) return Exports(existing.before, body.data(), body.size()) ? std::optional<std::filesystem::path>(path) : std::nullopt;
@@ -197,53 +143,37 @@ inline bool OutboxEntries(const ArchiveTarget& target, std::vector<std::filesyst
 	return true;
 }
 
-// What a pass came to. copied counts the new archive files, fromFile those of
-// them with a made-up record, failed the replays and records that could not
-// be written, refused the game's records whose place another file holds.
-// waiting counts the outbox entries still to be settled, and is not zero
-// either when the outbox could not be listed; more says some of them were
-// left for the next pass. retry says a slot is worth another look though the
-// save folder may not change again. A damaged or half-written index only
-// means every slot goes by its file.
+// What a pass came to. copied counts the new archive files, failed the
+// replays that could not be written. waiting counts the outbox entries still
+// to be settled, and is not zero either when the outbox could not be listed;
+// more says some of them were left for the next pass. retry says a slot is
+// worth another look though the save folder may not change again.
 struct ArchivePass {
-	int copied = 0, fromFile = 0, failed = 0, refused = 0, waiting = 0;
+	int copied = 0, failed = 0, waiting = 0;
 	bool retry = false, more = false;
 };
 
-// Settles one outbox entry: archives its replay unless the archive holds it,
-// and keeps the game's record it carries beside an archive copy that has a
-// made-up one. True when the entry is no longer needed.
-inline bool SettleEntry(const ArchiveTarget& target, const replayslots::Bytes& entry, ArchivePass& pass) {
-	const replayslots::Bytes body(entry.begin() + replayslots::kExportHeaderBytes, entry.end());
-	BackupEvidence evidence;
-	switch (Holds(target, body, evidence)) {
-	case Holding::Unknown: return false;
-	case Holding::Absent:
-		if (!Publish(target, body, entry) || Holds(target, body, evidence) != Holding::Held) { pass.failed++; return false; }
-		pass.copied++; pass.fromFile += replayslots::MadeUp(entry.data() + 8);
-		return true;
-	case Holding::Held: break;
-	}
-	if (replayslots::MadeUp(entry.data() + 8) || evidence.replay.bodyOffset != replayslots::kExportHeaderBytes ||
-		!replayslots::MadeUp(evidence.replay.contents.data() + 8)) return true;
-	switch (KeepGameRecord(target, body, entry)) {
-	case RecordKept::Kept: return true;
-	case RecordKept::Refused: pass.refused++; return true;
-	case RecordKept::Failed: break;
-	}
-	pass.failed++;
-	return false;
-}
-
-// Settles the outbox entry at path and removes it once settled. False while
-// it waits. A file there that is not an entry is left alone.
+// Settles the outbox entry at path: archives its replay unless the archive
+// holds it, then removes the entry. False while it waits: the replay could
+// not be archived, or it is not known whether the archive holds it. A file
+// there that is not an entry is left alone.
 inline bool Settle(const ArchiveTarget& target, const std::filesystem::path& path, ArchivePass& pass) {
 	const auto entry = ReadFile(path);
 	if (!entry) return false;
 	if (entry->size() < replayslots::kExportHeaderBytes ||
 		!Exports(*entry, entry->data() + replayslots::kExportHeaderBytes, entry->size() - replayslots::kExportHeaderBytes)) return true;
+	const replayslots::Bytes body(entry->begin() + replayslots::kExportHeaderBytes, entry->end());
+	BackupEvidence evidence;
+	switch (Holds(target, body, evidence)) {
+	case Holding::Unknown: return false;
+	case Holding::Absent:
+		if (!Publish(target, body, *entry) || Holds(target, body, evidence) != Holding::Held) { pass.failed++; return false; }
+		pass.copied++;
+		break;
+	case Holding::Held: break;
+	}
 	std::error_code kept;
-	return SettleEntry(target, *entry, pass) && std::filesystem::remove(path, kept);
+	return std::filesystem::remove(path, kept);
 }
 
 // Settles up to the budget of outbox entries, starting where the last pass
@@ -264,33 +194,25 @@ inline void DrainOutbox(const ArchiveTarget& target, ArchivePass& pass) {
 // What one slot came to. Nothing: no replay in it, or a whole file that is
 // not one (no slot of a match, a placeholder). Retry: a replay that could not
 // be read or is half written, which a later pass may find whole. Held: in the
-// archive, with any game record of it kept. Queued: in the outbox, a replay
-// or a game record of one the archive holds. Copied: kept from the outbox (it
-// cannot be written) and archived straight away. Failed: neither.
+// archive. Queued: in the outbox. Copied: kept from the outbox (it cannot be
+// written) and archived straight away. Failed: neither.
 enum class SlotCopy { Nothing, Retry, Held, Queued, Copied, Failed };
 
-inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::path& saves, int slot,
-	const replayslots::Bytes& list, const replayslots::Bytes& swan) {
+inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::path& saves, int slot) {
 	const std::filesystem::path file = saves / std::to_wstring(slot);
 	const SlotFile current = ReadSlotFile(target.slots, file);
 	std::error_code missing;
-	if (current.replay.empty() && std::filesystem::exists(file, missing)) return SlotCopy::Retry;
-	const bool recordOwned = target.sightings.Sight(saves, slot, current.replay, replayslots::Record(list, swan, slot));
+	if (current.replay.empty()) return std::filesystem::exists(file, missing) ? SlotCopy::Retry : SlotCopy::Nothing;
 	replayslots::ReplayHeaderInfo header;
 	if (!replayslots::ReadReplayHeader(current.replay, header)) return SlotCopy::Nothing;
 	replayslots::Bytes exported;
-	bool fromRecord = false;
-	if (!replayslots::ExportSlotFile(list, swan, slot, current.replay, current.sidecar, recordOwned, exported, fromRecord))
+	if (!ExportFromFile(current, exported))
 		return current.sidecar == replayslots::Sidecar(current.replay) ? SlotCopy::Nothing : SlotCopy::Retry;
 	if (replayslots::ArchiveName(exported).empty()) return SlotCopy::Nothing;
 	BackupEvidence evidence;
-	const bool held = Holds(target, current.replay, evidence) == Holding::Held;
-	// Held: only the game's record may be wanted still, beside a copy with a
-	// made-up one, and it goes through the outbox like a replay.
-	if (held && (!fromRecord || replayslots::MadeUp(exported.data() + 8) || evidence.replay.bodyOffset != replayslots::kExportHeaderBytes ||
-		!replayslots::MadeUp(evidence.replay.contents.data() + 8) || GameRecordKept(target, current.replay))) return SlotCopy::Held;
+	if (Holds(target, current.replay, evidence) == Holding::Held) return SlotCopy::Held;
 	if (Enqueue(target, current.replay, exported)) return SlotCopy::Queued;
-	return !held && Publish(target, current.replay, exported) ? SlotCopy::Copied : SlotCopy::Failed;
+	return Publish(target, current.replay, exported) ? SlotCopy::Copied : SlotCopy::Failed;
 }
 
 // One pass: the slots of each of the accounts' save folders (none at all is
@@ -298,10 +220,8 @@ inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::pat
 inline ArchivePass RunPass(const ArchiveTarget& target, const std::vector<std::filesystem::path>& accounts, int first, int last) {
 	ArchivePass pass;
 	for (const auto& saves : accounts) {
-		const replayslots::Bytes list = ReadFile(saves / L"LIST", kMostIndexBytes).value_or(replayslots::Bytes{});
-		const replayslots::Bytes swan = ReadFile(saves / L"replays-swan.dat", kMostIndexBytes).value_or(replayslots::Bytes{});
 		for (int slot = first; slot <= last; slot++) {
-			switch (CopySlot(target, saves, slot, list, swan)) {
+			switch (CopySlot(target, saves, slot)) {
 			case SlotCopy::Copied: pass.copied++; break;
 			case SlotCopy::Failed: pass.failed++; pass.retry = true; break;
 			case SlotCopy::Retry: pass.retry = true; break;
@@ -317,14 +237,11 @@ inline ArchivePass RunPass(const ArchiveTarget& target, const std::vector<std::f
 // whoever made it: held already, or copied now from its slot through the
 // outbox. evidence is that copy. The caller holds the one copy lock
 // (ReplayFiles.cxx), so no pass decides on the slot meanwhile.
-inline bool EnsureBackup(const ArchiveTarget& target, const std::filesystem::path& saves, int slot,
-	const replayslots::Bytes& list, const replayslots::Bytes& swan, const replayslots::Bytes& body, BackupEvidence& evidence) {
+inline bool EnsureBackup(const ArchiveTarget& target, const std::filesystem::path& saves, int slot, const replayslots::Bytes& body, BackupEvidence& evidence) {
 	if (Holds(target, body, evidence) == Holding::Held) return true;
 	const SlotFile current = ReadSlotFile(target.slots, saves / std::to_wstring(slot));
-	const bool recordOwned = target.sightings.Sight(saves, slot, current.replay, replayslots::Record(list, swan, slot));
 	replayslots::Bytes exported;
-	bool fromRecord = false;
-	if (current.replay == body && replayslots::ExportSlotFile(list, swan, slot, body, current.sidecar, recordOwned, exported, fromRecord)) {
+	if (current.replay == body && ExportFromFile(current, exported)) {
 		ArchivePass pass;
 		if (const auto queued = Enqueue(target, body, exported)) Settle(target, *queued, pass);
 		else Publish(target, body, exported);

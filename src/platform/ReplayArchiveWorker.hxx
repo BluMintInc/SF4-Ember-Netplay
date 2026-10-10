@@ -15,11 +15,10 @@ namespace sf4e { namespace replayfiles {
 // decides when the next one runs, so a match's replay reaches the archive as
 // the game saves it. Three schedules run beside asked passes:
 //   after a match   MatchEnded opens a window of `window` from then: the game
-//                   saves the replay after the battle closes, and its index at
-//                   a save that may come later, which a watcher may not
-//                   report. Passes run on the schedule until the window
-//                   closes, the last one as it closes; a later MatchEnded
-//                   opens a new window.
+//                   saves the replay after the battle closes, which a
+//                   watcher may not report. Passes run on the schedule
+//                   until the window closes, the last one as it closes; a
+//                   later MatchEnded opens a new window.
 //   retries         a pass that asks for a retry (a slot that a later pass may
 //                   find whole) starts `attempts` more passes on the schedule,
 //                   unless they are running already; when they run out, the

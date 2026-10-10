@@ -427,28 +427,6 @@ static void TestASlotWhoseIndexIsBehind() {
 	CHECK(!FileAheadOfRecord(list, swan, 302, Bytes(kLargestReplay), Sidecar(Bytes(kLargestReplay)))); // the game's empty preallocation
 }
 
-// A slot whose file is newer than its record: archived from the file when its
-// ".0" says it is whole, not otherwise; with a record that names it and is
-// known to be its own, as Export.
-static void TestASlotFileAheadOfItsRecord() {
-	Bytes list = EmptyList(), swan = EmptySwan(), exported;
-	const Bytes old = Replay(0x10, 5000);
-	Fill(list, swan, 301, old, 0x55);
-	Bytes fresh = Replay(0x00, 8000);
-	WriteU32(fresh.data() + 0x20, 11); WriteU32(fresh.data() + 0x170, 1);
-	bool fromRecord = true;
-	CHECK(ExportSlotFile(list, swan, 301, fresh, Sidecar(fresh), true, exported, fromRecord) && !fromRecord);
-	CHECK(Bytes(exported.begin() + kExportHeaderBytes, exported.end()) == fresh);
-	CHECK(ReadU32(exported.data() + 8 + 5) == Crc32(fresh.data(), fresh.size()));
-	CHECK(!ExportSlotFile(list, swan, 301, fresh, Sidecar(old), true, exported, fromRecord));
-	CHECK(!ExportSlotFile(list, swan, 301, fresh, Bytes(), true, exported, fromRecord));
-	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), true, exported, fromRecord) && fromRecord);
-	// A record not known to be the file's own: the file goes with one made from
-	// its header, or not at all without its ".0".
-	CHECK(ExportSlotFile(list, swan, 301, old, Sidecar(old), false, exported, fromRecord) && !fromRecord);
-	CHECK(!ExportSlotFile(list, swan, 301, old, Bytes(), false, exported, fromRecord));
-}
-
 // A list that names a slot nowhere: its position serves only when the record
 // there names no slot, never when it is another slot's.
 static void TestRecordNeverTakesAnotherSlots() {
@@ -490,7 +468,6 @@ int main() {
 	TestASlotWhoseIndexIsBehind();
 	TestRecordNeverTakesAnotherSlots();
 	TestImportRefusesAnImplausibleRecord();
-	TestASlotFileAheadOfItsRecord();
 	TestAnImportedReplayIsKnownByItsCrc();
 	TestExportFromAReplayAlone();
 	TestRecordsOutOfSlotOrder();

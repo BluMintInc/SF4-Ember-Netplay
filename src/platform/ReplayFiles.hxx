@@ -48,11 +48,10 @@ Folders FindFolders();
 // start and end and each change to the save folder asks for a pass, passes go
 // on for two minutes after a match ends, and every thirty seconds while the
 // outbox holds replays. A replay goes through the outbox, which it leaves
-// once the archive holds it. One the game's index does not list yet is
-// archived with a record made from its header, and the game's record is kept
-// beside it if the index catches up. This is the launcher's sweep before and
-// after a game run, for every account, which also empties an outbox a closed
-// game left. Returns how many were copied, or -1 when there is nowhere to copy
+// once the archive holds it. Its record is made from its own header, never
+// taken from the game's index (ReplayArchivePass.hxx: ExportFromFile). This
+// is the launcher's sweep before and after a game run, for every account,
+// which also empties an outbox a closed game left. Returns how many were copied, or -1 when there is nowhere to copy
 // from or to.
 int Archive();
 

@@ -22,17 +22,15 @@ static void Save(const fs::path& path, const Bytes& bytes) {
 	out.close(); CHECK(!out.fail());
 }
 
-// What a process keeps between passes: the archive's index, the slot cache and
-// what it has seen of the slots. A process that starts afresh has its own.
+// What a process keeps between passes: the archive's index and the slot
+// cache. A process that starts afresh has its own.
 struct Owner {
 	files::ArchiveCandidates index;
 	files::SlotFileCache slots;
-	files::SlotSightings sightings;
 };
 
 // A game's save folder, an archive and an outbox beside it, with the owner
-// and writer a pass is given. A first pass sees the slots empty, as a game
-// that has played no match yet. While archiveBroken is set no file can be
+// and writer a pass is given. While archiveBroken is set no file can be
 // written into the archive.
 struct Folders {
 	fs::path root, saves, archive, outbox;
@@ -45,12 +43,11 @@ struct Folders {
 		saves = root / "ssf4_savedata"; archive = root / "replays"; outbox = root / "replay-outbox";
 		CHECK(fs::create_directories(saves));
 		WriteIndexes();
-		Pass();
 	}
 	~Folders() { std::error_code ignored; fs::remove_all(root, ignored); }
 	void WriteIndexes() { Save(saves / "LIST", list); Save(saves / "replays-swan.dat", swan); }
 	files::ArchiveTarget Target(Owner& owner) {
-		return {archive, outbox, settleBudget, settleFrom, owner.index, owner.slots, owner.sightings, [this](const fs::path& path, const Bytes& bytes) {
+		return {archive, outbox, settleBudget, settleFrom, owner.index, owner.slots, [this](const fs::path& path, const Bytes& bytes) {
 			if (archiveBroken && *path.lexically_relative(archive).begin() != "..") return false;
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
@@ -120,53 +117,16 @@ static void TestASittingWithTheIndexBehind() {
 		asSaved.SaveMatch(kFirst + match % 10, replay, 0, false);
 		atExit.SaveMatch(kFirst + match % 10, replay, 0, false);
 		const auto pass = asSaved.Pass();
-		CHECK(pass.copied == 1 && pass.fromFile == 1 && !pass.retry);
+		CHECK(pass.copied == 1 && !pass.retry);
 		CHECK(asSaved.Archived().size() == static_cast<std::size_t>(match + 1));
 	}
 	CHECK(atExit.Pass().copied == 10 && atExit.Archived().size() == 10);
 }
 
-// A replay its index describes goes in with the index's record.
-static void TestAnIndexedReplayGoesInWithItsRecord() {
-	Folders folders("ember-archive-indexed");
-	for (int match = 0; match < 12; match++) {
-		const std::uint32_t at = 1791600000u + match * 180;
-		folders.SaveMatch(SlotToReplace(folders.list, folders.swan, kFirst, kLast), Match(match, at), at, true);
-		const auto pass = folders.Pass();
-		CHECK(pass.copied == 1 && pass.fromFile == 0);
-	}
-	CHECK(folders.Archived().size() == 12);
-}
-
-// A replay archived before its index listed it keeps that archive file. When
-// the index catches up while the slot holds it, the game's record is kept
-// beside it, once, and readers see its winner; the slot being taken by the
-// next match changes nothing for it.
-static void TestTheGameRecordComesLater() {
-	Folders folders("ember-archive-record");
-	const Bytes replay = Match(1, 1791600000u);
-	folders.SaveMatch(kFirst, replay, 0, false);
-	CHECK(folders.Pass().copied == 1);
-	const auto archived = folders.Archived();
-	CHECK(archived.size() == 1);
-	const Bytes contents = *files::ReadFile(archived[0]);
-	CHECK(MadeUp(contents.data() + 8) && RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == -1);
-	folders.Index(kFirst, replay, 1791600010u);
-	auto pass = folders.Pass();
-	CHECK(pass.copied == 0 && pass.failed == 0 && !pass.retry);
-	const Bytes read = files::WithGameRecord(folders.archive, contents);
-	CHECK(!MadeUp(read.data() + 8) && RecordWinner(read.data() + 8) == 1);
-	CHECK(files::WithGameRecord(folders.archive, *files::ReadFile(archived[0])) == read);
-	CHECK(folders.Pass().copied == 0);
-	folders.SaveMatch(kFirst, Match(2, 1791600200u), 0, false);
-	CHECK(folders.Pass().copied == 1 && folders.Archived().size() == 2);
-	CHECK(files::ReadFile(archived[0]) == contents);
-}
-
 // A slot caught between its replay and its ".0" asks for another pass, which
 // takes it; a replay whose archive file cannot be written waits in the
-// outbox. A damaged index does not stop a slot from going by its file.
-static void TestRetriesAndADamagedIndex() {
+// outbox.
+static void TestRetries() {
 	Folders folders("ember-archive-retry");
 	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u);
 	Save(folders.saves / "300", first);
@@ -179,13 +139,7 @@ static void TestRetriesAndADamagedIndex() {
 	CHECK(pass.copied == 0 && pass.waiting == 1 && !pass.retry && folders.Outboxed() == 1);
 	folders.archiveBroken = false;
 	pass = folders.Pass();
-	CHECK(pass.copied == 1 && pass.waiting == 0 && !pass.retry && folders.Outboxed() == 0);
-	folders.SaveMatch(kFirst + 1, second, 0, false);
-	folders.swan[100] ^= 0xFF; // the leading CRC no longer matches
-	folders.WriteIndexes();
-	pass = folders.Pass();
-	CHECK(pass.copied == 1 && pass.fromFile == 1 && !pass.retry);
-	CHECK(folders.Archived().size() == 2);
+	CHECK(pass.copied == 1 && pass.waiting == 0 && !pass.retry && folders.Outboxed() == 0 && folders.Archived().size() == 1);
 }
 
 // A replay whose archive file cannot be written waits in the outbox, so the
@@ -283,87 +237,6 @@ static void TestAnOutboxThatCannotBeListed() {
 	CHECK(files::RunPass(folders.Target(fresh), {}, kFirst, kLast).waiting > 0);
 }
 
-// The game's record of a replay seen while its archive copy cannot be read is
-// kept with it in the outbox, and kept beside the archive copy when the
-// outbox is drained, after the slot has been taken.
-static void TestTheGameRecordSurvivesTheOutbox() {
-	Folders folders("ember-archive-outbox-record");
-	const Bytes replay = Match(1, 1791600000u);
-	folders.SaveMatch(kFirst, replay, 0, false);
-	CHECK(folders.Pass().copied == 1);
-	const fs::path copy = folders.Archived().at(0);
-	const Bytes contents = *files::ReadFile(copy);
-	CHECK(fs::remove(copy) && fs::create_directory(copy));
-	folders.Index(kFirst, replay, 1791600010u);
-	CHECK(folders.Pass().waiting == 1);
-	folders.SaveMatch(kFirst, Match(2, 1791600200u), 0, false);
-	CHECK(fs::remove(copy));
-	Save(copy, contents);
-	const auto pass = folders.Pass();
-	CHECK(pass.waiting == 0 && folders.Outboxed() == 0);
-	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == 1);
-
-	// A replay in the outbox with a made-up record gets its game record beside
-	// it when the index catches up, though the slot is taken before the
-	// archive can be written.
-	Folders later("ember-archive-outbox-richer");
-	const Bytes other = Match(3, 1791600300u);
-	later.archiveBroken = true;
-	later.SaveMatch(kFirst, other, 0, false);
-	CHECK(later.Pass().waiting == 1);
-	later.Index(kFirst, other, 1791600310u);
-	CHECK(later.Pass().waiting == 2);
-	later.SaveMatch(kFirst, Match(4, 1791600400u), 0, false);
-	later.archiveBroken = false;
-	CHECK(later.Pass().waiting == 0 && later.Outboxed() == 0);
-	bool found = false;
-	for (const auto& path : later.Archived()) {
-		const Bytes read = files::WithGameRecord(later.archive, *files::ReadFile(path));
-		if (Bytes(read.begin() + kExportHeaderBytes, read.end()) != other) continue;
-		found = true;
-		CHECK(RecordWinner(read.data() + 8) == 1);
-	}
-	CHECK(found);
-}
-
-// The game's record kept for a replay is that replay's own: another replay
-// with the same CRC, size and fighters has its record under another name, a
-// file there that is not a record is left alone, and a replay with every name
-// taken has none kept, which the pass reports without retrying.
-static void TestGameRecordsBelongToTheirOwnReplay() {
-	Folders folders("ember-archive-records");
-	const Bytes replay = Match(5, 1791600000u), twin = SameCrcDifferentBody(replay);
-	folders.SaveMatch(kFirst, replay, 0, false);
-	CHECK(folders.Pass().copied == 1);
-	const fs::path archived = folders.Archived().at(0);
-	// The twin's record, naming player 1, is kept first.
-	Bytes list = EmptyList(), swan = EmptySwan(), twinExport;
-	Fill(list, swan, kFirst, twin, 0x44);
-	const_cast<std::uint8_t*>(Record(list, swan, kFirst))[49] = 0;
-	Seal(swan);
-	CHECK(Export(list, swan, kFirst, twin, twinExport));
-	CHECK(files::KeepGameRecord(folders.Target(), twin, twinExport) == files::RecordKept::Kept);
-	const Bytes contents = *files::ReadFile(archived);
-	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == -1);
-	folders.Index(kFirst, replay, 1791600010u);
-	const auto pass = folders.Pass();
-	CHECK(pass.copied == 0 && pass.refused == 0 && !pass.retry && folders.Outboxed() == 0);
-	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == 1);
-	CHECK(*files::ReadFile(files::RecordPath(folders.archive, twin.data(), twin.size())) == twinExport);
-
-	Folders taken("ember-archive-records-taken");
-	taken.SaveMatch(kFirst, replay, 0, false);
-	CHECK(taken.Pass().copied == 1);
-	CHECK(fs::create_directories(taken.archive / ".records"));
-	const fs::path place = files::RecordPath(taken.archive, replay.data(), replay.size());
-	Save(place, Bytes(64, 7));
-	taken.Index(kFirst, replay, 1791600010u);
-	const auto refused = taken.Pass();
-	CHECK(refused.refused == 1 && refused.failed == 0 && !refused.retry && taken.Outboxed() == 0);
-	CHECK(RecordWinner(files::WithGameRecord(taken.archive, *files::ReadFile(taken.Archived().at(0))).data() + 8) == -1);
-	CHECK(*files::ReadFile(place) == Bytes(64, 7));
-}
-
 // Nine replays of one size and one CRC, played at different times, through
 // one slot while the archive cannot be written: each has its own outbox
 // entry, named after its bytes, and all nine reach the archive.
@@ -385,55 +258,6 @@ static void TestNineReplaysWithOneCrc() {
 	CHECK(pass.copied == 9 && pass.waiting == 0 && folders.Bodies() == all);
 }
 
-// The game's record of a replay the archive holds with a made-up one cannot
-// be kept while the archive cannot be written: it waits in the outbox, and is
-// kept once the archive can be written, though the slot was taken meanwhile.
-static void TestAGameRecordThatCannotBeKeptYet() {
-	Folders folders("ember-archive-record-later");
-	const Bytes replay = Match(1, 1791600000u);
-	folders.SaveMatch(kFirst, replay, 0, false);
-	CHECK(folders.Pass().copied == 1);
-	const Bytes contents = *files::ReadFile(folders.Archived().at(0));
-	folders.archiveBroken = true;
-	folders.Index(kFirst, replay, 1791600010u);
-	auto pass = folders.Pass();
-	CHECK(pass.waiting == 1 && pass.failed == 1);
-	folders.SaveMatch(kFirst, Match(2, 1791600200u), 0, false);
-	folders.archiveBroken = false;
-	pass = folders.Pass();
-	CHECK(pass.waiting == 0 && folders.Outboxed() == 0);
-	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == 1);
-}
-
-// The next match's replay is saved over the slot while the index keeps the
-// record of the one before, which names the new replay's CRC, size and
-// fighters as well: that record was the slot's before the new replay came, so
-// it is not taken for the new replay's. When the game writes the new
-// replay's own record, that one is.
-static void TestAnOlderMatchsRecordIsNotTaken() {
-	Folders folders("ember-archive-stale");
-	const Bytes before = Match(1, 1791600000u);
-	Bytes now = Match(1, 1791600030u); // within a minute, the same size
-	ForgeCrc(now, Crc32(before.data(), before.size()));
-	CHECK(now != before);
-	folders.SaveMatch(kFirst, before, 1791600000u, true);
-	CHECK(folders.Pass().copied == 1);
-	folders.SaveMatch(kFirst, now, 0, false);
-	auto pass = folders.Pass();
-	CHECK(pass.copied == 1 && pass.fromFile == 1 && folders.Outboxed() == 0);
-	CHECK(!fs::exists(files::RecordPath(folders.archive, now.data(), now.size())));
-	folders.Index(kFirst, now, 1791600031u);
-	pass = folders.Pass();
-	CHECK(pass.copied == 0 && pass.waiting == 0 && fs::exists(files::RecordPath(folders.archive, now.data(), now.size())));
-
-	// A process that has not seen the slot hold another replay proves nothing.
-	Folders unseen("ember-archive-unseen");
-	unseen.SaveMatch(kFirst, before, 1791600000u, true);
-	Owner fresh;
-	pass = files::RunPass(unseen.Target(fresh), {unseen.saves}, kFirst, kLast);
-	CHECK(pass.copied == 1 && pass.fromFile == 1);
-}
-
 // The launcher's sweep settles the whole outbox in one call, more than a
 // Sidecar pass settles, with no game's saves to read.
 static void TestTheLauncherSettlesEverything() {
@@ -450,6 +274,45 @@ static void TestTheLauncherSettlesEverything() {
 	Owner fresh;
 	const auto pass = files::RunPass(folders.Target(fresh), {}, kFirst, kLast);
 	CHECK(pass.copied == 40 && pass.waiting == 0 && !pass.more && folders.Outboxed() == 0);
+}
+
+// The game's index is never read for a replay's record, even when it names
+// the replay: a record that names the replay's CRC, size and fighters may be
+// an older match's. Every archived replay has a record made from its header.
+static void TestTheIndexIsNeverTaken() {
+	Folders folders("ember-archive-index");
+	folders.SaveMatch(kFirst, Match(1, 1791600000u), 1791600000u, true);
+	CHECK(folders.Pass().copied == 1);
+	const Bytes contents = *files::ReadFile(folders.Archived().at(0));
+	CHECK(MadeUp(contents.data() + 8) && RecordWinner(contents.data() + 8) == -1);
+}
+
+// The archive's index, refreshed while a copy cannot be read, still knows the
+// copy may hold its replay, so a second export of that replay waits in the
+// outbox instead of being archived beside it, and goes once the copy can be
+// read again: the archive ends with the one copy.
+static void TestARefreshKeepsAnUnreadableCopy() {
+	Folders folders("ember-archive-refresh");
+	const Bytes replay = Match(1, 1791600000u);
+	folders.SaveMatch(kFirst, replay, 0, false);
+	CHECK(folders.Pass().copied == 1);
+	const fs::path copy = folders.Archived().at(0);
+	const Bytes kept = *files::ReadFile(copy);
+	CHECK(fs::remove(copy) && fs::create_directory(copy));
+	int listed = 0;
+	folders.own.index.Refresh([&] { return files::ScanArchive(folders.archive, [&](const fs::path&, const files::ArchiveFile&) { listed++; }); });
+	CHECK(listed == 0 && folders.own.index.Candidates(Crc32(replay.data(), replay.size())).size() == 1);
+	// The same replay under a later save time, so another name.
+	Bytes later = kept;
+	WriteU32(later.data() + 8 + 13, ReadU32(later.data() + 8 + 13) + 600);
+	CHECK(files::Enqueue(folders.Target(), replay, later));
+	auto pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.waiting == 1 && folders.Outboxed() == 1);
+	CHECK(fs::remove(copy));
+	Save(copy, kept);
+	pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.waiting == 0 && folders.Outboxed() == 0);
+	CHECK(folders.Archived().size() == 1);
 }
 
 // A backlog in the outbox is settled a few entries a pass, after the slots
@@ -512,11 +375,11 @@ static void TestAReplayPutBackAndItsBackup() {
 	CHECK(folders.Archived().size() == 1);
 	// A pass ran before the import's backup: the backup is that copy.
 	files::BackupEvidence evidence;
-	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 5, folders.list, folders.swan, body, evidence) && !evidence.path.empty());
+	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 5, body, evidence) && !evidence.path.empty());
 	// No pass ran: the backup makes the copy, even of a replay the index is behind.
 	const Bytes other = Match(8, 1791600300u);
 	folders.SaveMatch(kFirst + 2, other, 0, false);
-	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 2, folders.list, folders.swan, other, evidence));
+	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 2, other, evidence));
 	CHECK(folders.Archived().size() == 2);
 }
 
@@ -640,19 +503,15 @@ static void TestArchiveWorkerWithPasses() {
 
 int main() {
 	TestASittingWithTheIndexBehind();
-	TestAnIndexedReplayGoesInWithItsRecord();
-	TestTheGameRecordComesLater();
-	TestRetriesAndADamagedIndex();
+	TestRetries();
 	TestTheOutboxOutlivesTheSlot();
 	TestAnUnreadableCandidateKeepsTheReplay();
 	TestManyReplaysAllWait();
 	TestTheOutboxOutlivesTheProcess();
 	TestAnOutboxThatCannotBeListed();
-	TestTheGameRecordSurvivesTheOutbox();
-	TestGameRecordsBelongToTheirOwnReplay();
 	TestNineReplaysWithOneCrc();
-	TestAGameRecordThatCannotBeKeptYet();
-	TestAnOlderMatchsRecordIsNotTaken();
+	TestTheIndexIsNeverTaken();
+	TestARefreshKeepsAnUnreadableCopy();
 	TestABacklogWaitsBehindTheSlots();
 	TestTheLauncherSettlesEverything();
 	TestAnUnreadableCopy();
