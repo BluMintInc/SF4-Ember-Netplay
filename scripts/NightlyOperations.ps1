@@ -2,7 +2,9 @@
 # Import-safe operations. Invoke-NightlyPublish owns preparation and phase ordering;
 # the entry script supplies the lock, transcript and the build/package operations.
 function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
-    if ($InputText) { $output = $InputText | & $Command @Arguments 2>&1 }
+    # Bytes, not the string: a piped string gets a CRLF after its last line,
+    # which bash reading the script from ssh takes for a command named CR.
+    if ($InputText) { $output = [Text.UTF8Encoding]::new($false).GetBytes($InputText) | & $Command @Arguments 2>&1 }
     else { $output = & $Command @Arguments 2>&1 }
     return [pscustomobject]@{exitCode=$LASTEXITCODE;output=@($output)}
 }

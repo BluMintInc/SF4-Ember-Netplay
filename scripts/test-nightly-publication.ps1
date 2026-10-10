@@ -27,6 +27,15 @@ try {
     function Pass([string]$Message) { $script:passed++; Write-Output "PASS $Message" }
     function New-StdErr([string]$Text) { [Management.Automation.ErrorRecord]::new([Exception]::new($Text), 'NativeCommandError', 'NotSpecified', $null) }
     function ConvertTo-FakeJson([object]$Value) { $Value | ConvertTo-Json -Depth 8 -Compress }
+    # The real native boundary, before it is faked below: piped input arrives
+    # byte for byte, with no line break added after the last line.
+    $piped = "echo one`necho two`n"
+    $result = Invoke-NightlyNative git @('hash-object', '--stdin', '--no-filters') $piped
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($piped)
+    $blob = [Text.Encoding]::ASCII.GetBytes("blob $($bytes.Length)`0") + $bytes
+    $sha1 = [Convert]::ToHexString([Security.Cryptography.SHA1]::HashData([byte[]]$blob)).ToLowerInvariant()
+    Check ($result.exitCode -eq 0 -and "$($result.output)".Trim() -ceq $sha1) 'Piped input did not arrive byte for byte'
+    Pass 'piped input reaches the native command byte for byte'
 
     # Check the real command boundary and query classification before replacing them.
     function gh {
