@@ -122,7 +122,7 @@ public:
     ArchivedReplay replay{path};
     replay.label = replayfiles::ReplayDateLabel(read.time); replay.time = read.time;
     replay.fighters[0] = read.fighters[0]; replay.fighters[1] = read.fighters[1];
-    replay.summary = summaries_.Read(read.contents);
+    replay.summary = summaries_.Read(replayfiles::WithGameRecord(archive, read.contents));
     ReadNames(archive, read.Body(), replay);
     replays.push_back(std::move(replay));
     paths[read.crc].push_back(path);
@@ -147,16 +147,10 @@ replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cach
 replayfiles::ArchiveTarget Target(const fs::path& archive) { return {archive, Index().Held(), SlotFiles(), PublishFile}; }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
-// How long a staged replay waits for the game's index while the game runs.
-// The index's record names the winner of a deciding round, which the file
-// does not.
-constexpr auto kIndexWait = std::chrono::minutes(2);
-
-replayfiles::ArchivePass ArchiveSaves(const fs::path& archive, const fs::path& saves, replayfiles::FileClock::duration settle) {
+replayfiles::ArchivePass ArchiveSaves(const fs::path& archive, const fs::path& saves) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	const auto pass = replayfiles::CopySlots(Target(archive), saves, kFirstMatchSlot, kLastMatchSlot, replayfiles::FileClock::now(), settle);
-	if (pass.copied) spdlog::info(L"Replays: archived {} ({} without the game's index record) from {}", pass.copied, pass.fromFile, saves.c_str());
-	if (pass.staged) spdlog::info(L"Replays: kept {} until the game's index lists them, from {}", pass.staged, saves.c_str());
+	const auto pass = replayfiles::CopySlots(Target(archive), saves, kFirstMatchSlot, kLastMatchSlot);
+	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) from {}", pass.copied, pass.fromFile, saves.c_str());
 	if (pass.failed) spdlog::warn(L"Replays: {} replays of {} could not be safely archived yet", pass.failed, saves.c_str());
 	return pass;
 }
@@ -218,10 +212,8 @@ int Archive() {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
 		Index().Refresh(folders.archive);
-		// No game runs to write an index a slot's file is ahead of, so
-		// nothing waits for one.
 		int copied = 0;
-		for (const fs::path& saves : folders.saves) copied += ArchiveSaves(folders.archive, saves, {}).copied;
+		for (const fs::path& saves : folders.saves) copied += ArchiveSaves(folders.archive, saves).copied;
 		return copied;
 	}
 	catch (const std::exception& e) {
@@ -299,7 +291,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		}
 		const int slot = slots::SlotToReplace(list, swan, kFirstMatchSlot, kLastMatchSlot);
 		if (slot < 0) { spdlog::warn("Replays: the game's index has no match slot"); return ImportResult::IndexDamaged; }
-		slots::Bytes exported = LoadFile(source);
+		slots::Bytes exported = replayfiles::WithGameRecord(folders.archive, LoadFile(source));
 		// usf4-replay-saver keeps the game's replay as it is and the slot
 		// record beside it, in .index/<crc>.entry.
 		if (exported.size() >= 4 && !std::memcmp(exported.data(), "#BRP", 4)) {
@@ -407,13 +399,14 @@ replayfiles::ArchivePass ArchiveActiveAccount() {
  if (folders.active.empty() || folders.archive.empty()) return {};
  if (!Changes().Watch(folders.active) && !unwatched) {
   unwatched = true;
-  spdlog::warn("Replays: the save folder cannot be watched; replays are archived at each match start and in retries after each match end");
+  spdlog::warn("Replays: the save folder cannot be watched; replays are archived at each match start and for two minutes after each match end");
  }
  if (!indexed) { Index().Refresh(folders.archive); indexed = true; }
- return ArchiveSaves(folders.archive, folders.active, kIndexWait);
+ return ArchiveSaves(folders.archive, folders.active);
 }
-// Retries a second, then two, four and so on up to thirty: two minutes in
-// all, which covers the game's save after a battle closes.
+// After a match ends, passes a second apart, then two, four and so on up to
+// thirty: two minutes in all, which covers the game's save after the battle
+// closes and an index save after it.
 replayfiles::ArchiveWorker& Archiver() {
  static auto* const worker = [] {
   auto* started = new replayfiles::ArchiveWorker([] {

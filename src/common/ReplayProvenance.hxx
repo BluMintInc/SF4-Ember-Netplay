@@ -1,6 +1,7 @@
 #pragma once
 #include "ReplaySlots.hxx"
 #include "ReplayFileSafety.hxx"
+#include <algorithm>
 #include <cstdio>
 #include <ctime>
 #include <utility>
@@ -62,6 +63,29 @@ inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const rep
  auto note = ReadFile(NamesPath(archive, body), replayslots::kLargestReplay + 21 + 2048);
  if (note) NamesForBody(*note, body, names);
  return names;
+}
+// The game's own record of a replay archived before the game's index listed
+// it, so with a record made from its header (ReplaySlots.hxx: MadeUp):
+// .records/<crc>-<size>.record, the 125 bytes, written when the index catches
+// up while the slot still holds the replay (ReplayArchivePass.hxx). It names
+// the winner of a deciding round, which a made-up record cannot.
+inline std::filesystem::path RecordPath(const std::filesystem::path& archive, const std::uint8_t* body, std::size_t size) {
+ char key[64] = {};
+ std::snprintf(key, sizeof key, "%08x-%u.record", replayslots::Crc32(body, size), static_cast<unsigned>(size));
+ return archive / ".records" / key;
+}
+// An archive file's contents with that record in place of a made-up one, when
+// one describing its replay was written; the contents as they are otherwise.
+// What the replay's summary, its detail and an import read.
+inline replayslots::Bytes WithGameRecord(const std::filesystem::path& archive, replayslots::Bytes contents) {
+ using namespace replayslots;
+ if (archive.empty() || contents.size() < kExportHeaderBytes || std::memcmp(contents.data(), kExportMagic, 8) || !MadeUp(contents.data() + 8)) return contents;
+ const std::uint8_t* body = contents.data() + kExportHeaderBytes;
+ const std::size_t size = contents.size() - kExportHeaderBytes;
+ const auto record = ReadFile(RecordPath(archive, body, size), kRecordBytes);
+ if (!record || record->size() != kRecordBytes || MadeUp(record->data()) || !Describes(record->data(), body, size)) return contents;
+ std::copy(record->begin(), record->end(), contents.begin() + 8);
+ return contents;
 }
 // Existing unreadable/invalid/different-body targets are terminal refusals.
 // Only a missing destination authorizes a create-only publication attempt.

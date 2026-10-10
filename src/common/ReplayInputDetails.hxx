@@ -71,7 +71,9 @@ public:
     result.state = DetailState::Unreadable; return result;
    }
    const auto names = replayfiles::ReadBodyNames(archive, read.Body());
-   if (kept_ && kept_->file == file && read.contents == identity_ &&
+   // The game's record, when one was kept for a replay archived without it.
+   auto contents = replayfiles::WithGameRecord(archive, std::move(read.contents));
+   if (kept_ && kept_->file == file && contents == identity_ &&
     names.players[0] == kept_->names[0] && names.players[1] == kept_->names[1] && names.spectated == kept_->spectated) {
     result.state = DetailState::Ready; result.value = kept_; return result;
    }
@@ -80,11 +82,11 @@ public:
    detail->label = replayfiles::ReplayDateLabel(read.time); detail->time = read.time;
    for (int side = 0; side < 2; ++side) { detail->names[side] = names.players[side]; detail->fighters[side] = read.fighters[side]; }
    detail->spectated = names.spectated;
-   if (!Parse(read.contents.data(), read.contents.size(), detail->match)) { result.state = DetailState::Unreadable; return result; }
+   if (!Parse(contents.data(), contents.size(), detail->match)) { result.state = DetailState::Unreadable; return result; }
    detail->summary = Summarize(detail->match);
    for (const auto& round : detail->match.rounds) detail->logs.push_back(Log(round));
    detail->lanes = std::make_shared<const replaylane::Lanes>(replaylane::Build(detail->match));
-   identity_ = std::move(read.contents); kept_ = std::move(detail);
+   identity_ = std::move(contents); kept_ = std::move(detail);
    result.state = DetailState::Ready; result.value = kept_;
   } catch (...) {} // scalar completion survives even the initial allocation
   return result;

@@ -13,15 +13,16 @@ namespace sf4e { namespace replayfiles {
 // Runs archive passes (ReplayArchivePass.hxx) on a thread of its own and
 // decides when the next one runs, so a match's replay reaches the archive as
 // the game saves it. Want asks for a pass: the game's save folder changed, or
-// a match started. MatchEnded asks for one and expects a new replay: the game
-// saves it after the battle closes, so passes go on until one copies or
-// stages something. A pass that asks for a retry (a half-written slot, a
-// failed copy) or still expects a replay is followed by another after a delay
-// that doubles from `first` up to `most`, at most `attempts` times in a row,
-// whether or not the folder changes again; then the worker waits to be asked.
-// A staged replay brings the next pass forward to when it is due. Asks made
-// during a pass are kept for one more. Passes never overlap, and Stop waits
-// for one in progress.
+// a match started. MatchEnded asks for one and opens a window of passes: the
+// game saves the replay after the battle closes, and its index at a save that
+// may come later, which a watcher may not report. The window is a run of
+// passes `first` apart, then twice that, up to `most`, `attempts` of them,
+// whatever the passes find; a later MatchEnded starts it again. A pass that
+// asks for a retry (a slot or a copy that a later pass may settle) is
+// followed by the same run, unless it is one of a run already: retries stop
+// at the end of a run until the worker is asked again. Asks made during a
+// pass are kept for one more. Passes never overlap, and Stop waits for one in
+// progress.
 class ArchiveWorker {
 public:
  using Clock = std::chrono::steady_clock;
@@ -44,38 +45,30 @@ private:
   wanted_ = true; matchEnded_ = matchEnded_ || matchEnded;
   wake_.notify_one();
  }
- // After a pass: when the next one runs, none until asked.
- std::optional<Clock::duration> Next(const ArchivePass& pass, bool& expecting, int& attempt) const {
-  if (pass.copied || pass.staged) expecting = false;
-  std::optional<Clock::duration> next;
-  if (!pass.retry && !expecting) attempt = 0;
-  else if (attempt < retries_.attempts) next = (std::min)(retries_.first * (1 << (std::min)(attempt++, 16)), retries_.most);
-  else { attempt = 0; expecting = false; }
-  if (pass.readyAt) {
-   const auto left = std::chrono::duration_cast<Clock::duration>((std::max)(*pass.readyAt - FileClock::now(), FileClock::duration::zero()));
-   next = next ? (std::min)(*next, left) : left;
-  }
-  return next;
- }
  void Run() noexcept {
   std::unique_lock<std::mutex> lock(mutex_);
   std::optional<Clock::time_point> due;
-  bool expecting = false;
-  int attempt = 0;
+  // Passes left in the window, and how many of it have run.
+  int left = 0, ran = 0;
   for (;;) {
-   const auto asked = [&] { return stop_ || wanted_; };
-   if (due) wake_.wait_until(lock, *due, asked);
-   else wake_.wait(lock, asked);
+   const auto woken = [&] { return stop_ || wanted_; };
+   if (due) wake_.wait_until(lock, *due, woken);
+   else wake_.wait(lock, woken);
    if (stop_) return;
-   expecting = expecting || matchEnded_;
+   // Asked for, rather than the next pass of a run.
+   const bool asked = wanted_;
+   if (matchEnded_) { left = retries_.attempts; ran = 0; }
    wanted_ = matchEnded_ = false;
    lock.unlock();
    ArchivePass pass;
    try { pass = pass_(); } catch (...) { pass.retry = true; }
-   const auto next = Next(pass, expecting, attempt);
+   if (pass.retry && asked && left == 0) { left = retries_.attempts; ran = 0; }
    lock.lock();
    due.reset();
-   if (next) due = Clock::now() + *next;
+   if (left > 0) {
+    left--;
+    due = Clock::now() + (std::min)(retries_.first * (1 << (std::min)(ran++, 16)), retries_.most);
+   }
   }
  }
  Pass pass_;

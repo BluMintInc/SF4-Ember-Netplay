@@ -42,12 +42,12 @@ Folders FindFolders();
 // replay when one of its files is that replay, whatever its save time: a
 // replay put back into the game is saved there under a new time. Sidecar
 // copies the signed-in account's replays as the game saves them: each match
-// start and end and each change to the save folder asks for a pass, with
-// retries after a match ends until its replay is in. A replay the game's
-// index does not list yet is kept at once and waits two minutes for its
-// record. This is the launcher's sweep before and after a game run, for every
-// account and with no wait, since no game is left to write an index. Returns how many were copied,
-// or -1 when there is nowhere to copy from or to.
+// start and end and each change to the save folder asks for a pass, and passes
+// go on for two minutes after a match ends. A replay the game's index does
+// not list yet is archived at once with a record made from its header, and
+// the game's record is kept beside it if the index catches up. This is the
+// launcher's sweep before and after a game run, for every account. Returns
+// how many were copied, or -1 when there is nowhere to copy from or to.
 int Archive();
 
 // Preparation reads slots/indexes, verifies the backup and encodes recovery on
