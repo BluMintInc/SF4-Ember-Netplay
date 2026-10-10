@@ -1,12 +1,14 @@
 // Updater.exe's run (RunUpdater) with its process boundaries replaced: the
-// window it opens for a recovery, what that window says while the launcher
-// closes and while a restoration waits for a held file, and whether the
-// launcher is started again.
+// window it opens for a recovery or an install, the phases that window goes
+// through, what it says while the launcher closes and while a restoration
+// waits for a held file, and whether the launcher is started again.
 #include "../launcher/update/UpdaterRun.hxx"
+#include "../common/PackageInventory.hxx"
 #include <nlohmann/json.hpp>
 #include <atomic>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -50,6 +52,25 @@ static HWND OwnWindow() {
     },reinterpret_cast<LPARAM>(&found));
     return found;
 }
+// A package folder of this build's shape: every required file, staged, with
+// its inventory and manifest.
+static void Staged(const fs::path& package) {
+    fs::remove_all(package);
+    std::string inventory, manifest;
+    for(const auto* path:sf4e::package::Required) {
+        Write(package/path,"staged");
+        const fs::path relative(path);
+        std::string escaped;
+        for(const char c:relative.u8string()) { if(c=='\\') escaped+='\\'; escaped+=c; }
+        inventory+="SF4E_PACKAGE_REQUIRED(\""+escaped+"\")\n";
+    }
+    Write(package/L"PackageInventory.inc",inventory.c_str());
+    // Every file but the manifest itself.
+    for(const auto& entry:fs::recursive_directory_iterator(package))
+        if(entry.is_regular_file() && entry.path().filename()!=L"MANIFEST.txt") manifest+=Sha256Hex(entry.path())+"  "+entry.path().lexically_relative(package).u8string()+"\n";
+    Write(package/L"MANIFEST.txt",manifest.c_str());
+}
+
 // The texts of the Updater window's controls, read from outside it.
 static std::vector<std::wstring> WindowTexts() {
     std::vector<std::wstring> texts;
@@ -86,8 +107,18 @@ struct Host {
     // Called when the run logs that its recovery is done, while the window
     // still shows the phase it ended in.
     std::function<void()> whenRecovered;
+    // The phases the window was set to, by locale key, each once in a row.
+    std::vector<std::string> phases;
+    std::mutex phasesLock;
     Host() {
         host.window.visible=false;
+        host.window.entered=[this](const WindowPhase& phase){
+            std::string key;
+            if(const auto* step=std::get_if<StepReport>(&phase)) key=InstallerSteps[InstallerStepOf(step->stage)].nameKey;
+            if(const auto* notice=std::get_if<UpdaterNotice>(&phase)) key=UpdaterNotices[static_cast<std::size_t>(*notice)].key;
+            std::lock_guard<std::mutex> lock(phasesLock);
+            if(phases.empty() || phases.back()!=key) phases.push_back(key);
+        };
         host.log=[this](const char* line){ if(whenRecovered && std::string(line)=="Update recovery complete") whenRecovered(); };
         host.waitForLauncher=[this](std::uint32_t pid){ waited.push_back(pid); if(whileWaiting) whileWaiting(); return launcherExits; };
         host.startLauncher=[this](const wchar_t*,const wchar_t* arguments){ started.push_back(arguments?arguments:L"<none>"); return true; };
@@ -145,6 +176,27 @@ int main() {
     };
     CHECK(RunUpdater(arguments,complete.host)==0 && finishingShown && complete.started==std::vector<std::wstring>{L"<none>"});
     CHECK(Read(install/L"Launcher.exe")=="new-launcher" && !fs::exists(install/UpdateTransactionName));
+    CHECK((complete.phases==std::vector<std::string>{"update.notice.waiting_launcher","update.notice.recovering"}));
+    CHECK((recovery.phases==std::vector<std::string>{"update.notice.waiting_launcher","update.notice.recovering","update.notice.restoring"}));
+
+    // An install over a folder that holds an update left unfinished, already
+    // complete: once the launcher has closed, the window goes from that wait
+    // to the look over the folder, then to the install's steps from its
+    // first, which is announced before the package is walked; the files are
+    // the package's and Ember is started.
+    Interrupted(root,install,true);
+    const auto staging=root/L"staging";
+    Staged(staging);
+    UpdaterArguments fresh; fresh.installDir=install.wstring(); fresh.stagingDir=staging.wstring(); fresh.waitPid=4242;
+    Host installing;
+    CHECK(RunUpdater(fresh,installing.host)==0 && installing.started==std::vector<std::wstring>{L"<none>"});
+    CHECK(Read(install/L"Launcher.exe")=="staged" && !fs::exists(install/UpdateTransactionName));
+    CHECK((installing.phases==std::vector<std::string>{"update.notice.waiting_launcher","update.notice.recovering","update.stage.preparing",
+        "update.stage.comparing","update.stage.backing_up","update.stage.replacing","update.stage.confirming"}));
+    // With nothing unfinished, the first step follows the launcher wait.
+    Host again;
+    CHECK(RunUpdater(fresh,again.host)==0 && again.phases.size()>=2);
+    CHECK(again.phases[0]=="update.notice.waiting_launcher" && again.phases[1]=="update.stage.preparing");
 
     // Started by hand, without -WaitPid: the same work, and no launcher.
     Interrupted(root,install);

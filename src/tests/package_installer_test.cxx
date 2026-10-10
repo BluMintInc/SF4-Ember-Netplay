@@ -654,9 +654,10 @@ int wmain(int argc, wchar_t** argv) {
         op["priorSha256"]=digest;
     }
     Write(journalPath,journal.dump().c_str());
-    // The restoration is told before its backups are checked, so a check that
-    // takes long, or fails as here on a backup that cannot be read, is shown
-    // as restoring; the journal stays for another try.
+    // The look over the folder is told before it reads anything, and the
+    // restoration before its backups are checked, so a check that takes
+    // long, or fails as here on a backup that cannot be read, is shown as
+    // restoring; the journal stays for another try.
     {
         fs::path backupFile;
         for(const auto& op:originalJournal["operations"])
@@ -666,7 +667,7 @@ int wmain(int argc, wchar_t** argv) {
         std::vector<InstallActivity> heard;
         const bool recovered=sf4e::launcher::RecoverPackage(crashInstall,error,false,[&](InstallActivity activity,const fs::path&){ heard.push_back(activity); });
         CloseHandle(unreadable);
-        CHECK(!recovered && (heard==std::vector<InstallActivity>{InstallActivity::Restoring}) && fs::exists(journalPath));
+        CHECK(!recovered && (heard==std::vector<InstallActivity>{InstallActivity::Recovering,InstallActivity::Restoring}) && fs::exists(journalPath));
     }
     // Finished as Updater.exe -RecoverOnly finishes it, the restoration is
     // told, and so is the wait for a file it must undo (one the update wrote)
@@ -688,7 +689,7 @@ int wmain(int argc, wchar_t** argv) {
         });
         if(held!=INVALID_HANDLE_VALUE) CloseHandle(held);
         sf4e::launcher::testing::InUseWaitMilliseconds=0;
-        CHECK(recovered && (heard==std::vector<InstallActivity>{InstallActivity::Restoring,InstallActivity::WaitingForFile,InstallActivity::WaitEnded}));
+        CHECK(recovered && (heard==std::vector<InstallActivity>{InstallActivity::Recovering,InstallActivity::Restoring,InstallActivity::WaitingForFile,InstallActivity::WaitEnded}));
     }
     CHECK(Read(crashInstall/L"Launcher.exe")=="prior-launcher");
     CHECK(Read(crashInstall/L"sf4-net.exe")=="user-collision");

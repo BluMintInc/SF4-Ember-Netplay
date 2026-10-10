@@ -95,6 +95,8 @@ public:
         // and the notices in UpdaterNotices' order. Their English texts when
         // either does not hold one per entry.
         std::vector<std::wstring> stages, notices;
+        // For tests: hears each phase as it is set, on the thread setting it.
+        std::function<void(const WindowPhase&)> entered;
     };
     enum class Part { Headline, Step, Count, Bar, Percent, Wait, Elapsed };
     static constexpr int Parts=7;
@@ -117,18 +119,13 @@ public:
     HWND Control(Part part) const { return open_?parts_[static_cast<int>(part)]:nullptr; }
     // Any thread may call these three. The installer's latest report, a
     // Progress call: the phase becomes that step.
-    void Report(UpdateStage stage, std::uint64_t done, std::uint64_t total) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        phase_=StepReport{stage,done,total};
-    }
-    // An uncounted phase: WaitingForLauncher or Restoring.
-    void Enter(UpdaterNotice phase) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        phase_=phase;
-    }
-    // An Activity call: Restoring enters that phase; a wait for a file shows
-    // the file until it ends, whatever the phase.
+    void Report(UpdateStage stage, std::uint64_t done, std::uint64_t total) { Set(StepReport{stage,done,total}); }
+    // An uncounted phase: WaitingForLauncher, Recovering or Restoring.
+    void Enter(UpdaterNotice phase) { Set(phase); }
+    // An Activity call: Recovering and Restoring enter those phases; a wait
+    // for a file shows the file until it ends, whatever the phase.
     void Hear(InstallActivity activity, const std::filesystem::path& file) {
+        if(activity==InstallActivity::Recovering) { Enter(UpdaterNotice::Recovering); return; }
         if(activity==InstallActivity::Restoring) { Enter(UpdaterNotice::Restoring); return; }
         std::lock_guard<std::mutex> lock(mutex_);
         if(activity==InstallActivity::WaitingForFile) waitingFor_=file.filename().wstring();
@@ -161,6 +158,10 @@ private:
         return DefWindowProcW(window,message,w,l);
     }
     HWND At(Part part) const { return parts_[static_cast<int>(part)]; }
+    void Set(WindowPhase phase) {
+        { std::lock_guard<std::mutex> lock(mutex_); phase_=phase; }
+        if(options_.entered) options_.entered(phase);
+    }
     // Sets a control's text only when it changed, so nothing flickers.
     static void Show(HWND control, const std::wstring& text) {
         wchar_t shown[256]={};

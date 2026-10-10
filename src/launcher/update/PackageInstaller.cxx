@@ -453,6 +453,9 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         if(rollingBack) {
             RestoreOperations(install,ValidateRestoreBackup(backup,files,activity),files,activity);
         } else if(!committed) {
+            // Only a look at the folder decides what is left to do, and it
+            // reads every file the update names.
+            Tell(activity,InstallActivity::Recovering);
             ObserveRecoveryFiles(install,files);
             const auto observation=ClassifyRecovery(files);
             const auto outcome=RecoveryDecision(observation);
@@ -606,6 +609,8 @@ static Manifest PackageManifest(const fs::path& package) {
 // hears each of the manifest's files as Preparing; MANIFEST.txt itself is
 // added after.
 static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, const std::atomic<bool>& cancel, const Progress& progress) {
+    // Announced before the folder is walked, which takes a while too.
+    Announce(cancel,progress,UpdateStage::Preparing,manifest.size());
     std::set<std::wstring> seen;
     std::vector<fs::path> present; std::vector<std::string> expected;
     for(fs::recursive_directory_iterator entry(package), end; entry!=end; ++entry) {
@@ -621,7 +626,6 @@ static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, cons
         seen.insert(key);
     }
     std::uint64_t checked=0;
-    Announce(cancel,progress,UpdateStage::Preparing,manifest.size());
     const auto hashes=HashFiles(present,false,cancel,[&]{ Report(cancel,progress,UpdateStage::Preparing,++checked,manifest.size()); });
     for(size_t index=0; index<present.size(); ++index)
         if(!SameHash(*hashes[index],expected[index])) throw std::runtime_error("Package file failed verification");
