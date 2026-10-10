@@ -2,6 +2,7 @@
 // A game-style fallback clears the OS cursor if overlay handling falls through.
 #include "../ui/Win32Input.hxx"
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_win32.h>
 #include <atomic>
 #include <cmath>
@@ -110,6 +111,20 @@ int main() {
         unsigned char* pixels = nullptr; int width = 0, height = 0;
         io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
         const auto frame = [] { ImGui_ImplWin32_NewFrame(); ImGui::NewFrame(); ImGui::EndFrame(); };
+        const auto pressed = [] { return ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0); };
+        // Once a sender has finished: one frame moves everything the bridge
+        // holds into ImGui, which applies one change per key or button a frame
+        // and holds later input behind it, so frames run until its queue is
+        // empty. Returns how many of those frames saw a press held.
+        const auto drain = [&] {
+            int held = 0;
+            for (int i = 0; i < 20000; ++i) {
+                frame();
+                if (pressed()) ++held;
+                if (!GImGui->InputEventsQueue.Size) break;
+            }
+            return held;
+        };
         sf4e::ui::Win32InputBridge bridge;
         ImGui_ImplWin32_SetInputBridge(&bridge);
         frame();
@@ -126,12 +141,11 @@ int main() {
             ImGui_ImplWin32_WndProcHandler(window, WM_KEYDOWN, VK_RIGHT, 0);
             sent = true;
         });
-        while (!sent) { frame(); if (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0)) ++pressesSeen; }
+        // Frames run while the thread sends, and after it, until all it sent
+        // is applied: the sender may finish before the first of them.
+        while (!sent) { frame(); if (pressed()) ++pressesSeen; }
         messages.join();
-        // ImGui applies one transition per key each frame, so the queued
-        // presses and releases take several frames to play out.
-        for (int i = 0; i < 20000 && (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0) || !ImGui::IsKeyDown(ImGuiKey_RightArrow)); ++i) frame();
-        frame();
+        pressesSeen += drain();
         check(pressesSeen > 0, "no press from the message thread reached a frame");
         check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow) && !ImGui::IsMouseDown(0), "a release from the message thread was lost");
         check(ImGui::IsKeyDown(ImGuiKey_RightArrow), "the last press from the message thread was lost");
@@ -266,7 +280,9 @@ int main() {
         owner.join();
         check(captured, "the test window never held the capture, so its release was not exercised");
         check(captureChanges >= 50, "releasing the capture did not re-enter the window procedure");
-        for (int i = 0; i < 1000 && ImGui::IsMouseDown(0); ++i) frame();
+        // Every press is applied before the mouse moves below, or the moves
+        // would wait behind them.
+        drain();
         check(!ImGui::IsMouseDown(0), "a release from the capturing window was lost");
 
         // The game can draw at another size than its window's client area (a window the

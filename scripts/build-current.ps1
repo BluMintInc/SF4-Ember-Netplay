@@ -27,13 +27,13 @@ Assert-CMakeSource $repo $build
 if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object { $_ -match '^([^#/:]+):[^=]+=.*sf4-display-dxvk' }) {
     throw 'Stale dependency cache references a different checkout'
 }
-& $cmake --build $build --parallel 4
+& $cmake --build $build --parallel $env:NUMBER_OF_PROCESSORS
 if ($LASTEXITCODE) { throw 'Build failed' }
 # Public-network and live Discord checks require a separate explicit run. The
 # receipt names them, so testsPassed never implies they ran (ledger A-015).
 $excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 if (!$SkipTests) {
-    & $ctest --test-dir $build --output-on-failure -E $excludedTests
+    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests
     if ($LASTEXITCODE) { throw 'Tests failed' }
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')

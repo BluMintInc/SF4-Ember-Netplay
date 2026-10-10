@@ -198,8 +198,15 @@ static sf4e::netplay::Snapshot JoinedSession(const sf4e::netplay::Generation& ma
 	session.control = sf4e::netplay::Health::Healthy;
 	return session;
 }
-static sf4e::room::Snapshot TableRoom(bool opponent) {
+// A current host's snapshot, which always says which game took this PC in
+// (localMatchGenerations); TestOlderHostFallback covers one that does not.
+static sf4e::room::Snapshot CurrentHostRoom() {
 	sf4e::room::Snapshot room;
+	room.localMatchGenerationsSent = true;
+	return room;
+}
+static sf4e::room::Snapshot TableRoom(bool opponent) {
+	auto room = CurrentHostRoom();
 	room.roomEpoch = 3;
 	room.localMember = 1;
 	room.tables[0].p1 = 1;
@@ -274,10 +281,6 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::Go && none());
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::None);
-	// The same snapshot from a host that does not say falls back to the lists.
-	auto older = live;
-	older.localMatchGenerationsSent = false;
-	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, older, 0));
 
 	// A spectator by choice, taken in by the third game: refused while they
 	// watch. They stop watching with the game still being played: the roster
@@ -435,7 +438,6 @@ static void TestTrainingMatrix(const sf4e::netplay::Snapshot& joined, const sf4e
 	CHECK(status(view(nextWatcher), nextWatcher) == room::MemberStatus::WatchingNext && view(nextWatcher).localMatchGenerations[0] == 0);
 	CHECK(!listedAt(view(mover), &room::Table::spectators, mover) && view(mover).localMatchGenerations[0] == game);
 	CHECK(view(leaver).localMember == 0);
-	const auto withoutKey = [](room::Snapshot snapshot) { snapshot.localMatchGenerationsSent = false; return snapshot; };
 	// Each place as the room shows it while the game is still being played.
 	const auto fighter = view(p1), failedWatcherView = view(failedWatcher), unwatcherView = view(unwatcher), moverView = view(mover),
 		leaverView = view(leaver), admittedQueueView = view(admittedQueue), failedQueueView = view(failedQueue), unqueuedView = view(unqueued),
@@ -477,18 +479,13 @@ static void TestTrainingMatrix(const sf4e::netplay::Snapshot& joined, const sf4e
 		{"queued after the start, not admitted", lateQueueView, joined, 0, true},
 		{"watching next game only", nextWatcherView, joined, 0, true},
 		{"failed watcher, newer game took them in again", failedWatcherNext, postMatch, game, false},
-		{"older host: queued admitted, not yet started here", withoutKey(admittedQueueView), joined, 0, false},
-		{"older host: queued admitted, retired here", withoutKey(admittedQueueView), postMatch, game, true},
-		{"older host: queued after the start", withoutKey(lateQueueView), joined, 0, true},
-		{"older host: spectator failed, retired here", withoutKey(failedWatcherView), postMatch, game, true},
 	};
 	CheckTrainingRows(rows, made);
 }
 // A game paused over conflicting results is not over: its watchers are still
 // in it until this PC retires that exact game, for a by-choice spectator and a
-// queued one the start took in, from a host that sends its roster generations
-// and from one that does not. A member the game left out (an open receipt) and
-// one queued after its start are free throughout.
+// queued one the start took in. A member the game left out (an open receipt)
+// and one queued after its start are free throughout.
 static void TestTrainingPausedMatrix(const sf4e::netplay::Snapshot& joined, const sf4e::netplay::Generation& made) {
 	namespace room = sf4e::room;
 	using sf4e::netplay::MatchState;
@@ -559,40 +556,61 @@ static void TestTrainingPausedMatrix(const sf4e::netplay::Snapshot& joined, cons
 	CHECK(arrivalView.localMatchGenerations[0] == 0);
 	CHECK(watcherView.localMatchGenerations[0] == game && queuedView.localMatchGenerations[0] == game);
 	CHECK(excludedView.localMatchGenerations[0] == 0 && lateView.localMatchGenerations[0] == 0);
-	const auto withoutKey = [](room::Snapshot snapshot) { snapshot.localMatchGenerationsSent = false; return snapshot; };
 	auto postMatch = joined; postMatch.match = MatchState::PostMatch;
 	std::vector<TrainingRow> rows = {
 		{"paused: spectator, nothing retired", watcherView, joined, 0, false},
 		{"paused: spectator, an older game retired", watcherView, postMatch, earlier, false},
 		{"paused: spectator, this game retired", watcherView, postMatch, game, true},
-		{"paused: older host: spectator, nothing retired", withoutKey(watcherView), joined, 0, false},
-		{"paused: older host: spectator, an older game retired", withoutKey(watcherView), postMatch, earlier, false},
-		{"paused: older host: spectator, this game retired", withoutKey(watcherView), postMatch, game, true},
+
 		{"paused: queued admitted, nothing retired", queuedView, joined, 0, false},
 		{"paused: queued admitted, an older game retired", queuedView, postMatch, earlier, false},
 		{"paused: queued admitted, this game retired", queuedView, postMatch, game, true},
-		{"paused: older host: queued admitted, nothing retired", withoutKey(queuedView), joined, 0, false},
-		{"paused: older host: queued admitted, an older game retired", withoutKey(queuedView), postMatch, earlier, false},
-		{"paused: older host: queued admitted, this game retired", withoutKey(queuedView), postMatch, game, true},
+
 		{"paused: queued, left out of the game", excludedView, joined, 0, true},
 		{"paused: queued after the start", lateView, joined, 0, true},
-		{"paused: older host: queued after the start", withoutKey(lateView), joined, 0, true},
+
 		{"paused: spectator arrived after the pause", arrivalView, joined, 0, true},
 	};
 	// The member still streaming the paused game after Unqueue, and after Watch
-	// again: refused until this PC retires that exact game, from either host,
-	// with the controller not started or back.
+	// again: refused until this PC retires that exact game, with the controller
+	// not started or back.
 	std::deque<std::string> names;
 	const std::pair<const char*, const room::Snapshot*> streaming[] = {{"unqueued", &unqueuedView}, {"unqueued then watched", &rewatchView}};
 	for (const auto& place : streaming)
-		for (const bool key : {true, false})
-			for (const sf4e::netplay::Snapshot* state : {&joined, static_cast<const sf4e::netplay::Snapshot*>(&postMatch)})
-				for (const auto retired : {std::uint64_t(0), earlier, game}) {
-					names.push_back(std::string("paused: ") + (key ? "" : "older host: ") + place.first + (state == &joined ? ", controller none" : ", controller back") +
-						(retired == game ? ", this game retired" : retired ? ", an older game retired" : ", nothing retired"));
-					rows.push_back({names.back().c_str(), key ? *place.second : withoutKey(*place.second), *state, retired, retired == game});
-				}
+		for (const sf4e::netplay::Snapshot* state : {&joined, static_cast<const sf4e::netplay::Snapshot*>(&postMatch)})
+			for (const auto retired : {std::uint64_t(0), earlier, game}) {
+				names.push_back(std::string("paused: ") + place.first + (state == &joined ? ", controller none" : ", controller back") +
+					(retired == game ? ", this game retired" : retired ? ", an older game retired" : ", nothing retired"));
+				rows.push_back({names.back().c_str(), *place.second, *state, retired, retired == game});
+			}
 	CheckTrainingRows(rows, made);
+}
+// A snapshot without local_match_generations, from a host that does not say
+// which game took this PC in, still presents a safe answer: any place among
+// the spectators of a game not over refuses Training, whatever the status
+// says, and a place outside them, or a game this PC retired, does not.
+static void TestOlderHostFallback(const sf4e::netplay::Snapshot& session, const sf4e::netplay::Generation& made) {
+	using sf4e::TrainingEntry;
+	sf4e::room::Snapshot older;
+	CHECK(!older.localMatchGenerationsSent);
+	older.roomEpoch = 3;
+	older.localMember = 1;
+	older.members.resize(1);
+	older.members[0].id = 1;
+	older.members[0].status = sf4e::room::MemberStatus::Queued;
+	older.members[0].table = 0;
+	older.tables[0].p1 = 2; older.tables[0].p2 = 3;
+	older.tables[0].phase = sf4e::room::TablePhase::Playing;
+	older.tables[0].matchGeneration = 6;
+	older.tables[0].queue = {1};
+	older.tables[0].spectators = {4};
+	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, session, true, older, 0));
+	older.tables[0].spectators = {4, 1};
+	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, older, 0));
+	older.members[0].status = sf4e::room::MemberStatus::WatchingNext;
+	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, older, 0));
+	auto torn = session; torn.match = sf4e::netplay::MatchState::PostMatch;
+	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, torn, true, older, 6));
 }
 // The runtime's own policy, with a runtime running: a room entry holds while
 // the room's gate is open, and not once a newer room snapshot of the same
@@ -639,7 +657,7 @@ static void TestTrainingPolicy() {
 	// In the room at no table: eligible. The client then applies a newer snapshot
 	// of the same session closing the room, the member kept and every table
 	// closed, before the menu looks: no Training.
-	sf4e::room::Snapshot unseated;
+	auto unseated = CurrentHostRoom();
 	unseated.roomEpoch = 3;
 	unseated.localMember = 1;
 	unseated.members.resize(1);
@@ -683,13 +701,10 @@ static void TestTrainingPolicy() {
 		sf4e::GameEvents::MainMenu::RequestTraining(made);
 		live = watching;
 		CHECK(record.Take(GetTickCount64(), judgedAfter) == Taken::Dropped && none());
-		// Listed among the spectators but left out of this game's roster: free until
-		// the next when the host says so (generation 0 here). An older host cannot
-		// say, so the place among the spectators refuses.
+		// Listed among the spectators but left out of this game's roster
+		// (generation 0 here): free until the next.
 		auto excluded = watching;
 		excluded.members[0].status = sf4e::room::MemberStatus::WatchingNext;
-		CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, after, true, excluded, 0));
-		excluded.localMatchGenerationsSent = true;
 		CHECK(facade::TrainingHolds(TrainingEntry::Room, made, after, true, excluded, 0));
 		if (!locked) continue;
 		// Both fighters ready and the start held for this locked-in watcher: part
@@ -710,10 +725,9 @@ static void TestTrainingPolicy() {
 		live = holding;
 		CHECK(record.Take(GetTickCount64(), judgedAfter) == Taken::Dropped && none());
 	}
-	// From a host that does not send its roster generations (no key): queued at
-	// table 0 while it waits, eligible, as is a queue place taken after the game
-	// began. Queued and listed among the spectators the game started with (the
-	// status stays Queued): taken to be admitted, so no Training.
+	// Queued at table 0 while it waits: eligible, as is a queue place taken after
+	// the game began. Queued and taken in by the game's roster (the status stays
+	// Queued): no Training.
 	sf4e::room::Snapshot queued = unseated;
 	queued.tables[0].p1 = 2; queued.tables[0].p2 = 3;
 	queued.tables[0].phase = sf4e::room::TablePhase::Waiting;
@@ -727,21 +741,22 @@ static void TestTrainingPolicy() {
 	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, session, true, lateQueue, 0));
 	auto admitted = lateQueue;
 	admitted.tables[0].spectators = {4, 1};
+	admitted.tables[0].matchGeneration = 6;
+	admitted.localMatchGenerations[0] = 6;
 	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, admitted, 0));
 	live = queued;
 	CHECK(judged(made));
 	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	live = admitted;
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::Dropped && none());
-	// Once the host says, its roster decides, not the lists.
-	auto said = admitted;
-	said.localMatchGenerationsSent = true;
-	said.tables[0].matchGeneration = 6;
-	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, session, true, said, 0));
-	said.localMatchGenerations[0] = 6;
-	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, said, 0));
-	said.localMatchGenerations[0] = 5;
-	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, session, true, said, 0));
+	// The roster decides, not the lists: listed among the spectators but left out
+	// of this game, or taken in by an older one, the place is free.
+	auto leftOut = admitted;
+	leftOut.localMatchGenerations[0] = 0;
+	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, session, true, leftOut, 0));
+	leftOut.localMatchGenerations[0] = 5;
+	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, session, true, leftOut, 0));
+	TestOlderHostFallback(session, made);
 	TestTrainingRoster(session, made);
 	TestTrainingMatrix(session, made);
 	TestTrainingPausedMatrix(session, made);

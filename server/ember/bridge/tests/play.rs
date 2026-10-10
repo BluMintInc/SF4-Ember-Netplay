@@ -517,6 +517,9 @@ async fn a_lone_report_or_a_silent_game_goes_to_review() {
     let id = create(&f, "play-4", "ember-room-v1", 2).await;
     let binding = bound(&f, &id).await;
     let permit = permit(&f, &id, &binding, 41).await;
+    // A second short of the partner's minute and a second past it: real time
+    // must not count, or a busy machine pushes the first check over.
+    f.bridge.clock.freeze();
     report(&f, &f.a, &f.a, &id, &permit, 1, Outcome::P1Win).await;
     f.bridge.clock.advance(59);
     ember_bridge::maintain(f.bridge.state()).await;

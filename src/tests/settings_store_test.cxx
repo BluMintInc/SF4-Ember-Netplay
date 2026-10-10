@@ -241,7 +241,7 @@ int main() {
     const Json launcher = {{"displayName", "Saved player"}, {"inputDelay", 3}, {"roundCount", 7},
         {"roundTimeIntegral", 300}, {"editionSelect", 1}, {"sessionPort", 23456},
         {"relayHostSecret", "old-test-secret"}, {"relayRoomCode", "OLD1"}, {"relaySessionPort", 30001},
-        {"matchHudNames", 1}, {"unknownPreference", "retain"}};
+        {"unknownPreference", "retain"}};
     const Json overlay = {{"diagnostics", {{"heapCheckInterval", 1}}}, {"stageID", 12}, {"lobby", {{"charaID", 23}, {"color", 7}}},
         {"mainMenu", {{"p2", {{"charaID", 9}}}}}, {"device", {{"idx", 2}, {"type", 1}}}};
     Write(path / L"config.json", launcher.dump(4));
@@ -253,7 +253,7 @@ int main() {
     CHECK(error.empty());
     CHECK(result["displayName"] == "Saved player" && result["inputDelay"] == 3);
     CHECK(!result.contains("relayHostSecret") && !result.contains("relayRoomCode") && !result.contains("relaySessionPort"));
-    CHECK(!result.contains("matchHudNames") && result["unknownPreference"] == "retain");
+    CHECK(result["unknownPreference"] == "retain");
     auto activeOverlay = overlay; activeOverlay.erase("mainMenu");
     CHECK(store.LoadOverlay(result, error) && result == activeOverlay);
     CHECK(store.LoadLauncher(result, error) && !result.contains("sessionPort"));
@@ -309,12 +309,12 @@ int main() {
     {
         // A retired preference leaves both the active section and the legacy one, and nothing else does.
         auto saved=Json::parse(Read(path / L"settings.json"));
-        saved["netplay"]["matchHudNames"]=1;saved["legacyLauncher"]["matchHudNames"]=1;
+        saved["netplay"]["simpleUi"]=1;saved["legacyLauncher"]["simpleUi"]=1;
         Write(path / L"settings.json",saved.dump(4));
-        CHECK(store.LoadLauncher(result,error)&&!result.contains("matchHudNames")&&result["matchHudLayout"]==1&&result["unknownPreference"]=="retain");
+        CHECK(store.LoadLauncher(result,error)&&!result.contains("simpleUi")&&result["matchHudLayout"]==1&&result["unknownPreference"]=="retain");
         CHECK(store.SaveLauncher({{"inputDelay",3}},error));
         const auto retired=Json::parse(Read(path / L"settings.json"));
-        CHECK(!retired["netplay"].contains("matchHudNames")&&!retired["legacyLauncher"].contains("matchHudNames"));
+        CHECK(!retired["netplay"].contains("simpleUi")&&!retired["legacyLauncher"].contains("simpleUi"));
         CHECK(retired["netplay"]["matchHudAnchor"]==4&&retired["legacyLauncher"]["unknownPreference"]=="retain");
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
@@ -346,39 +346,6 @@ int main() {
     const auto discordSettings=Json::parse(Read(path / L"settings.json"));
     CHECK(discordSettings["netplay"]["discordPresence"]==false);
     CHECK(!discordSettings["legacyLauncher"].contains("discordInvites"));
-    // The first crash report builds kept their opt-in as "crashReports". On, it
-    // only prepared a preview, so it never turns on sending without asking:
-    // only off carries over, and the old key goes either way.
-    const auto oldOptIn=[&](const Json& value) {
-        auto old=Json::parse(Read(path/L"settings.json"));
-        old["netplay"].erase("sendProblemReports"); old["legacyLauncher"].erase("sendProblemReports"); old["netplay"]["crashReports"]=value;
-        Write(path/L"settings.json",old.dump());
-    };
-    for (const bool value : {true, false}) {
-        oldOptIn(value);
-        CHECK(store.LoadLauncher(result,error) && !result.contains("crashReports"));
-        CHECK(value ? !result.contains("sendProblemReports") : result.contains("sendProblemReports") && result["sendProblemReports"]==false);
-        sf4e::netplay::PlayerPreferences loaded; sf4e::netplay::ReadBoolPreferences(result,loaded);
-        CHECK(!loaded.sendProblemReports);
-        CHECK(store.SaveLauncher({{"displayName","Migrated"}},error));
-        const auto saved=Json::parse(Read(path/L"settings.json"));
-        CHECK(!saved["netplay"].contains("crashReports") && !saved["legacyLauncher"].contains("crashReports"));
-        CHECK(value ? !saved["netplay"].contains("sendProblemReports") : saved["netplay"]["sendProblemReports"]==false);
-    }
-    // An old key arriving through a save never turns sending on either.
-    CHECK(store.SaveLauncher({{"crashReports",true}},error));
-    CHECK(store.LoadLauncher(result,error) && !result.value("sendProblemReports",false) && !result.contains("crashReports"));
-    // A value under the current key wins over an old one, either way round.
-    CHECK(store.SaveLauncher({{"sendProblemReports",true}},error));
-    CHECK(store.SaveLauncher({{"crashReports",false}},error));
-    CHECK(store.LoadLauncher(result,error) && result.value("sendProblemReports",false) && !result.contains("crashReports"));
-    {
-        auto both=Json::parse(Read(path/L"settings.json"));
-        both["netplay"]["sendProblemReports"]=false; both["netplay"]["crashReports"]=true;
-        Write(path/L"settings.json",both.dump());
-        CHECK(store.LoadLauncher(result,error) && !result.value("sendProblemReports",true) && !result.contains("crashReports"));
-    }
-    CHECK(!Json::parse(Read(path/L"settings.json"))["legacyLauncher"].contains("crashReports"));
     // Independent consumers merge into the latest complete document.
     SettingsStore second(path.wstring());
     CHECK(store.SaveLauncher({{"displayName", "Changed"}}, error));

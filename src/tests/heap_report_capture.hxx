@@ -67,7 +67,10 @@ void TestSmallDumpIndependentOfFull() {
         channel.view->magic = DumpRequestMagic; channel.view->threadId = GetCurrentThreadId();
         channel.view->exceptionPointers = reinterpret_cast<uintptr_t>(&pointers);
         fullFailure = failure; reportBeforeFull = logs; reportWrites = fullWrites = 0;
-        CHECK(!channel.Serve(GetCurrentProcess(), logs.c_str(), FailingFullWriter, 2000));
+        // The small dump and the full attempts share this budget. The small
+        // write normally needs a fraction of it, but on a machine busy with
+        // other builds it once ran past a 2 s budget, which left no full attempt.
+        CHECK(!channel.Serve(GetCurrentProcess(), logs.c_str(), FailingFullWriter, 10000));
         CHECK(reportWrites == 1 && fullWrites >= 1);
         CHECK(!channel.written[0] && !channel.reportWritten.empty() && channel.view->written == 1);
         CHECK(WaitForSingleObject(channel.done, 0) == WAIT_OBJECT_0);

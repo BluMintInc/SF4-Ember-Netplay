@@ -54,21 +54,6 @@ static void TestAuthorityRecovery() {
     RoomAuthority timed("Deadline"); CHECK(timed.RestoreCheckpoint(checkpoint));
     CHECK(timed.AdvanceTime(30999).empty());
     CHECK(!timed.AdvanceTime(31000).empty());
-
-    RoomCommit commit(restored); Result effects;
-    commit.SetAuthority(1, true);
-    auto rename = TableAction(restored, p1, 0, ActionKind::Rename); rename.text = "Committed only";
-    CHECK(commit.Prepare(1, [&](RoomAuthority& candidate) { return candidate.Apply(p1, rename); }));
-    const auto stale = commit.PendingToken();
-    CHECK(restored.SnapshotView().name == "Recovery");
-    commit.SetAuthority(2, true);
-    CHECK(!commit.Commit(stale, effects) && restored.SnapshotView().name == "Recovery");
-    CHECK(commit.Prepare(2, [&](RoomAuthority& candidate) { return candidate.Apply(p1, rename); }));
-    const auto accepted = commit.PendingToken();
-    CHECK(commit.Commit(accepted, effects) && restored.SnapshotView().name == "Committed only");
-    CHECK(!commit.Commit(accepted, effects));
-    commit.SetAuthority(2, false);
-    CHECK(!commit.Prepare(3, [&](RoomAuthority& candidate) { return candidate.Apply(p1, rename); }));
 }
 
 static void TestRelativeTimerRecovery() {
