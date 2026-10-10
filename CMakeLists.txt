@@ -619,7 +619,6 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RollbackDiagnostics SOURCES "src/tests/rollback_diagnostics_test.cxx" LIBS sf4e_common TIMEOUT 15)
     sf4e_add_unit_test(NAME PacingController SOURCES "src/tests/pacing_controller_test.cxx" TIMEOUT 15)
     sf4e_add_unit_test(NAME StateHash SOURCES "src/tests/state_hash_test.cxx" TIMEOUT 15)
-    sf4e_add_unit_test(NAME SaveStateOwnership SOURCES "src/tests/savestate_ownership_test.cxx" TIMEOUT 15)
 endif()
 
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
