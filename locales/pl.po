@@ -2201,6 +2201,24 @@ msgstr "Zastępowanie plików..."
 msgid "update.stage.confirming"
 msgstr "Sprawdzanie zainstalowanych plików..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Oczekiwanie na zamknięcie SF4 Ember Netplay..."
+
+msgid "update.notice.waiting_file"
+msgstr "Oczekiwanie, aż inny program zwolni {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Przywracanie poprzednich plików..."
+
+msgid "update.notice.elapsed"
+msgstr "Upłynęło {0}"
+
+msgid "update.notice.reopens"
+msgstr "Po zakończeniu SF4 Ember Netplay otworzy się ponownie."
+
+msgid "update.notice.recovering"
+msgstr "Kończenie przerwanej aktualizacji..."
+
 msgid "room.member_left"
 msgstr "Uczestnik wyszedł"
 

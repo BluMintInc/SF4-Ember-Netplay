@@ -2201,6 +2201,24 @@ msgstr "파일 교체 중..."
 msgid "update.stage.confirming"
 msgstr "설치된 파일 확인 중..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "SF4 Ember Netplay가 닫히기를 기다리는 중..."
+
+msgid "update.notice.waiting_file"
+msgstr "다른 프로그램이 {0}을(를) 해제하기를 기다리는 중..."
+
+msgid "update.notice.restoring"
+msgstr "이전 파일 복원 중..."
+
+msgid "update.notice.elapsed"
+msgstr "경과 시간 {0}"
+
+msgid "update.notice.reopens"
+msgstr "완료되면 SF4 Ember Netplay가 다시 열립니다."
+
+msgid "update.notice.recovering"
+msgstr "중단된 업데이트를 마무리하는 중..."
+
 msgid "room.member_left"
 msgstr "참가자 퇴장"
 

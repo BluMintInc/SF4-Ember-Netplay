@@ -26,7 +26,11 @@
 #include <utility>
 
 namespace sf4e { namespace launcher {
-namespace testing { std::function<void(const std::filesystem::path&, std::uint64_t)> HashedBlock; }
+namespace testing {
+std::function<void(const std::filesystem::path&, std::uint64_t)> HashedBlock;
+std::function<void(const std::filesystem::path&)> BackupCopied;
+unsigned InUseWaitMilliseconds=10000;
+}
 namespace {
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -44,7 +48,9 @@ void CheckPath(const fs::path& root, const fs::path& relative) {
         if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) throw std::runtime_error("Reparse point in package destination");
     }
 }
-struct Change { fs::path relative; bool existed = false; };
+// A file the transaction changes, with the hash of its backup when the file
+// existed.
+struct Change { fs::path relative; std::optional<std::string> prior; };
 bool SameHash(const std::string& left, const std::string& right) { return _stricmp(left.c_str(),right.c_str())==0; }
 bool ValidHash(const std::string& value) {
     return value.size()==64 && std::all_of(value.begin(),value.end(),[](unsigned char c){return std::isxdigit(c)!=0;});
@@ -114,6 +120,11 @@ struct Cancelled : std::runtime_error { Cancelled() : std::runtime_error("Cancel
 void Report(const std::atomic<bool>& cancel, const Progress& progress, UpdateStage stage, std::uint64_t done, std::uint64_t total) {
     if(progress) progress(stage,done,total);
     if(cancel) throw Cancelled();
+}
+// A step starting, as (0, total) before its first file; not once cancelled.
+void Announce(const std::atomic<bool>& cancel, const Progress& progress, UpdateStage stage, std::uint64_t total) {
+    if(cancel) throw Cancelled();
+    if(progress) progress(stage,0,total);
 }
 // Restoration never passes `cancel`, so nothing interrupts a rollback.
 std::string HashFile(const fs::path& path, const std::atomic<bool>& cancel=NeverCancelled, const Progress& progress={}) {
@@ -189,14 +200,60 @@ void DurableJson(const fs::path& path, const json& value) {
     const auto written=durable::PublishReplace(path,TemporarySibling(path),contents.data(),contents.size());
     if(!written) throw std::runtime_error(written.failed==durable::WriteStep::Create?"Cannot write update transaction":"Cannot commit update transaction");
 }
-void ReplaceFileVerified(const fs::path& source,const fs::path& destination,const std::string& expected) {
+// Tells `activity` what the install is doing. Only told: whatever the
+// observer does, a failure included, never changes what the install does
+// next, a rollback above all.
+void Tell(const Activity& activity, InstallActivity what, const fs::path& file={}) noexcept {
+    if(!activity) return;
+    try { activity(what,file); } catch(...) {}
+}
+// How a write waits for a file another process holds: with the install's
+// cancel, or for restoration, which nothing interrupts, NeverCancelled; the
+// wait is told to `activity` either way.
+struct InUsePolicy { const std::atomic<bool>& cancel; const Activity& activity; };
+// Windows refuses to replace or remove a file another process still has open:
+// a helper the launcher started can take a moment to end after it, and an
+// antivirus holds a file it is scanning. That refusal is tried again for a
+// few seconds, with the wait announced and a cancel heard between attempts;
+// any other failure, or one that outlasts the wait, is returned.
+std::error_code UnlessInUse(const fs::path& file, const InUsePolicy& policy, const std::function<std::error_code()>& attempt) {
+    // A wait, once told, is told to end however it ends: done, out of time,
+    // cancelled or failed.
+    struct Wait {
+        const InUsePolicy& policy; const fs::path& file; bool told=false;
+        void Begin() { if(!told) Tell(policy.activity,InstallActivity::WaitingForFile,file); told=true; }
+        ~Wait() { if(told) Tell(policy.activity,InstallActivity::WaitEnded); }
+    } wait{policy,file};
+    const ULONGLONG deadline=GetTickCount64()+testing::InUseWaitMilliseconds;
+    for(;;) {
+        const auto code=attempt();
+        const int value=code.value();
+        const bool inUse=code.category()==std::system_category() && (value==ERROR_SHARING_VIOLATION ||
+            value==ERROR_LOCK_VIOLATION || value==ERROR_ACCESS_DENIED || value==ERROR_USER_MAPPED_FILE);
+        if(!inUse || GetTickCount64()>=deadline) return code;
+        wait.Begin();
+        Sleep(100);
+        if(policy.cancel) throw Cancelled();
+    }
+}
+void RemoveFile(const fs::path& path, const InUsePolicy& policy) {
+    if(const auto code=UnlessInUse(path,policy,[&]{ std::error_code error; fs::remove(path,error); return error; }))
+        throw fs::filesystem_error("Cannot remove update file",path,code);
+}
+void ReplaceFileVerified(const fs::path& source,const fs::path& destination,const std::string& expected,const InUsePolicy& policy) {
     const auto temporary=TemporarySibling(destination);
     fs::create_directories(destination.parent_path());
     fs::copy_file(source,temporary); // Never overwrite an occupied temporary sibling.
-    if(!SameHash(HashFile(temporary),expected)) throw std::runtime_error("Temporary update file failed verification");
-    FlushFile(temporary);
-    if(!MoveFileExW(temporary.c_str(),destination.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))
-        throw std::runtime_error("Atomic update replacement failed");
+    try {
+        if(!SameHash(HashFile(temporary),expected)) throw std::runtime_error("Temporary update file failed verification");
+        FlushFile(temporary);
+        if(UnlessInUse(destination,policy,[&]{ return MoveFileExW(temporary.c_str(),destination.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH) ?
+            std::error_code() : std::error_code(static_cast<int>(GetLastError()),std::system_category()); }))
+            throw std::runtime_error("Atomic update replacement failed");
+    } catch(...) {
+        std::error_code ignored; fs::remove(temporary,ignored); // Never left beside the destination.
+        throw;
+    }
 }
 struct InstallLock {
     HANDLE handle=INVALID_HANDLE_VALUE; fs::path path;
@@ -252,17 +309,21 @@ void ValidateRecoveryBackups(const fs::path& backup, const std::map<std::wstring
     }
 }
 // A backup set whose every needed file matched the journal. Restoration takes
-// only this, so the backups are hashed once and never skipped.
+// only this, so the backups are hashed once and never skipped. Restoring
+// starts here: `activity` hears it before the backups are hashed.
 struct ValidatedBackup { fs::path path; };
-ValidatedBackup ValidateRestoreBackup(const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files) {
+ValidatedBackup ValidateRestoreBackup(const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files, const Activity& activity) {
+    Tell(activity,InstallActivity::Restoring);
     ValidateRecoveryBackups(backup,files,true);
     return {backup};
 }
 // Restore only recorded operations, from their validated backup set. Files
 // left out of the transaction remain exactly as the player left them, even
-// when they changed while this install was running.
-void RestoreOperations(const fs::path& install, const ValidatedBackup& validated, const std::map<std::wstring,RecoveryFile>& files) {
+// when they changed while this install was running. Nothing interrupts it;
+// `activity` hears any wait for a file.
+void RestoreOperations(const fs::path& install, const ValidatedBackup& validated, const std::map<std::wstring,RecoveryFile>& files, const Activity& activity) {
     const auto& backup=validated.path;
+    const InUsePolicy uninterrupted{NeverCancelled,activity};
     for(const auto& [key,file]:files) if(file.operation) {
         const auto path=install/file.relative;
         if(fs::is_directory(path)) throw std::runtime_error("Recovery destination is not a file");
@@ -272,8 +333,8 @@ void RestoreOperations(const fs::path& install, const ValidatedBackup& validated
         if(file.prior) {
             // An untouched file may still be held open and needs no write.
             if(fs::is_regular_file(path) && SameHash(HashFile(path),*file.prior)) continue;
-            ReplaceFileVerified(backup/file.relative,path,*file.prior);
-        } else fs::remove(path);
+            ReplaceFileVerified(backup/file.relative,path,*file.prior,uninterrupted);
+        } else RemoveFile(path,uninterrupted);
     }
     for(const auto& [key,file]:files) if(file.operation) {
         const auto path=install/file.relative;
@@ -320,7 +381,7 @@ RecoveryOutcome RecoveryDecision(const RecoveryObservation& observation) {
 }
 // A rolling-back journal resumes its recorded restoration. A prepared one
 // observes all targets before deciding whether the folder was replaced since.
-bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly) {
+bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly, const Activity& activity) {
     const auto transactionPath=install/TransactionName;
     CheckPath(install,TransactionName);
     if(!fs::exists(transactionPath)) return true;
@@ -390,8 +451,11 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         validating=false;
         stream.close();
         if(rollingBack) {
-            RestoreOperations(install,ValidateRestoreBackup(backup,files),files);
+            RestoreOperations(install,ValidateRestoreBackup(backup,files,activity),files,activity);
         } else if(!committed) {
+            // Only a look at the folder decides what is left to do, and it
+            // reads every file the update names.
+            Tell(activity,InstallActivity::Recovering);
             ObserveRecoveryFiles(install,files);
             const auto observation=ClassifyRecovery(files);
             const auto outcome=RecoveryDecision(observation);
@@ -401,14 +465,14 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
                 if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
                 error.clear(); return true;
             case RecoveryOutcome::Restore: {
-                const auto validated=ValidateRestoreBackup(backup,files);
+                const auto validated=ValidateRestoreBackup(backup,files,activity);
                 transaction["state"]="rolling-back";
                 // Only what this look found is carried into the rollback.
                 transaction.erase("missingSkipped");
                 if(!observation.missing.empty()) transaction["missingSkipped"]=observation.missing.generic_u8string();
                 DurableJson(transactionPath,transaction);
                 rollingBack=true;
-                RestoreOperations(install,validated,files);
+                RestoreOperations(install,validated,files,activity);
                 break;
             }
             case RecoveryOutcome::Completed:
@@ -436,10 +500,10 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
     }
 }
 }
-bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspectOnly) {
+bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspectOnly, const Activity& activity) {
     try { const auto install=fs::absolute(installInput).lexically_normal(); CheckPath(install.root_path(),install.relative_path());
-        if(inspectOnly) return RecoverLocked(install,error,true);
-        auto lock=Lock(install); return RecoverLocked(install,error,false); }
+        if(inspectOnly) return RecoverLocked(install,error,true,activity);
+        auto lock=Lock(install); return RecoverLocked(install,error,false,activity); }
     catch(const std::exception& failure){error=failure.what();return false;}
 }
 bool UninstallPackage(const fs::path& installInput, std::string& error) {
@@ -545,6 +609,8 @@ static Manifest PackageManifest(const fs::path& package) {
 // hears each of the manifest's files as Preparing; MANIFEST.txt itself is
 // added after.
 static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, const std::atomic<bool>& cancel, const Progress& progress) {
+    // Announced before the folder is walked, which takes a while too.
+    Announce(cancel,progress,UpdateStage::Preparing,manifest.size());
     std::set<std::wstring> seen;
     std::vector<fs::path> present; std::vector<std::string> expected;
     for(fs::recursive_directory_iterator entry(package), end; entry!=end; ++entry) {
@@ -579,7 +645,7 @@ bool ValidatePackageFolder(const fs::path& packageInput, std::string& error, con
     try { const auto package=fs::absolute(packageInput).lexically_normal(); VerifiedPackage(package,PackageManifest(package),cancel,progress); error.clear(); return true; }
     catch(const std::exception& failure){error=failure.what();return false;}
 }
-bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error, const std::atomic<bool>& cancel, const Progress& progress) {
+bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error, const std::atomic<bool>& cancel, const Progress& progress, const Activity& activity) {
     std::vector<Change> changed;
     fs::path install, backup;
     json transaction;
@@ -592,7 +658,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         if (!fs::is_directory(install) || !fs::is_directory(staging) || install == staging) throw std::runtime_error("Invalid install paths");
         CheckPath(install.root_path(),install.relative_path());
         installLock=std::make_unique<InstallLock>(Lock(install));
-        if(!RecoverLocked(install,error,false)) throw std::runtime_error(error);
+        if(!RecoverLocked(install,error,false,activity)) throw std::runtime_error(error);
         auto named=PackageManifest(staging);
         // Removals are what this folder owns and the package lacks: the files
         // the installed MANIFEST.txt names, plus the obsolete list for folders
@@ -630,6 +696,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         std::vector<fs::path> written, installed;
         for(const auto& rel:files) installed.push_back(install/rel);
         std::uint64_t compared=0;
+        Announce(cancel,progress,UpdateStage::Comparing,installed.size());
         const auto current=HashFiles(installed,true,cancel,[&]{ Report(cancel,progress,UpdateStage::Comparing,++compared,installed.size()); });
         for(size_t index=0; index<files.size(); ++index)
             if(!current[index] || !fs::is_regular_file(fs::symlink_status(installed[index])) || !SameHash(*current[index],package.at(PathKey(files[index])).second))
@@ -642,40 +709,49 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         backup = install / L".ember-update-backups" / (std::to_wstring(GetTickCount64())+L"-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(++serial));
         CheckPath(install,backup.lexically_relative(install));
         fs::create_directories(backup);
+        // A backup holds the bytes the folder has once it is copied: the copy
+        // and the file are hashed after copying and must agree. The copy's
+        // hash is the journal's prior one.
         const auto preserve = [&](const fs::path& rel) {
             CheckPath(install,rel);
-            const bool existed = fs::exists(install/rel);
-            if (existed) {
+            Change change{rel};
+            if (fs::exists(install/rel)) {
                 if (!fs::is_regular_file(install/rel)) throw std::runtime_error("Destination is not a file");
                 fs::create_directories((backup/rel).parent_path());
                 fs::copy_file(install/rel,backup/rel);
-                if(!SameHash(HashFile(install/rel),HashFile(backup/rel))) throw std::runtime_error("Backup verification failed");
+                if(testing::BackupCopied) testing::BackupCopied(install/rel);
+                change.prior=HashFile(backup/rel);
+                if(!SameHash(HashFile(install/rel),*change.prior)) throw std::runtime_error("Backup verification failed");
                 FlushFile(backup/rel);
             }
-            changed.push_back({rel,existed});
+            changed.push_back(std::move(change));
             Report(cancel,progress,UpdateStage::BackingUp,changed.size(),removals.size()+written.size());
         };
+        Announce(cancel,progress,UpdateStage::BackingUp,removals.size()+written.size());
         for (const auto& rel : removals) preserve(rel);
         for (const auto& rel : written) preserve(rel);
         json operations=json::array(), target=json::object();
-        for(const auto& change:changed) operations.push_back({{"path",change.relative.generic_u8string()},{"existed",change.existed},
-            {"priorSha256",change.existed?HashFile(backup/change.relative):std::string()}});
+        for(const auto& change:changed) operations.push_back({{"path",change.relative.generic_u8string()},{"existed",change.prior.has_value()},
+            {"priorSha256",change.prior.value_or(std::string())}});
         for(const auto& rel:files) target[rel.generic_u8string()]=package.at(PathKey(rel)).second;
         transaction={{"schema",1},{"state","prepared"},{"installation",install.u8string()},{"backup",backup.u8string()},
             {"operations",operations},{"target",target}};
         DurableJson(install/TransactionName,transaction);
         state=InstallState::Prepared;
         std::uint64_t replaced=0; const char* terminateAfter=std::getenv("SF4E_UPDATE_TEST_TERMINATE_AFTER");
-        for (const auto& rel : removals) fs::remove(install/rel);
+        const InUsePolicy policy{cancel,activity};
+        Announce(cancel,progress,UpdateStage::Replacing,written.size());
+        for (const auto& rel : removals) RemoveFile(install/rel,policy);
         for (const auto& rel : removals) RemoveEmptyParents(install,(install/rel).parent_path());
         for (const auto& rel : written) {
-            ReplaceFileVerified(staging/rel,install/rel,target.at(rel.generic_u8string()).get<std::string>());
+            ReplaceFileVerified(staging/rel,install/rel,target.at(rel.generic_u8string()).get<std::string>(),policy);
             if(terminateAfter && static_cast<int>(replaced+1)==std::atoi(terminateAfter)) TerminateProcess(GetCurrentProcess(),86);
             Report(cancel,progress,UpdateStage::Replacing,++replaced,written.size());
         }
         std::vector<fs::path> finished; std::vector<std::string> wanted;
         for(const auto& item:target.items()) { finished.push_back(install/fs::u8path(item.key())); wanted.push_back(item.value().get<std::string>()); }
         std::uint64_t confirmed=0;
+        Announce(cancel,progress,UpdateStage::Confirming,finished.size());
         const auto result=HashFiles(finished,false,cancel,[&]{ Report(cancel,progress,UpdateStage::Confirming,++confirmed,finished.size()); });
         for(size_t index=0; index<finished.size(); ++index)
             if(*result[index]!=wanted[index]) throw std::runtime_error("Installed update verification failed");
@@ -694,7 +770,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
             try {
                 transaction["state"]="rolling-back";
                 DurableJson(install/TransactionName,transaction);
-                restored=RecoverLocked(install,recoveryError,false);
+                restored=RecoverLocked(install,recoveryError,false,activity);
             } catch(const std::exception& restoreFailure) { restored=false; recoveryError=restoreFailure.what(); }
         }
         error = std::string(failure.what()) + (state==InstallState::Unprepared ? ". No new update was applied; preserve any pending recovery evidence." : restored ? ". Previous files restored." : ". Automatic restore incomplete; preserve the transaction and backup. " + recoveryError);

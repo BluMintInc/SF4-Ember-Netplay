@@ -2146,6 +2146,24 @@ msgstr "Replacing files..."
 msgid "update.stage.confirming"
 msgstr "Checking the installed files..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Waiting for SF4 Ember Netplay to close..."
+
+msgid "update.notice.waiting_file"
+msgstr "Waiting for another program to release {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Restoring the previous files..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} elapsed"
+
+msgid "update.notice.reopens"
+msgstr "SF4 Ember Netplay opens again when it is done."
+
+msgid "update.notice.recovering"
+msgstr "Finishing an interrupted update..."
+
 msgid "room.member_left"
 msgstr "Member left"
 msgid "room.open_seat"

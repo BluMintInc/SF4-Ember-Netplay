@@ -1,6 +1,6 @@
 #include "update/PackageInstaller.hxx"
 #include "update/UpdaterArguments.hxx"
-#include "update/ProgressWindow.hxx"
+#include "update/UpdaterRun.hxx"
 #include "../common/PackageInventory.hxx"
 #include "../platform/Elevation.hxx"
 #include <stdio.h>
@@ -11,7 +11,6 @@
 #include <vector>
 
 #include <windows.h>
-#include <commctrl.h>
 #include <pathcch.h>
 #include <shellapi.h>
 #include <strsafe.h>
@@ -63,14 +62,6 @@ static void AppendLog(const char* message) {
 	CloseHandle(hFile);
 }
 
-static bool WideToUtf8(const wchar_t* wide, char* out, int outLen) {
-	if (!wide || !out || outLen <= 0) {
-		return false;
-	}
-	int n = WideCharToMultiByte(CP_UTF8, 0, wide, -1, out, outLen, NULL, NULL);
-	return n > 0;
-}
-
 static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	if (pid == 0) {
 		return true;
@@ -84,21 +75,6 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
-static bool InstallFiles(const wchar_t* staging, const wchar_t* install, const sf4e::launcher::ProgressWindow& window) {
-    std::string error;
-    // A package is thousands of file steps; the bar is told only when it
-    // would move, and the label only when the step changes, so the window's
-    // message queue never fills. The steps, their order and their shares of
-    // the bar are InstallerSteps'.
-    if (sf4e::launcher::InstallPackage(staging, install, error, sf4e::launcher::NeverCancelled,
-        [&window, bar = window.Window(), shown = -1, named = -1](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) mutable {
-        const int step = sf4e::launcher::InstallerStepOf(stage);
-        if (step >= 0 && step != named) window.Stage(static_cast<std::size_t>(named = step));
-        const int position = sf4e::launcher::InstallerBarPosition(stage, done, total, sf4e::launcher::ProgressWindow::Range);
-        if (bar && position > shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
-    })) return true;
-    AppendLog(error.c_str()); return false;
-}
 static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
 	wchar_t launcherPath[MAX_PATH] = { 0 };
 	if (FAILED(PathCchCombine(launcherPath, MAX_PATH, installDir, L"Launcher.exe"))) {
@@ -126,32 +102,6 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 	return true;
 }
 
-static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly, bool* uninstall, const wchar_t** status, const wchar_t** stages) {
-	installDir[0] = L'\0';
-	stagingDir[0] = L'\0';
-	*waitPid = 0;
-	*recoverOnly = false;
-	*uninstall = false;
-
-	for (int i = 1; i < argc; i++) {
-		if (_wcsicmp(argv[i], L"-InstallDir") == 0 && i + 1 < argc) {
-			wcsncpy_s(installDir, installDirChars, argv[++i], _TRUNCATE);
-		}
-		else if (_wcsicmp(argv[i], L"-StagingDir") == 0 && i + 1 < argc) {
-			wcsncpy_s(stagingDir, stagingDirChars, argv[++i], _TRUNCATE);
-		}
-		else if (_wcsicmp(argv[i], L"-WaitPid") == 0 && i + 1 < argc) {
-			*waitPid = (DWORD)_wtoi(argv[++i]);
-		}
-		else if (_wcsicmp(argv[i], L"-Status") == 0 && i + 1 < argc) { if (argv[++i][0]) *status = argv[i]; }
-		else if (_wcsicmp(argv[i], L"-Stages") == 0 && i + 1 < argc) { *stages = argv[++i]; }
-		else if (_wcsicmp(argv[i], L"-RecoverOnly") == 0) { *recoverOnly = true; }
-		else if (_wcsicmp(argv[i], L"-Uninstall") == 0) { *uninstall = true; }
-	}
-
-	return installDir[0] != L'\0' && (*recoverOnly || *uninstall || stagingDir[0] != L'\0');
-}
-
 // The installer's uninstaller runs this from a copy outside the folder:
 // Windows will not delete a running image, so a copy inside the folder would
 // leave itself behind.
@@ -168,16 +118,6 @@ static int Uninstall(const wchar_t* installDir) {
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
-	wchar_t installDir[MAX_PATH] = { 0 };
-	wchar_t stagingDir[MAX_PATH] = { 0 };
-	DWORD waitPid = 0;
-	bool recoverOnly = false, uninstall = false;
-	// The launcher passes this in the player's language; one from before
-	// -Status does not.
-	const wchar_t* status = L"Installing the update...";
-	// The installer's step names, from a launcher new enough to pass them.
-	const wchar_t* stages = nullptr;
-
 	// Players double-click Updater.exe to update. Its own work needs the
 	// launcher's arguments, so a plain start opens the launcher's Updates
 	// window, which checks for, downloads and installs the update.
@@ -196,80 +136,16 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 
-	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly, &uninstall, &status, &stages)) {
+	sf4e::launcher::UpdaterArguments arguments;
+	if (!sf4e::launcher::ParseUpdaterArguments(argc, argv, arguments)) {
 		AppendLog("ERROR: missing -InstallDir or -StagingDir");
 		return 1;
 	}
-	if (uninstall) return Uninstall(installDir);
-	if (recoverOnly) {
-		// With -WaitPid the Launcher asked for this at startup: wait for it to
-		// exit, then start it again, showing update recovery on failure.
-		if (waitPid && !WaitForProcessExit(waitPid, 30000)) {
-			AppendLog("ERROR: launcher is still running; recovery cancelled");
-			return 1;
-		}
-		std::string recoveryError;
-		if (!sf4e::launcher::RecoverPackage(installDir,recoveryError,false)) {
-			AppendLog(recoveryError.c_str());
-			if (waitPid) StartLauncher(installDir, L"--updates --update-error");
-			return 1;
-		}
-		AppendLog("Update recovery complete");
-		if (waitPid) StartLauncher(installDir);
-		return 0;
-	}
+	if (arguments.uninstall) return Uninstall(arguments.installDir.c_str());
 
-	char startLine[1024] = { 0 };
-	char installUtf8[MAX_PATH * 2] = { 0 };
-	char stagingUtf8[MAX_PATH * 2] = { 0 };
-	WideToUtf8(installDir, installUtf8, sizeof(installUtf8));
-	WideToUtf8(stagingDir, stagingUtf8, sizeof(stagingUtf8));
-	snprintf(
-		startLine,
-		sizeof(startLine),
-		"Updater start InstallDir=%s StagingDir=%s WaitPid=%lu",
-		installUtf8,
-		stagingUtf8,
-		waitPid
-	);
-	AppendLog(startLine);
-
-	if (GetFileAttributesW(installDir) == INVALID_FILE_ATTRIBUTES) {
-		AppendLog("ERROR: install directory not found");
-		return 1;
-	}
-	if (GetFileAttributesW(stagingDir) == INVALID_FILE_ATTRIBUTES) {
-		AppendLog("ERROR: staging directory not found");
-		return 1;
-	}
-
-	wchar_t title[512] = { 0 };
-	_snwprintf_s(title, _TRUNCATE, L"SF4 Ember Netplay - %s", status);
-	sf4e::launcher::ProgressWindow::Options windowOptions;
-	windowOptions.stages = sf4e::launcher::SplitStageNames(stages);
-	sf4e::launcher::ProgressWindow progress(title, std::move(windowOptions));
-	if (!WaitForProcessExit(waitPid, 30000)) {
-		AppendLog("ERROR: launcher is still running; update cancelled");
-        progress.Close();
-        StartLauncher(installDir, L"--updates --update-error");
-        return 1;
-	}
-
-
-	Sleep(500);
-
-	const bool installed = InstallFiles(stagingDir, installDir, progress);
-	progress.Close();
-	if (!installed) {
-        StartLauncher(installDir, L"--updates --update-error");
-		return 1;
-	}
-
-	AppendLog("starting Launcher.exe");
-	if (!StartLauncher(installDir)) {
-		return 1;
-	}
-
-	AppendLog("Updater complete");
-	return 0;
+	sf4e::launcher::UpdaterHost host;
+	host.waitForLauncher = [](std::uint32_t pid) { return WaitForProcessExit(pid, 30000); };
+	host.startLauncher = [](const wchar_t* installDir, const wchar_t* arguments) { return StartLauncher(installDir, arguments); };
+	host.log = AppendLog;
+	return sf4e::launcher::RunUpdater(arguments, host);
 }

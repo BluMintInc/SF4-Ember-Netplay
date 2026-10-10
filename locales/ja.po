@@ -2201,6 +2201,24 @@ msgstr "ファイルを置き換え中..."
 msgid "update.stage.confirming"
 msgstr "インストールしたファイルを確認中..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "SF4 Ember Netplay の終了を待っています..."
+
+msgid "update.notice.waiting_file"
+msgstr "別のプログラムが {0} を解放するのを待っています..."
+
+msgid "update.notice.restoring"
+msgstr "以前のファイルを復元中..."
+
+msgid "update.notice.elapsed"
+msgstr "経過時間 {0}"
+
+msgid "update.notice.reopens"
+msgstr "完了すると SF4 Ember Netplay がもう一度開きます。"
+
+msgid "update.notice.recovering"
+msgstr "中断された更新を完了中..."
+
 msgid "room.member_left"
 msgstr "メンバーが退出しました"
 

@@ -2201,6 +2201,24 @@ msgstr "Nahrazování souborů..."
 msgid "update.stage.confirming"
 msgstr "Kontrola nainstalovaných souborů..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Čekání na zavření SF4 Ember Netplay..."
+
+msgid "update.notice.waiting_file"
+msgstr "Čekání, až jiný program uvolní {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Obnovování předchozích souborů..."
+
+msgid "update.notice.elapsed"
+msgstr "Uplynulo {0}"
+
+msgid "update.notice.reopens"
+msgstr "Po dokončení se SF4 Ember Netplay znovu otevře."
+
+msgid "update.notice.recovering"
+msgstr "Dokončování přerušené aktualizace..."
+
 msgid "room.member_left"
 msgstr "Člen odešel"
 

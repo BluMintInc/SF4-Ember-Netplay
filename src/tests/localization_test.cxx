@@ -1,4 +1,5 @@
 #include "../common/Localization.hxx"
+#include "../launcher/update/UpdaterArguments.hxx"
 #include "../ui/Theme.hxx"
 #include "EmbeddedFonts.hxx"
 
@@ -206,6 +207,16 @@ int main(int argc, char** argv) {
         CHECK(catalogs[i].at("reports.dump_detail").find("not shown in the text preview") != std::string::npos);
         CHECK(catalogs[i].at("reports.dump_warning").find("not text-previewed") != std::string::npos);
     }
+    // Updater.exe has no catalog: what it shows when the launcher passed no
+    // text is the English catalog's (ASCII, so compared as bytes).
+    const auto english = [](const wchar_t* text) {
+        std::string bytes;
+        for (; *text; ++text) bytes += static_cast<char>(*text);
+        return bytes;
+    };
+    CHECK(catalogs[0].at("services.installing") == english(sf4e::launcher::DefaultUpdaterStatus));
+    for (const auto& step : sf4e::launcher::InstallerSteps) CHECK(catalogs[0].at(step.nameKey) == english(step.english));
+    for (const auto& notice : sf4e::launcher::UpdaterNotices) CHECK(catalogs[0].at(notice.key) == english(notice.english));
     for (std::size_t i = 0; i < count; ++i) {
         const auto locale = static_cast<Locale>(i);
         std::vector<unsigned> text = Codepoints(NativeName(locale));

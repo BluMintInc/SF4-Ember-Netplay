@@ -1,6 +1,5 @@
 #include "../launcher/update/PackageInstaller.hxx"
 #include "../launcher/update/UpdateHandoff.hxx"
-#include "../launcher/update/ProgressWindow.hxx"
 #include "../launcher/update/UpdaterArguments.hxx"
 #include "../common/PackageInventory.hxx"
 #include <windows.h>
@@ -55,13 +54,6 @@ void Package(const fs::path& package, const char* content) {
     for (const auto* path : sf4e::package::Obsolete) obsolete.push_back(path);
     Inventory(package, required, obsolete); Manifest(package);
 }
-HANDLE progressThread=nullptr;
-HANDLE WINAPI TrackProgressThread(LPSECURITY_ATTRIBUTES attributes, SIZE_T stack, LPTHREAD_START_ROUTINE run, LPVOID parameter, DWORD flags, LPDWORD id) {
-    const HANDLE thread=CreateThread(attributes,stack,run,parameter,flags,id);
-    if(thread) DuplicateHandle(GetCurrentProcess(),thread,GetCurrentProcess(),&progressThread,SYNCHRONIZE,FALSE,0);
-    return thread;
-}
-HANDLE WINAPI FailProgressThread(LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPDWORD) { return nullptr; }
 // A fixture's journal override, with each "@sha:<text>" string as the hash of
 // <text>, and {install} and {name} in other strings as the case's folder and name.
 nlohmann::json ResolveFixture(const nlohmann::json& value, const std::string& install, const std::string& name) {
@@ -182,9 +174,9 @@ int RunRecoveryFixtures(const fs::path& file, const fs::path& root) {
     }
     return failures;
 }
-// The Updater's command line and its -Stages field read back as written,
-// through CommandLineToArgvW, whatever the translated text holds; the steps'
-// names, order and bar come from the one table.
+// The Updater's command line and its -Stages and -Notices fields read back as
+// written, through CommandLineToArgvW and ParseUpdaterArguments, whatever the
+// translated text holds; the steps' names, order and bar come from the one table.
 static void TestUpdaterArguments() {
     using namespace sf4e::launcher;
     std::string error;
@@ -192,46 +184,71 @@ static void TestUpdaterArguments() {
         int count=0;
         LPWSTR* parsed=CommandLineToArgvW((L"\"C:\\Temp\\Updater.exe\" "+arguments).c_str(),&count);
         std::vector<std::wstring> values;
-        for(int i=1;i<count;++i)values.push_back(parsed[i]);
+        for(int i=0;i<count;++i)values.push_back(parsed[i]);
         LocalFree(parsed);
         return values;
     };
-    const auto value=[](const std::vector<std::wstring>& values,const wchar_t* name)->std::wstring{
-        for(std::size_t i=0;i+1<values.size();++i)if(values[i]==name)return values[i+1];
-        return L"<missing>";
+    // The arguments as the Updater reads them; false when it would refuse them.
+    const auto readBack=[&](const std::wstring& arguments,UpdaterArguments& out){
+        const auto values=parse(arguments);
+        std::vector<const wchar_t*> argv;
+        for(const auto& v:values)argv.push_back(v.c_str());
+        return ParseUpdaterArguments(static_cast<int>(argv.size()),argv.data(),out);
     };
-    const auto has=[](const std::vector<std::wstring>& values,const wchar_t* name){
-        for(const auto& v:values)if(v==name)return true;
+    const auto has=[&](const std::wstring& arguments,const wchar_t* name){
+        for(const auto& v:parse(arguments))if(v==name)return true;
         return false;
     };
     for(const std::wstring& text:{std::wstring(L"Installing \"the\" update..."),std::wstring(L"ends in a backslash\\"),std::wstring(L"a\\\"b\\\\"),
         std::wstring(L"pipe | and \"quote\" \\\\ "),std::wstring(L"\x65E5\x672C\x8A9E \x00E9")}) {
         UpdaterArguments in;in.installDir=L"C:\\Games\\Ember\\";in.stagingDir=L"C:\\Temp\\stage dir\\";in.waitPid=4242;in.status=text;
         for(std::size_t i=0;i<InstallerStepCount;++i)in.stages.push_back(text+L" "+std::to_wstring(i));
+        for(std::size_t i=0;i<UpdaterNoticeCount;++i)in.notices.push_back(text+L" {0} "+std::to_wstring(i));
         const bool pipe=text.find(L'|')!=std::wstring::npos;
-        std::wstring line;
-        CHECK(BuildUpdaterArguments(in,line));
-        const auto values=parse(line);
-        CHECK(value(values,L"-InstallDir")==in.installDir&&value(values,L"-StagingDir")==in.stagingDir&&value(values,L"-WaitPid")==L"4242");
-        CHECK(value(values,L"-Status")==text);
-        // A name holding the separator cannot be carried: -Stages is left out, the rest goes.
-        if(pipe)CHECK(!has(values,L"-Stages"));
-        else CHECK(SplitStageNames(value(values,L"-Stages").c_str())==in.stages);
+        std::wstring line; UpdaterArguments out;
+        CHECK(BuildUpdaterArguments(in,line)&&readBack(line,out));
+        CHECK(out.installDir==in.installDir&&out.stagingDir==in.stagingDir&&out.waitPid==4242&&out.status==text&&!out.recoverOnly&&!out.uninstall);
+        // A name holding the separator cannot be carried: its field is left out, the rest goes.
+        CHECK(pipe ? !has(line,L"-Stages")&&!has(line,L"-Notices")&&out.stages.empty()&&out.notices.empty() : out.stages==in.stages&&out.notices==in.notices);
     }
     UpdaterArguments in;in.installDir=L"C:\\Ember";in.stagingDir=L"C:\\Stage";
     in.stages.assign(InstallerStepCount,L"Step");in.stages[2].clear();
+    in.notices.assign(UpdaterNoticeCount,L"Notice");
     std::wstring line,field;
-    CHECK(!JoinStageNames(in.stages,field)&&field.empty());
-    CHECK(BuildUpdaterArguments(in,line)&&!has(parse(line),L"-Stages")&&!has(parse(line),L"-Status"));
-    in.stages[2]=L"line\nbreak";CHECK(!JoinStageNames(in.stages,field));
-    in.stages.pop_back();CHECK(!JoinStageNames(in.stages,field));
-    // Anything but one non-empty name per step names none.
-    CHECK(SplitStageNames(L"a|b").empty()&&SplitStageNames(L"a||c|d|e").empty()&&SplitStageNames(nullptr).empty()&&SplitStageNames(L"").empty());
-    CHECK(SplitStageNames(L"a|b|c|d|e").size()==InstallerStepCount);
+    CHECK(!JoinNames(in.stages,InstallerStepCount,field)&&field.empty());
+    CHECK(BuildUpdaterArguments(in,line)&&!has(line,L"-Stages")&&has(line,L"-Notices")&&!has(line,L"-Status"));
+    in.stages[2]=L"line\nbreak";CHECK(!JoinNames(in.stages,InstallerStepCount,field));
+    in.stages.pop_back();CHECK(!JoinNames(in.stages,InstallerStepCount,field));
+    // Anything but one non-empty name per entry names none.
+    CHECK(SplitNames(L"a|b",InstallerStepCount).empty()&&SplitNames(L"a||c|d|e",InstallerStepCount).empty());
+    CHECK(SplitNames(nullptr,InstallerStepCount).empty()&&SplitNames(L"",InstallerStepCount).empty());
+    CHECK(SplitNames(L"a|b|c|d|e",InstallerStepCount).size()==InstallerStepCount&&SplitNames(L"a|b|c|d|e",UpdaterNoticeCount).empty());
     // Recovery: the install folder and the process to wait for only.
     in=UpdaterArguments{};in.installDir=L"C:\\Ember\\";in.recoverOnly=true;in.waitPid=7;
-    CHECK(BuildUpdaterArguments(in,line));
-    {const auto values=parse(line);CHECK(value(values,L"-InstallDir")==in.installDir&&has(values,L"-RecoverOnly")&&!has(values,L"-StagingDir")&&value(values,L"-WaitPid")==L"7");}
+    {UpdaterArguments out;CHECK(BuildUpdaterArguments(in,line)&&readBack(line,out)&&out.recoverOnly&&out.installDir==in.installDir&&out.waitPid==7&&!has(line,L"-StagingDir"));}
+    // Setup's uninstaller: the folder alone, names in any case.
+    {UpdaterArguments out;CHECK(readBack(L"-installdir \"C:\\Ember\" -UNINSTALL",out)&&out.uninstall&&out.installDir==L"C:\\Ember");}
+    // The headline: what the run does, then that Ember opens again. A launcher
+    // from before -Notices, as the nightly before this one, passes its own
+    // short -Status, and the Updater's English notice adds the second line.
+    {
+        UpdaterArguments out;
+        CHECK(readBack(L"-InstallDir \"C:\\Ember\" -StagingDir \"C:\\Stage\" -WaitPid 5 -Status \"Installing the update...\" -Stages \"a|b|c|d|e\"",out));
+        const auto english=NoticeTexts({});
+        CHECK(english.size()==UpdaterNoticeCount && english[4]==UpdaterNotices[4].english);
+        CHECK(UpdaterHeadline(out,NoticeTexts(out.notices))==std::wstring(L"Installing the update...\n")+UpdaterNotices[4].english);
+        out.status.clear();
+        CHECK(UpdaterHeadline(out,english)==std::wstring(DefaultUpdaterStatus)+L"\n"+UpdaterNotices[4].english);
+    }
+    // A recovery the launcher asked for says it finishes an interrupted
+    // update and that Ember opens again; one started by hand reopens nothing.
+    in=UpdaterArguments{};in.installDir=L"C:\\Ember";in.recoverOnly=true;in.waitPid=7;
+    for(std::size_t i=0;i<UpdaterNoticeCount;++i)in.notices.push_back(L"N"+std::to_wstring(i));
+    CHECK(UpdaterReopensLauncher(in)&&UpdaterHeadline(in,in.notices)==L"N5\nN4");
+    in.waitPid=0;
+    CHECK(!UpdaterReopensLauncher(in)&&UpdaterHeadline(in,in.notices)==L"N5");
+    // The Updater refuses a line without the folders its work needs.
+    {UpdaterArguments out;CHECK(!readBack(L"-StagingDir C:\\Stage",out)&&!readBack(L"-InstallDir C:\\Ember -WaitPid 5",out)&&!readBack(L"-InstallDir",out));}
     // A line longer than Windows starts a process with is refused, not cut.
     in.status.assign(MostUpdaterArguments,L'x');
     CHECK(!BuildUpdaterArguments(in,line)&&line.empty());
@@ -246,6 +263,9 @@ static void TestUpdaterArguments() {
 }
 int wmain(int argc, wchar_t** argv) {
     std::string error;
+    // Files these tests hold open fail their step at once; one test below
+    // gives the wait back.
+    sf4e::launcher::testing::InUseWaitMilliseconds=0;
     if (argc == 3 && std::wstring(argv[1]) == L"--recover") {
         if(sf4e::launcher::RecoverPackage(argv[2],error)) return 0;
         std::cerr<<error<<'\n'; return 2;
@@ -295,6 +315,7 @@ int wmain(int argc, wchar_t** argv) {
     Write(staging/L"docs\\TRAINING_LAB.md","unlisted");
     CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error)); fs::remove(staging/L"docs\\TRAINING_LAB.md"); fs::remove(staging/L"docs");
     using sf4e::launcher::UpdateStage;
+    using sf4e::launcher::InstallActivity;
     std::uint64_t checked=0,named=0; bool preparingOnly=true;
     const auto preparing=[&](UpdateStage stage,std::uint64_t done,std::uint64_t total){checked=done;named=total;preparingOnly=preparingOnly&&stage==UpdateStage::Preparing;};
     CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,sf4e::launcher::NeverCancelled,preparing));
@@ -368,62 +389,18 @@ int wmain(int argc, wchar_t** argv) {
         sf4e::launcher::testing::HashedBlock=nullptr; cancel=false;
         fs::remove_all(blocks);
     }
-    // A startup timeout stops a worker still behind its gate, so it cannot
-    // create a late window. Both successful and failed starts own no handles
-    // after closing; a normal close joins before destroying the owner.
-    using sf4e::launcher::ProgressWindow;
-    ProgressWindow::Options windowOptions;
-    windowOptions.visible=false; windowOptions.createThread=TrackProgressThread;
-    windowOptions.timeout=0; windowOptions.startupGate=CreateEventW(nullptr,TRUE,FALSE,nullptr);
-    CHECK(windowOptions.startupGate!=nullptr);
-    {
-        ProgressWindow delayed(L"Installing",windowOptions);
-        CHECK(delayed.Window()==nullptr && progressThread!=nullptr && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
-        SetEvent(windowOptions.startupGate);
-        CHECK(delayed.Window()==nullptr);
-    }
-    CloseHandle(progressThread); progressThread=nullptr;
-    CloseHandle(windowOptions.startupGate); windowOptions.startupGate=nullptr;
-    windowOptions.createThread=FailProgressThread;
-    { ProgressWindow failed(L"Installing",windowOptions); CHECK(failed.Window()==nullptr); }
-    windowOptions.createThread=TrackProgressThread; windowOptions.timeout=5000;
-    HWND progressBar=nullptr;
-    {
-        ProgressWindow normal(L"Installing",windowOptions);
-        progressBar=normal.Window();
-        CHECK(progressBar!=nullptr && IsWindow(progressBar) && progressThread!=nullptr);
-        CHECK(SendMessageW(progressBar,PBM_GETRANGE,FALSE,0)==ProgressWindow::Range);
-        PostMessageW(progressBar,PBM_SETPOS,ProgressWindow::Range,0);
-    }
-    CHECK(!IsWindow(progressBar) && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
-    CloseHandle(progressThread); progressThread=nullptr;
-    // Named steps: a label above the bar names the step the installer is at.
-    windowOptions.stages={L"Checking the package...",L"Comparing files..."};
-    {
-        ProgressWindow staged(L"Installing",windowOptions);
-        progressBar=staged.Window();
-        CHECK(progressBar!=nullptr && staged.Label()!=nullptr && GetParent(progressBar)==GetParent(staged.Label()));
-        CHECK(SendMessageW(progressBar,PBM_GETRANGE,FALSE,0)==ProgressWindow::Range);
-        wchar_t text[64]={};
-        GetWindowTextW(staged.Label(),text,64);
-        CHECK(std::wstring(text)==L"Checking the package...");
-        staged.Stage(1); staged.Stage(7);
-        for(int i=0;i<400 && std::wstring(text)!=L"Comparing files...";++i) { Sleep(5); GetWindowTextW(staged.Label(),text,64); }
-        CHECK(std::wstring(text)==L"Comparing files...");
-    }
-    CHECK(!IsWindow(progressBar) && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
-    CloseHandle(progressThread); progressThread=nullptr;
-    windowOptions.stages.clear();
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
-    // Each step goes forward to its own fixed total, and the steps come in
-    // order: here nearly every file changes and two are removed.
+    // Each step opens with (0, total) before its first file and goes forward
+    // to that fixed total, and the steps come in order: here nearly every
+    // file changes and two are removed.
     std::vector<UpdateStage> stages; std::uint64_t lastDone=0,lastTotal=0; bool forward=true;
     const auto watch=[&](UpdateStage stage,std::uint64_t done,std::uint64_t total){
         if(stages.empty() || stages.back()!=stage) {
             // A step whose report was missed, or that comes back, is out of order.
-            forward=forward&&(stages.empty() || (stages.back()<stage && lastDone==lastTotal));
+            forward=forward&&done==0&&(stages.empty() || (stages.back()<stage && lastDone==lastTotal));
             stages.push_back(stage); lastDone=0; lastTotal=total;
+            return;
         }
         forward=forward&&done>lastDone&&done<=total&&total==lastTotal; lastDone=done;
     };
@@ -553,15 +530,85 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!sf4e::launcher::InstallPackage(older,install,error) && Read(install/L"Launcher.exe")=="new");
     Write(install/L"MANIFEST.txt",installedManifest.c_str());
     // A product file held open cannot be removed: nothing changes, the
-    // journal is gone, and the next transition succeeds.
+    // journal is gone, the restoration is heard, and the next transition
+    // succeeds.
     Write(install/L"docs\\TRAINING_LAB.md","held");
     HANDLE heldFile=CreateFileW((install/L"docs\\TRAINING_LAB.md").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     CHECK(heldFile!=INVALID_HANDLE_VALUE);
-    CHECK(!sf4e::launcher::InstallPackage(older,install,error) && error.find("restored")!=std::string::npos);
+    bool restoring=false;
+    CHECK(!sf4e::launcher::InstallPackage(older,install,error,sf4e::launcher::NeverCancelled,{},[&](InstallActivity activity,const fs::path&){
+        restoring=restoring||activity==InstallActivity::Restoring;
+    }) && error.find("restored")!=std::string::npos && restoring);
     CloseHandle(heldFile);
     CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="held" && !fs::exists(install/L".ember-update-transaction-v1.json"));
     CHECK(sf4e::launcher::InstallPackage(older,install,error) && Read(install/L"Launcher.exe")=="older" && !fs::exists(install/L"docs"));
     CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
+    // Held by another process, as by a helper still ending after the
+    // launcher, a file to remove and then one to replace each wait: the
+    // install says which file it waits for, the file is let go only then, and
+    // the attempt after that goes through.
+    const auto releasedOnWait=[&](const wchar_t* held){
+        sf4e::launcher::testing::InUseWaitMilliseconds=5000;
+        HANDLE handle=CreateFileW((install/held).c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(handle!=INVALID_HANDLE_VALUE);
+        std::vector<std::pair<InstallActivity,fs::path>> heard;
+        const bool installed=sf4e::launcher::InstallPackage(older,install,error,sf4e::launcher::NeverCancelled,{},[&](InstallActivity activity,const fs::path& file){
+            heard.emplace_back(activity,file.filename());
+            if(activity==InstallActivity::WaitingForFile && handle!=INVALID_HANDLE_VALUE) { CloseHandle(handle); handle=INVALID_HANDLE_VALUE; }
+        });
+        if(handle!=INVALID_HANDLE_VALUE) CloseHandle(handle);
+        sf4e::launcher::testing::InUseWaitMilliseconds=0;
+        CHECK(installed && Read(install/L"Launcher.exe")=="older" && !fs::exists(install/L"docs"));
+        CHECK(heard.size()==2 && heard[0].first==InstallActivity::WaitingForFile && heard[0].second==fs::path(held).filename() && heard[1].first==InstallActivity::WaitEnded);
+        CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
+    };
+    releasedOnWait(L"docs\\TRAINING_LAB.md");
+    releasedOnWait(L"Launcher.exe");
+    // A cancel is heard while a file is waited for: the install stops there,
+    // not when the wait runs out, the wait is told to end before the
+    // restoration starts, and the prior files come back.
+    {
+        sf4e::launcher::testing::InUseWaitMilliseconds=5000;
+        HANDLE handle=CreateFileW((install/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(handle!=INVALID_HANDLE_VALUE);
+        std::atomic<bool> stop{false};
+        std::vector<InstallActivity> heard;
+        CHECK(!sf4e::launcher::InstallPackage(older,install,error,stop,{},[&](InstallActivity activity,const fs::path&){
+            heard.push_back(activity);
+            if(activity==InstallActivity::WaitingForFile) stop=true;
+        }));
+        CloseHandle(handle);
+        sf4e::launcher::testing::InUseWaitMilliseconds=0;
+        CHECK(error=="Cancelled. Previous files restored.");
+        CHECK((heard==std::vector<InstallActivity>{InstallActivity::WaitingForFile,InstallActivity::WaitEnded,InstallActivity::Restoring}));
+        CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    }
+    // An observer that throws changes nothing: a replacement that fails after
+    // a removal still has every prior file restored, and the install fails as
+    // it would have.
+    {
+        HANDLE handle=CreateFileW((install/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(handle!=INVALID_HANDLE_VALUE);
+        bool told=false;
+        const bool installed=sf4e::launcher::InstallPackage(older,install,error,sf4e::launcher::NeverCancelled,{},[&](InstallActivity activity,const fs::path&){
+            told=told||activity==InstallActivity::Restoring;
+            throw std::runtime_error("observer failed");
+        });
+        CloseHandle(handle);
+        CHECK(!installed && told && error=="Atomic update replacement failed. Previous files restored.");
+        CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    }
+    // A backup holds what the file is once copied: one changed after the copy
+    // was made, before the copy is checked, stops the update before anything
+    // is written.
+    sf4e::launcher::testing::BackupCopied=[&](const fs::path& installed){
+        if(installed.filename()==L"Launcher.exe") Write(installed,"changed-after-copy");
+    };
+    CHECK(!sf4e::launcher::InstallPackage(older,install,error));
+    sf4e::launcher::testing::BackupCopied=nullptr;
+    CHECK(error.find("Backup verification failed. No new update was applied")==0);
+    CHECK(Read(install/L"Launcher.exe")=="changed-after-copy" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    Write(install/L"Launcher.exe","new");
     CHECK(!sf4e::package::IsAllowed(L"../outside.exe"));
     CHECK(!sf4e::package::IsAllowed(L"plugins/platforms/arbitrary.dll"));
 
@@ -607,7 +654,43 @@ int wmain(int argc, wchar_t** argv) {
         op["priorSha256"]=digest;
     }
     Write(journalPath,journal.dump().c_str());
-    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    // The look over the folder is told before it reads anything, and the
+    // restoration before its backups are checked, so a check that takes
+    // long, or fails as here on a backup that cannot be read, is shown as
+    // restoring; the journal stays for another try.
+    {
+        fs::path backupFile;
+        for(const auto& op:originalJournal["operations"])
+            if(op["existed"].get<bool>()) backupFile=fs::u8path(originalJournal["backup"].get<std::string>())/fs::u8path(op["path"].get<std::string>());
+        HANDLE unreadable=CreateFileW(backupFile.c_str(),GENERIC_READ,FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(unreadable!=INVALID_HANDLE_VALUE);
+        std::vector<InstallActivity> heard;
+        const bool recovered=sf4e::launcher::RecoverPackage(crashInstall,error,false,[&](InstallActivity activity,const fs::path&){ heard.push_back(activity); });
+        CloseHandle(unreadable);
+        CHECK(!recovered && (heard==std::vector<InstallActivity>{InstallActivity::Recovering,InstallActivity::Restoring}) && fs::exists(journalPath));
+    }
+    // Finished as Updater.exe -RecoverOnly finishes it, the restoration is
+    // told, and so is the wait for a file it must undo (one the update wrote)
+    // that another process holds, which is let go only then.
+    {
+        fs::path replaced;
+        for(const auto& op:originalJournal["operations"]) {
+            const auto path=crashInstall/fs::u8path(op["path"].get<std::string>());
+            if(fs::exists(path) && (!op["existed"].get<bool>() || sf4e::launcher::Sha256Hex(path)!=op["priorSha256"].get<std::string>())) replaced=path;
+        }
+        CHECK(!replaced.empty());
+        sf4e::launcher::testing::InUseWaitMilliseconds=5000;
+        HANDLE held=CreateFileW(replaced.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(held!=INVALID_HANDLE_VALUE);
+        std::vector<InstallActivity> heard;
+        const bool recovered=sf4e::launcher::RecoverPackage(crashInstall,error,false,[&](InstallActivity activity,const fs::path& file){
+            heard.push_back(activity);
+            if(activity==InstallActivity::WaitingForFile && file.filename()==replaced.filename() && held!=INVALID_HANDLE_VALUE) { CloseHandle(held); held=INVALID_HANDLE_VALUE; }
+        });
+        if(held!=INVALID_HANDLE_VALUE) CloseHandle(held);
+        sf4e::launcher::testing::InUseWaitMilliseconds=0;
+        CHECK(recovered && (heard==std::vector<InstallActivity>{InstallActivity::Recovering,InstallActivity::Restoring,InstallActivity::WaitingForFile,InstallActivity::WaitEnded}));
+    }
     CHECK(Read(crashInstall/L"Launcher.exe")=="prior-launcher");
     CHECK(Read(crashInstall/L"sf4-net.exe")=="user-collision");
     // The removal that ran before the replacements is undone too.
