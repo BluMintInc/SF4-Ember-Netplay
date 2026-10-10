@@ -176,7 +176,7 @@ private:
         if(!RegisterClassW(&type) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) return false;
         const int dpi=static_cast<int>(GetDpiForSystem());
         const auto px=[&](int value){ return MulDiv(value,dpi>0?dpi:96,96); };
-        RECT outer{0,0,px(440),px(148)};
+        RECT outer{0,0,px(440),px(162)};
         AdjustWindowRectEx(&outer,WS_POPUP|WS_CAPTION,FALSE,0);
         const int width=outer.right-outer.left, height=outer.bottom-outer.top;
         frame_=CreateWindowExW(0,type.lpszClassName,title_.c_str(),WS_POPUP|WS_CAPTION,
@@ -192,13 +192,14 @@ private:
             return control!=nullptr;
         };
         const DWORD label=SS_NOPREFIX|SS_ENDELLIPSIS;
-        // The headline wraps to a second line in a longer language.
+        // The headline and the wait line wrap to a second line in a longer
+        // language, so a waited file's name is never cut.
         const bool made=make(Part::Headline,L"STATIC",options_.headline.c_str(),SS_LEFT|SS_NOPREFIX,16,12,408,40) &&
             make(Part::Step,L"STATIC",L"",SS_LEFT|label,16,60,318,20) &&
             make(Part::Count,L"STATIC",L"",SS_RIGHT|label,334,60,90,20) &&
             make(Part::Bar,PROGRESS_CLASSW,nullptr,PBS_SMOOTH,16,86,356,22) &&
             make(Part::Percent,L"STATIC",L"0%",SS_RIGHT|SS_CENTERIMAGE|label,376,86,48,22) &&
-            make(Part::Note,L"STATIC",L"",SS_LEFT|label,16,118,300,20) &&
+            make(Part::Note,L"STATIC",L"",SS_LEFT|SS_NOPREFIX,16,118,300,36) &&
             make(Part::Elapsed,L"STATIC",L"",SS_RIGHT|label,316,118,108,20);
         if(!made) { DestroyWindow(frame_); frame_=nullptr; return false; }
         SendMessageW(At(Part::Bar),PBM_SETRANGE32,0,Range);
