@@ -252,22 +252,27 @@ inline bool MadeUp(const std::uint8_t* record) { return ReadU32(record + 22) != 
 // -1 for a made-up record or any other value.
 inline int RecordWinner(const std::uint8_t* record) { return !MadeUp(record) && record[49] <= 1 ? record[49] : -1; }
 
-// The export of a slot from its file, whatever the index says of it. The
-// game writes a replay's file and its ".0" when a match ends, and its indexes
-// at a save of their own, which a slot's file can be ahead of (or never get:
-// the file is then on disk with the record of the replay it replaced). With
-// a record that names the file this is Export. Without one the file has to
-// be whole, which its ".0" says, and the record is made up from its header
-// (ExportFromReplayAlone); fromRecord tells which.
-inline bool ExportSlotFile(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, const Bytes& sidecar, Bytes& out, bool& fromRecord) {
-	fromRecord = Export(list, swan, slot, replay, out);
-	return fromRecord || (sidecar.size() == 4 && sidecar == Sidecar(replay) && ExportFromReplayAlone(replay, out));
+// An archived replay's file name, "20261005-213503-69991186.emberreplay":
+// the save time (UTC, seconds since 1970) and the replay's CRC, both from the
+// export's record. Empty for an export too short to hold one.
+inline std::wstring ArchiveName(const Bytes& exported) {
+	if (exported.size() < kExportHeaderBytes) return {};
+	const std::time_t saved = ReadU32(exported.data() + 8 + 13);
+	tm utc = {};
+#ifdef _WIN32
+	if (gmtime_s(&utc, &saved)) return {};
+#else
+	if (!gmtime_r(&saved, &utc)) return {};
+#endif
+	wchar_t name[64] = {};
+	std::swprintf(name, 64, L"%04d%02d%02d-%02d%02d%02d-%08x.emberreplay", utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday,
+		utc.tm_hour, utc.tm_min, utc.tm_sec, static_cast<unsigned>(ReadU32(exported.data() + 8 + 5)));
+	return name;
 }
 
-// An archived replay's file name, "20261005-213503-69991186.emberreplay":
-// the save time (UTC, seconds since 1970) and the replay's CRC. False for any
-// other name. A replay put back into the game is saved under a new time
-// (Import), so the CRC alone tells whether the archive holds it.
+// The name read back: false for any other name. A replay put back into the
+// game is saved under a new time (Import), so the CRC alone tells whether the
+// archive holds it.
 inline bool ParseArchiveName(const std::wstring& name, std::uint64_t& time, std::uint32_t& crc) {
 	if (name.size() != 36 || name[8] != L'-' || name[15] != L'-' || name.compare(24, std::wstring::npos, L".emberreplay")) return false;
 	int part[6] = {};

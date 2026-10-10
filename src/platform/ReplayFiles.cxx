@@ -26,6 +26,8 @@
 #include "ReplayRecordingWorker.hxx"
 #include "ReplayImportWorker.hxx"
 #include "ReplayArchiveIndex.hxx"
+#include "ReplayArchivePass.hxx"
+#include "ReplayArchiveWorker.hxx"
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySummaryCache.hxx"
@@ -36,9 +38,9 @@ namespace slots = sf4e::replayslots;
 namespace sf4e { namespace platform { namespace replays {
 namespace {
 
-// The largest files read: an exported replay, and the game's two indexes
-// (76 KB and 44 KB as the game writes them).
-constexpr std::size_t kMostReplayBytes = slots::kLargestReplay + slots::kExportHeaderBytes, kMostIndexBytes = 1 << 20;
+// The largest index read: the game writes LIST at 76 KB and replays-swan.dat
+// at 44 KB.
+constexpr std::size_t kMostIndexBytes = 1 << 20;
 
 // Every file Ember publishes here is create-only: a destination that appears
 // during the write wins, and neither unreadable nor confirmed damaged files
@@ -48,7 +50,7 @@ bool PublishFile(const fs::path& path, const slots::Bytes& contents) {
 }
 
 // All ingestion uses replayfiles::ReadFile and its bounded read-error policy.
-slots::Bytes LoadFile(const fs::path& path, std::size_t most = kMostReplayBytes) {
+slots::Bytes LoadFile(const fs::path& path, std::size_t most = replayfiles::kMostArchiveBytes) {
  auto bytes = replayfiles::ReadFile(path, most);
  return bytes ? std::move(*bytes) : slots::Bytes{};
 }
@@ -58,10 +60,15 @@ void ReadNames(const fs::path& archive, const slots::Bytes& body, ArchivedReplay
  replay.names[0] = names.players[0]; replay.names[1] = names.players[1]; replay.spectated = names.spectated;
 }
 std::atomic<replayfiles::RecordingWorker*> provenanceWorker{nullptr};
+std::atomic<replayfiles::ArchiveWorker*> archiveWorker{nullptr};
 std::atomic<RecordingChanges*> recordingChanges{nullptr};
+// A save of the game's wakes both the provenance and the archive workers.
 RecordingChanges& Changes() {
  static auto* const changes = [] {
-  auto* started = new RecordingChanges([] { if (auto* worker = provenanceWorker.load()) worker->FilesChanged(); });
+  auto* started = new RecordingChanges([] {
+   if (auto* worker = provenanceWorker.load()) worker->FilesChanged();
+   if (auto* archiver = archiveWorker.load()) archiver->Want();
+  });
   recordingChanges.store(started); return started;
  }();
  return *changes;
@@ -99,107 +106,78 @@ replayfiles::RecordingWorker& Provenance() {
  return *worker;
 }
 
-// "20261005-213503-69991186.emberreplay": the save time (UTC) and the CRC,
-// both from the export's record. ParseArchiveName reads it back.
-bool ArchiveName(const slots::Bytes& exported, wchar_t (&name)[64]) {
-	const __time64_t saved = slots::ReadU32(exported.data() + 8 + 13);
-	tm utc = {};
-	return !_gmtime64_s(&utc, &saved) && SUCCEEDED(StringCchPrintfW(name, 64, L"%04d%02d%02d-%02d%02d%02d-%08x.emberreplay",
-		utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec, slots::ReadU32(exported.data() + 8 + 5)));
-}
-
-// The archive index contains only CRC-indexed paths. Parsing and exact-byte
-// cache reuse belong to the serialized worker refresh, bounded to
-// ArchiveSummaryCache::kCapacity files.
+// The archive index contains only CRC-indexed paths, and whether the last
+// refresh listed the archive whole, published together. Parsing and exact-byte cache reuse belong
+// to the serialized worker refresh, bounded to ArchiveSummaryCache::kCapacity
+// files.
 class ArchiveIndex {
 public:
  std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
   std::vector<ArchivedReplay> replays;
   candidates_.Refresh([&] {
-   std::map<std::uint32_t, replayfiles::ArchiveCandidates::Paths> paths;
    summaries_.NextListing();
-   std::error_code error;
-   for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, error), end;
-    !error && at != end; at.increment(error)) {
-    const fs::path path = at->path();
-    if (path.extension() != L".emberreplay" && path.extension() != L".usf4replay") continue;
-    replayfiles::ArchiveFile read;
-    if (replayfiles::ReadArchive(path, path.parent_path() == archive, read) != replayfiles::ArchiveState::Valid) continue;
+   return replayfiles::ScanArchive(archive, [&](const fs::path& path, const replayfiles::ArchiveFile& read) {
     ArchivedReplay replay{path};
     replay.label = replayfiles::ReplayDateLabel(read.time); replay.time = read.time;
     replay.fighters[0] = read.fighters[0]; replay.fighters[1] = read.fighters[1];
     replay.summary = summaries_.Read(read.contents);
     ReadNames(archive, read.Body(), replay);
     replays.push_back(std::move(replay));
-    paths[read.crc].push_back(path);
-   }
-   replayfiles::ArchiveCandidates::Map seen;
-   for (auto& item : paths) seen.emplace(item.first, std::make_shared<const replayfiles::ArchiveCandidates::Paths>(std::move(item.second)));
-   return seen;
+   });
   });
   return replays;
  }
- bool Verify(const fs::path& archive, const slots::Bytes& body, replayfiles::BackupEvidence& evidence) const {
-  return replayfiles::VerifyBackup(candidates_.Candidates(slots::Crc32(body.data(), body.size())), archive, body, evidence);
- }
- bool Add(const fs::path& path) {
-  replayfiles::ArchiveFile read;
-  if (replayfiles::ReadArchive(path, true, read) != replayfiles::ArchiveState::Valid) return false;
-  candidates_.Add(read.crc, path);
-  return true;
- }
+ replayfiles::ArchiveCandidates& Held() { return candidates_; }
+ bool Complete() const { return candidates_.Current()->complete; }
 private:
  replayfiles::ArchiveCandidates candidates_;
  replayfiles::ArchiveSummaryCache summaries_;
 };
 ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 
-// A slot of the game's as its files are now. The replay file is kept by its
-// size and time so its 50 KB are read and summed once (SlotFileCache); one
-// that could not be read is empty here and read again next time.
-struct SlotFile { slots::Bytes replay, sidecar; };
-SlotFile ReadSlotFile(const fs::path& file) {
-	static replayfiles::SlotFileCache cache;
-	SlotFile slot;
-	if (auto replay = cache.Read(file, [](const fs::path& path) { return replayfiles::ReadFile(path, kMostReplayBytes); })) slot.replay = std::move(*replay);
-	// Four bytes, and the game writes them after the replay: read every time.
-	slot.sidecar = LoadFile(file.wstring() + L".0", 4);
-	return slot;
+// Where this process copies the game's replays to (ReplayArchivePass.hxx).
+// ArchiveSaves and BackUp are the only copiers, under one lock, so a pass and
+// an import's backup of the slot it replaces never decide on a slot together.
+replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cache; return cache; }
+// Sidecar's passes settle at most this many outbox entries, so a backlog
+// never holds up the next reading of the slots; the next pass goes on from
+// where it stopped. The launcher's settle them all.
+constexpr std::size_t kSettleBudget = 32;
+replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget, replayfiles::ArchiveView& view) {
+	static std::size_t settleFrom = 0;
+	return {folders.archive, folders.outbox, settleBudget, settleFrom, view, SlotFiles(), PublishFile};
+}
+std::mutex& CopyLock() { static std::mutex lock; return lock; }
+
+// More replays than this waiting in the outbox, about 10 MB, is worth a
+// warning: the archive has not been writable for a long while.
+constexpr int kOutboxWarning = 1000;
+
+// A pass over the outbox and these save folders, none at all being fine.
+// Reads the archive for the index. One not listed whole, or not at all, still
+// lets a pass put the slots' replays into the outbox; only settling waits for
+// an index listed whole.
+void RefreshIndex(const fs::path& archive) {
+	try { Index().Refresh(archive); }
+	catch (const std::exception& e) { spdlog::warn("Replays: the archive could not be read: {}", e.what()); }
+	if (!Index().Complete()) spdlog::warn(L"Replays: the archive {} could not be listed whole; replays wait in the outbox", archive.c_str());
 }
 
-// Copies one slot's replay into the archive unless it is held there already.
-// Nothing: no replay there, held already, or the game's index has not caught
-// up with a file written in the last two minutes.
-enum class Archived { Copied, Nothing, Failed };
-Archived ArchiveSlot(const fs::path& archive, const fs::path& saves, int slot, const slots::Bytes& list, const slots::Bytes& swan) {
-	// The file is what is archived, not what the index says the slot holds:
-	// the index can be behind it (ReplaySlots.hxx: ExportSlotFile).
-	const fs::path file = saves / std::to_wstring(slot);
-	const SlotFile now = ReadSlotFile(file);
-	slots::ReplayHeaderInfo header;
-	replayfiles::BackupEvidence evidence;
-	if (!slots::ReadReplayHeader(now.replay, header) || Index().Verify(archive, now.replay, evidence)) return Archived::Nothing;
-	wchar_t name[64] = { 0 };
-	slots::Bytes exported;
-	bool fromRecord = false;
-	if (!slots::ExportSlotFile(list, swan, slot, now.replay, now.sidecar, exported, fromRecord) || !ArchiveName(exported, name)) {
-		spdlog::debug("Replays: slot {} is not a whole replay, not archived", slot);
-		return Archived::Nothing;
-	}
-	std::error_code ignored;
-	// Two minutes for the game to write the slot's record, which says more
-	// than the file's header does.
-	if (!fromRecord && fs::file_time_type::clock::now() - fs::last_write_time(file, ignored) < std::chrono::minutes(2)) return Archived::Nothing;
-	if (!fromRecord) spdlog::info("Replays: slot {} holds a replay the game's index does not list; archived from the file alone", slot);
-	fs::create_directories(archive, ignored);
- const fs::path target = archive / name;
- if (!replayfiles::PublishArchive(now.replay, exported,
-  [&](replayfiles::ArchiveFile& existing) { return replayfiles::ReadArchive(target, true, existing); },
-  [&](const slots::Bytes& bytes) { return PublishFile(target, bytes); })) {
-  spdlog::warn("Replays: could not safely publish the copy of slot {}", slot); return Archived::Failed;
- }
-	if (!Index().Add(archive / name)) { spdlog::warn("Replays: the copy of slot {} could not be verified", slot); return Archived::Failed; }
-	return Archived::Copied;
+replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
+	std::lock_guard<std::mutex> lock(CopyLock());
+	replayfiles::ArchiveView view(Index().Held());
+	const auto pass = replayfiles::RunPass(Target(folders, settleBudget, view), accounts, kFirstMatchSlot, kLastMatchSlot);
+	if (pass.copied) spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str());
+	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
+	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
+	if (pass.failed) spdlog::warn("Replays: {} replays could not be archived or kept in the outbox yet", pass.failed);
+	return pass;
+}
+
+bool BackUp(const Folders& folders, const fs::path& saves, int slot, const slots::Bytes& body, replayfiles::BackupEvidence& evidence) {
+	std::lock_guard<std::mutex> lock(CopyLock());
+	replayfiles::ArchiveView view(Index().Held());
+	return replayfiles::EnsureBackup(Target(folders, kSettleBudget, view), saves, slot, body, evidence);
 }
 
 // Pre-encode while no save has been changed. If recovery fails, persist this
@@ -229,11 +207,15 @@ Folders FindFolders() {
 	Folders folders;
 	wchar_t steamPath[1024] = { 0 };
 	DWORD steamPathBytes = sizeof(steamPath);
-	PWSTR appData = NULL;
-	if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS ||
-		SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) != S_OK) return folders;
-	folders.archive = fs::path(appData) / L"sf4e" / L"replays";
+	PWSTR appData = NULL, localAppData = NULL;
+	// Where replays go does not depend on Steam, so an outbox is drained even
+	// when no game's saves can be found.
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / L"sf4e" / L"replays";
 	CoTaskMemFree(appData);
+	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
+	CoTaskMemFree(localAppData);
+	if (folders.archive.empty() ||
+		RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) return folders;
 	// The account signed in to the running Steam client, which is the one a
 	// running game reads and writes as.
 	DWORD active = 0, activeBytes = sizeof(active);
@@ -252,15 +234,8 @@ int Archive() {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
-		Index().Refresh(folders.archive);
-		int copied = 0;
-		for (const fs::path& saves : folders.saves) {
-			const slots::Bytes list = LoadFile(saves / L"LIST", kMostIndexBytes), swan = LoadFile(saves / L"replays-swan.dat", kMostIndexBytes);
-			if (!slots::ValidSwan(swan)) continue;
-			for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; slot++) copied += ArchiveSlot(folders.archive, saves, slot, list, swan) == Archived::Copied;
-		}
-		if (copied) spdlog::info(L"Replays: archived {} to {}", copied, folders.archive.c_str());
-		return copied;
+		RefreshIndex(folders.archive);
+		return ArchiveSaves(folders, folders.saves, replayfiles::kSettleAll).copied;
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: archiving stopped: {}", e.what());
@@ -324,7 +299,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		// just played.
 		for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; slot++) {
 			const fs::path slotFile = saves / std::to_wstring(slot);
-			const SlotFile now = ReadSlotFile(slotFile);
+			const replayfiles::SlotFile now = replayfiles::ReadSlotFile(SlotFiles(), slotFile);
 			if (!slots::FileAheadOfRecord(list, swan, slot, now.replay, now.sidecar)) continue;
 			// An index saved since the file was written is not behind it: the
 			// file is one the game no longer lists, and waits for nothing.
@@ -355,15 +330,12 @@ PreparedImport PrepareImport(const fs::path& file) {
 		// goes: copied there now if it is not, and nothing is written if that
 		// cannot be done. The index is the one the listing keeps; no folder
 		// is walked here.
-		const SlotFile held = ReadSlotFile(saves / std::to_wstring(slot));
+		const replayfiles::SlotFile held = replayfiles::ReadSlotFile(SlotFiles(), saves / std::to_wstring(slot));
 
   slots::ReplayHeaderInfo header;
-  if (slots::ReadReplayHeader(held.replay, header) && !Index().Verify(folders.archive, held.replay, transaction.backup)) {
-   if (ArchiveSlot(folders.archive, saves, slot, list, swan) != Archived::Copied ||
-    !Index().Verify(folders.archive, held.replay, transaction.backup)) {
-    spdlog::warn("Replays: slot {} could not be backed up and verified; it is not replaced", slot);
-    return ImportResult::ArchiveFailed;
-   }
+  if (slots::ReadReplayHeader(held.replay, header) && !BackUp(folders, saves, slot, held.replay, transaction.backup)) {
+   spdlog::warn("Replays: slot {} could not be backed up and verified; it is not replaced", slot);
+   return ImportResult::ArchiveFailed;
   }
   // The slot's files exactly as they are, which the replay held in the slot
   // cache must match: a game save since then requires a fresh plan.
@@ -438,7 +410,46 @@ ImportResult CommitImport(const ImportTransaction& value, const Writer& write, c
  return ImportResult::RecoveryIncomplete;
 }
 
+namespace {
+// Sidecar's pass: the outbox and the signed-in account's slots, as the game
+// saves them. The archive is read once for what it holds, then each copy is
+// added to that.
+replayfiles::ArchivePass ArchiveActiveAccount() {
+ // Only the worker's thread runs this: what it has done once.
+ static bool unwatched = false;
+ const Folders folders = FindFolders();
+ if (folders.archive.empty()) return {};
+ if (!folders.active.empty() && !Changes().Watch(folders.active) && !unwatched) {
+  unwatched = true;
+  spdlog::warn("Replays: the save folder cannot be watched; replays are archived at each match start and for two minutes after each match end");
+ }
+ if (!Index().Complete()) RefreshIndex(folders.archive);
+ // The outbox is drained without a signed-in account too.
+ return ArchiveSaves(folders, folders.active.empty() ? std::vector<fs::path>{} : std::vector<fs::path>{folders.active}, kSettleBudget);
+}
+// Passes a second apart, then two, four and so on up to thirty: for two
+// minutes after a match ends, which covers the game's save after the battle
+// closes, and eight times after a retry. Every
+// thirty seconds while the outbox holds replays.
+replayfiles::ArchiveWorker& Archiver() {
+ static auto* const worker = [] {
+  auto* started = new replayfiles::ArchiveWorker([] {
+   try { return ArchiveActiveAccount(); }
+   catch (const std::exception& e) {
+    spdlog::warn("Replays: archiving stopped: {}", e.what());
+    replayfiles::ArchivePass failed;
+    failed.retry = true;
+    return failed;
+   }
+  }, {std::chrono::seconds(1), std::chrono::seconds(30), 8, std::chrono::minutes(2), std::chrono::seconds(30)});
+  archiveWorker.store(started); return started;
+ }();
+ return *worker;
+}
+}
+
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled) {
+ try { Archiver().Want(); } catch (...) {}
  try {
   if (p1.size() > 1024 || p2.size() > 1024) { Provenance().Invalidate(); return; }
   replayfiles::RecordingBoundary event;
@@ -450,6 +461,7 @@ void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectatin
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 void NoteMatchEnd() {
+ try { Archiver().MatchEnded(); } catch (...) {}
  try {
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::End;
@@ -598,6 +610,7 @@ std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {
 }
 
 void StopListing() {
+ if (auto* worker = archiveWorker.load()) worker->Stop();
  if (auto* worker = provenanceWorker.load()) worker->Stop();
  if (auto* changes = recordingChanges.load()) changes->Stop();
  if (auto* worker = importWorker.load()) worker->Stop();

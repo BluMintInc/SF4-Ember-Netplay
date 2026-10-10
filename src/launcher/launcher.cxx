@@ -15,7 +15,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <thread>
 #include <vector>
 #include <filesystem>
 #include "../ui/RecoverySurface.hxx"
@@ -276,10 +275,11 @@ void NoteWindowsCrashDump(DWORD processId) {
 }
 
 // Copies every match replay into Ember's archive (platform/ReplayFiles.hxx)
-// so the game's slots are not the only copy. Never blocks a start.
+// so the game's slots are not the only copy: before a game run, and after it
+// for what Sidecar could not copy while it ran. Never blocks a start.
 void ArchiveReplays() {
 	static bool noted = false;
-	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no Steam path or settings folder, nothing archived"); }
+	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no settings folder, nothing archived"); }
 }
 
 HANDLE CreateSF4Process(
@@ -803,16 +803,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Without a logs folder there is nowhere to put one; the game then
         // writes its own after the request fails.
         if (!g_logsDir[0]) dumps.Close();
-        // More than thirty matches in one sitting would push replays out of the
-        // game's slots before the copy at exit, so copy while it runs too.
-        std::thread archiver([game] { while (WaitForSingleObject(game, 30000) == WAIT_TIMEOUT) ArchiveReplays(); });
         bool dumped = false;
         dumps.ServeUntilExit(game, g_logsDir, [&](bool written) {
             if (written) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumps.written); }
             else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
         });
         dumps.Close();
-        archiver.join();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));

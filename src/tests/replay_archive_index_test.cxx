@@ -32,9 +32,10 @@ static void TestBoundedPayloads() {
 static void TestCrcBucketsAndConcurrentPublication() {
  ArchiveCandidates index;
  index.Refresh([] {
-  ArchiveCandidates::Map seen;
+  ArchiveCandidates::Snapshot seen;
+  seen.complete = true;
   for (unsigned crc = 0; crc < 10000; ++crc)
-   seen[crc] = std::make_shared<const ArchiveCandidates::Paths>(ArchiveCandidates::Paths{std::to_string(crc)});
+   seen.files[crc] = std::make_shared<const ArchiveCandidates::Paths>(ArchiveCandidates::Paths{std::to_string(crc)});
   return seen;
  });
  CHECK(index.Candidates(123) == ArchiveCandidates::Paths{"123"});
@@ -43,7 +44,7 @@ static void TestCrcBucketsAndConcurrentPublication() {
  std::promise<void> scanning, release;
  auto gate = release.get_future();
  auto refresh = std::async(std::launch::async, [&] {
-  index.Refresh([&] { scanning.set_value(); gate.wait(); return ArchiveCandidates::Map{}; });
+  index.Refresh([&] { scanning.set_value(); gate.wait(); return ArchiveCandidates::Snapshot{}; });
  });
  CHECK(scanning.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  // Consumers and imports must finish while the scanning worker is blocked.
@@ -59,7 +60,7 @@ static void TestCrcBucketsAndConcurrentPublication() {
  CHECK(index.Candidates(99999) == ArchiveCandidates::Paths{"other"});
  CHECK(index.Candidates(124).empty());
  // A failed refresh leaves the published index usable.
- try { index.Refresh([]() -> ArchiveCandidates::Map { throw 1; }); } catch (int) {}
+ try { index.Refresh([]() -> ArchiveCandidates::Snapshot { throw 1; }); } catch (int) {}
  CHECK(index.Candidates(99999) == ArchiveCandidates::Paths{"other"});
 }
 // One round of `frames` frames: same size for every count, different summaries.

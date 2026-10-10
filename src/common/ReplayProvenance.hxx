@@ -1,6 +1,8 @@
 #pragma once
 #include "ReplaySlots.hxx"
 #include "ReplayFileSafety.hxx"
+#include "Sha256.hxx"
+#include <algorithm>
 #include <cstdio>
 #include <ctime>
 #include <utility>
@@ -62,6 +64,11 @@ inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const rep
  auto note = ReadFile(NamesPath(archive, body), replayslots::kLargestReplay + 21 + 2048);
  if (note) NamesForBody(*note, body, names);
  return names;
+}
+// A replay's name among Ember's files that stand for it (the outbox's): the
+// SHA-256 of its bytes.
+inline std::string ReplayKey(const std::uint8_t* body, std::size_t size) {
+ return Sha256Portable(std::string(reinterpret_cast<const char*>(body), size));
 }
 // Existing unreadable/invalid/different-body targets are terminal refusals.
 // Only a missing destination authorizes a create-only publication attempt.

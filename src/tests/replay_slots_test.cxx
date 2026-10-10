@@ -269,6 +269,11 @@ static void TestAnImportedReplayIsKnownByItsCrc() {
 	CHECK(!ParseArchiveName(L"20261305-213503-69991186.emberreplay", time, crc)); // month 13
 	CHECK(!ParseArchiveName(L"2026100x-213503-69991186.emberreplay", time, crc));
 	CHECK(!ParseArchiveName(L"watched.txt", time, crc));
+	// The name an export is archived under reads back as its record's save
+	// time (8 February 2019, 20:24:00) and the replay's CRC.
+	CHECK(!ArchiveName(exported).compare(0, 16, L"20190208-202400-"));
+	CHECK(ParseArchiveName(ArchiveName(exported), time, crc) && time == 1549657440 && crc == Crc32(replay.data(), replay.size()));
+	CHECK(ArchiveName(Bytes(8, 0)).empty());
 	// The archive holds it only when the file is that replay: an export whose
 	// record describes its body, under the body's own CRC.
 	CHECK(WholeArchived(exported, Crc32(replay.data(), replay.size())));
@@ -422,23 +427,6 @@ static void TestASlotWhoseIndexIsBehind() {
 	CHECK(!FileAheadOfRecord(list, swan, 302, Bytes(kLargestReplay), Sidecar(Bytes(kLargestReplay)))); // the game's empty preallocation
 }
 
-// A slot whose file is newer than its record: archived from the file when its
-// ".0" says it is whole, not otherwise; with a record that names it, as Export.
-static void TestASlotFileAheadOfItsRecord() {
-	Bytes list = EmptyList(), swan = EmptySwan(), exported;
-	const Bytes old = Replay(0x10, 5000);
-	Fill(list, swan, 301, old, 0x55);
-	Bytes fresh = Replay(0x00, 8000);
-	WriteU32(fresh.data() + 0x20, 11); WriteU32(fresh.data() + 0x170, 1);
-	bool fromRecord = true;
-	CHECK(ExportSlotFile(list, swan, 301, fresh, Sidecar(fresh), exported, fromRecord) && !fromRecord);
-	CHECK(Bytes(exported.begin() + kExportHeaderBytes, exported.end()) == fresh);
-	CHECK(ReadU32(exported.data() + 8 + 5) == Crc32(fresh.data(), fresh.size()));
-	CHECK(!ExportSlotFile(list, swan, 301, fresh, Sidecar(old), exported, fromRecord));
-	CHECK(!ExportSlotFile(list, swan, 301, fresh, Bytes(), exported, fromRecord));
-	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), exported, fromRecord) && fromRecord);
-}
-
 // A list that names a slot nowhere: its position serves only when the record
 // there names no slot, never when it is another slot's.
 static void TestRecordNeverTakesAnotherSlots() {
@@ -480,7 +468,6 @@ int main() {
 	TestASlotWhoseIndexIsBehind();
 	TestRecordNeverTakesAnotherSlots();
 	TestImportRefusesAnImplausibleRecord();
-	TestASlotFileAheadOfItsRecord();
 	TestAnImportedReplayIsKnownByItsCrc();
 	TestExportFromAReplayAlone();
 	TestRecordsOutOfSlotOrder();
