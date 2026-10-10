@@ -120,9 +120,9 @@ fSystem::CharaSemantics fSystem::CaptureCharaSemantics(rSystem* src, int side) {
 // across peers, plus action id, action frame, posture and time scale).
 // Explicitly EXCLUDED: the battle-flow function pointers,
 // the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
-// sound maps (process-local pointer keys), RNG (the evolving RNG state has
-// not been located; the match seed alone is not it), and all
-// presentation/log/overlay state.
+// sound maps (process-local pointer keys), the battle RNG (System+0x54, not
+// saved in any memento and read only by presentation, see DESYNC_V2.md),
+// and all presentation/log/overlay state.
 fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
     using sf4e::statehash::Hasher;
     SemanticHashes out;
