@@ -18,9 +18,9 @@ if(SF4E_BUILD_DISCORD)
     # Build exclusively from the verified vendor archive. Unpacking it adds 6 s
     # to a configure, more on a busy machine, so a whole earlier unpack is kept.
     include("${CMAKE_SOURCE_DIR}/cmake/sf4e_verified_unpack.cmake")
+    include("${CMAKE_SOURCE_DIR}/cmake/sf4e_discord_sdk_files.cmake")
     sf4e_unpack_verified("${SF4E_DISCORD_SDK_ARCHIVE}" "${discord_archive_hash}" "${CMAKE_BINARY_DIR}/discord-sdk"
-        discord_social_sdk/License-Notices.txt discord_social_sdk/include/discordpp.h
-        discord_social_sdk/lib/release/discord_partner_sdk.lib discord_social_sdk/bin/release/discord_partner_sdk.dll)
+        ${SF4E_DISCORD_SDK_FILES})
     set(SF4E_DISCORD_SDK_ROOT "${CMAKE_BINARY_DIR}/discord-sdk/discord_social_sdk")
     find_path(SF4E_JSON_INCLUDE nlohmann/json.hpp REQUIRED)
     include(ExternalProject)
