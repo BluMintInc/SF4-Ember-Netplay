@@ -479,7 +479,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     static bool trainingDirectorySet=false;
     if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
     // The meter in a match is the player's choice, in private rooms only; the runtime reads nothing for it otherwise.
-    sf4e::training::WatchMatches((snapshot.preferences.matchFrameMeter && sf4e::match_frame_meter::Allowed(snapshot.room.serverOwned)) || snapshot.replays.meterShown);
+    sf4e::training::WatchMatches(sf4e::match_frame_meter::Watched(snapshot.preferences.matchFrameMeter, snapshot.room.serverOwned, snapshot.replays.meterShown));
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
