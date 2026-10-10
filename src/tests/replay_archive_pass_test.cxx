@@ -27,6 +27,7 @@ struct Folders {
 	fs::path root, saves, archive;
 	Bytes list = EmptyList(), swan = EmptySwan();
 	files::ArchiveCandidates held;
+	files::Unpublished unpublished;
 	files::SlotFileCache cache;
 	std::atomic<int> failWrites{0};
 	explicit Folders(const char* name) {
@@ -38,7 +39,7 @@ struct Folders {
 	~Folders() { std::error_code ignored; fs::remove_all(root, ignored); }
 	void WriteIndexes() { Save(saves / "LIST", list); Save(saves / "replays-swan.dat", swan); }
 	files::ArchiveTarget Target() {
-		return {archive, held, cache, [this](const fs::path& path, const Bytes& bytes) {
+		return {archive, held, unpublished, cache, [this](const fs::path& path, const Bytes& bytes) {
 			if (failWrites > 0) { failWrites--; return false; }
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
@@ -165,6 +166,66 @@ static void TestRetriesAndADamagedIndex() {
 	CHECK(folders.Archived().size() == 2);
 }
 
+// A replay whose copy cannot be written is held, so the next match taking
+// its slot before a pass can write it does not lose it: both replays reach
+// the archive, byte for byte.
+static void TestAFailedCopyOutlivesItsSlot() {
+	Folders folders("ember-archive-held");
+	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u);
+	folders.SaveMatch(kFirst, first, 0, false);
+	folders.failWrites = 1;
+	auto pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.failed == 1 && pass.retry && folders.unpublished.size() == 1);
+	folders.SaveMatch(kFirst, second, 0, false);
+	pass = folders.Pass();
+	CHECK(pass.copied == 2 && !pass.retry && folders.unpublished.empty());
+	std::set<Bytes> bodies;
+	for (const auto& path : folders.Archived()) {
+		files::ArchiveFile read;
+		CHECK(files::ReadArchive(path, true, read) == files::ArchiveState::Valid);
+		bodies.insert(read.Body());
+	}
+	CHECK(bodies == std::set<Bytes>({first, second}));
+}
+
+// The game's record kept for a replay is that replay's own: another replay
+// with the same CRC, size and fighters has its record under another name, a
+// file there that is not a record is left alone, and a replay with every name
+// taken has none kept, which the pass reports without retrying.
+static void TestGameRecordsBelongToTheirOwnReplay() {
+	Folders folders("ember-archive-records");
+	const Bytes replay = Match(5, 1791600000u), twin = SameCrcDifferentBody(replay);
+	folders.SaveMatch(kFirst, replay, 0, false);
+	CHECK(folders.Pass().copied == 1);
+	const fs::path archived = folders.Archived().at(0);
+	// The twin's record, naming player 1, takes the first name.
+	Bytes list = EmptyList(), swan = EmptySwan(), twinExport;
+	Fill(list, swan, kFirst, twin, 0x44);
+	const_cast<std::uint8_t*>(Record(list, swan, kFirst))[49] = 0;
+	Seal(swan);
+	CHECK(Export(list, swan, kFirst, twin, twinExport));
+	CHECK(files::KeepGameRecord(folders.Target(), twin, twinExport) == files::RecordKept::Kept);
+	// The second name holds something that is not a record.
+	Save(files::RecordPath(folders.archive, replay.data(), replay.size(), 1), Bytes(64, 7));
+	const Bytes contents = *files::ReadFile(archived);
+	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == -1);
+	folders.Index(kFirst, replay, 1791600010u);
+	const auto pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.refused == 0 && !pass.retry);
+	CHECK(RecordWinner(files::WithGameRecord(folders.archive, contents).data() + 8) == 1);
+	CHECK(files::ReadFile(files::RecordPath(folders.archive, replay.data(), replay.size(), 1)) == Bytes(64, 7));
+
+	Folders full("ember-archive-records-full");
+	full.SaveMatch(kFirst, replay, 0, false);
+	CHECK(full.Pass().copied == 1);
+	CHECK(fs::create_directories(full.archive / ".records"));
+	for (int n = 0; n < files::kRecordNames; n++) Save(files::RecordPath(full.archive, replay.data(), replay.size(), n), Bytes(64, 7));
+	full.Index(kFirst, replay, 1791600010u);
+	const auto refused = full.Pass();
+	CHECK(refused.refused == 1 && refused.failed == 0 && !refused.retry);
+	CHECK(RecordWinner(files::WithGameRecord(full.archive, *files::ReadFile(full.Archived().at(0))).data() + 8) == -1);
+}
+
 // An archive file that may hold the slot's replay but cannot be read is not
 // taken as a copy, and the replay is not copied again beside it: the pass
 // asks to look again.
@@ -222,12 +283,13 @@ static int Settled(const std::atomic<int>& passes, int least) {
 
 // The worker's schedule. A retry is followed by a run of passes without
 // being asked again, and a run ends; asked again, another run follows. After
-// a match ends a run follows whatever the passes find.
+// a match ends passes run until its window closes, whatever they find, and
+// then stop.
 static void TestArchiveWorkerSchedule() {
-	const files::ArchiveWorker::Retries retries{std::chrono::milliseconds(1), std::chrono::milliseconds(4), 3};
 	{
 		std::atomic<int> passes{0};
-		files::ArchiveWorker worker([&] { ++passes; files::ArchivePass pass; pass.retry = true; return pass; }, retries);
+		files::ArchiveWorker worker([&] { ++passes; files::ArchivePass pass; pass.retry = true; return pass; },
+			{std::chrono::milliseconds(1), std::chrono::milliseconds(4), 3, {}});
 		worker.Want();
 		CHECK(Settled(passes, 4) == 4);
 		worker.Want();
@@ -235,26 +297,35 @@ static void TestArchiveWorkerSchedule() {
 	}
 	{
 		std::atomic<int> passes{0};
-		files::ArchiveWorker worker([&] { ++passes; files::ArchivePass pass; pass.copied = 1; return pass; }, retries);
+		files::ArchiveWorker worker([&] { ++passes; files::ArchivePass pass; pass.copied = 1; return pass; },
+			{std::chrono::milliseconds(1), std::chrono::milliseconds(4), 3, std::chrono::milliseconds(60)});
 		worker.Want();
 		CHECK(Settled(passes, 1) == 1);
 		worker.MatchEnded();
-		CHECK(Settled(passes, 5) == 5);
+		const int afterWindow = Settled(passes, 6);
+		CHECK(afterWindow >= 6 && Settled(passes, afterWindow) == afterWindow);
 	}
 }
 
 // The worker driving real passes. A match ends; the first pass copies an
-// older replay, and the match's own replay is saved after it, with no further
-// ask: the run after the match end archives it. A copy that cannot be read is
-// looked at again until it can, without a change to the save folder.
+// older replay, the save folder changes twenty times, each change asking for
+// a pass that finds nothing new, and then the match's own replay is saved
+// with no further ask: the window after the match end archives it. A copy
+// that cannot be read is looked at again until it can, without a change to
+// the save folder.
 static void TestArchiveWorkerWithPasses() {
-	const files::ArchiveWorker::Retries retries{std::chrono::milliseconds(5), std::chrono::milliseconds(40), 8};
+	const files::ArchiveWorker::Schedule schedule{std::chrono::milliseconds(10), std::chrono::milliseconds(40), 3, std::chrono::seconds(1)};
 	Folders folders("ember-archive-worker");
 	folders.SaveMatch(kFirst, Match(1, 1791600000u), 1791600000u, true);
 	std::atomic<int> passes{0};
-	files::ArchiveWorker worker([&] { const auto pass = folders.Pass(); ++passes; return pass; }, retries);
+	files::ArchiveWorker worker([&] { const auto pass = folders.Pass(); ++passes; return pass; }, schedule);
 	worker.MatchEnded();
 	CHECK(Eventually([&] { return passes >= 1; }));
+	for (int change = 0; change < 20; change++) {
+		const int before = passes;
+		worker.Want();
+		CHECK(Eventually([&] { return passes > before; }));
+	}
 	folders.SaveMatch(kFirst + 1, Match(2, 1791600200u), 0, false);
 	CHECK(Eventually([&] { return folders.Archived().size() == 2; }));
 	worker.Stop();
@@ -265,7 +336,8 @@ static void TestArchiveWorkerWithPasses() {
 	const fs::path copy = unreadable.Archived().at(0);
 	CHECK(fs::remove(copy) && fs::create_directory(copy));
 	std::atomic<int> looks{0};
-	files::ArchiveWorker again([&] { const auto pass = unreadable.Pass(); ++looks; return pass; }, retries);
+	files::ArchiveWorker again([&] { const auto pass = unreadable.Pass(); ++looks; return pass; },
+		{std::chrono::milliseconds(5), std::chrono::milliseconds(40), 8, {}});
 	again.Want();
 	CHECK(Eventually([&] { return looks >= 2; }));
 	CHECK(fs::remove(copy));
@@ -277,6 +349,8 @@ int main() {
 	TestAnIndexedReplayGoesInWithItsRecord();
 	TestTheGameRecordComesLater();
 	TestRetriesAndADamagedIndex();
+	TestAFailedCopyOutlivesItsSlot();
+	TestGameRecordsBelongToTheirOwnReplay();
 	TestAnUnreadableCopy();
 	TestAReplayPutBackAndItsBackup();
 	TestArchiveWorkerSchedule();

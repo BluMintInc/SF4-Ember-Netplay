@@ -65,26 +65,39 @@ inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const rep
  return names;
 }
 // The game's own record of a replay archived before the game's index listed
-// it, so with a record made from its header (ReplaySlots.hxx: MadeUp):
-// .records/<crc>-<size>.record, the 125 bytes, written when the index catches
-// up while the slot still holds the replay (ReplayArchivePass.hxx). It names
-// the winner of a deciding round, which a made-up record cannot.
-inline std::filesystem::path RecordPath(const std::filesystem::path& archive, const std::uint8_t* body, std::size_t size) {
+// it, so with a record made from its header (ReplaySlots.hxx: MadeUp),
+// written when the index catches up while the slot still holds the replay
+// (ReplayArchivePass.hxx). It names the winner of a deciding round, which a
+// made-up record cannot. Kept as the game's export of that replay, body and
+// all, in .records/<crc>-<size>-<n>.record: n tells apart different replays
+// that share a CRC and size, and a file counts for a replay only when its
+// body is that replay byte for byte.
+constexpr int kRecordNames = 4;
+inline std::filesystem::path RecordPath(const std::filesystem::path& archive, const std::uint8_t* body, std::size_t size, int n) {
  char key[64] = {};
- std::snprintf(key, sizeof key, "%08x-%u.record", replayslots::Crc32(body, size), static_cast<unsigned>(size));
+ std::snprintf(key, sizeof key, "%08x-%u-%d.record", replayslots::Crc32(body, size), static_cast<unsigned>(size), n);
  return archive / ".records" / key;
 }
+// Whether a .records file holds the game's record of exactly this replay.
+inline bool RecordsReplay(const replayslots::Bytes& kept, const std::uint8_t* body, std::size_t size) {
+ using namespace replayslots;
+ return kept.size() == kExportHeaderBytes + size && !std::memcmp(kept.data(), kExportMagic, 8) &&
+  std::equal(body, body + size, kept.begin() + kExportHeaderBytes) && !MadeUp(kept.data() + 8) && Describes(kept.data() + 8, body, size);
+}
 // An archive file's contents with that record in place of a made-up one, when
-// one describing its replay was written; the contents as they are otherwise.
-// What the replay's summary, its detail and an import read.
+// one was kept for its replay; the contents as they are otherwise. What the
+// replay's summary, its detail and an import read.
 inline replayslots::Bytes WithGameRecord(const std::filesystem::path& archive, replayslots::Bytes contents) {
  using namespace replayslots;
  if (archive.empty() || contents.size() < kExportHeaderBytes || std::memcmp(contents.data(), kExportMagic, 8) || !MadeUp(contents.data() + 8)) return contents;
  const std::uint8_t* body = contents.data() + kExportHeaderBytes;
  const std::size_t size = contents.size() - kExportHeaderBytes;
- const auto record = ReadFile(RecordPath(archive, body, size), kRecordBytes);
- if (!record || record->size() != kRecordBytes || MadeUp(record->data()) || !Describes(record->data(), body, size)) return contents;
- std::copy(record->begin(), record->end(), contents.begin() + 8);
+ for (int n = 0; n < kRecordNames; n++) {
+  const auto kept = ReadFile(RecordPath(archive, body, size, n));
+  if (!kept || !RecordsReplay(*kept, body, size)) continue;
+  std::copy(kept->begin() + 8, kept->begin() + 8 + kRecordBytes, contents.begin() + 8);
+  break;
+ }
  return contents;
 }
 // Existing unreadable/invalid/different-body targets are terminal refusals.

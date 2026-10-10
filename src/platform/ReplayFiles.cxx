@@ -144,14 +144,16 @@ ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 // ArchiveSaves and BackUp are the only copiers, under one lock, so a pass and
 // an import's backup of the slot it replaces never decide on a slot together.
 replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cache; return cache; }
-replayfiles::ArchiveTarget Target(const fs::path& archive) { return {archive, Index().Held(), SlotFiles(), PublishFile}; }
+replayfiles::Unpublished& Unpublished() { static replayfiles::Unpublished replays; return replays; }
+replayfiles::ArchiveTarget Target(const fs::path& archive) { return {archive, Index().Held(), Unpublished(), SlotFiles(), PublishFile}; }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
 replayfiles::ArchivePass ArchiveSaves(const fs::path& archive, const fs::path& saves) {
 	std::lock_guard<std::mutex> lock(CopyLock());
 	const auto pass = replayfiles::CopySlots(Target(archive), saves, kFirstMatchSlot, kLastMatchSlot);
 	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) from {}", pass.copied, pass.fromFile, saves.c_str());
-	if (pass.failed) spdlog::warn(L"Replays: {} replays of {} could not be safely archived yet", pass.failed, saves.c_str());
+	if (pass.failed) spdlog::warn(L"Replays: {} replays of {} could not be safely archived yet; {} are held to try again", pass.failed, saves.c_str(), Unpublished().size());
+	if (pass.refused) spdlog::warn(L"Replays: the game's record of {} replays from {} was not kept: every name for it holds another file", pass.refused, saves.c_str());
 	return pass;
 }
 
@@ -404,9 +406,9 @@ replayfiles::ArchivePass ArchiveActiveAccount() {
  if (!indexed) { Index().Refresh(folders.archive); indexed = true; }
  return ArchiveSaves(folders.archive, folders.active);
 }
-// After a match ends, passes a second apart, then two, four and so on up to
-// thirty: two minutes in all, which covers the game's save after the battle
-// closes and an index save after it.
+// Passes a second apart, then two, four and so on up to thirty: for two
+// minutes after a match ends, which covers the game's save after the battle
+// closes and an index save after it, and eight times after a retry.
 replayfiles::ArchiveWorker& Archiver() {
  static auto* const worker = [] {
   auto* started = new replayfiles::ArchiveWorker([] {
@@ -417,7 +419,7 @@ replayfiles::ArchiveWorker& Archiver() {
     failed.retry = true;
     return failed;
    }
-  }, {std::chrono::seconds(1), std::chrono::seconds(30), 8});
+  }, {std::chrono::seconds(1), std::chrono::seconds(30), 8, std::chrono::minutes(2)});
   archiveWorker.store(started); return started;
  }();
  return *worker;

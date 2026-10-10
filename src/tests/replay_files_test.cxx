@@ -68,34 +68,6 @@ static void TestImportWriteRecovery() {
 	CHECK(undoAttempts == static_cast<int>(changes.size() * 2));
 }
 
-// Forge only fixture payload bytes to exercise a real CRC collision. The
-// archive index sees the same CRC, so only exact body comparison can reject it.
-static Bytes SameCrcDifferentBody(const Bytes& original) {
- Bytes body = original;
- body[0x200] ^= 1;
- WriteU32(body.data()+body.size()-4,0);
- const auto base=Crc32(body.data(),body.size());
- std::uint32_t basis[32]={},masks[32]={};
- for(int bit=0;bit<32;++bit) {
-  WriteU32(body.data()+body.size()-4,std::uint32_t{1}<<bit);
-  auto column=Crc32(body.data(),body.size())^base;
-  auto mask=std::uint32_t{1}<<bit;
-  for(int row=31;row>=0;--row)if(column&(std::uint32_t{1}<<row)) {
-   if(basis[row]) {column^=basis[row];mask^=masks[row];}
-   else {basis[row]=column;masks[row]=mask;break;}
-  }
- }
- auto target=Crc32(original.data(),original.size())^base;
- std::uint32_t patch=0;
- for(int row=31;row>=0;--row)if(target&(std::uint32_t{1}<<row)) {
-  CHECK(basis[row]);target^=basis[row];patch^=masks[row];
- }
- CHECK(target==0);
- WriteU32(body.data()+body.size()-4,patch);
- CHECK(body!=original&&Crc32(body.data(),body.size())==Crc32(original.data(),original.size()));
- return body;
-}
-
 static void TestVerifiedArchiveAndSnapshots() {
 	namespace fs = std::filesystem;
 	namespace files = sf4e::replayfiles;
