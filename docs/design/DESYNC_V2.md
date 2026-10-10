@@ -34,8 +34,13 @@ checkpoints; it does not replace v1 until it has demonstrated reliability.
 - `GameMementoKey` object bytes — mix stable payload with process-local
   ownership metadata.
 - Sound maps — pointer-keyed by process-local adapter addresses.
-- RNG: the *evolving* RNG state has not been located; the initial match
-  seed is not it and hashing it would prove nothing.
+- RNG: the evolving battle RNG is the EmRandom seed at `System+0x54`. The
+  System memento does not save it and neither does `SaveState`, so it
+  already differs between peers after rollbacks of different depth. Its
+  known consumers are presentation (stage scripts, stage objects, effect
+  signals, voice lines); see
+  `docs/reports/2026-10-10_reverse-USF4-stage-quality-report.md`. Hashing
+  it would report that divergence as a desync.
 - Any raw struct memory (padding, uninitialized bytes), wall-clock values,
   log/overlay/presentation state.
 
