@@ -34,16 +34,15 @@ namespace sf4e { namespace replayfiles {
 
 // Where a pass copies to: the archive folder and the outbox; how many outbox
 // entries a pass settles at most, and where the next pass starts on them, so
-// an entry that cannot be settled does not keep others waiting; the index of
-// the replays the archive holds (each copy is added to it) and whether it was
-// listed whole (ScanArchive); the cache of the game's slot files; and the
-// writer that creates a file only where there is none.
+// an entry that cannot be settled does not keep others waiting; the pass's
+// view of the index of the replays the archive holds, one generation of it
+// with the copies the pass makes (ArchiveView); the cache of the game's slot
+// files; and the writer that creates a file only where there is none.
 struct ArchiveTarget {
 	std::filesystem::path folder, outbox;
 	std::size_t settleBudget;
 	std::size_t& settleFrom;
-	ArchiveCandidates& held;
-	bool heldComplete;
+	ArchiveView& held;
 	SlotFileCache& slots;
 	std::function<bool(const std::filesystem::path&, const replayslots::Bytes&)> createOnly;
 };
@@ -60,7 +59,7 @@ inline Holding Holds(const ArchiveTarget& target, const replayslots::Bytes& body
 		if (state == ArchiveState::Valid && read.SameBody(body)) { evidence = {path, std::move(read)}; return Holding::Held; }
 		if (state == ArchiveState::Unreadable) holding = Holding::Unknown;
 	}
-	return holding == Holding::Absent && !target.heldComplete ? Holding::Unknown : holding;
+	return holding == Holding::Absent && !target.held.Complete() ? Holding::Unknown : holding;
 }
 
 // A slot's replay and ".0" as they are now, each empty when it could not be

@@ -35,7 +35,6 @@ struct Owner {
 struct Folders {
 	fs::path root, saves, archive, outbox;
 	std::size_t settleBudget = 1000, settleFrom = 0;
-	bool indexComplete = true;
 	Bytes list = EmptyList(), swan = EmptySwan();
 	Owner own;
 	std::atomic<bool> archiveBroken{false};
@@ -44,18 +43,23 @@ struct Folders {
 		saves = root / "ssf4_savedata"; archive = root / "replays"; outbox = root / "replay-outbox";
 		CHECK(fs::create_directories(saves));
 		WriteIndexes();
+		Refresh(own);
 	}
 	~Folders() { std::error_code ignored; fs::remove_all(root, ignored); }
 	void WriteIndexes() { Save(saves / "LIST", list); Save(saves / "replays-swan.dat", swan); }
-	files::ArchiveTarget Target(Owner& owner) {
-		return {archive, outbox, settleBudget, settleFrom, owner.index, indexComplete, owner.slots, [this](const fs::path& path, const Bytes& bytes) {
+	// Reads the archive into an owner's index, as the game and the launcher do.
+	void Refresh(Owner& owner) {
+		owner.index.Refresh([&] { return files::ScanArchive(archive, [](const fs::path&, const files::ArchiveFile&) {}); });
+	}
+	// The pass's view of the archive, from the owner's index.
+	files::ArchiveTarget Target(Owner& owner, files::ArchiveView& view) {
+		return {archive, outbox, settleBudget, settleFrom, view, owner.slots, [this](const fs::path& path, const Bytes& bytes) {
 			if (archiveBroken && *path.lexically_relative(archive).begin() != "..") return false;
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
 			return true;
 		}};
 	}
-	files::ArchiveTarget Target() { return Target(own); }
 	// What the game writes as a match ends: the replay and its ".0", and,
 	// unless its index is behind, the slot's record.
 	void SaveMatch(int slot, const Bytes& replay, std::uint32_t savedAt, bool indexed) {
@@ -73,7 +77,11 @@ struct Folders {
 		Seal(swan);
 		WriteIndexes();
 	}
-	files::ArchivePass Pass() { return files::RunPass(Target(), {saves}, kFirst, kLast); }
+	files::ArchivePass Pass(Owner& owner, const std::vector<fs::path>& accounts) {
+		files::ArchiveView view(owner.index);
+		return files::RunPass(Target(owner, view), accounts, kFirst, kLast);
+	}
+	files::ArchivePass Pass() { return Pass(own, {saves}); }
 	// The archive's replay files, each a different replay, and their replays.
 	std::vector<fs::path> Archived() const {
 		std::vector<fs::path> paths;
@@ -219,9 +227,10 @@ static void TestTheOutboxOutlivesTheProcess() {
 	folders.SaveMatch(kFirst, second, 0, false);
 	folders.archiveBroken = false;
 	Owner fresh;
-	auto pass = files::RunPass(folders.Target(fresh), {}, kFirst, kLast);
+	folders.Refresh(fresh);
+	auto pass = folders.Pass(fresh, {});
 	CHECK(pass.copied == 1 && pass.waiting == 0 && folders.Outboxed() == 0);
-	pass = files::RunPass(folders.Target(fresh), {folders.saves}, kFirst, kLast);
+	pass = folders.Pass(fresh, {folders.saves});
 	CHECK(pass.copied == 1 && folders.Bodies() == std::set<Bytes>({first, second}));
 }
 
@@ -235,7 +244,8 @@ static void TestAnOutboxThatCannotBeListed() {
 	Save(folders.outbox, Bytes(8, 1)); // a file where the outbox was
 	folders.archiveBroken = false;
 	Owner fresh;
-	CHECK(files::RunPass(folders.Target(fresh), {}, kFirst, kLast).waiting > 0);
+	folders.Refresh(fresh);
+	CHECK(folders.Pass(fresh, {}).waiting > 0);
 }
 
 // Nine replays of one size and one CRC, played at different times, through
@@ -273,7 +283,8 @@ static void TestTheLauncherSettlesEverything() {
 	folders.archiveBroken = false;
 	folders.settleBudget = files::kSettleAll;
 	Owner fresh;
-	const auto pass = files::RunPass(folders.Target(fresh), {}, kFirst, kLast);
+	folders.Refresh(fresh);
+	const auto pass = folders.Pass(fresh, {});
 	CHECK(pass.copied == 40 && pass.waiting == 0 && !pass.more && folders.Outboxed() == 0);
 }
 
@@ -301,13 +312,13 @@ static void TestARefreshKeepsAnUnreadableCopy() {
 	const Bytes kept = *files::ReadFile(copy);
 	CHECK(fs::remove(copy) && fs::create_directory(copy));
 	int listed = 0;
-	bool complete = false;
-	folders.own.index.Refresh([&] { return files::ScanArchive(folders.archive, [&](const fs::path&, const files::ArchiveFile&) { listed++; }, complete); });
-	CHECK(complete && listed == 0 && folders.own.index.Candidates(Crc32(replay.data(), replay.size())).size() == 1);
+	folders.own.index.Refresh([&] { return files::ScanArchive(folders.archive, [&](const fs::path&, const files::ArchiveFile&) { listed++; }); });
+	CHECK(folders.own.index.Current()->complete && listed == 0 && folders.own.index.Candidates(Crc32(replay.data(), replay.size())).size() == 1);
 	// The same replay under a later save time, so another name.
 	Bytes later = kept;
 	WriteU32(later.data() + 8 + 13, ReadU32(later.data() + 8 + 13) + 600);
-	CHECK(files::Enqueue(folders.Target(), replay, later));
+	files::ArchiveView view(folders.own.index);
+	CHECK(files::Enqueue(folders.Target(folders.own, view), replay, later));
 	auto pass = folders.Pass();
 	CHECK(pass.copied == 0 && pass.waiting == 1 && folders.Outboxed() == 1);
 	CHECK(fs::remove(copy));
@@ -323,15 +334,15 @@ static void TestARefreshKeepsAnUnreadableCopy() {
 // is complete.
 static void TestAScanSaysWhatItMissed() {
 	Folders folders("ember-archive-scan");
-	bool complete = false;
 	const auto none = [](const fs::path&, const files::ArchiveFile&) {};
-	CHECK(files::ScanArchive(folders.archive, none, complete).empty() && complete);
+	auto scan = files::ScanArchive(folders.archive, none);
+	CHECK(scan.files.empty() && scan.complete);
 	folders.SaveMatch(kFirst, Match(1, 1791600000u), 0, false);
 	CHECK(folders.Pass().copied == 1);
-	CHECK(files::ScanArchive(folders.archive, none, complete).size() == 1 && complete);
+	scan = files::ScanArchive(folders.archive, none);
+	CHECK(scan.files.size() == 1 && scan.complete);
 	CHECK(fs::create_directories(folders.archive / "saver" / "20260101.usf4replay")); // a replay file that cannot be read
-	files::ScanArchive(folders.archive, none, complete);
-	CHECK(!complete);
+	CHECK(!files::ScanArchive(folders.archive, none).complete);
 }
 
 // While the archive is not listed whole, a pass still puts each slot's replay
@@ -339,7 +350,7 @@ static void TestAScanSaysWhatItMissed() {
 // sure the archive does not hold them. Once it is listed whole, both go in.
 static void TestAnIncompleteIndexStillKeepsTheSlots() {
 	Folders folders("ember-archive-incomplete");
-	folders.indexComplete = false;
+	folders.own.index.Refresh([] { return files::ArchiveCandidates::Snapshot{}; }); // a refresh that missed something
 	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u);
 	folders.SaveMatch(kFirst, first, 0, false);
 	auto pass = folders.Pass();
@@ -347,9 +358,28 @@ static void TestAnIncompleteIndexStillKeepsTheSlots() {
 	folders.SaveMatch(kFirst, second, 0, false);
 	pass = folders.Pass();
 	CHECK(pass.copied == 0 && pass.waiting == 2 && folders.Archived().empty());
-	folders.indexComplete = true;
+	folders.Refresh(folders.own);
 	pass = folders.Pass();
 	CHECK(pass.copied == 2 && pass.waiting == 0 && folders.Bodies() == std::set<Bytes>({first, second}));
+}
+
+// A pass takes one generation of the archive's index and keeps to it: a
+// refresh that lands while it runs, here one that missed the archive's copy,
+// changes nothing for it, so it neither counts the copy as unknown nor puts
+// the replay in the outbox again. The next pass takes the new generation.
+static void TestAPassKeepsToOneGeneration() {
+	Folders folders("ember-archive-generation");
+	folders.SaveMatch(kFirst, Match(1, 1791600000u), 0, false);
+	CHECK(folders.Pass().copied == 1);
+	files::ArchiveView view(folders.own.index);
+	folders.own.index.Refresh([] { return files::ArchiveCandidates::Snapshot{}; });
+	auto pass = files::RunPass(folders.Target(folders.own, view), {folders.saves}, kFirst, kLast);
+	CHECK(pass.copied == 0 && pass.waiting == 0 && folders.Outboxed() == 0);
+	pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.waiting == 1 && folders.Outboxed() == 1);
+	folders.Refresh(folders.own);
+	pass = folders.Pass();
+	CHECK(pass.waiting == 0 && folders.Outboxed() == 0 && folders.Archived().size() == 1);
 }
 
 // A backlog in the outbox is settled a few entries a pass, after the slots
@@ -412,11 +442,13 @@ static void TestAReplayPutBackAndItsBackup() {
 	CHECK(folders.Archived().size() == 1);
 	// A pass ran before the import's backup: the backup is that copy.
 	files::BackupEvidence evidence;
-	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 5, body, evidence) && !evidence.path.empty());
+	files::ArchiveView view(folders.own.index);
+	CHECK(files::EnsureBackup(folders.Target(folders.own, view), folders.saves, kFirst + 5, body, evidence) && !evidence.path.empty());
 	// No pass ran: the backup makes the copy, even of a replay the index is behind.
 	const Bytes other = Match(8, 1791600300u);
 	folders.SaveMatch(kFirst + 2, other, 0, false);
-	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 2, other, evidence));
+	files::ArchiveView later(folders.own.index);
+	CHECK(files::EnsureBackup(folders.Target(folders.own, later), folders.saves, kFirst + 2, other, evidence));
 	CHECK(folders.Archived().size() == 2);
 }
 
@@ -504,7 +536,7 @@ static void TestArchiveWorkerWithPasses() {
 	broken.SaveMatch(kFirst, Match(4, 1791600000u), 0, false);
 	CHECK(broken.Pass().waiting == 1);
 	std::atomic<int> tries{0};
-	files::ArchiveWorker steady([&] { const auto pass = files::RunPass(broken.Target(), {}, kFirst, kLast); ++tries; return pass; },
+	files::ArchiveWorker steady([&] { const auto pass = broken.Pass(broken.own, {}); ++tries; return pass; },
 		{std::chrono::milliseconds(1), std::chrono::milliseconds(2), 2, std::chrono::milliseconds(5), std::chrono::milliseconds(20)});
 	steady.MatchEnded();
 	CHECK(Eventually([&] { return tries >= 12; }));
@@ -526,7 +558,7 @@ static void TestArchiveWorkerWithPasses() {
 	std::mutex restoring;
 	files::ArchiveWorker listing([&] {
 		std::lock_guard<std::mutex> lock(restoring);
-		const auto pass = files::RunPass(unlisted.Target(), {}, kFirst, kLast); ++lists; return pass;
+		const auto pass = unlisted.Pass(unlisted.own, {}); ++lists; return pass;
 	}, {std::chrono::milliseconds(1), std::chrono::milliseconds(2), 2, {}, std::chrono::milliseconds(20)});
 	listing.Want();
 	CHECK(Eventually([&] { return lists >= 4; }));
@@ -551,6 +583,7 @@ int main() {
 	TestARefreshKeepsAnUnreadableCopy();
 	TestAScanSaysWhatItMissed();
 	TestAnIncompleteIndexStillKeepsTheSlots();
+	TestAPassKeepsToOneGeneration();
 	TestABacklogWaitsBehindTheSlots();
 	TestTheLauncherSettlesEverything();
 	TestAnUnreadableCopy();

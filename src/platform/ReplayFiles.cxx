@@ -107,15 +107,13 @@ replayfiles::RecordingWorker& Provenance() {
 }
 
 // The archive index contains only CRC-indexed paths, and whether the last
-// refresh listed the archive whole. Parsing and exact-byte cache reuse belong
+// refresh listed the archive whole, published together. Parsing and exact-byte cache reuse belong
 // to the serialized worker refresh, bounded to ArchiveSummaryCache::kCapacity
 // files.
 class ArchiveIndex {
 public:
  std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
   std::vector<ArchivedReplay> replays;
-  bool complete = false;
-  complete_ = false;
   candidates_.Refresh([&] {
    summaries_.NextListing();
    return replayfiles::ScanArchive(archive, [&](const fs::path& path, const replayfiles::ArchiveFile& read) {
@@ -125,16 +123,14 @@ public:
     replay.summary = summaries_.Read(read.contents);
     ReadNames(archive, read.Body(), replay);
     replays.push_back(std::move(replay));
-   }, complete);
+   });
   });
-  complete_ = complete;
   return replays;
  }
  replayfiles::ArchiveCandidates& Held() { return candidates_; }
- bool Complete() const { return complete_; }
+ bool Complete() const { return candidates_.Current()->complete; }
 private:
  replayfiles::ArchiveCandidates candidates_;
- std::atomic<bool> complete_{false};
  replayfiles::ArchiveSummaryCache summaries_;
 };
 ArchiveIndex& Index() { static ArchiveIndex index; return index; }
@@ -147,9 +143,9 @@ replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cach
 // never holds up the next reading of the slots; the next pass goes on from
 // where it stopped. The launcher's settle them all.
 constexpr std::size_t kSettleBudget = 32;
-replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget) {
+replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget, replayfiles::ArchiveView& view) {
 	static std::size_t settleFrom = 0;
-	return {folders.archive, folders.outbox, settleBudget, settleFrom, Index().Held(), Index().Complete(), SlotFiles(), PublishFile};
+	return {folders.archive, folders.outbox, settleBudget, settleFrom, view, SlotFiles(), PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
@@ -169,7 +165,8 @@ void RefreshIndex(const fs::path& archive) {
 
 replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	const auto pass = replayfiles::RunPass(Target(folders, settleBudget), accounts, kFirstMatchSlot, kLastMatchSlot);
+	replayfiles::ArchiveView view(Index().Held());
+	const auto pass = replayfiles::RunPass(Target(folders, settleBudget, view), accounts, kFirstMatchSlot, kLastMatchSlot);
 	if (pass.copied) spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str());
 	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
 	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
@@ -179,7 +176,8 @@ replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<
 
 bool BackUp(const Folders& folders, const fs::path& saves, int slot, const slots::Bytes& body, replayfiles::BackupEvidence& evidence) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	return replayfiles::EnsureBackup(Target(folders, kSettleBudget), saves, slot, body, evidence);
+	replayfiles::ArchiveView view(Index().Held());
+	return replayfiles::EnsureBackup(Target(folders, kSettleBudget, view), saves, slot, body, evidence);
 }
 
 // Pre-encode while no save has been changed. If recovery fails, persist this
