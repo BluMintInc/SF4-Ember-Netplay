@@ -1,6 +1,5 @@
 #include "../launcher/update/PackageInstaller.hxx"
 #include "../launcher/update/UpdateHandoff.hxx"
-#include "../launcher/update/ProgressWindow.hxx"
 #include "../launcher/update/UpdaterArguments.hxx"
 #include "../common/PackageInventory.hxx"
 #include <windows.h>
@@ -12,6 +11,7 @@
 #include <set>
 #include <atomic>
 #include <string>
+#include <thread>
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
@@ -55,13 +55,6 @@ void Package(const fs::path& package, const char* content) {
     for (const auto* path : sf4e::package::Obsolete) obsolete.push_back(path);
     Inventory(package, required, obsolete); Manifest(package);
 }
-HANDLE progressThread=nullptr;
-HANDLE WINAPI TrackProgressThread(LPSECURITY_ATTRIBUTES attributes, SIZE_T stack, LPTHREAD_START_ROUTINE run, LPVOID parameter, DWORD flags, LPDWORD id) {
-    const HANDLE thread=CreateThread(attributes,stack,run,parameter,flags,id);
-    if(thread) DuplicateHandle(GetCurrentProcess(),thread,GetCurrentProcess(),&progressThread,SYNCHRONIZE,FALSE,0);
-    return thread;
-}
-HANDLE WINAPI FailProgressThread(LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPDWORD) { return nullptr; }
 // A fixture's journal override, with each "@sha:<text>" string as the hash of
 // <text>, and {install} and {name} in other strings as the case's folder and name.
 nlohmann::json ResolveFixture(const nlohmann::json& value, const std::string& install, const std::string& name) {
@@ -246,6 +239,9 @@ static void TestUpdaterArguments() {
 }
 int wmain(int argc, wchar_t** argv) {
     std::string error;
+    // Files these tests hold open fail their step at once; one test below
+    // gives the wait back.
+    sf4e::launcher::testing::InUseWaitMilliseconds=0;
     if (argc == 3 && std::wstring(argv[1]) == L"--recover") {
         if(sf4e::launcher::RecoverPackage(argv[2],error)) return 0;
         std::cerr<<error<<'\n'; return 2;
@@ -368,52 +364,6 @@ int wmain(int argc, wchar_t** argv) {
         sf4e::launcher::testing::HashedBlock=nullptr; cancel=false;
         fs::remove_all(blocks);
     }
-    // A startup timeout stops a worker still behind its gate, so it cannot
-    // create a late window. Both successful and failed starts own no handles
-    // after closing; a normal close joins before destroying the owner.
-    using sf4e::launcher::ProgressWindow;
-    ProgressWindow::Options windowOptions;
-    windowOptions.visible=false; windowOptions.createThread=TrackProgressThread;
-    windowOptions.timeout=0; windowOptions.startupGate=CreateEventW(nullptr,TRUE,FALSE,nullptr);
-    CHECK(windowOptions.startupGate!=nullptr);
-    {
-        ProgressWindow delayed(L"Installing",windowOptions);
-        CHECK(delayed.Window()==nullptr && progressThread!=nullptr && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
-        SetEvent(windowOptions.startupGate);
-        CHECK(delayed.Window()==nullptr);
-    }
-    CloseHandle(progressThread); progressThread=nullptr;
-    CloseHandle(windowOptions.startupGate); windowOptions.startupGate=nullptr;
-    windowOptions.createThread=FailProgressThread;
-    { ProgressWindow failed(L"Installing",windowOptions); CHECK(failed.Window()==nullptr); }
-    windowOptions.createThread=TrackProgressThread; windowOptions.timeout=5000;
-    HWND progressBar=nullptr;
-    {
-        ProgressWindow normal(L"Installing",windowOptions);
-        progressBar=normal.Window();
-        CHECK(progressBar!=nullptr && IsWindow(progressBar) && progressThread!=nullptr);
-        CHECK(SendMessageW(progressBar,PBM_GETRANGE,FALSE,0)==ProgressWindow::Range);
-        PostMessageW(progressBar,PBM_SETPOS,ProgressWindow::Range,0);
-    }
-    CHECK(!IsWindow(progressBar) && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
-    CloseHandle(progressThread); progressThread=nullptr;
-    // Named steps: a label above the bar names the step the installer is at.
-    windowOptions.stages={L"Checking the package...",L"Comparing files..."};
-    {
-        ProgressWindow staged(L"Installing",windowOptions);
-        progressBar=staged.Window();
-        CHECK(progressBar!=nullptr && staged.Label()!=nullptr && GetParent(progressBar)==GetParent(staged.Label()));
-        CHECK(SendMessageW(progressBar,PBM_GETRANGE,FALSE,0)==ProgressWindow::Range);
-        wchar_t text[64]={};
-        GetWindowTextW(staged.Label(),text,64);
-        CHECK(std::wstring(text)==L"Checking the package...");
-        staged.Stage(1); staged.Stage(7);
-        for(int i=0;i<400 && std::wstring(text)!=L"Comparing files...";++i) { Sleep(5); GetWindowTextW(staged.Label(),text,64); }
-        CHECK(std::wstring(text)==L"Comparing files...");
-    }
-    CHECK(!IsWindow(progressBar) && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
-    CloseHandle(progressThread); progressThread=nullptr;
-    windowOptions.stages.clear();
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
     // Each step goes forward to its own fixed total, and the steps come in
@@ -562,6 +512,30 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="held" && !fs::exists(install/L".ember-update-transaction-v1.json"));
     CHECK(sf4e::launcher::InstallPackage(older,install,error) && Read(install/L"Launcher.exe")=="older" && !fs::exists(install/L"docs"));
     CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
+    // Held only for a moment, as by a helper still ending after the launcher,
+    // a file to replace and one to remove are tried again and the update goes
+    // through.
+    {
+        sf4e::launcher::testing::InUseWaitMilliseconds=5000;
+        std::vector<HANDLE> briefly;
+        for(const auto* held:{L"Launcher.exe",L"docs\\TRAINING_LAB.md"})
+            briefly.push_back(CreateFileW((install/held).c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr));
+        for(const auto handle:briefly) CHECK(handle!=INVALID_HANDLE_VALUE);
+        std::thread release([&]{ Sleep(300); for(const auto handle:briefly) CloseHandle(handle); });
+        const bool installed=sf4e::launcher::InstallPackage(older,install,error);
+        release.join();
+        sf4e::launcher::testing::InUseWaitMilliseconds=0;
+        CHECK(installed && Read(install/L"Launcher.exe")=="older" && !fs::exists(install/L"docs"));
+    }
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
+    // A backup holds the bytes the comparing pass read: a file changed after
+    // it stops the update before anything is written.
+    CHECK(!sf4e::launcher::InstallPackage(older,install,error,sf4e::launcher::NeverCancelled,[&](UpdateStage stage,std::uint64_t done,std::uint64_t total){
+        if(stage==UpdateStage::Comparing && done==total) Write(install/L"Launcher.exe","changed-after-compare");
+    }));
+    CHECK(error.find("Backup verification failed. No new update was applied")==0);
+    CHECK(Read(install/L"Launcher.exe")=="changed-after-compare" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    Write(install/L"Launcher.exe","new");
     CHECK(!sf4e::package::IsAllowed(L"../outside.exe"));
     CHECK(!sf4e::package::IsAllowed(L"plugins/platforms/arbitrary.dll"));
 

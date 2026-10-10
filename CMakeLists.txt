@@ -698,9 +698,14 @@ endforeach()
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME GameLocator SOURCES src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx src/common/SteamKeyValues.cxx STD 17 TIMEOUT 15)
 endif()
-add_executable(Updater
+# A Windows program, not a console one: a console the launcher asks to start
+# hidden still opens as an empty terminal where Windows Terminal is the
+# default, and the progress window is all the player should see. wmain stays
+# its entry point.
+add_executable(Updater WIN32
     src/launcher/updater.cxx
 )
+target_link_options(Updater PRIVATE "/ENTRY:wmainCRTStartup")
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
 target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file)
@@ -709,7 +714,8 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME OverlayReset SOURCES src/tests/overlay_reset_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 30)
     sf4e_add_unit_test(NAME OverlayLifecycle SOURCES src/tests/overlay_lifecycle_test.cxx STD 17 TIMEOUT 30)
     sf4e_add_unit_test(NAME SoundPoolRestore SOURCES src/tests/sound_pool_restore_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 15)
-    sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer comctl32 user32 shell32)
+    sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer shell32)
+    sf4e_add_unit_test(NAME ProgressWindow SOURCES src/tests/progress_window_test.cxx LIBS comctl32 user32 STD 17 TIMEOUT 30)
     add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
     set_tests_properties(UpgradeRecoveryPowerShell PROPERTIES TIMEOUT 120)
     add_test(NAME FramePacingCaptureValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-capture-frame-pacing.ps1)

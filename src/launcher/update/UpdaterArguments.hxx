@@ -31,7 +31,7 @@ inline std::wstring QuoteArgument(const std::wstring& value) {
 // -Stages: one name per installer step (InstallerSteps), joined by '|'. False,
 // leaving field empty, when a name is missing or empty or holds '|' or a
 // control character, which the field cannot carry: the Updater's window then
-// shows its bar without step names.
+// names the steps in English (InstallerSteps).
 inline bool JoinStageNames(const std::vector<std::wstring>& names, std::wstring& field) {
     field.clear();
     if (names.size() != InstallerStepCount) return false;
@@ -73,11 +73,14 @@ struct UpdaterArguments {
     std::wstring installDir, stagingDir;
     std::uint32_t waitPid = 0;
     bool recoverOnly = false;
-    // The window's text and its steps' names, in the player's language; an
-    // Updater.exe from before either ignores it.
+    // The window's headline and its steps' names, in the player's language;
+    // an Updater.exe from before either ignores it.
     std::wstring status;
     std::vector<std::wstring> stages;
 };
+// The headline an Updater shows when the launcher passed no -Status, as one
+// from before it does: services.installing's en.po text.
+inline constexpr wchar_t DefaultUpdaterStatus[] = L"Installing the update. SF4 Ember Netplay opens again when it is done.";
 // The arguments after Updater.exe's path. -Stages is left out when its names
 // cannot be carried (JoinStageNames). False, leaving out empty, when the line
 // would be longer than Windows starts a process with.

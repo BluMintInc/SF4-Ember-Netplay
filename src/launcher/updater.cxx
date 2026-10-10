@@ -11,7 +11,6 @@
 #include <vector>
 
 #include <windows.h>
-#include <commctrl.h>
 #include <pathcch.h>
 #include <shellapi.h>
 #include <strsafe.h>
@@ -84,20 +83,38 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
-static bool InstallFiles(const wchar_t* staging, const wchar_t* install, const sf4e::launcher::ProgressWindow& window) {
+// How long each installer step took and over how many files, in the log:
+// the record of where an update's time went.
+struct StepLog {
+	int step = -1;
+	ULONGLONG started = 0;
+	std::uint64_t files = 0;
+	void Heard(sf4e::launcher::UpdateStage stage, std::uint64_t total) {
+		const int heard = sf4e::launcher::InstallerStepOf(stage);
+		if (heard != step) { End(); step = heard; started = GetTickCount64(); }
+		files = total;
+	}
+	void End() {
+		if (step < 0) return;
+		char line[160] = { 0 };
+		snprintf(line, sizeof(line), "%s: %llu files in %llu ms", sf4e::launcher::InstallerSteps[step].nameKey,
+			static_cast<unsigned long long>(files), static_cast<unsigned long long>(GetTickCount64() - started));
+		AppendLog(line);
+		step = -1;
+	}
+};
+
+static bool InstallFiles(const wchar_t* staging, const wchar_t* install, sf4e::launcher::ProgressWindow& window) {
     std::string error;
-    // A package is thousands of file steps; the bar is told only when it
-    // would move, and the label only when the step changes, so the window's
-    // message queue never fills. The steps, their order and their shares of
-    // the bar are InstallerSteps'.
-    if (sf4e::launcher::InstallPackage(staging, install, error, sf4e::launcher::NeverCancelled,
-        [&window, bar = window.Window(), shown = -1, named = -1](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) mutable {
-        const int step = sf4e::launcher::InstallerStepOf(stage);
-        if (step >= 0 && step != named) window.Stage(static_cast<std::size_t>(named = step));
-        const int position = sf4e::launcher::InstallerBarPosition(stage, done, total, sf4e::launcher::ProgressWindow::Range);
-        if (bar && position > shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
-    })) return true;
-    AppendLog(error.c_str()); return false;
+    StepLog steps;
+    const bool installed = sf4e::launcher::InstallPackage(staging, install, error, sf4e::launcher::NeverCancelled,
+        [&](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) {
+        window.Report(stage, done, total);
+        steps.Heard(stage, total);
+    });
+    steps.End();
+    if (!installed) AppendLog(error.c_str());
+    return installed;
 }
 static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
 	wchar_t launcherPath[MAX_PATH] = { 0 };
@@ -174,7 +191,7 @@ int wmain(int argc, wchar_t** argv) {
 	bool recoverOnly = false, uninstall = false;
 	// The launcher passes this in the player's language; one from before
 	// -Status does not.
-	const wchar_t* status = L"Installing the update...";
+	const wchar_t* status = sf4e::launcher::DefaultUpdaterStatus;
 	// The installer's step names, from a launcher new enough to pass them.
 	const wchar_t* stages = nullptr;
 
@@ -243,20 +260,16 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 
-	wchar_t title[512] = { 0 };
-	_snwprintf_s(title, _TRUNCATE, L"SF4 Ember Netplay - %s", status);
 	sf4e::launcher::ProgressWindow::Options windowOptions;
+	windowOptions.headline = status;
 	windowOptions.stages = sf4e::launcher::SplitStageNames(stages);
-	sf4e::launcher::ProgressWindow progress(title, std::move(windowOptions));
+	sf4e::launcher::ProgressWindow progress(L"SF4 Ember Netplay", std::move(windowOptions));
 	if (!WaitForProcessExit(waitPid, 30000)) {
 		AppendLog("ERROR: launcher is still running; update cancelled");
         progress.Close();
         StartLauncher(installDir, L"--updates --update-error");
         return 1;
 	}
-
-
-	Sleep(500);
 
 	const bool installed = InstallFiles(stagingDir, installDir, progress);
 	progress.Close();

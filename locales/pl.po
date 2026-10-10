@@ -235,7 +235,7 @@ msgid "services.preparing"
 msgstr "Przygotowywanie aktualizacji..."
 
 msgid "services.installing"
-msgstr "Instalowanie aktualizacji..."
+msgstr "Instalowanie aktualizacji. Po zakończeniu SF4 Ember Netplay otworzy się ponownie."
 
 msgid "services.opening_updater"
 msgstr "Otwieranie aktualizatora..."

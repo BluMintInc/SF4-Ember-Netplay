@@ -235,7 +235,7 @@ msgid "services.preparing"
 msgstr "更新を準備中..."
 
 msgid "services.installing"
-msgstr "更新をインストール中..."
+msgstr "更新をインストール中です。完了すると SF4 Ember Netplay がもう一度開きます。"
 
 msgid "services.opening_updater"
 msgstr "アップデーターを起動中..."

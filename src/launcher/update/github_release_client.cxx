@@ -821,7 +821,7 @@ namespace launcher {
 			result.error = loc::T("update.updater_start_failed"); return result;
 		}
 		std::wstring joined;
-		if (!JoinStageNames(arguments.stages, joined)) AppendUpdateLog("the install steps' names cannot be passed; the updater shows its bar alone");
+		if (!JoinStageNames(arguments.stages, joined)) AppendUpdateLog("the install steps' names cannot be passed; the updater names them in English");
         SpawnResult spawned = SpawnResult::Failed;
         if (!HandoffPreparedUpdate(cancel, [&] {
             spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams.c_str());
