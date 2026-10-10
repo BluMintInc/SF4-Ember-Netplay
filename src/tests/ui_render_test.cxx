@@ -193,8 +193,12 @@ LONG WINAPI ReportCrash(EXCEPTION_POINTERS* info) {
             std::fprintf(stderr, "\n");
         }
     }
-    const HANDLE dump = CreateFileA("UiRenderTest-crash.dmp", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    // Render shards run side by side in one folder, so each names its own dump.
+    char dumpName[64];
+    std::snprintf(dumpName, sizeof(dumpName), "UiRenderTest-crash-%lu.dmp", GetCurrentProcessId());
+    const HANDLE dump = CreateFileA(dumpName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (dump != INVALID_HANDLE_VALUE) {
+        std::fprintf(stderr, "Crash dump: %s\n", dumpName);
         MINIDUMP_EXCEPTION_INFORMATION exception{GetCurrentThreadId(), info, FALSE};
         MiniDumpWriteDump(process, GetCurrentProcessId(), dump, MiniDumpWithIndirectlyReferencedMemory, &exception, nullptr, nullptr);
         CloseHandle(dump);
