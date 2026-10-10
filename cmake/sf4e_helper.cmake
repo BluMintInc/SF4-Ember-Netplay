@@ -36,6 +36,7 @@ if(WIN32)
             add_dependencies(HelperProcessTest IrohHelper)
             add_test(NAME HelperProcess COMMAND HelperProcessTest "${SF4E_HELPER_EXECUTABLE}")
             set_tests_properties(HelperProcess PROPERTIES TIMEOUT 90)
+            sf4e_test_locks(HelperProcess loopback_udp_ports ember_processes)
             # The helper's own tests belong to the same gate as the C++ tests,
             # so a build receipt with testsPassed covers them (ledger A-015).
             # A separate target dir keeps the release helper from rebuilding.
@@ -50,6 +51,7 @@ if(WIN32)
                     "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS} --target x86_64-pc-windows-msvc
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
+            sf4e_test_locks(HelperRust loopback_udp_ports ember_processes)
             # The identity protocol and tournament bridge workspace. The bridge
             # is not shipped to players; its tests still gate the build.
             add_test(NAME EmberRust
