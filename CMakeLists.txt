@@ -761,4 +761,6 @@ set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_NAME} ${PROJECT_DESCRIPTION}")
 
-include("${CMAKE_SOURCE_DIR}/cmake/sf4e_test_scheduling.cmake")
+if(BUILD_TESTING)
+    include("${CMAKE_SOURCE_DIR}/cmake/sf4e_test_scheduling.cmake")
+endif()

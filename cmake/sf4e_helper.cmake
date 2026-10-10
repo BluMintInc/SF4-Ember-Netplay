@@ -39,19 +39,24 @@ if(WIN32)
             # The helper's own tests belong to the same gate as the C++ tests,
             # so a build receipt with testsPassed covers them (ledger A-015).
             # A separate target dir keeps the release helper from rebuilding.
+            # When the sources changed, Cargo compiles the tests on
+            # SF4E_CARGO_TEST_JOBS processors, the number CTest counts for the
+            # test. The tests themselves mostly wait on timers, so they keep
+            # one thread per processor, as Cargo runs them by default.
+            set(SF4E_CARGO_TEST_JOBS 8)
             add_test(NAME HelperRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-test-target"
                     "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
-                    "${SF4E_CARGO_EXECUTABLE}" test --locked --target x86_64-pc-windows-msvc
+                    "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS} --target x86_64-pc-windows-msvc
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
-            set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800)
+            set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             # The identity protocol and tournament bridge workspace. The bridge
             # is not shipped to players; its tests still gate the build.
             add_test(NAME EmberRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
-                    "${SF4E_CARGO_EXECUTABLE}" test --locked
+                    "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS}
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember")
-            set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800)
+            set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
         endif()
     endif()
 endif()
