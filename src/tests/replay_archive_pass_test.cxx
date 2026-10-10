@@ -4,16 +4,15 @@
 #include <atomic>
 #include <chrono>
 #include <fstream>
-#include <future>
 #include <set>
 #include <string>
+#include <thread>
 
 namespace fs = std::filesystem;
 namespace files = sf4e::replayfiles;
-using Kind = files::SlotCopy::Kind;
 
 // The stock game's match list: ten slots that a Versus battle saves into
-// round and round (ReplaySlots.hxx: SlotToReplace).
+// round and round.
 constexpr int kFirst = 300, kLast = 309;
 constexpr auto kSettle = std::chrono::minutes(2);
 
@@ -23,13 +22,21 @@ static void Save(const fs::path& path, const Bytes& bytes) {
 	out.close(); CHECK(!out.fail());
 }
 
+static std::size_t Count(const fs::path& folder) {
+	std::error_code missing;
+	std::size_t count = 0;
+	for (fs::directory_iterator at(folder, missing), end; !missing && at != end; at.increment(missing)) count += at->is_regular_file();
+	return count;
+}
+
 // A game's save folder and an archive beside it, with the index and writer a
-// pass is given.
+// pass is given. failWrites makes that many writes fail first.
 struct Folders {
 	fs::path root, saves, archive;
 	Bytes list = EmptyList(), swan = EmptySwan();
 	files::ArchiveCandidates held;
 	files::SlotFileCache cache;
+	int failWrites = 0;
 	explicit Folders(const char* name) {
 		root = fs::temp_directory_path() / (std::string(name) + "-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
 		saves = root / "ssf4_savedata"; archive = root / "replays";
@@ -39,41 +46,46 @@ struct Folders {
 	~Folders() { std::error_code ignored; fs::remove_all(root, ignored); }
 	void WriteIndexes() { Save(saves / "LIST", list); Save(saves / "replays-swan.dat", swan); }
 	files::ArchiveTarget Target() {
-		return {archive, held, cache, [](const fs::path& path, const Bytes& bytes) {
+		return {archive, held, cache, [this](const fs::path& path, const Bytes& bytes) {
+			if (failWrites > 0) { failWrites--; return false; }
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
 			return true;
 		}};
 	}
-	// What the game writes as a match ends: the replay and its ".0", written
-	// `age` before now, and, unless the index is behind, the slot's record
-	// with that save time.
-	fs::file_time_type SaveMatch(int slot, const Bytes& replay, std::uint32_t savedAt, bool indexed = true) {
+	// What the game writes as a match ends: the replay and its ".0", and,
+	// unless its index is behind, the slot's record with that save time.
+	fs::file_time_type SaveMatch(int slot, const Bytes& replay, std::uint32_t savedAt, bool indexed) {
 		const fs::path file = saves / std::to_wstring(slot);
 		Save(file, replay);
 		Save(file.wstring() + L".0", Sidecar(replay));
-		if (indexed) {
-			Fill(list, swan, slot, replay, 0x44);
-			WriteU32(const_cast<std::uint8_t*>(Record(list, swan, slot)) + 13, savedAt);
-			Seal(swan);
-			WriteIndexes();
-		}
+		if (indexed) Index(slot, replay, savedAt);
 		return fs::last_write_time(file);
+	}
+	void Index(int slot, const Bytes& replay, std::uint32_t savedAt) {
+		Fill(list, swan, slot, replay, 0x44);
+		WriteU32(const_cast<std::uint8_t*>(Record(list, swan, slot)) + 13, savedAt);
+		Seal(swan);
+		WriteIndexes();
 	}
 	files::ArchivePass Pass(fs::file_time_type now, files::FileClock::duration settle = kSettle) {
 		return files::CopySlots(Target(), saves, kFirst, kLast, now, settle);
 	}
-	std::set<std::uint32_t> Archived() const {
-		std::set<std::uint32_t> crcs;
+	// The archive's files, each a different replay.
+	std::size_t Archived() const {
 		std::size_t count = 0;
-		for (const auto& entry : fs::directory_iterator(archive)) {
+		std::set<std::uint32_t> crcs;
+		std::error_code missing;
+		for (fs::directory_iterator at(archive, missing), end; !missing && at != end; at.increment(missing)) {
+			if (!at->is_regular_file()) continue;
 			files::ArchiveFile read;
-			CHECK(files::ReadArchive(entry.path(), true, read) == files::ArchiveState::Valid);
+			CHECK(files::ReadArchive(at->path(), true, read) == files::ArchiveState::Valid);
 			crcs.insert(read.crc); count++;
 		}
-		CHECK(count == crcs.size()); // no replay twice
-		return crcs;
+		CHECK(count == crcs.size());
+		return count;
 	}
+	std::size_t Staged() const { return Count(archive / ".pending"); }
 };
 
 // A replay played at `played` (seconds since 1970), which its header holds.
@@ -85,75 +97,101 @@ static Bytes Match(int match, std::uint32_t played) {
 	return replay;
 }
 
-// Twenty-five matches through ten slots. A pass as each one is saved keeps
-// every one of them; a pass only after the sitting, as the launcher's at the
-// game's exit, finds the last ten.
-static void TestEveryMatchOfASittingIsArchived() {
+// Twenty-five matches through ten slots while the game's index never lists
+// one. A pass as each is saved keeps every one of them before its slot comes
+// round again; they reach the archive when the wait for the index is over.
+// One pass after the sitting finds only the last ten.
+static void TestASittingWithTheIndexBehind() {
 	Folders asSaved("ember-archive-each"), atExit("ember-archive-exit");
 	for (int match = 0; match < 25; match++) {
-		const std::uint32_t at = 1791600000u + match * 180;
-		const Bytes replay = Match(match, at);
-		for (Folders* folders : {&asSaved, &atExit}) {
-			const int slot = SlotToReplace(folders->list, folders->swan, kFirst, kLast);
-			CHECK(slot >= kFirst && slot <= kLast);
-			folders->SaveMatch(slot, replay, at);
-		}
-		const auto pass = asSaved.Pass(files::FileClock::now());
-		CHECK(pass.copied == 1 && pass.fromFile == 0 && pass.failed == 0 && !pass.readyAt);
+		const Bytes replay = Match(match, 1791600000u + match * 180);
+		const auto saved = asSaved.SaveMatch(kFirst + match % 10, replay, 0, false);
+		atExit.SaveMatch(kFirst + match % 10, replay, 0, false);
+		const auto pass = asSaved.Pass(saved);
+		CHECK(pass.staged == 1 && pass.copied == 0 && !pass.retry && pass.readyAt);
 	}
-	CHECK(asSaved.Archived().size() == 25);
-	CHECK(atExit.Pass(files::FileClock::now(), {}).copied == 10);
-	CHECK(atExit.Archived().size() == 10);
-	// Nothing new: a pass copies nothing again.
-	CHECK(asSaved.Pass(files::FileClock::now()).copied == 0 && asSaved.Archived().size() == 25);
+	CHECK(asSaved.Staged() == 25 && asSaved.Archived() == 0);
+	const auto pass = asSaved.Pass(files::FileClock::now() + kSettle);
+	CHECK(pass.copied == 25 && pass.fromFile == 25 && !pass.retry && !pass.readyAt);
+	CHECK(asSaved.Archived() == 25 && asSaved.Staged() == 0);
+	CHECK(atExit.Pass(files::FileClock::now(), {}).copied == 10 && atExit.Archived() == 10);
 }
 
-// A replay saved before the game's index lists it waits for the index while
-// the game runs, and goes by its own file once the wait is over, or at once
-// when no game is left to write the index. The index catching up later adds
-// no second copy.
-static void TestAFileAheadOfItsIndex() {
-	Folders folders("ember-archive-ahead");
-	const Bytes replay = Match(3, 1791600000u);
-	const auto written = folders.SaveMatch(kFirst, replay, 0, false);
-	auto pass = folders.Pass(written + std::chrono::seconds(5));
-	CHECK(pass.copied == 0 && pass.readyAt && *pass.readyAt == written + kSettle);
-	pass = folders.Pass(written + kSettle);
-	CHECK(pass.copied == 1 && pass.fromFile == 1 && !pass.readyAt);
-	folders.SaveMatch(kFirst, replay, 1791600010u);
-	CHECK(folders.Pass(files::FileClock::now()).copied == 0);
-	CHECK(folders.Archived().size() == 1);
+// A replay its index describes goes straight in with the index's record.
+static void TestAnIndexedReplayGoesStraightIn() {
+	Folders folders("ember-archive-indexed");
+	for (int match = 0; match < 12; match++) {
+		const std::uint32_t at = 1791600000u + match * 180;
+		const int slot = SlotToReplace(folders.list, folders.swan, kFirst, kLast);
+		const auto pass = folders.Pass(folders.SaveMatch(slot, Match(match, at), at, true));
+		CHECK(pass.copied == 1 && pass.fromFile == 0 && pass.staged == 0);
+	}
+	CHECK(folders.Archived() == 12 && folders.Staged() == 0);
+}
 
-	Folders gameGone("ember-archive-gone");
-	const auto saved = gameGone.SaveMatch(kFirst + 4, replay, 0, false);
-	pass = gameGone.Pass(saved, {});
+// A staged replay whose slot is taken by the next match before its record
+// comes is archived from what was staged. One whose record comes while the
+// slot still holds it goes in with that record, once.
+static void TestAReplayOverwrittenBeforeItsRecord() {
+	Folders folders("ember-archive-overwritten");
+	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u), third = Match(3, 1791600400u);
+	const auto saved = folders.SaveMatch(kFirst, first, 0, false);
+	CHECK(folders.Pass(saved).staged == 1);
+	folders.SaveMatch(kFirst, second, 1791600200u, true);
+	auto pass = folders.Pass(saved + std::chrono::seconds(10));
+	CHECK(pass.copied == 1 && pass.fromFile == 0 && pass.readyAt && *pass.readyAt > saved + std::chrono::seconds(10));
+	pass = folders.Pass(saved + kSettle + std::chrono::seconds(1));
 	CHECK(pass.copied == 1 && pass.fromFile == 1);
+	const auto later = folders.SaveMatch(kFirst + 1, third, 0, false);
+	CHECK(folders.Pass(later).staged == 1);
+	folders.Index(kFirst + 1, third, 1791600400u);
+	pass = folders.Pass(later + std::chrono::seconds(5));
+	CHECK(pass.copied == 1 && pass.fromFile == 0 && !pass.readyAt);
+	CHECK(folders.Archived() == 3 && folders.Staged() == 0);
 }
 
-// A slot caught between its replay and its ".0" is left for the next pass,
-// and a damaged index does not stop any slot from going by its file.
-static void TestHalfWrittenSlotAndDamagedIndex() {
-	Folders folders("ember-archive-half");
+// A slot caught between its replay and its ".0", and a copy that cannot be
+// written, ask for another pass, which takes them. A damaged index does not
+// stop a slot from going by its file.
+static void TestRetriesAndADamagedIndex() {
+	Folders folders("ember-archive-retry");
 	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u);
-	folders.SaveMatch(kFirst, first, 1791600000u);
-	Save(folders.saves / "301", second);
-	Save(folders.saves / "301.0", Sidecar(first));
+	Save(folders.saves / "300", first);
+	Save(folders.saves / "300.0", Sidecar(second));
 	auto pass = folders.Pass(files::FileClock::now(), {});
-	CHECK(pass.copied == 1 && pass.failed == 0);
-	Save(folders.saves / "301.0", Sidecar(second));
+	CHECK(pass.copied == 0 && pass.retry);
+	Save(folders.saves / "300.0", Sidecar(first));
+	folders.failWrites = 1;
+	pass = folders.Pass(files::FileClock::now(), {});
+	CHECK(pass.copied == 0 && pass.failed == 1 && pass.retry);
+	pass = folders.Pass(files::FileClock::now(), {});
+	CHECK(pass.copied == 1 && !pass.retry);
+	folders.SaveMatch(kFirst + 1, second, 0, false);
 	folders.swan[100] ^= 0xFF; // the leading CRC no longer matches
 	folders.WriteIndexes();
 	pass = folders.Pass(files::FileClock::now(), {});
-	CHECK(pass.copied == 1 && pass.fromFile == 1);
-	CHECK(folders.Archived().size() == 2);
+	CHECK(pass.copied == 1 && pass.fromFile == 1 && !pass.retry);
+	CHECK(folders.Archived() == 2);
+}
+
+// A replay staged by a game that has gone is archived by the launcher's pass,
+// which waits for no index.
+static void TestTheLauncherTakesWhatWasStaged() {
+	Folders folders("ember-archive-left");
+	const auto saved = folders.SaveMatch(kFirst, Match(4, 1791600000u), 0, false);
+	CHECK(folders.Pass(saved).staged == 1);
+	Save(folders.saves / "300", Bytes(51200, 0)); // the slot holds something else now
+	const auto pass = folders.Pass(files::FileClock::now(), {});
+	CHECK(pass.copied == 1 && pass.fromFile == 1 && folders.Archived() == 1 && folders.Staged() == 0);
 }
 
 // A replay put back into the game (Watch) is saved under a new time in
-// another slot. The archive holds it already, so it is not copied again.
-static void TestAReplayPutBackIsNotCopiedAgain() {
+// another slot. The archive holds it already, so it is not copied again, and
+// an import's backup of that slot is the copy there.
+static void TestAReplayPutBackAndItsBackup() {
 	Folders folders("ember-archive-back");
 	const Bytes replay = Match(7, 1791600000u);
-	folders.SaveMatch(kFirst, replay, 1791600000u);
+	folders.SaveMatch(kFirst, replay, 1791600000u, true);
 	CHECK(folders.Pass(files::FileClock::now()).copied == 1);
 	Bytes exported, list = folders.list, swan = folders.swan, body;
 	CHECK(Export(list, swan, kFirst, replay, exported));
@@ -162,38 +200,64 @@ static void TestAReplayPutBackIsNotCopiedAgain() {
 	Save(folders.saves / std::to_wstring(kFirst + 5), body);
 	Save(folders.saves / (std::to_wstring(kFirst + 5) + L".0"), Sidecar(body));
 	const auto pass = folders.Pass(files::FileClock::now());
-	CHECK(pass.copied == 0 && pass.failed == 0);
-	CHECK(folders.Archived().size() == 1);
+	CHECK(pass.copied == 0 && pass.failed == 0 && !pass.retry);
+	CHECK(folders.Archived() == 1);
+	// A pass ran before the import's backup: the backup is that copy.
+	files::BackupEvidence evidence;
+	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 5, folders.list, folders.swan, body, evidence) && !evidence.path.empty());
+	// No pass ran: the backup makes the copy, even of a replay the index is behind.
+	const Bytes other = Match(8, 1791600300u);
+	folders.SaveMatch(kFirst + 2, other, 0, false);
+	CHECK(files::EnsureBackup(folders.Target(), folders.saves, kFirst + 2, folders.list, folders.swan, other, evidence));
+	CHECK(folders.Archived() == 2);
 }
 
-// The worker runs a pass when asked, again when a pass asks for one later,
-// and once more for an ask made while a pass runs.
-static void TestArchiveWorker() {
-	std::atomic<int> passes{0};
-	std::promise<void> inPass, release, again, third;
-	auto released = release.get_future().share();
-	files::ArchiveWorker worker([&]() -> std::optional<files::ArchiveWorker::Clock::duration> {
-		const int pass = ++passes;
-		if (pass == 1) { inPass.set_value(); released.wait(); return std::nullopt; }
-		if (pass == 2) { again.set_value(); return std::chrono::milliseconds(20); }
-		if (pass == 3) third.set_value();
-		return std::nullopt;
-	});
-	worker.Want();
-	CHECK(inPass.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
-	worker.Want(); // during the first pass
-	release.set_value();
-	CHECK(again.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
-	CHECK(third.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
-	worker.Stop();
-	CHECK(passes == 3);
+// Waits up to two seconds for the count to reach `least`, then a little
+// longer to see that it stays there.
+static int Settled(const std::atomic<int>& passes, int least) {
+	for (int waited = 0; passes < least && waited < 2000; waited += 5) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	return passes;
+}
+
+// The worker's schedule: retries without being asked again, at most so many
+// in a row; after a match ends, passes until one finds its replay; a staged
+// replay's due time brings a pass forward.
+static void TestArchiveWorkerSchedule() {
+	const files::ArchiveWorker::Retries retries{std::chrono::milliseconds(1), std::chrono::milliseconds(4), 3};
+	{
+		std::atomic<int> passes{0};
+		files::ArchiveWorker worker([&] { ++passes; files::ArchivePass pass; pass.retry = true; return pass; }, retries);
+		worker.Want();
+		CHECK(Settled(passes, 4) == 4);
+		worker.Want(); // asked again: one more round of retries
+		CHECK(Settled(passes, 8) == 8);
+	}
+	{
+		std::atomic<int> passes{0};
+		files::ArchiveWorker worker([&] { files::ArchivePass pass; pass.staged = ++passes == 3; return pass; }, retries);
+		worker.MatchEnded();
+		CHECK(Settled(passes, 3) == 3);
+	}
+	{
+		std::atomic<int> passes{0};
+		files::ArchiveWorker worker([&] {
+			files::ArchivePass pass;
+			if (++passes == 1) pass.readyAt = files::FileClock::now() + std::chrono::milliseconds(30);
+			return pass;
+		}, retries);
+		worker.Want();
+		CHECK(Settled(passes, 2) == 2);
+	}
 }
 
 int main() {
-	TestEveryMatchOfASittingIsArchived();
-	TestAFileAheadOfItsIndex();
-	TestHalfWrittenSlotAndDamagedIndex();
-	TestAReplayPutBackIsNotCopiedAgain();
-	TestArchiveWorker();
+	TestASittingWithTheIndexBehind();
+	TestAnIndexedReplayGoesStraightIn();
+	TestAReplayOverwrittenBeforeItsRecord();
+	TestRetriesAndADamagedIndex();
+	TestTheLauncherTakesWhatWasStaged();
+	TestAReplayPutBackAndItsBackup();
+	TestArchiveWorkerSchedule();
 	return 0;
 }
