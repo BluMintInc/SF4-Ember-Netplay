@@ -209,7 +209,9 @@ add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/Se
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
 target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
 if(BUILD_TESTING)
-    sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 15)
+    # It takes 2 s alone. Its saves are flushed writes, which take up to ten
+    # times as long while other tests and builds use the disk.
+    sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
     sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 endif()
 
