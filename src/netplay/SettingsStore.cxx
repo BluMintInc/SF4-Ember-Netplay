@@ -18,9 +18,7 @@ using json_file::PreserveBackup;
 using json_file::Publish;
 using json_file::ReadBytes;
 constexpr int SchemaVersion = 1;
-const char* ObsoleteKeys[] = {"relayRoomCode", "relayHostSecret", "relaySessionPort", "sessionPort", "ggpoPort", "hostPort", "joinPort", "relayHost", "relayPort", "brokerUrl", "useRelay", "netMode", "joinAddr", "roomCode", "hostSecret", "brokerBaseUrl", "lastJoinHost", "lastAdvertiseHost", "simpleUi", "defaultConnectMethod",
-    // A staging-only HUD choice (names above the life bars), saved by 1.1.0 test builds.
-    "matchHudNames"};
+const char* ObsoleteKeys[] = {"relayRoomCode", "relayHostSecret", "relaySessionPort", "sessionPort", "ggpoPort", "hostPort", "joinPort", "relayHost", "relayPort", "brokerUrl", "useRelay", "netMode", "joinAddr", "roomCode", "hostSecret", "brokerBaseUrl", "lastJoinHost", "lastAdvertiseHost", "simpleUi", "defaultConnectMethod"};
 void RetireLegacy(Json& document) {
     for (const char* key : ObsoleteKeys) { document["legacyLauncher"].erase(key); document["netplay"].erase(key); }
     auto& overlay = document["overlay"];
