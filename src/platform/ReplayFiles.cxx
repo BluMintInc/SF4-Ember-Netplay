@@ -106,13 +106,16 @@ replayfiles::RecordingWorker& Provenance() {
  return *worker;
 }
 
-// The archive index contains only CRC-indexed paths. Parsing and exact-byte
-// cache reuse belong to the serialized worker refresh, bounded to
-// ArchiveSummaryCache::kCapacity files.
+// The archive index contains only CRC-indexed paths, and whether the last
+// refresh listed the archive whole. Parsing and exact-byte cache reuse belong
+// to the serialized worker refresh, bounded to ArchiveSummaryCache::kCapacity
+// files.
 class ArchiveIndex {
 public:
  std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
   std::vector<ArchivedReplay> replays;
+  bool complete = false;
+  complete_ = false;
   candidates_.Refresh([&] {
    summaries_.NextListing();
    return replayfiles::ScanArchive(archive, [&](const fs::path& path, const replayfiles::ArchiveFile& read) {
@@ -122,13 +125,16 @@ public:
     replay.summary = summaries_.Read(read.contents);
     ReadNames(archive, read.Body(), replay);
     replays.push_back(std::move(replay));
-   });
+   }, complete);
   });
+  complete_ = complete;
   return replays;
  }
  replayfiles::ArchiveCandidates& Held() { return candidates_; }
+ bool Complete() const { return complete_; }
 private:
  replayfiles::ArchiveCandidates candidates_;
+ std::atomic<bool> complete_{false};
  replayfiles::ArchiveSummaryCache summaries_;
 };
 ArchiveIndex& Index() { static ArchiveIndex index; return index; }
@@ -143,7 +149,7 @@ replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cach
 constexpr std::size_t kSettleBudget = 32;
 replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget) {
 	static std::size_t settleFrom = 0;
-	return {folders.archive, folders.outbox, settleBudget, settleFrom, Index().Held(), SlotFiles(), PublishFile};
+	return {folders.archive, folders.outbox, settleBudget, settleFrom, Index().Held(), Index().Complete(), SlotFiles(), PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
@@ -152,6 +158,15 @@ std::mutex& CopyLock() { static std::mutex lock; return lock; }
 constexpr int kOutboxWarning = 1000;
 
 // A pass over the outbox and these save folders, none at all being fine.
+// Reads the archive for the index. One not listed whole, or not at all, still
+// lets a pass put the slots' replays into the outbox; only settling waits for
+// an index listed whole.
+void RefreshIndex(const fs::path& archive) {
+	try { Index().Refresh(archive); }
+	catch (const std::exception& e) { spdlog::warn("Replays: the archive could not be read: {}", e.what()); }
+	if (!Index().Complete()) spdlog::warn(L"Replays: the archive {} could not be listed whole; replays wait in the outbox", archive.c_str());
+}
+
 replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
 	std::lock_guard<std::mutex> lock(CopyLock());
 	const auto pass = replayfiles::RunPass(Target(folders, settleBudget), accounts, kFirstMatchSlot, kLastMatchSlot);
@@ -221,7 +236,7 @@ int Archive() {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
-		Index().Refresh(folders.archive);
+		RefreshIndex(folders.archive);
 		return ArchiveSaves(folders, folders.saves, replayfiles::kSettleAll).copied;
 	}
 	catch (const std::exception& e) {
@@ -403,14 +418,14 @@ namespace {
 // added to that.
 replayfiles::ArchivePass ArchiveActiveAccount() {
  // Only the worker's thread runs this: what it has done once.
- static bool indexed = false, unwatched = false;
+ static bool unwatched = false;
  const Folders folders = FindFolders();
  if (folders.archive.empty()) return {};
  if (!folders.active.empty() && !Changes().Watch(folders.active) && !unwatched) {
   unwatched = true;
   spdlog::warn("Replays: the save folder cannot be watched; replays are archived at each match start and for two minutes after each match end");
  }
- if (!indexed) { Index().Refresh(folders.archive); indexed = true; }
+ if (!Index().Complete()) RefreshIndex(folders.archive);
  // The outbox is drained without a signed-in account too.
  return ArchiveSaves(folders, folders.active.empty() ? std::vector<fs::path>{} : std::vector<fs::path>{folders.active}, kSettleBudget);
 }

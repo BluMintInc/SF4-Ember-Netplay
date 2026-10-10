@@ -35,6 +35,7 @@ struct Owner {
 struct Folders {
 	fs::path root, saves, archive, outbox;
 	std::size_t settleBudget = 1000, settleFrom = 0;
+	bool indexComplete = true;
 	Bytes list = EmptyList(), swan = EmptySwan();
 	Owner own;
 	std::atomic<bool> archiveBroken{false};
@@ -47,7 +48,7 @@ struct Folders {
 	~Folders() { std::error_code ignored; fs::remove_all(root, ignored); }
 	void WriteIndexes() { Save(saves / "LIST", list); Save(saves / "replays-swan.dat", swan); }
 	files::ArchiveTarget Target(Owner& owner) {
-		return {archive, outbox, settleBudget, settleFrom, owner.index, owner.slots, [this](const fs::path& path, const Bytes& bytes) {
+		return {archive, outbox, settleBudget, settleFrom, owner.index, indexComplete, owner.slots, [this](const fs::path& path, const Bytes& bytes) {
 			if (archiveBroken && *path.lexically_relative(archive).begin() != "..") return false;
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
@@ -300,8 +301,9 @@ static void TestARefreshKeepsAnUnreadableCopy() {
 	const Bytes kept = *files::ReadFile(copy);
 	CHECK(fs::remove(copy) && fs::create_directory(copy));
 	int listed = 0;
-	folders.own.index.Refresh([&] { return files::ScanArchive(folders.archive, [&](const fs::path&, const files::ArchiveFile&) { listed++; }); });
-	CHECK(listed == 0 && folders.own.index.Candidates(Crc32(replay.data(), replay.size())).size() == 1);
+	bool complete = false;
+	folders.own.index.Refresh([&] { return files::ScanArchive(folders.archive, [&](const fs::path&, const files::ArchiveFile&) { listed++; }, complete); });
+	CHECK(complete && listed == 0 && folders.own.index.Candidates(Crc32(replay.data(), replay.size())).size() == 1);
 	// The same replay under a later save time, so another name.
 	Bytes later = kept;
 	WriteU32(later.data() + 8 + 13, ReadU32(later.data() + 8 + 13) + 600);
@@ -313,6 +315,41 @@ static void TestARefreshKeepsAnUnreadableCopy() {
 	pass = folders.Pass();
 	CHECK(pass.copied == 0 && pass.waiting == 0 && folders.Outboxed() == 0);
 	CHECK(folders.Archived().size() == 1);
+}
+
+// A scan of the archive says whether it missed anything: a replay file that
+// cannot be read and gives no CRC to keep it under makes it incomplete; an
+// Ember file that cannot be read is kept under its name's CRC; no archive yet
+// is complete.
+static void TestAScanSaysWhatItMissed() {
+	Folders folders("ember-archive-scan");
+	bool complete = false;
+	const auto none = [](const fs::path&, const files::ArchiveFile&) {};
+	CHECK(files::ScanArchive(folders.archive, none, complete).empty() && complete);
+	folders.SaveMatch(kFirst, Match(1, 1791600000u), 0, false);
+	CHECK(folders.Pass().copied == 1);
+	CHECK(files::ScanArchive(folders.archive, none, complete).size() == 1 && complete);
+	CHECK(fs::create_directories(folders.archive / "saver" / "20260101.usf4replay")); // a replay file that cannot be read
+	files::ScanArchive(folders.archive, none, complete);
+	CHECK(!complete);
+}
+
+// While the archive is not listed whole, a pass still puts each slot's replay
+// into the outbox as the slot comes round, and archives nothing: it cannot be
+// sure the archive does not hold them. Once it is listed whole, both go in.
+static void TestAnIncompleteIndexStillKeepsTheSlots() {
+	Folders folders("ember-archive-incomplete");
+	folders.indexComplete = false;
+	const Bytes first = Match(1, 1791600000u), second = Match(2, 1791600200u);
+	folders.SaveMatch(kFirst, first, 0, false);
+	auto pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.waiting == 1 && folders.Outboxed() == 1);
+	folders.SaveMatch(kFirst, second, 0, false);
+	pass = folders.Pass();
+	CHECK(pass.copied == 0 && pass.waiting == 2 && folders.Archived().empty());
+	folders.indexComplete = true;
+	pass = folders.Pass();
+	CHECK(pass.copied == 2 && pass.waiting == 0 && folders.Bodies() == std::set<Bytes>({first, second}));
 }
 
 // A backlog in the outbox is settled a few entries a pass, after the slots
@@ -512,6 +549,8 @@ int main() {
 	TestNineReplaysWithOneCrc();
 	TestTheIndexIsNeverTaken();
 	TestARefreshKeepsAnUnreadableCopy();
+	TestAScanSaysWhatItMissed();
+	TestAnIncompleteIndexStillKeepsTheSlots();
 	TestABacklogWaitsBehindTheSlots();
 	TestTheLauncherSettlesEverything();
 	TestAnUnreadableCopy();

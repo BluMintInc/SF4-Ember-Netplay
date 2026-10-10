@@ -35,21 +35,22 @@ namespace sf4e { namespace replayfiles {
 // Where a pass copies to: the archive folder and the outbox; how many outbox
 // entries a pass settles at most, and where the next pass starts on them, so
 // an entry that cannot be settled does not keep others waiting; the index of
-// the replays the archive holds (each copy is added to it); the cache of the
-// game's slot files; and the writer that creates a file only where there is
-// none.
+// the replays the archive holds (each copy is added to it) and whether it was
+// listed whole (ScanArchive); the cache of the game's slot files; and the
+// writer that creates a file only where there is none.
 struct ArchiveTarget {
 	std::filesystem::path folder, outbox;
 	std::size_t settleBudget;
 	std::size_t& settleFrom;
 	ArchiveCandidates& held;
+	bool heldComplete;
 	SlotFileCache& slots;
 	std::function<bool(const std::filesystem::path&, const replayslots::Bytes&)> createOnly;
 };
 
 // Whether the archive holds this replay. Unknown: a file that may hold it
-// could not be read, so it is neither copied again nor taken as held.
-// evidence is the file that holds it.
+// could not be read, or the index was not listed whole, so the replay is
+// neither copied again nor taken as held. evidence is the file that holds it.
 enum class Holding { Held, Absent, Unknown };
 inline Holding Holds(const ArchiveTarget& target, const replayslots::Bytes& body, BackupEvidence& evidence) {
 	Holding holding = Holding::Absent;
@@ -59,7 +60,7 @@ inline Holding Holds(const ArchiveTarget& target, const replayslots::Bytes& body
 		if (state == ArchiveState::Valid && read.SameBody(body)) { evidence = {path, std::move(read)}; return Holding::Held; }
 		if (state == ArchiveState::Unreadable) holding = Holding::Unknown;
 	}
-	return holding;
+	return holding == Holding::Absent && !target.heldComplete ? Holding::Unknown : holding;
 }
 
 // A slot's replay and ".0" as they are now, each empty when it could not be
@@ -194,8 +195,9 @@ inline void DrainOutbox(const ArchiveTarget& target, ArchivePass& pass) {
 // What one slot came to. Nothing: no replay in it, or a whole file that is
 // not one (no slot of a match, a placeholder). Retry: a replay that could not
 // be read or is half written, which a later pass may find whole. Held: in the
-// archive. Queued: in the outbox. Copied: kept from the outbox (it cannot be
-// written) and archived straight away. Failed: neither.
+// archive. Queued: in the outbox, whatever is known of the archive. Copied:
+// kept from the outbox (it cannot be written) and archived straight away, the
+// archive known not to hold it. Failed: neither.
 enum class SlotCopy { Nothing, Retry, Held, Queued, Copied, Failed };
 
 inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::path& saves, int slot) {
@@ -210,9 +212,10 @@ inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::pat
 		return current.sidecar == replayslots::Sidecar(current.replay) ? SlotCopy::Nothing : SlotCopy::Retry;
 	if (replayslots::ArchiveName(exported).empty()) return SlotCopy::Nothing;
 	BackupEvidence evidence;
-	if (Holds(target, current.replay, evidence) == Holding::Held) return SlotCopy::Held;
+	const Holding holding = Holds(target, current.replay, evidence);
+	if (holding == Holding::Held) return SlotCopy::Held;
 	if (Enqueue(target, current.replay, exported)) return SlotCopy::Queued;
-	return Publish(target, current.replay, exported) ? SlotCopy::Copied : SlotCopy::Failed;
+	return holding == Holding::Absent && Publish(target, current.replay, exported) ? SlotCopy::Copied : SlotCopy::Failed;
 }
 
 // One pass: the slots of each of the accounts' save folders (none at all is
@@ -238,13 +241,14 @@ inline ArchivePass RunPass(const ArchiveTarget& target, const std::vector<std::f
 // outbox. evidence is that copy. The caller holds the one copy lock
 // (ReplayFiles.cxx), so no pass decides on the slot meanwhile.
 inline bool EnsureBackup(const ArchiveTarget& target, const std::filesystem::path& saves, int slot, const replayslots::Bytes& body, BackupEvidence& evidence) {
-	if (Holds(target, body, evidence) == Holding::Held) return true;
+	const Holding holding = Holds(target, body, evidence);
+	if (holding == Holding::Held) return true;
 	const SlotFile current = ReadSlotFile(target.slots, saves / std::to_wstring(slot));
 	replayslots::Bytes exported;
 	if (current.replay == body && ExportFromFile(current, exported)) {
 		ArchivePass pass;
 		if (const auto queued = Enqueue(target, body, exported)) Settle(target, *queued, pass);
-		else Publish(target, body, exported);
+		else if (holding == Holding::Absent) Publish(target, body, exported);
 	}
 	return Holds(target, body, evidence) == Holding::Held;
 }

@@ -1,7 +1,6 @@
 #pragma once
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplaySlots.hxx"
-#include <stdexcept>
 #include <algorithm>
 #include <filesystem>
 #include <map>
@@ -73,19 +72,20 @@ private:
 };
 
 // Every archive file a replay may be in, by CRC, for
-// ArchiveCandidates::Refresh: each file that reads whole, which `read` gets too, and each of
-// Ember's files whose name gives a CRC (ReplaySlots.hxx: ParseArchiveName)
-// but that cannot be read now, which may hold a replay with that CRC, so it
-// is neither taken as absent nor copied again beside. No archive yet is an
-// empty one. Throws when the folder cannot be listed to the end: a partial
-// list never stands for the archive.
-template<class Read> ArchiveCandidates::Map ScanArchive(const std::filesystem::path& archive, const Read& read) {
+// ArchiveCandidates::Refresh: each file that reads whole, which `read` gets
+// too, and each of Ember's files whose name gives a CRC (ReplaySlots.hxx:
+// ParseArchiveName) but that cannot be read now, which may hold a replay with
+// that CRC. complete says nothing was missed: false when a folder could not
+// be listed or entered, or a replay file that could not be read gives no CRC
+// to keep it under. No archive yet is an empty one, and complete.
+template<class Read> ArchiveCandidates::Map ScanArchive(const std::filesystem::path& archive, const Read& read, bool& complete) {
  std::map<std::uint32_t, ArchiveCandidates::Paths> paths;
+ complete = true;
  std::error_code error;
- std::filesystem::recursive_directory_iterator at(archive, std::filesystem::directory_options::skip_permission_denied, error);
+ std::filesystem::recursive_directory_iterator at(archive, error);
  if (error) {
   std::error_code probe;
-  if (std::filesystem::exists(archive, probe) || probe) throw std::runtime_error("the archive could not be listed");
+  complete = !std::filesystem::exists(archive, probe) && !probe;
   return {};
  }
  for (const std::filesystem::recursive_directory_iterator end; at != end;) {
@@ -97,10 +97,13 @@ template<class Read> ArchiveCandidates::Map ScanArchive(const std::filesystem::p
    std::uint64_t time = 0;
    std::uint32_t crc = 0;
    if (state == ArchiveState::Valid) { read(path, file); paths[file.crc].push_back(path); }
-   else if (state == ArchiveState::Unreadable && inRoot && replayslots::ParseArchiveName(path.filename().wstring(), time, crc)) paths[crc].push_back(path);
+   else if (state == ArchiveState::Unreadable) {
+    if (inRoot && replayslots::ParseArchiveName(path.filename().wstring(), time, crc)) paths[crc].push_back(path);
+    else complete = false;
+   }
   }
   at.increment(error);
-  if (error) throw std::runtime_error("the archive could not be listed");
+  if (error) { complete = false; break; }
  }
  ArchiveCandidates::Map seen;
  for (auto& item : paths) seen.emplace(item.first, std::make_shared<const ArchiveCandidates::Paths>(std::move(item.second)));
