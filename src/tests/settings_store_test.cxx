@@ -81,7 +81,11 @@ static void InputDelayMigrations(const Path& root) {
         fallback.inputDelay = 7;
         sf4e::netplay::ReadInputDelayPreference({{"inputDelay", malformed}, {"autoInputDelay", false}}, fallback);
         CHECK(fallback.inputDelay == sf4e::DefaultInputDelay && !fallback.autoInputDelay);
+        CHECK(sf4e::netplay::ReadSavedInputDelay({{"inputDelay", malformed}}) == sf4e::DefaultInputDelay);
     }
+    // The launcher's reader: a chosen 0 is 0, and a settings file that is not an object is the default.
+    CHECK(sf4e::netplay::ReadSavedInputDelay({{"inputDelay", 0}, {"autoInputDelay", false}}) == 0);
+    CHECK(sf4e::netplay::ReadSavedInputDelay(Json::array()) == sf4e::DefaultInputDelay);
     PlayerPreferences missing;
     missing.inputDelay = 7;
     sf4e::netplay::ReadInputDelayPreference({{"autoInputDelay", false}}, missing);

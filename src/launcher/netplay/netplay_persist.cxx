@@ -41,9 +41,7 @@ namespace launcher {
 		try {
 			std::string name = j.value("displayName", "Player");
 			strncpy_s(out.displayName, name.c_str(), _TRUNCATE);
-			netplay::PlayerPreferences delay;
-			netplay::ReadInputDelayPreference(j, delay);
-			out.inputDelay = static_cast<uint8_t>(delay.inputDelay);
+			out.inputDelay = static_cast<uint8_t>(netplay::ReadSavedInputDelay(j));
 			out.editionSelect = (uint8_t)j.value("editionSelect", 1);
 			out.roundCount = j.value("roundCount", 3);
 			out.roundTimeIntegral = j.value("roundTimeIntegral", 99);
