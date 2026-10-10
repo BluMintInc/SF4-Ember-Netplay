@@ -1,28 +1,53 @@
 use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicI64, Ordering},
-    },
+    sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use ember_protocol::encoding::{b64u, prefixed_id};
 
-/// Wall-clock seconds with an adjustable offset, so tests can move time.
+/// Unix seconds that tests can move. It follows the wall clock plus what
+/// `advance` added until `freeze` stops it where it is; after that only
+/// `advance` moves it, so a test decides exactly how much time passes however
+/// busy the machine is.
 #[derive(Clone, Default)]
-pub struct Clock(Arc<AtomicI64>);
+pub struct Clock(Arc<Mutex<ClockState>>);
+
+#[derive(Default)]
+struct ClockState {
+    offset: i64,
+    frozen: bool,
+}
 
 impl Clock {
     pub fn now(&self) -> u64 {
-        let wall = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs() as i64);
-        (wall + self.0.load(Ordering::Relaxed)).max(0) as u64
+        let state = self.state();
+        let base = if state.frozen { 0 } else { wall_seconds() };
+        (base + state.offset).max(0) as u64
     }
 
     pub fn advance(&self, seconds: i64) {
-        self.0.fetch_add(seconds, Ordering::Relaxed);
+        self.state().offset += seconds;
     }
+
+    pub fn freeze(&self) {
+        let mut state = self.state();
+        if !state.frozen {
+            state.offset += wall_seconds();
+            state.frozen = true;
+        }
+    }
+
+    fn state(&self) -> std::sync::MutexGuard<'_, ClockState> {
+        self.0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+fn wall_seconds() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs() as i64)
 }
 
 /// OS randomness. Failure here is unrecoverable for a security service.
