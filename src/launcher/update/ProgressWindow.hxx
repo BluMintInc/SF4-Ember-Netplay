@@ -63,9 +63,10 @@ inline InstallProgressView ViewInstallProgress(const std::vector<std::wstring>& 
 }
 
 // The Updater's window: what is happening and that Ember opens again (the
-// headline), then the step the install is at with its count, the bar with the
-// whole install's percentage, and a line with what it waits for, if anything,
-// beside the time taken so far. The installer reports from any thread
+// headline, UpdaterHeadline), then the step the install is at with its count,
+// the bar with the whole install's percentage, empty until a step is
+// reported, as through a recovery, and a line with what it waits for, if
+// anything, beside the time taken so far. The installer reports from any thread
 // (Report, Note); the window's own thread shows the latest ten times a second
 // and the clock moves every second, so the window never looks stopped, even
 // while a count does not move, and is never flooded. The worker thread owns
@@ -80,7 +81,7 @@ public:
         HANDLE startupGate=nullptr;
         ThreadFactory createThread=&CreateThread;
         bool visible=true;
-        // In the player's language when the launcher passed it.
+        // UpdaterHeadline: up to three lines.
         std::wstring headline;
         // In the player's language: the steps' names in InstallerSteps' order,
         // and the notices in UpdaterNotices' order. Their English texts when
@@ -94,10 +95,7 @@ public:
             options_.stages.clear();
             for(const auto& step:InstallerSteps) options_.stages.push_back(step.english);
         }
-        if(options_.notices.size()!=UpdaterNoticeCount) {
-            options_.notices.clear();
-            for(const auto& notice:UpdaterNotices) options_.notices.push_back(notice.english);
-        }
+        options_.notices=NoticeTexts(options_.notices);
         ready_=CreateEventW(nullptr,TRUE,FALSE,nullptr);
         stop_=CreateEventW(nullptr,TRUE,FALSE,nullptr);
         if(ready_ && stop_) thread_=options_.createThread(nullptr,0,Run,this,0,nullptr);
@@ -176,7 +174,7 @@ private:
         if(!RegisterClassW(&type) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) return false;
         const int dpi=static_cast<int>(GetDpiForSystem());
         const auto px=[&](int value){ return MulDiv(value,dpi>0?dpi:96,96); };
-        RECT outer{0,0,px(440),px(162)};
+        RECT outer{0,0,px(440),px(178)};
         AdjustWindowRectEx(&outer,WS_POPUP|WS_CAPTION,FALSE,0);
         const int width=outer.right-outer.left, height=outer.bottom-outer.top;
         frame_=CreateWindowExW(0,type.lpszClassName,title_.c_str(),WS_POPUP|WS_CAPTION,
@@ -192,15 +190,15 @@ private:
             return control!=nullptr;
         };
         const DWORD label=SS_NOPREFIX|SS_ENDELLIPSIS;
-        // The headline and the wait line wrap to a second line in a longer
+        // The headline (two lines and a wrap) and the wait line wrap in a longer
         // language, so a waited file's name is never cut.
-        const bool made=make(Part::Headline,L"STATIC",options_.headline.c_str(),SS_LEFT|SS_NOPREFIX,16,12,408,40) &&
-            make(Part::Step,L"STATIC",L"",SS_LEFT|label,16,60,318,20) &&
-            make(Part::Count,L"STATIC",L"",SS_RIGHT|label,334,60,90,20) &&
-            make(Part::Bar,PROGRESS_CLASSW,nullptr,PBS_SMOOTH,16,86,356,22) &&
-            make(Part::Percent,L"STATIC",L"0%",SS_RIGHT|SS_CENTERIMAGE|label,376,86,48,22) &&
-            make(Part::Note,L"STATIC",L"",SS_LEFT|SS_NOPREFIX,16,118,300,36) &&
-            make(Part::Elapsed,L"STATIC",L"",SS_RIGHT|label,316,118,108,20);
+        const bool made=make(Part::Headline,L"STATIC",options_.headline.c_str(),SS_LEFT|SS_NOPREFIX,16,12,408,56) &&
+            make(Part::Step,L"STATIC",L"",SS_LEFT|label,16,76,318,20) &&
+            make(Part::Count,L"STATIC",L"",SS_RIGHT|label,334,76,90,20) &&
+            make(Part::Bar,PROGRESS_CLASSW,nullptr,PBS_SMOOTH,16,102,356,22) &&
+            make(Part::Percent,L"STATIC",L"",SS_RIGHT|SS_CENTERIMAGE|label,376,102,48,22) &&
+            make(Part::Note,L"STATIC",L"",SS_LEFT|SS_NOPREFIX,16,134,300,36) &&
+            make(Part::Elapsed,L"STATIC",L"",SS_RIGHT|label,316,134,108,20);
         if(!made) { DestroyWindow(frame_); frame_=nullptr; return false; }
         SendMessageW(At(Part::Bar),PBM_SETRANGE32,0,Range);
         SetTimer(frame_,RefreshTimer,RefreshMilliseconds,nullptr);

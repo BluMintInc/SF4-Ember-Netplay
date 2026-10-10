@@ -34,19 +34,29 @@ inline std::wstring QuoteArgument(const std::wstring& value) {
 // carries them: each with the locale key the launcher passes in the player's
 // language and its English text, the key's en.po text, for a launcher from
 // before -Notices. {0} is the file waited for, or the time taken so far.
-enum class UpdaterNotice { WaitingForLauncher, WaitingForFile, Restoring, Elapsed };
+enum class UpdaterNotice { WaitingForLauncher, WaitingForFile, Restoring, Elapsed, Reopens, Recovering };
 struct UpdaterNoticeText { UpdaterNotice notice; const char* key; const wchar_t* english; };
 inline constexpr UpdaterNoticeText UpdaterNotices[] = {
     { UpdaterNotice::WaitingForLauncher, "update.notice.waiting_launcher", L"Waiting for SF4 Ember Netplay to close..." },
     { UpdaterNotice::WaitingForFile, "update.notice.waiting_file", L"Waiting for another program to release {0}..." },
     { UpdaterNotice::Restoring, "update.notice.restoring", L"Restoring the previous files..." },
-    { UpdaterNotice::Elapsed, "update.notice.elapsed", L"{0} elapsed" } };
+    { UpdaterNotice::Elapsed, "update.notice.elapsed", L"{0} elapsed" },
+    { UpdaterNotice::Reopens, "update.notice.reopens", L"SF4 Ember Netplay opens again when it is done." },
+    { UpdaterNotice::Recovering, "update.notice.recovering", L"Finishing an interrupted update..." } };
 inline constexpr std::size_t UpdaterNoticeCount = sizeof(UpdaterNotices) / sizeof(UpdaterNotices[0]);
 inline constexpr bool UpdaterNoticesInOrder() {
     for (std::size_t i = 0; i < UpdaterNoticeCount; ++i) if (static_cast<std::size_t>(UpdaterNotices[i].notice) != i) return false;
     return true;
 }
 static_assert(UpdaterNoticesInOrder(), "updater notices out of their enum's order");
+// The notices as the launcher passed them, or their English texts when that
+// is not one per notice.
+inline std::vector<std::wstring> NoticeTexts(const std::vector<std::wstring>& passed) {
+    if (passed.size() == UpdaterNoticeCount) return passed;
+    std::vector<std::wstring> english;
+    for (const auto& notice : UpdaterNotices) english.push_back(notice.english);
+    return english;
+}
 
 // A field of `count` names, joined by '|': -Stages, one per installer step
 // (InstallerSteps), and -Notices, one per UpdaterNotices entry. False, leaving
@@ -87,7 +97,7 @@ inline std::vector<std::wstring> SplitNames(const wchar_t* field, std::size_t co
 // with ShellExecuteEx, whose own limit on lpParameters is not documented, so
 // this stays within the 4,096 characters the handoff has always passed, far
 // below the 32,767 of CreateProcess. Two full paths, the status, five step
-// names and four notices take well under half of it.
+// names and six notices take well under half of it.
 constexpr std::size_t MostUpdaterArguments = 4096 - 1;
 
 struct UpdaterArguments {
@@ -95,14 +105,29 @@ struct UpdaterArguments {
     std::uint32_t waitPid = 0;
     // Setup's uninstaller passes -Uninstall; the launcher never does.
     bool recoverOnly = false, uninstall = false;
-    // The window's headline, its steps' names and its notices, in the
-    // player's language; an Updater.exe from before any of them ignores it.
+    // What an install's headline says, its steps' names and its notices, in
+    // the player's language; an Updater.exe from before any ignores it.
     std::wstring status;
     std::vector<std::wstring> stages, notices;
 };
-// The headline an Updater shows when the launcher passed no -Status, as one
+// What an install's headline says when the launcher passed no -Status, as one
 // from before it does: services.installing's en.po text.
-inline constexpr wchar_t DefaultUpdaterStatus[] = L"Installing the update. SF4 Ember Netplay opens again when it is done.";
+inline constexpr wchar_t DefaultUpdaterStatus[] = L"Installing the update...";
+// Whether the Updater starts the launcher again when it is done: always after
+// an install, and after a recovery the launcher asked for at startup (with
+// -WaitPid), not one started by hand.
+inline bool UpdaterReopensLauncher(const UpdaterArguments& in) { return !in.recoverOnly || in.waitPid != 0; }
+// The Updater window's headline: what this run does (an install's -Status, or
+// finishing an interrupted update), then, on its own line, that Ember opens
+// again, whenever it does. The second line is the Updater's own notice, so a
+// launcher whose -Status lacks it, as every one before -Notices, still has it
+// said.
+inline std::wstring UpdaterHeadline(const UpdaterArguments& in, const std::vector<std::wstring>& notices) {
+    std::wstring headline = in.recoverOnly ? notices[static_cast<std::size_t>(UpdaterNotice::Recovering)] :
+        in.status.empty() ? std::wstring(DefaultUpdaterStatus) : in.status;
+    if (UpdaterReopensLauncher(in)) headline += L"\n" + notices[static_cast<std::size_t>(UpdaterNotice::Reopens)];
+    return headline;
+}
 // The arguments after Updater.exe's path. -Stages or -Notices is left out when
 // its names cannot be carried (JoinNames). False, leaving out empty, when the
 // line would be longer than Windows starts a process with.

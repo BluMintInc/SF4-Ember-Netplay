@@ -104,6 +104,13 @@ struct StepLog {
 	}
 };
 
+// What an install or a recovery waits for, shown on the window's wait line.
+static sf4e::launcher::Activity ShowActivity(sf4e::launcher::ProgressWindow& window) {
+    return [&window](sf4e::launcher::InstallActivity activity, const std::filesystem::path& file) {
+        window.Note(sf4e::launcher::NoticeFor(activity), file.filename().wstring());
+    };
+}
+
 static bool InstallFiles(const std::wstring& staging, const std::wstring& install, sf4e::launcher::ProgressWindow& window) {
     std::string error;
     StepLog steps;
@@ -112,12 +119,19 @@ static bool InstallFiles(const std::wstring& staging, const std::wstring& instal
             window.Report(stage, done, total);
             steps.Heard(stage, total);
         },
-        [&](sf4e::launcher::InstallActivity activity, const std::filesystem::path& file) {
-            window.Note(sf4e::launcher::NoticeFor(activity), file.filename().wstring());
-        });
+        ShowActivity(window));
     steps.End();
     if (!installed) AppendLog(error.c_str());
     return installed;
+}
+
+// Finishes an update that stopped part way; no step counts, so the window
+// shows its clock and what the recovery waits for.
+static bool RecoverFiles(const std::wstring& install, sf4e::launcher::ProgressWindow& window) {
+    std::string error;
+    const bool recovered = sf4e::launcher::RecoverPackage(install, error, false, ShowActivity(window));
+    AppendLog(recovered ? "Update recovery complete" : error.c_str());
+    return recovered;
 }
 static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
 	wchar_t launcherPath[MAX_PATH] = { 0 };
@@ -188,24 +202,11 @@ int wmain(int argc, wchar_t** argv) {
 	const wchar_t* installDir = arguments.installDir.c_str();
 	const DWORD waitPid = arguments.waitPid;
 	if (arguments.uninstall) return Uninstall(installDir);
-	if (arguments.recoverOnly) {
-		// With -WaitPid the Launcher asked for this at startup: wait for it to
-		// exit, then start it again, showing update recovery on failure.
-		if (waitPid && !WaitForProcessExit(waitPid, 30000)) {
-			AppendLog("ERROR: launcher is still running; recovery cancelled");
-			return 1;
-		}
-		std::string recoveryError;
-		if (!sf4e::launcher::RecoverPackage(installDir,recoveryError,false)) {
-			AppendLog(recoveryError.c_str());
-			if (waitPid) StartLauncher(installDir, L"--updates --update-error");
-			return 1;
-		}
-		AppendLog("Update recovery complete");
-		if (waitPid) StartLauncher(installDir);
-		return 0;
-	}
 
+	// An install, or with -RecoverOnly the finishing of one that stopped part
+	// way, which the Launcher asks for at startup. Both wait for the launcher
+	// to close under the same window and start it again afterwards
+	// (UpdaterReopensLauncher).
 	char startLine[1024] = { 0 };
 	char installUtf8[MAX_PATH * 2] = { 0 };
 	char stagingUtf8[MAX_PATH * 2] = { 0 };
@@ -214,10 +215,11 @@ int wmain(int argc, wchar_t** argv) {
 	snprintf(
 		startLine,
 		sizeof(startLine),
-		"Updater start InstallDir=%s StagingDir=%s WaitPid=%lu",
+		"Updater start InstallDir=%s StagingDir=%s WaitPid=%lu RecoverOnly=%d",
 		installUtf8,
 		stagingUtf8,
-		waitPid
+		waitPid,
+		arguments.recoverOnly ? 1 : 0
 	);
 	AppendLog(startLine);
 
@@ -225,7 +227,7 @@ int wmain(int argc, wchar_t** argv) {
 		AppendLog("ERROR: install directory not found");
 		return 1;
 	}
-	if (GetFileAttributesW(arguments.stagingDir.c_str()) == INVALID_FILE_ATTRIBUTES) {
+	if (!arguments.recoverOnly && GetFileAttributesW(arguments.stagingDir.c_str()) == INVALID_FILE_ATTRIBUTES) {
 		AppendLog("ERROR: staging directory not found");
 		return 1;
 	}
@@ -233,31 +235,27 @@ int wmain(int argc, wchar_t** argv) {
 	// The launcher passes the window's texts in the player's language; one
 	// from before them does not, and the window shows their English.
 	sf4e::launcher::ProgressWindow::Options windowOptions;
-	windowOptions.headline = arguments.status.empty() ? sf4e::launcher::DefaultUpdaterStatus : arguments.status;
+	windowOptions.notices = sf4e::launcher::NoticeTexts(arguments.notices);
+	windowOptions.headline = sf4e::launcher::UpdaterHeadline(arguments, windowOptions.notices);
 	windowOptions.stages = arguments.stages;
-	windowOptions.notices = arguments.notices;
 	sf4e::launcher::ProgressWindow progress(L"SF4 Ember Netplay", std::move(windowOptions));
 	progress.Note(sf4e::launcher::UpdaterNotice::WaitingForLauncher);
 	if (!WaitForProcessExit(waitPid, 30000)) {
-		AppendLog("ERROR: launcher is still running; update cancelled");
-        progress.Close();
-        StartLauncher(installDir, L"--updates --update-error");
-        return 1;
+		AppendLog("ERROR: launcher is still running; nothing was changed");
+		progress.Close();
+		// An install's launcher shows the failure; a recovery's is the one
+		// still running.
+		if (!arguments.recoverOnly) StartLauncher(installDir, L"--updates --update-error");
+		return 1;
 	}
 	progress.Note(std::nullopt);
 
-	const bool installed = InstallFiles(arguments.stagingDir, arguments.installDir, progress);
+	const bool done = arguments.recoverOnly ? RecoverFiles(arguments.installDir, progress) :
+		InstallFiles(arguments.stagingDir, arguments.installDir, progress);
 	progress.Close();
-	if (!installed) {
-        StartLauncher(installDir, L"--updates --update-error");
-		return 1;
-	}
-
-	AppendLog("starting Launcher.exe");
-	if (!StartLauncher(installDir)) {
-		return 1;
-	}
-
-	AppendLog("Updater complete");
-	return 0;
+	if (!sf4e::launcher::UpdaterReopensLauncher(arguments)) return done ? 0 : 1;
+	AppendLog(done ? "starting Launcher.exe" : "starting Launcher.exe to show the failure");
+	const bool started = StartLauncher(installDir, done ? nullptr : L"--updates --update-error");
+	if (done && started) AppendLog("Updater complete");
+	return done && started ? 0 : 1;
 }

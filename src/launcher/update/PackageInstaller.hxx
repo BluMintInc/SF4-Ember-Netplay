@@ -100,7 +100,8 @@ std::string Sha256Hex(const std::filesystem::path& file, const std::atomic<bool>
 // A file another process holds is tried again for a few seconds before its
 // step fails, and `activity` hears the wait. A cancel ends it like any other
 // failure, a wait included: once files have changed, the prior ones are
-// restored, which `activity` hears too and nothing interrupts.
+// restored, which `activity` hears too and nothing interrupts. `activity` is
+// only told: whatever it does, a throw included, changes nothing here.
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error,
     const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {}, const Activity& activity = {});
 // Observes an interrupted transaction's full target inventory before clearing
@@ -109,7 +110,9 @@ bool InstallPackage(const std::filesystem::path& staging, const std::filesystem:
 // no backup: completed operations stay installed, partial ones are restored,
 // and the failure asks for another install. A committed journal is only cleared.
 // A rolling-back journal resumes restoration without reclassifying skipped edits.
-bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false);
+// `activity` is told of a restoration and its waits for files, as for an install.
+bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false,
+    const Activity& activity = {});
 // Removes every file the installed MANIFEST.txt names (whatever version that
 // is), every file this build's inventory names, obsolete ones too, the
 // updater's own state and the folders that leaves empty. Selection art counts

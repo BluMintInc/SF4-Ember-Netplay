@@ -235,7 +235,7 @@ msgid "services.preparing"
 msgstr "Update voorbereiden..."
 
 msgid "services.installing"
-msgstr "Update installeren. SF4 Ember Netplay opent weer zodra dit klaar is."
+msgstr "Update installeren..."
 
 msgid "services.opening_updater"
 msgstr "Updater openen..."
@@ -2209,6 +2209,12 @@ msgstr "Vorige bestanden terugzetten..."
 
 msgid "update.notice.elapsed"
 msgstr "{0} verstreken"
+
+msgid "update.notice.reopens"
+msgstr "SF4 Ember Netplay opent weer zodra dit klaar is."
+
+msgid "update.notice.recovering"
+msgstr "Onderbroken update afronden..."
 
 msgid "room.member_left"
 msgstr "Lid vertrokken"

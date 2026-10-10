@@ -98,8 +98,9 @@ static void TestReports() {
     const auto part=[&](ProgressWindow::Part which){ return window.Control(which); };
     CHECK(part(ProgressWindow::Part::Bar)!=nullptr);
     CHECK(Text(part(ProgressWindow::Part::Headline))==options.headline);
-    // Before the first report, while the launcher closes, no step is named.
-    CHECK(Text(part(ProgressWindow::Part::Step)).empty() && Text(part(ProgressWindow::Part::Percent))==L"0%");
+    // Before the first report, while the launcher closes or through a
+    // recovery, which counts nothing, no step or percentage is shown.
+    CHECK(Text(part(ProgressWindow::Part::Step)).empty() && Text(part(ProgressWindow::Part::Percent)).empty());
     // Thousands of reports, as a hashing pass sends, leave only the last shown.
     for(std::uint64_t done=1; done<=4756; ++done) window.Report(UpdateStage::Comparing,done,4756);
     window.Report(UpdateStage::Comparing,412,4756);

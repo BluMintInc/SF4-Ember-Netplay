@@ -235,7 +235,7 @@ msgid "services.preparing"
 msgstr "Preparing the update..."
 
 msgid "services.installing"
-msgstr "Installing the update. SF4 Ember Netplay opens again when it is done."
+msgstr "Installing the update..."
 
 msgid "services.opening_updater"
 msgstr "Opening the updater..."
@@ -2154,6 +2154,12 @@ msgstr "Restoring the previous files..."
 
 msgid "update.notice.elapsed"
 msgstr "{0} elapsed"
+
+msgid "update.notice.reopens"
+msgstr "SF4 Ember Netplay opens again when it is done."
+
+msgid "update.notice.recovering"
+msgstr "Finishing an interrupted update..."
 
 msgid "room.member_left"
 msgstr "Member left"

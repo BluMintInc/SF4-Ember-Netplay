@@ -228,6 +228,25 @@ static void TestUpdaterArguments() {
     {UpdaterArguments out;CHECK(BuildUpdaterArguments(in,line)&&readBack(line,out)&&out.recoverOnly&&out.installDir==in.installDir&&out.waitPid==7&&!has(line,L"-StagingDir"));}
     // Setup's uninstaller: the folder alone, names in any case.
     {UpdaterArguments out;CHECK(readBack(L"-installdir \"C:\\Ember\" -UNINSTALL",out)&&out.uninstall&&out.installDir==L"C:\\Ember");}
+    // The headline: what the run does, then that Ember opens again. A launcher
+    // from before -Notices, as the nightly before this one, passes its own
+    // short -Status, and the Updater's English notice adds the second line.
+    {
+        UpdaterArguments out;
+        CHECK(readBack(L"-InstallDir \"C:\\Ember\" -StagingDir \"C:\\Stage\" -WaitPid 5 -Status \"Installing the update...\" -Stages \"a|b|c|d|e\"",out));
+        const auto english=NoticeTexts({});
+        CHECK(english.size()==UpdaterNoticeCount && english[4]==UpdaterNotices[4].english);
+        CHECK(UpdaterHeadline(out,NoticeTexts(out.notices))==std::wstring(L"Installing the update...\n")+UpdaterNotices[4].english);
+        out.status.clear();
+        CHECK(UpdaterHeadline(out,english)==std::wstring(DefaultUpdaterStatus)+L"\n"+UpdaterNotices[4].english);
+    }
+    // A recovery the launcher asked for says it finishes an interrupted
+    // update and that Ember opens again; one started by hand reopens nothing.
+    in=UpdaterArguments{};in.installDir=L"C:\\Ember";in.recoverOnly=true;in.waitPid=7;
+    for(std::size_t i=0;i<UpdaterNoticeCount;++i)in.notices.push_back(L"N"+std::to_wstring(i));
+    CHECK(UpdaterReopensLauncher(in)&&UpdaterHeadline(in,in.notices)==L"N5\nN4");
+    in.waitPid=0;
+    CHECK(!UpdaterReopensLauncher(in)&&UpdaterHeadline(in,in.notices)==L"N5");
     // The Updater refuses a line without the folders its work needs.
     {UpdaterArguments out;CHECK(!readBack(L"-StagingDir C:\\Stage",out)&&!readBack(L"-InstallDir C:\\Ember -WaitPid 5",out)&&!readBack(L"-InstallDir",out));}
     // A line longer than Windows starts a process with is refused, not cut.
@@ -560,6 +579,21 @@ int wmain(int argc, wchar_t** argv) {
         CHECK(error=="Cancelled. Previous files restored.");
         CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
     }
+    // An observer that throws changes nothing: a replacement that fails after
+    // a removal still has every prior file restored, and the install fails as
+    // it would have.
+    {
+        HANDLE handle=CreateFileW((install/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(handle!=INVALID_HANDLE_VALUE);
+        bool told=false;
+        const bool installed=sf4e::launcher::InstallPackage(older,install,error,sf4e::launcher::NeverCancelled,{},[&](InstallActivity activity,const fs::path&){
+            told=told||activity==InstallActivity::Restoring;
+            throw std::runtime_error("observer failed");
+        });
+        CloseHandle(handle);
+        CHECK(!installed && told && error=="Atomic update replacement failed. Previous files restored.");
+        CHECK(Read(install/L"Launcher.exe")=="new" && Read(install/L"docs\\TRAINING_LAB.md")=="new" && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    }
     // A backup holds what the file is once copied: one changed after the copy
     // was made, before the copy is checked, stops the update before anything
     // is written.
@@ -616,7 +650,28 @@ int wmain(int argc, wchar_t** argv) {
         op["priorSha256"]=digest;
     }
     Write(journalPath,journal.dump().c_str());
-    CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    // Finished as Updater.exe -RecoverOnly finishes it, the restoration is
+    // told, and so is the wait for a file it must undo (one the update wrote)
+    // that another process holds, which is let go only then.
+    {
+        fs::path replaced;
+        for(const auto& op:originalJournal["operations"]) {
+            const auto path=crashInstall/fs::u8path(op["path"].get<std::string>());
+            if(fs::exists(path) && (!op["existed"].get<bool>() || sf4e::launcher::Sha256Hex(path)!=op["priorSha256"].get<std::string>())) replaced=path;
+        }
+        CHECK(!replaced.empty());
+        sf4e::launcher::testing::InUseWaitMilliseconds=5000;
+        HANDLE held=CreateFileW(replaced.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(held!=INVALID_HANDLE_VALUE);
+        std::vector<InstallActivity> heard;
+        const bool recovered=sf4e::launcher::RecoverPackage(crashInstall,error,false,[&](InstallActivity activity,const fs::path& file){
+            heard.push_back(activity);
+            if(activity==InstallActivity::WaitingForFile && file.filename()==replaced.filename() && held!=INVALID_HANDLE_VALUE) { CloseHandle(held); held=INVALID_HANDLE_VALUE; }
+        });
+        if(held!=INVALID_HANDLE_VALUE) CloseHandle(held);
+        sf4e::launcher::testing::InUseWaitMilliseconds=0;
+        CHECK(recovered && (heard==std::vector<InstallActivity>{InstallActivity::Restoring,InstallActivity::WaitingForFile,InstallActivity::None}));
+    }
     CHECK(Read(crashInstall/L"Launcher.exe")=="prior-launcher");
     CHECK(Read(crashInstall/L"sf4-net.exe")=="user-collision");
     // The removal that ran before the replacements is undone too.

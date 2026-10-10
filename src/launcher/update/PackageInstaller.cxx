@@ -200,11 +200,17 @@ void DurableJson(const fs::path& path, const json& value) {
     const auto written=durable::PublishReplace(path,TemporarySibling(path),contents.data(),contents.size());
     if(!written) throw std::runtime_error(written.failed==durable::WriteStep::Create?"Cannot write update transaction":"Cannot commit update transaction");
 }
-// How a write waits for a file another process holds: the install's cancel
-// and activity, or for restoration, which nothing interrupts, neither.
+// Tells `activity` what the install is doing. Only told: whatever the
+// observer does, a failure included, never changes what the install does
+// next, a rollback above all.
+void Tell(const Activity& activity, InstallActivity what, const fs::path& file={}) noexcept {
+    if(!activity) return;
+    try { activity(what,file); } catch(...) {}
+}
+// How a write waits for a file another process holds: with the install's
+// cancel, or for restoration, which nothing interrupts, NeverCancelled; the
+// wait is told to `activity` either way.
 struct InUsePolicy { const std::atomic<bool>& cancel; const Activity& activity; };
-const Activity NoActivity;
-const InUsePolicy Uninterrupted{NeverCancelled,NoActivity};
 // Windows refuses to replace or remove a file another process still has open:
 // a helper the launcher started can take a moment to end after it, and an
 // antivirus holds a file it is scanning. That refusal is tried again for a
@@ -219,10 +225,10 @@ std::error_code UnlessInUse(const fs::path& file, const InUsePolicy& policy, con
         const bool inUse=code.category()==std::system_category() && (value==ERROR_SHARING_VIOLATION ||
             value==ERROR_LOCK_VIOLATION || value==ERROR_ACCESS_DENIED || value==ERROR_USER_MAPPED_FILE);
         if(!inUse || GetTickCount64()>=deadline) {
-            if(waited && policy.activity) policy.activity(InstallActivity::None,{});
+            if(waited) Tell(policy.activity,InstallActivity::None);
             return code;
         }
-        if(!waited && policy.activity) policy.activity(InstallActivity::WaitingForFile,file);
+        if(!waited) Tell(policy.activity,InstallActivity::WaitingForFile,file);
         waited=true;
         Sleep(100);
         if(policy.cancel) throw Cancelled();
@@ -309,9 +315,12 @@ ValidatedBackup ValidateRestoreBackup(const fs::path& backup, const std::map<std
 }
 // Restore only recorded operations, from their validated backup set. Files
 // left out of the transaction remain exactly as the player left them, even
-// when they changed while this install was running.
-void RestoreOperations(const fs::path& install, const ValidatedBackup& validated, const std::map<std::wstring,RecoveryFile>& files) {
+// when they changed while this install was running. Nothing interrupts it;
+// `activity` hears that it runs and any wait for a file.
+void RestoreOperations(const fs::path& install, const ValidatedBackup& validated, const std::map<std::wstring,RecoveryFile>& files, const Activity& activity) {
     const auto& backup=validated.path;
+    const InUsePolicy uninterrupted{NeverCancelled,activity};
+    Tell(activity,InstallActivity::Restoring);
     for(const auto& [key,file]:files) if(file.operation) {
         const auto path=install/file.relative;
         if(fs::is_directory(path)) throw std::runtime_error("Recovery destination is not a file");
@@ -321,8 +330,8 @@ void RestoreOperations(const fs::path& install, const ValidatedBackup& validated
         if(file.prior) {
             // An untouched file may still be held open and needs no write.
             if(fs::is_regular_file(path) && SameHash(HashFile(path),*file.prior)) continue;
-            ReplaceFileVerified(backup/file.relative,path,*file.prior,Uninterrupted);
-        } else RemoveFile(path,Uninterrupted);
+            ReplaceFileVerified(backup/file.relative,path,*file.prior,uninterrupted);
+        } else RemoveFile(path,uninterrupted);
     }
     for(const auto& [key,file]:files) if(file.operation) {
         const auto path=install/file.relative;
@@ -369,7 +378,7 @@ RecoveryOutcome RecoveryDecision(const RecoveryObservation& observation) {
 }
 // A rolling-back journal resumes its recorded restoration. A prepared one
 // observes all targets before deciding whether the folder was replaced since.
-bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly) {
+bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly, const Activity& activity) {
     const auto transactionPath=install/TransactionName;
     CheckPath(install,TransactionName);
     if(!fs::exists(transactionPath)) return true;
@@ -439,7 +448,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         validating=false;
         stream.close();
         if(rollingBack) {
-            RestoreOperations(install,ValidateRestoreBackup(backup,files),files);
+            RestoreOperations(install,ValidateRestoreBackup(backup,files),files,activity);
         } else if(!committed) {
             ObserveRecoveryFiles(install,files);
             const auto observation=ClassifyRecovery(files);
@@ -457,7 +466,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
                 if(!observation.missing.empty()) transaction["missingSkipped"]=observation.missing.generic_u8string();
                 DurableJson(transactionPath,transaction);
                 rollingBack=true;
-                RestoreOperations(install,validated,files);
+                RestoreOperations(install,validated,files,activity);
                 break;
             }
             case RecoveryOutcome::Completed:
@@ -485,10 +494,10 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
     }
 }
 }
-bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspectOnly) {
+bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspectOnly, const Activity& activity) {
     try { const auto install=fs::absolute(installInput).lexically_normal(); CheckPath(install.root_path(),install.relative_path());
-        if(inspectOnly) return RecoverLocked(install,error,true);
-        auto lock=Lock(install); return RecoverLocked(install,error,false); }
+        if(inspectOnly) return RecoverLocked(install,error,true,activity);
+        auto lock=Lock(install); return RecoverLocked(install,error,false,activity); }
     catch(const std::exception& failure){error=failure.what();return false;}
 }
 bool UninstallPackage(const fs::path& installInput, std::string& error) {
@@ -642,7 +651,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         if (!fs::is_directory(install) || !fs::is_directory(staging) || install == staging) throw std::runtime_error("Invalid install paths");
         CheckPath(install.root_path(),install.relative_path());
         installLock=std::make_unique<InstallLock>(Lock(install));
-        if(!RecoverLocked(install,error,false)) throw std::runtime_error(error);
+        if(!RecoverLocked(install,error,false,activity)) throw std::runtime_error(error);
         auto named=PackageManifest(staging);
         // Removals are what this folder owns and the package lacks: the files
         // the installed MANIFEST.txt names, plus the obsolete list for folders
@@ -751,11 +760,10 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         bool restored = true;
         std::string recoveryError;
         if(state==InstallState::Prepared && installLock) {
-            if(activity) activity(InstallActivity::Restoring,{});
             try {
                 transaction["state"]="rolling-back";
                 DurableJson(install/TransactionName,transaction);
-                restored=RecoverLocked(install,recoveryError,false);
+                restored=RecoverLocked(install,recoveryError,false,activity);
             } catch(const std::exception& restoreFailure) { restored=false; recoveryError=restoreFailure.what(); }
         }
         error = std::string(failure.what()) + (state==InstallState::Unprepared ? ". No new update was applied; preserve any pending recovery evidence." : restored ? ". Previous files restored." : ". Automatic restore incomplete; preserve the transaction and backup. " + recoveryError);
