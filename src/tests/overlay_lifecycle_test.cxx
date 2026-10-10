@@ -12,7 +12,6 @@
 #include <thread>
 
 using sf4e::ui::OverlayLifecycle;
-using Clock = std::chrono::steady_clock;
 
 static int g_failures = 0;
 static void Check(bool value, const char* message) {
@@ -93,6 +92,22 @@ static void AMessageDuringAChangeOnItsThreadPassesThrough() {
     Check(!message.Locked(), "a message on the changing thread took the lock again");
 }
 
+// Starts a change on another thread and returns once that thread is about to
+// wait for the lock. The pause after lets it reach the wait on an idle
+// machine; the checks after it hold however long the thread takes, since a
+// guard that queued behind the change would deadlock and time the test out.
+static std::thread StartWaitingChange(OverlayLifecycle& lifecycle, std::atomic<bool>& changed) {
+    std::atomic<bool> starting{false};
+    std::thread game([&lifecycle, &changed, &starting] {
+        starting = true;
+        OverlayLifecycle::Change change(lifecycle);
+        changed = true;
+    });
+    while (!starting) std::this_thread::yield();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    return game;
+}
+
 // A frame in progress holds a change off until it is drawn, and a message
 // reaching the drawing thread in that time passes through instead of queueing
 // behind the waiting change (which would deadlock).
@@ -103,12 +118,9 @@ static void AChangeWaitsForTheFrameInProgress() {
     {
         OverlayLifecycle::Frame frame(lifecycle);
         Check(static_cast<bool>(frame), "an idle lifecycle refused a frame");
-        game = std::thread([&] { OverlayLifecycle::Change change(lifecycle); changed = true; });
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        game = StartWaitingChange(lifecycle, changed);
         Check(!changed, "the context was replaced under a frame");
-        const auto start = Clock::now();
         const OverlayLifecycle::Message message(lifecycle);
-        Check(Clock::now() - start < std::chrono::milliseconds(50), "a message on the drawing thread waited");
         Check(!message.Locked(), "a message on the drawing thread took the lock again");
     }
     game.join();
@@ -125,14 +137,11 @@ static void ANestedMessagePassesAWaitingChange() {
     {
         const OverlayLifecycle::Message outer(lifecycle);
         Check(outer.Locked(), "an outer message did not take the lock");
-        game = std::thread([&] { OverlayLifecycle::Change change(lifecycle); changed = true; });
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        const auto start = Clock::now();
+        game = StartWaitingChange(lifecycle, changed);
         {
             const OverlayLifecycle::Message nested(lifecycle);
             Check(!nested.Locked(), "a nested message took the lock again");
         }
-        Check(Clock::now() - start < std::chrono::milliseconds(50), "a nested message waited for the change");
         Check(!changed, "the context was replaced under a message");
     }
     game.join();
