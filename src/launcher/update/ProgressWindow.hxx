@@ -43,8 +43,8 @@ inline InstallProgressView ViewInstallProgress(const std::vector<std::wstring>& 
 // with the whole install's percentage. The installer reports from any thread
 // (Report); the window's own thread shows the latest report ten times a
 // second, so the window never stops moving and is never flooded. The worker
-// owns the windows; the installer receives the bar only after readiness and
-// keeps the worker alive until closing.
+// thread owns the windows; the constructor waits for them to be ready, and
+// closing joins the worker before the owner goes.
 class ProgressWindow {
 public:
     static constexpr int Range=1000;
@@ -153,8 +153,8 @@ private:
         const DWORD label=SS_NOPREFIX|SS_ENDELLIPSIS;
         // The headline wraps to a second line in a longer language.
         const bool made=make(Part::Headline,L"STATIC",options_.headline.c_str(),SS_LEFT|SS_NOPREFIX,16,12,408,40) &&
-            make(Part::Step,L"STATIC",L"",SS_LEFT|label,16,60,288,20) &&
-            make(Part::Count,L"STATIC",L"",SS_RIGHT|label,304,60,120,20) &&
+            make(Part::Step,L"STATIC",L"",SS_LEFT|label,16,60,318,20) &&
+            make(Part::Count,L"STATIC",L"",SS_RIGHT|label,334,60,90,20) &&
             make(Part::Bar,PROGRESS_CLASSW,nullptr,PBS_SMOOTH,16,86,356,22) &&
             make(Part::Percent,L"STATIC",L"0%",SS_RIGHT|SS_CENTERIMAGE|label,376,86,48,22);
         if(!made) { DestroyWindow(frame_); frame_=nullptr; return false; }

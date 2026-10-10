@@ -513,15 +513,16 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(sf4e::launcher::InstallPackage(older,install,error) && Read(install/L"Launcher.exe")=="older" && !fs::exists(install/L"docs"));
     CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
     // Held only for a moment, as by a helper still ending after the launcher,
-    // a file to replace and one to remove are tried again and the update goes
-    // through.
+    // a file to remove and then one to replace are tried again and the update
+    // goes through. The second is held past the first's wait, so the
+    // replacement waits too.
     {
         sf4e::launcher::testing::InUseWaitMilliseconds=5000;
         std::vector<HANDLE> briefly;
-        for(const auto* held:{L"Launcher.exe",L"docs\\TRAINING_LAB.md"})
+        for(const auto* held:{L"docs\\TRAINING_LAB.md",L"Launcher.exe"})
             briefly.push_back(CreateFileW((install/held).c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr));
         for(const auto handle:briefly) CHECK(handle!=INVALID_HANDLE_VALUE);
-        std::thread release([&]{ Sleep(300); for(const auto handle:briefly) CloseHandle(handle); });
+        std::thread release([&]{ for(const auto handle:briefly) { Sleep(500); CloseHandle(handle); } });
         const bool installed=sf4e::launcher::InstallPackage(older,install,error);
         release.join();
         sf4e::launcher::testing::InUseWaitMilliseconds=0;
