@@ -831,6 +831,9 @@ msgstr "Miernik klatek w meczach"
 msgid "settings.match_frame_meter_detail"
 msgstr "Pokazuje miernik klatek nad meczami online, w których grasz lub które oglądasz. Widzisz go tylko ty. Może być opóźniony o kilka klatek względem walki."
 
+msgid "settings.match_frame_meter_private"
+msgstr "Tylko w pokojach prywatnych."
+
 msgid "room.training.detail"
 msgstr "Ćwicz w trybie treningowym podczas oczekiwania. Ember przywoła cię, gdy ktoś usiądzie naprzeciwko."
 

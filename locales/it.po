@@ -831,6 +831,9 @@ msgstr "Misuratore di frame negli incontri"
 msgid "settings.match_frame_meter_detail"
 msgstr "Mostra l'indicatore dei frame sulle partite online che giochi o segui. Lo vedi solo tu. Può essere indietro di qualche frame rispetto al combattimento."
 
+msgid "settings.match_frame_meter_private"
+msgstr "Solo nelle sale private."
+
 msgid "room.training.detail"
 msgstr "Allenati mentre aspetti. Ember ti richiama quando qualcuno si siede di fronte a te."
 

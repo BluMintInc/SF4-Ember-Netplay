@@ -38,6 +38,21 @@ void TrainingSettingsAndHome() {
  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");
  SetMenuEntriesProbe({});h.Choose("offline");
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
+ // Private, then public, then private again, with the meter saved On: the choice survives the public room,
+ // entering it saves nothing, and the row says why it is not offered only there.
+ h.view.preferences.matchFrameMeter=true;
+ const auto saves=[&]{return std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});};
+ const auto savedBefore=saves();
+ for(const bool publicRoom:{false,true,false}){
+  JoinedRoom(h,9);h.view.room.serverOwned=publicRoom;h.view.canEditPreferences=false;
+  std::vector<MenuEntry> shown;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){shown=entries;});
+  h.Frame();h.Screen("training-replays");
+  Check(!shown.empty()&&shown[0].id=="match-frame-meter"&&!shown[0].enabled,"Frame meter row changed in a room");
+  Check(shown[0].value==loc::T("common.on")&&h.view.preferences.matchFrameMeter,"A public room lost the saved frame meter choice");
+  Check(shown[0].detail==loc::T(publicRoom?"settings.match_frame_meter_private":"settings.match_frame_meter_detail"),"Frame meter detail ignores the room kind");
+  Check(saves()==savedBefore,"Entering a room saved preferences");
+ }
+ SetMenuEntriesProbe({});
 }
 // Training from inside a room: the row sends no room command, and a player
 // called back from Training lands on their table, readied for them only once
