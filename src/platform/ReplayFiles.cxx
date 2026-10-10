@@ -143,24 +143,30 @@ ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 // Where this process copies the game's replays to (ReplayArchivePass.hxx).
 // ArchiveSaves and BackUp are the only copiers, under one lock, so a pass and
 // an import's backup of the slot it replaces never decide on a slot together.
+// The outbox's safety limit: a thousand replays, about 50 MB, far past what
+// a session leaves when the archive cannot be written.
+constexpr std::size_t kOutboxLimit = 1000;
 replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cache; return cache; }
-replayfiles::Unpublished& Unpublished() { static replayfiles::Unpublished replays; return replays; }
-replayfiles::ArchiveTarget Target(const fs::path& archive) { return {archive, Index().Held(), Unpublished(), SlotFiles(), PublishFile}; }
+replayfiles::ArchiveTarget Target(const Folders& folders) {
+	return {folders.archive, folders.outbox, kOutboxLimit, Index().Held(), SlotFiles(), PublishFile};
+}
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 
-replayfiles::ArchivePass ArchiveSaves(const fs::path& archive, const fs::path& saves) {
+replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const fs::path& saves) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	const auto pass = replayfiles::CopySlots(Target(archive), saves, kFirstMatchSlot, kLastMatchSlot);
+	const auto pass = replayfiles::CopySlots(Target(folders), saves, kFirstMatchSlot, kLastMatchSlot);
 	if (pass.copied) spdlog::info(L"Replays: archived {} ({} before the game's index listed them) from {}", pass.copied, pass.fromFile, saves.c_str());
-	if (pass.failed) spdlog::warn(L"Replays: {} replays of {} could not be safely archived yet; {} are held to try again", pass.failed, saves.c_str(), Unpublished().size());
+	if (pass.waiting) spdlog::warn(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
+	if (pass.failed) spdlog::warn(L"Replays: {} replays of {} could not be archived or kept in the outbox yet", pass.failed, saves.c_str());
+	if (pass.full) spdlog::error(L"Replays: the outbox {} holds {} replays and takes no more; new replays are archived straight away or left in the game's slots", folders.outbox.c_str(), kOutboxLimit);
 	if (pass.refused) spdlog::warn(L"Replays: the game's record of {} replays from {} was not kept: every name for it holds another file", pass.refused, saves.c_str());
 	return pass;
 }
 
-bool BackUp(const fs::path& archive, const fs::path& saves, int slot, const slots::Bytes& list, const slots::Bytes& swan,
+bool BackUp(const Folders& folders, const fs::path& saves, int slot, const slots::Bytes& list, const slots::Bytes& swan,
 	const slots::Bytes& body, replayfiles::BackupEvidence& evidence) {
 	std::lock_guard<std::mutex> lock(CopyLock());
-	return replayfiles::EnsureBackup(Target(archive), saves, slot, list, swan, body, evidence);
+	return replayfiles::EnsureBackup(Target(folders), saves, slot, list, swan, body, evidence);
 }
 
 // Pre-encode while no save has been changed. If recovery fails, persist this
@@ -190,11 +196,13 @@ Folders FindFolders() {
 	Folders folders;
 	wchar_t steamPath[1024] = { 0 };
 	DWORD steamPathBytes = sizeof(steamPath);
-	PWSTR appData = NULL;
+	PWSTR appData = NULL, localAppData = NULL;
 	if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS ||
 		SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) != S_OK) return folders;
 	folders.archive = fs::path(appData) / L"sf4e" / L"replays";
 	CoTaskMemFree(appData);
+	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
+	CoTaskMemFree(localAppData);
 	// The account signed in to the running Steam client, which is the one a
 	// running game reads and writes as.
 	DWORD active = 0, activeBytes = sizeof(active);
@@ -215,7 +223,7 @@ int Archive() {
 		if (folders.archive.empty()) return -1;
 		Index().Refresh(folders.archive);
 		int copied = 0;
-		for (const fs::path& saves : folders.saves) copied += ArchiveSaves(folders.archive, saves).copied;
+		for (const fs::path& saves : folders.saves) copied += ArchiveSaves(folders, saves).copied;
 		return copied;
 	}
 	catch (const std::exception& e) {
@@ -314,7 +322,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		const replayfiles::SlotFile held = replayfiles::ReadSlotFile(SlotFiles(), saves / std::to_wstring(slot));
 
   slots::ReplayHeaderInfo header;
-  if (slots::ReadReplayHeader(held.replay, header) && !BackUp(folders.archive, saves, slot, list, swan, held.replay, transaction.backup)) {
+  if (slots::ReadReplayHeader(held.replay, header) && !BackUp(folders, saves, slot, list, swan, held.replay, transaction.backup)) {
    spdlog::warn("Replays: slot {} could not be backed up and verified; it is not replaced", slot);
    return ImportResult::ArchiveFailed;
   }
@@ -404,11 +412,12 @@ replayfiles::ArchivePass ArchiveActiveAccount() {
   spdlog::warn("Replays: the save folder cannot be watched; replays are archived at each match start and for two minutes after each match end");
  }
  if (!indexed) { Index().Refresh(folders.archive); indexed = true; }
- return ArchiveSaves(folders.archive, folders.active);
+ return ArchiveSaves(folders, folders.active);
 }
 // Passes a second apart, then two, four and so on up to thirty: for two
 // minutes after a match ends, which covers the game's save after the battle
-// closes and an index save after it, and eight times after a retry.
+// closes and an index save after it, and eight times after a retry. Every
+// thirty seconds while the outbox holds replays.
 replayfiles::ArchiveWorker& Archiver() {
  static auto* const worker = [] {
   auto* started = new replayfiles::ArchiveWorker([] {
@@ -419,7 +428,7 @@ replayfiles::ArchiveWorker& Archiver() {
     failed.retry = true;
     return failed;
    }
-  }, {std::chrono::seconds(1), std::chrono::seconds(30), 8, std::chrono::minutes(2)});
+  }, {std::chrono::seconds(1), std::chrono::seconds(30), 8, std::chrono::minutes(2), std::chrono::seconds(30)});
   archiveWorker.store(started); return started;
  }();
  return *worker;

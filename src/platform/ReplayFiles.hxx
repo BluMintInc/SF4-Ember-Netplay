@@ -30,10 +30,12 @@ constexpr int kFirstMatchSlot = 280, kLastMatchSlot = replayslots::kSlots - 1;
 // Both empty when Windows has no Steam path or settings folder for this user.
 // active is the one of saves that belongs to the account signed in to the
 // running Steam client (its ActiveUser), empty when Steam is not running or
-// that account has no saves here.
+// that account has no saves here. outbox holds replays on their way into the
+// archive (%LOCALAPPDATA%, so a failing archive folder does not stop it),
+// empty when Windows has no local settings folder.
 struct Folders {
 	std::vector<std::filesystem::path> saves;
-	std::filesystem::path archive, active;
+	std::filesystem::path archive, active, outbox;
 };
 Folders FindFolders();
 
@@ -42,12 +44,15 @@ Folders FindFolders();
 // replay when one of its files is that replay, whatever its save time: a
 // replay put back into the game is saved there under a new time. Sidecar
 // copies the signed-in account's replays as the game saves them: each match
-// start and end and each change to the save folder asks for a pass, and passes
-// go on for two minutes after a match ends. A replay the game's index does
-// not list yet is archived at once with a record made from its header, and
-// the game's record is kept beside it if the index catches up. This is the
-// launcher's sweep before and after a game run, for every account. Returns
-// how many were copied, or -1 when there is nowhere to copy from or to.
+// start and end and each change to the save folder asks for a pass, passes go
+// on for two minutes after a match ends, and every thirty seconds while the
+// outbox holds replays. A replay goes through the outbox, which it leaves
+// once the archive holds it. One the game's index does not list yet is
+// archived with a record made from its header, and the game's record is kept
+// beside it if the index catches up. This is the launcher's sweep before and
+// after a game run, for every account, which also empties an outbox a closed
+// game left. Returns how many were copied, or -1 when there is nowhere to copy
+// from or to.
 int Archive();
 
 // Preparation reads slots/indexes, verifies the backup and encodes recovery on
