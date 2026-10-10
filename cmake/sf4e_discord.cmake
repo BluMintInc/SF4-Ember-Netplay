@@ -15,23 +15,13 @@ if(SF4E_BUILD_DISCORD)
     if(NOT discord_archive_hash STREQUAL expected_discord_hash)
         message(FATAL_ERROR "Discord SDK archive SHA-256 does not match the pin")
     endif()
-    # Build exclusively from the verified vendor archive. Unpacking it takes
-    # half a minute, so a configure unpacks it again only when the verified
-    # hash differs from the one recorded after the last complete unpack.
+    # Build exclusively from the verified vendor archive. Unpacking it adds 6 s
+    # to a configure, more on a busy machine, so a whole earlier unpack is kept.
+    include("${CMAKE_SOURCE_DIR}/cmake/sf4e_verified_unpack.cmake")
+    sf4e_unpack_verified("${SF4E_DISCORD_SDK_ARCHIVE}" "${discord_archive_hash}" "${CMAKE_BINARY_DIR}/discord-sdk"
+        discord_social_sdk/License-Notices.txt discord_social_sdk/include/discordpp.h
+        discord_social_sdk/lib/release/discord_partner_sdk.lib discord_social_sdk/bin/release/discord_partner_sdk.dll)
     set(SF4E_DISCORD_SDK_ROOT "${CMAKE_BINARY_DIR}/discord-sdk/discord_social_sdk")
-    set(discord_unpacked "${CMAKE_BINARY_DIR}/discord-sdk-unpacked.sha256")
-    set(discord_unpacked_hash "")
-    if(EXISTS "${discord_unpacked}")
-        file(READ "${discord_unpacked}" discord_unpacked_hash)
-    endif()
-    if(NOT discord_unpacked_hash STREQUAL discord_archive_hash)
-        file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/discord-sdk")
-        file(ARCHIVE_EXTRACT INPUT "${SF4E_DISCORD_SDK_ARCHIVE}" DESTINATION "${CMAKE_BINARY_DIR}/discord-sdk")
-        file(WRITE "${discord_unpacked}" "${discord_archive_hash}")
-    endif()
-    if(NOT EXISTS "${SF4E_DISCORD_SDK_ROOT}/License-Notices.txt")
-        message(FATAL_ERROR "The pinned SDK is missing its redistribution notice")
-    endif()
     find_path(SF4E_JSON_INCLUDE nlohmann/json.hpp REQUIRED)
     include(ExternalProject)
     string(REGEX REPLACE "/VC/.*$" "" discord_vs_instance "${CMAKE_CXX_COMPILER}")

@@ -46,6 +46,10 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME AfterimageMemento SOURCES "src/tests/afterimage_memento_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME MementoGuards SOURCES "src/tests/memento_guards_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME PacingController SOURCES "src/tests/pacing_controller_test.cxx" STD 11 TIMEOUT 15)
+    # The cache the Discord SDK is unpacked into (cmake/sf4e_verified_unpack.cmake).
+    add_test(NAME VerifiedUnpack COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        "-DWORK=${CMAKE_BINARY_DIR}/verified-unpack-test" -P "${CMAKE_SOURCE_DIR}/src/tests/verified_unpack_test.cmake")
+    set_tests_properties(VerifiedUnpack PROPERTIES TIMEOUT 30)
     # The public room soak's verdict (src/tests/soak), on made-up rooms.
     sf4e_add_unit_test(NAME SoakVerdict SOURCES "src/tests/soak/soak_verdict_test.cxx" "src/tests/soak/soak_verdict.cxx" STD 17 TIMEOUT 15)
     sf4e_add_unit_test(NAME InputDelay SOURCES "src/tests/input_delay_test.cxx" STD 11 TIMEOUT 15)
