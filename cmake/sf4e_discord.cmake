@@ -15,9 +15,20 @@ if(SF4E_BUILD_DISCORD)
     if(NOT discord_archive_hash STREQUAL expected_discord_hash)
         message(FATAL_ERROR "Discord SDK archive SHA-256 does not match the pin")
     endif()
-    # Build exclusively from the verified vendor archive.
+    # Build exclusively from the verified vendor archive. Unpacking it takes
+    # half a minute, so a configure unpacks it again only when the verified
+    # hash differs from the one recorded after the last complete unpack.
     set(SF4E_DISCORD_SDK_ROOT "${CMAKE_BINARY_DIR}/discord-sdk/discord_social_sdk")
-    file(ARCHIVE_EXTRACT INPUT "${SF4E_DISCORD_SDK_ARCHIVE}" DESTINATION "${CMAKE_BINARY_DIR}/discord-sdk")
+    set(discord_unpacked "${CMAKE_BINARY_DIR}/discord-sdk-unpacked.sha256")
+    set(discord_unpacked_hash "")
+    if(EXISTS "${discord_unpacked}")
+        file(READ "${discord_unpacked}" discord_unpacked_hash)
+    endif()
+    if(NOT discord_unpacked_hash STREQUAL discord_archive_hash)
+        file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/discord-sdk")
+        file(ARCHIVE_EXTRACT INPUT "${SF4E_DISCORD_SDK_ARCHIVE}" DESTINATION "${CMAKE_BINARY_DIR}/discord-sdk")
+        file(WRITE "${discord_unpacked}" "${discord_archive_hash}")
+    endif()
     if(NOT EXISTS "${SF4E_DISCORD_SDK_ROOT}/License-Notices.txt")
         message(FATAL_ERROR "The pinned SDK is missing its redistribution notice")
     endif()
