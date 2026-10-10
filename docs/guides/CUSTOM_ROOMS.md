@@ -47,8 +47,9 @@ its recommendation held between one and four frames, or with two frames if it
 produced none. A rematch, or a change of fighter, keeps the measurement;
 spectators and the queue are never checked or held. **Check
 connection** runs the same five-second measurement by hand. Left and Right
-choose a delay of your own instead, from one to ten, with Auto one step below
-one. A chosen delay is saved, Select applies a valid recommendation to it,
+choose a delay of your own instead, from zero to ten, with Auto one step below
+zero. Zero adds no delay and needs a steady, low ping; Auto and the
+recommendation never choose it. A chosen delay is saved, Select applies a valid recommendation to it,
 and you can Ready without a usable probe. Ready locks your own delay for that
 game; Unready unlocks it. A route change or a new
 recommendation never changes delay during a fight. The table's rules follow on
@@ -64,8 +65,8 @@ choice. Each fighter's own delay is kept for the next game.
 
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It follows the median round-trip time, the ping the check
-shows: up to 80 ms is one frame, 81 to 150 ms two, 151 to 220 ms three, and
-221 ms and up four, with one more frame for each further 70 ms, up to ten.
+shows: up to 100 ms is one frame, 101 to 170 ms two, 171 to 240 ms three, and
+241 ms and up four, with one more frame for each further 70 ms, up to ten.
 If the 95th percentile round trip lands more than one step worse than the
 median's, the recommendation rises to one step below it. These are tuning
 assumptions, not a guarantee about frame timing or network quality.

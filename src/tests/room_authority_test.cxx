@@ -831,9 +831,9 @@ static void TestReadyDelaysShareTheHigherValue() {
 	CHECK(MatchDelay(authority.SnapshotView().tables[0]) == 4);
 }
 
-// An older client can still ready at 0, which crashes the match: the room
-// records 1, and a 0 already in a table (a checkpoint) still plays at 1.
-static void TestReadyDelayNeverZero() {
+// 0 frames is a delay a fighter can choose: Ready at 0 is recorded as 0, the
+// match plays at 0 when both chose it, and a checkpoint keeps it.
+static void TestReadyDelayZero() {
 	RoomAuthority authority("Delay", 4, 1);
 	Join(authority, 0, true);
 	const MemberId p1 = Join(authority, 1);
@@ -845,11 +845,12 @@ static void TestReadyDelayNeverZero() {
 		CHECK(authority.Apply(member, action).accepted);
 	}
 	const auto& table = authority.SnapshotView().tables[0];
-	CHECK(table.inputDelay[0] == 1 && table.inputDelay[1] == 1 && MatchDelay(table) == 1);
-	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 1);
-	Table stored;
-	stored.inputDelay[0] = stored.inputDelay[1] = 0;
-	CHECK(MatchDelay(stored) == 1 && MatchDelay(0, 0) == 1 && MatchDelay(0, 3) == 3);
+	CHECK(table.inputDelay[0] == 0 && table.inputDelay[1] == 0 && MatchDelay(table) == 0);
+	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 0);
+	RoomAuthority restored("Delay", 4, 1);
+	CHECK(restored.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	CHECK(MatchDelay(restored.SnapshotView().tables[0]) == 0 && FindMember(restored.SnapshotView(), p2)->frozenDelay == 0);
+	CHECK(MatchDelay(0, 0) == 0 && MatchDelay(0, 3) == 3 && MatchDelay(3, 0) == 3);
 }
 
 // Auto's connection check names the seated pair at the table revision this
@@ -880,7 +881,7 @@ static void TestProbePairCommitted() {
 int main() {
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
-    TestReadyDelayNeverZero();
+    TestReadyDelayZero();
     TestProbePairCommitted();
     TestFighterChangeWithdrawsOpponentReady();
     TestIdleTimeIsStampedPerSnapshot();

@@ -207,8 +207,8 @@ void StartHelper() {
     if (store.LoadLauncher(saved, settingsError)) {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
-        // Auto is on unless a saved false turned it off, so a profile saved
-        // before Auto existed gets it (InputDelayPreference.hxx).
+        // The delay and Auto load from settings here, never from the
+        // launcher's config copy of the delay (InputDelayPreference.hxx).
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             netplay::ReadBoolPreferences(saved, runtime->preferences);
@@ -280,12 +280,10 @@ void StartHelper() {
         if (length && length < std::size(text)) runtime->replayLinkAsked = platform::ResolveReplayFile(platform::WideToUtf8(std::wstring(text, length)));
         if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
     }
-	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
-	runtime->preferences.inputDelay = SavedInputDelay(runtime->preferences.inputDelay);
 	{
 		nlohmann::json saved;
 		std::string error;

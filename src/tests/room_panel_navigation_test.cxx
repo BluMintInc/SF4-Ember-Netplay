@@ -258,22 +258,23 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
-    // 0 frames is not offered: Left from 1 chooses Auto rather than 0, and an
-    // older 0 reads as 1 and steps as 1 does.
+    // 0 frames can be chosen: Left from 1 chooses 0, the row shows it and
+    // says what it needs, and Right from 0 steps back to 1.
+    view.selectedDelay = 1; frame(); press(MenuInput::Left);
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+        "Left from one frame did not choose 0 frames");
     view.selectedDelay = 0; frame();
-    Check(row("input-delay").value == "1 frame", "Input delay showed 0 frames");
+    Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::T("room.selected_delay.detail")) != std::string::npos,
+        "Input delay did not show 0 frames and what it needs");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 2,
-        "An older 0 did not step as 1 frame");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+        "Right from 0 frames did not choose one frame");
+    // Auto sits before 0 frames. With it on, the row shows its bounds and,
+    // once the opponent is measured, the delay it resolves to; Select no longer
+    // takes the recommendation, and Right returns to 0 frames.
     press(MenuInput::Left);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from an older 0 offered 0 frames");
-    // Auto sits before one frame. With it on, the row shows its bounds and,
-    // once the opponent is measured, the delay it resolves to; Select no longer
-    // takes the recommendation, and Right returns to one frame.
-    view.selectedDelay = 1; frame(); press(MenuInput::Left);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from one frame did not choose Auto");
+        "Left from 0 frames did not choose Auto");
     view.preferences.autoInputDelay = true; view.selectedDelay = 2; frame();
     Check(row("input-delay").value == "Auto", "Auto showed a delay before measuring the opponent");
     view.autoDelayMeasured = true; view.selectedDelay = 3; frame();
@@ -282,8 +283,8 @@ int main() try {
         row("input-delay").detail.find("Match: At least 3 frames") != std::string::npos,
         "Auto did not show its delay and bounds, or still offered the recommendation");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
-        "Right from Auto did not choose one frame");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+        "Right from Auto did not choose 0 frames");
     view.preferences.autoInputDelay = false; view.autoDelayMeasured = false; view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards
