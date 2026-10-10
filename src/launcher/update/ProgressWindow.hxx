@@ -2,11 +2,13 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <cstdint>
+#include <cwchar>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-#include "PackageInstaller.hxx"
+#include "UpdaterArguments.hxx"
 
 namespace sf4e { namespace launcher {
 // A count as the player's Windows writes whole numbers, "4,756" or "4 756".
@@ -19,6 +21,28 @@ inline std::wstring GroupedCount(std::uint64_t value) {
     std::wstring text(grouped);
     const auto point=text.rfind(decimal);
     return point==std::wstring::npos ? text : text.substr(0,point);
+}
+// A notice's text with its {0} filled in.
+inline std::wstring FillNotice(std::wstring text, const std::wstring& value) {
+    const auto at=text.find(L"{0}");
+    return at==std::wstring::npos ? text : text.replace(at,3,value);
+}
+// Time taken so far as a clock shows it: "0:42", "12:05", "1:02:09".
+inline std::wstring ElapsedText(std::uint64_t milliseconds) {
+    const unsigned long long seconds=milliseconds/1000, minutes=seconds/60, hours=minutes/60;
+    wchar_t text[32]={};
+    if(hours) swprintf_s(text,L"%llu:%02llu:%02llu",hours,minutes%60,seconds%60);
+    else swprintf_s(text,L"%llu:%02llu",minutes,seconds%60);
+    return text;
+}
+// The notice for what the installer is doing while no count moves; none once
+// a wait for a file ends.
+inline std::optional<UpdaterNotice> NoticeFor(InstallActivity activity) {
+    switch(activity) {
+    case InstallActivity::WaitingForFile: return UpdaterNotice::WaitingForFile;
+    case InstallActivity::Restoring: return UpdaterNotice::Restoring;
+    default: return std::nullopt;
+    }
 }
 // What the window shows of the installer's report: the step's name, how many
 // of its files are done ("412 / 4,756", nothing while its total is unknown),
@@ -39,12 +63,14 @@ inline InstallProgressView ViewInstallProgress(const std::vector<std::wstring>& 
 }
 
 // The Updater's window: what is happening and that Ember opens again (the
-// headline), then the step the install is at with its count, and the bar
-// with the whole install's percentage. The installer reports from any thread
-// (Report); the window's own thread shows the latest report ten times a
-// second, so the window never stops moving and is never flooded. The worker
-// thread owns the windows; the constructor waits for them to be ready, and
-// closing joins the worker before the owner goes.
+// headline), then the step the install is at with its count, the bar with the
+// whole install's percentage, and a line with what it waits for, if anything,
+// beside the time taken so far. The installer reports from any thread
+// (Report, Note); the window's own thread shows the latest ten times a second
+// and the clock moves every second, so the window never looks stopped, even
+// while a count does not move, and is never flooded. The worker thread owns
+// the windows; the constructor waits for them to be ready, and closing joins
+// the worker before the owner goes.
 class ProgressWindow {
 public:
     static constexpr int Range=1000;
@@ -56,16 +82,21 @@ public:
         bool visible=true;
         // In the player's language when the launcher passed it.
         std::wstring headline;
-        // The steps' names in InstallerSteps' order, in the player's language;
-        // InstallerSteps' English names when this is not one per step.
-        std::vector<std::wstring> stages;
+        // In the player's language: the steps' names in InstallerSteps' order,
+        // and the notices in UpdaterNotices' order. Their English texts when
+        // either does not hold one per entry.
+        std::vector<std::wstring> stages, notices;
     };
-    enum class Part { Headline, Step, Count, Bar, Percent };
-    static constexpr int Parts=5;
+    enum class Part { Headline, Step, Count, Bar, Percent, Note, Elapsed };
+    static constexpr int Parts=7;
     ProgressWindow(const wchar_t* title, Options options) : title_(title), options_(std::move(options)) {
         if(options_.stages.size()!=InstallerStepCount) {
             options_.stages.clear();
             for(const auto& step:InstallerSteps) options_.stages.push_back(step.english);
+        }
+        if(options_.notices.size()!=UpdaterNoticeCount) {
+            options_.notices.clear();
+            for(const auto& notice:UpdaterNotices) options_.notices.push_back(notice.english);
         }
         ready_=CreateEventW(nullptr,TRUE,FALSE,nullptr);
         stop_=CreateEventW(nullptr,TRUE,FALSE,nullptr);
@@ -82,6 +113,12 @@ public:
     void Report(UpdateStage stage, std::uint64_t done, std::uint64_t total) {
         std::lock_guard<std::mutex> lock(mutex_);
         report_={stage,done,total,true};
+    }
+    // What the install waits for now, with the {0} of its text (a file's
+    // name); none clears the line. Any thread may call it.
+    void Note(std::optional<UpdaterNotice> notice, std::wstring value={}) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        note_=notice ? FillNotice(options_.notices[static_cast<std::size_t>(*notice)],value) : std::wstring();
     }
     void Close() noexcept {
         if(thread_) {
@@ -110,6 +147,7 @@ private:
         if(message==WM_CTLCOLORSTATIC) return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
         return DefWindowProcW(window,message,w,l);
     }
+    HWND At(Part part) const { return parts_[static_cast<int>(part)]; }
     // Sets a control's text only when it changed, so nothing flickers.
     static void Show(HWND control, const std::wstring& text) {
         wchar_t shown[256]={};
@@ -118,14 +156,17 @@ private:
     }
     void Refresh() {
         Latest latest;
-        { std::lock_guard<std::mutex> lock(mutex_); latest=report_; }
+        std::wstring note;
+        { std::lock_guard<std::mutex> lock(mutex_); latest=report_; note=note_; }
+        Show(At(Part::Elapsed),FillNotice(options_.notices[static_cast<std::size_t>(UpdaterNotice::Elapsed)],ElapsedText(GetTickCount64()-started_)));
+        Show(At(Part::Note),note);
         if(!latest.any) return;
         const auto view=ViewInstallProgress(options_.stages,latest.stage,latest.done,latest.total,Range);
         if(view.step.empty()) return;
-        Show(parts_[static_cast<int>(Part::Step)],view.step);
-        Show(parts_[static_cast<int>(Part::Count)],view.count);
-        Show(parts_[static_cast<int>(Part::Percent)],view.percent);
-        SendMessageW(parts_[static_cast<int>(Part::Bar)],PBM_SETPOS,view.position,0);
+        Show(At(Part::Step),view.step);
+        Show(At(Part::Count),view.count);
+        Show(At(Part::Percent),view.percent);
+        SendMessageW(At(Part::Bar),PBM_SETPOS,view.position,0);
     }
     // Laid out at 96 dpi and grown with the system's, like the font.
     bool CreateWindows() {
@@ -135,7 +176,7 @@ private:
         if(!RegisterClassW(&type) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) return false;
         const int dpi=static_cast<int>(GetDpiForSystem());
         const auto px=[&](int value){ return MulDiv(value,dpi>0?dpi:96,96); };
-        RECT outer{0,0,px(440),px(124)};
+        RECT outer{0,0,px(440),px(148)};
         AdjustWindowRectEx(&outer,WS_POPUP|WS_CAPTION,FALSE,0);
         const int width=outer.right-outer.left, height=outer.bottom-outer.top;
         frame_=CreateWindowExW(0,type.lpszClassName,title_.c_str(),WS_POPUP|WS_CAPTION,
@@ -156,10 +197,13 @@ private:
             make(Part::Step,L"STATIC",L"",SS_LEFT|label,16,60,318,20) &&
             make(Part::Count,L"STATIC",L"",SS_RIGHT|label,334,60,90,20) &&
             make(Part::Bar,PROGRESS_CLASSW,nullptr,PBS_SMOOTH,16,86,356,22) &&
-            make(Part::Percent,L"STATIC",L"0%",SS_RIGHT|SS_CENTERIMAGE|label,376,86,48,22);
+            make(Part::Percent,L"STATIC",L"0%",SS_RIGHT|SS_CENTERIMAGE|label,376,86,48,22) &&
+            make(Part::Note,L"STATIC",L"",SS_LEFT|label,16,118,300,20) &&
+            make(Part::Elapsed,L"STATIC",L"",SS_RIGHT|label,316,118,108,20);
         if(!made) { DestroyWindow(frame_); frame_=nullptr; return false; }
-        SendMessageW(parts_[static_cast<int>(Part::Bar)],PBM_SETRANGE32,0,Range);
+        SendMessageW(At(Part::Bar),PBM_SETRANGE32,0,Range);
         SetTimer(frame_,RefreshTimer,RefreshMilliseconds,nullptr);
+        Refresh();
         return true;
     }
     DWORD Run() noexcept {
@@ -195,6 +239,7 @@ private:
     }
     std::wstring title_;
     Options options_;
+    const ULONGLONG started_=GetTickCount64();
     HANDLE ready_=nullptr, stop_=nullptr, thread_=nullptr;
     bool published_=false, open_=false;
     HWND frame_=nullptr;
@@ -202,5 +247,6 @@ private:
     HFONT font_=nullptr;
     std::mutex mutex_;
     Latest report_;
+    std::wstring note_;
 };
 } }

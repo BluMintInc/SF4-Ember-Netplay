@@ -2198,6 +2198,18 @@ msgstr "Bestanden vervangen..."
 msgid "update.stage.confirming"
 msgstr "Geïnstalleerde bestanden controleren..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Wachten tot SF4 Ember Netplay is gesloten..."
+
+msgid "update.notice.waiting_file"
+msgstr "Wachten tot een ander programma {0} vrijgeeft..."
+
+msgid "update.notice.restoring"
+msgstr "Vorige bestanden terugzetten..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} verstreken"
+
 msgid "room.member_left"
 msgstr "Lid vertrokken"
 

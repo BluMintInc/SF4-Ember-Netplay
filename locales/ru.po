@@ -2199,6 +2199,18 @@ msgstr "Замена файлов..."
 msgid "update.stage.confirming"
 msgstr "Проверка установленных файлов..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Ожидание закрытия SF4 Ember Netplay..."
+
+msgid "update.notice.waiting_file"
+msgstr "Ожидание, пока другая программа освободит {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Восстановление прежних файлов..."
+
+msgid "update.notice.elapsed"
+msgstr "Прошло {0}"
+
 msgid "room.member_left"
 msgstr "Участник вышел"
 

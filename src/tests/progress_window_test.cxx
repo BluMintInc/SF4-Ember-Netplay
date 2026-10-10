@@ -9,6 +9,8 @@ using sf4e::launcher::InstallerStepCount;
 using sf4e::launcher::InstallerSteps;
 using sf4e::launcher::ProgressWindow;
 using sf4e::launcher::UpdateStage;
+using sf4e::launcher::UpdaterNotice;
+using sf4e::launcher::InstallActivity;
 
 static HANDLE progressThread=nullptr;
 static HANDLE WINAPI TrackProgressThread(LPSECURITY_ATTRIBUTES attributes, SIZE_T stack, LPTHREAD_START_ROUTINE run, LPVOID parameter, DWORD flags, LPDWORD id) {
@@ -109,15 +111,55 @@ static void TestReports() {
     CHECK(Shows(part(ProgressWindow::Part::Step),L"Translated step 3") && Text(part(ProgressWindow::Part::Count)).empty());
 }
 
-// Without one name per step, as from a launcher before -Stages, the steps
-// have InstallerSteps' English names.
+// Without one name per step or one text per notice, as from a launcher before
+// -Stages or -Notices, the window shows their English texts.
 static void TestEnglishNames() {
     ProgressWindow::Options options;
     options.visible=false;
     options.stages={L"Only one"};
+    options.notices={L"Only one"};
     ProgressWindow window(L"SF4 Ember Netplay",options);
     window.Report(UpdateStage::BackingUp,1,19);
     CHECK(Shows(window.Control(ProgressWindow::Part::Step),InstallerSteps[2].english));
+    window.Note(UpdaterNotice::Restoring);
+    CHECK(Shows(window.Control(ProgressWindow::Part::Note),sf4e::launcher::UpdaterNotices[2].english));
+}
+
+// The notices' texts and the clock, and the notice for each installer activity.
+static void TestNoticeText() {
+    CHECK(sf4e::launcher::FillNotice(L"Waiting for {0}...",L"sf4-net.exe")==L"Waiting for sf4-net.exe...");
+    CHECK(sf4e::launcher::FillNotice(L"No value",L"x")==L"No value");
+    CHECK(sf4e::launcher::ElapsedText(0)==L"0:00" && sf4e::launcher::ElapsedText(42999)==L"0:42");
+    CHECK(sf4e::launcher::ElapsedText(725000)==L"12:05" && sf4e::launcher::ElapsedText(3729000)==L"1:02:09");
+    CHECK(sf4e::launcher::NoticeFor(InstallActivity::WaitingForFile)==UpdaterNotice::WaitingForFile);
+    CHECK(sf4e::launcher::NoticeFor(InstallActivity::Restoring)==UpdaterNotice::Restoring);
+    CHECK(!sf4e::launcher::NoticeFor(InstallActivity::None));
+}
+
+// While a step's count does not move, as when a file is waited for, the
+// window still moves: the clock goes on, the wait is named with its file,
+// and the count and percentage stay where the work is.
+static void TestLiveness() {
+    ProgressWindow::Options options;
+    options.visible=false;
+    for(std::size_t i=0; i<sf4e::launcher::UpdaterNoticeCount; ++i) options.notices.push_back(L"Notice "+std::to_wstring(i)+L" {0}");
+    ProgressWindow window(L"SF4 Ember Netplay",options);
+    const auto part=[&](ProgressWindow::Part which){ return window.Control(which); };
+    // Before the first report, while the launcher closes.
+    window.Note(UpdaterNotice::WaitingForLauncher);
+    CHECK(Shows(part(ProgressWindow::Part::Note),L"Notice 0 "));
+    CHECK(Text(part(ProgressWindow::Part::Elapsed)).find(L"Notice 3 0:0")==0);
+    window.Note(std::nullopt);
+    window.Report(UpdateStage::Replacing,3,19);
+    window.Note(UpdaterNotice::WaitingForFile,L"sf4-net.exe");
+    CHECK(Shows(part(ProgressWindow::Part::Note),L"Notice 1 sf4-net.exe"));
+    const auto percent=Text(part(ProgressWindow::Part::Percent)), count=Text(part(ProgressWindow::Part::Count));
+    const auto clock=Text(part(ProgressWindow::Part::Elapsed));
+    bool ticked=false;
+    for(int i=0; i<250 && !ticked; ++i) { Sleep(10); ticked=Text(part(ProgressWindow::Part::Elapsed))!=clock; }
+    CHECK(ticked && Text(part(ProgressWindow::Part::Percent))==percent && Text(part(ProgressWindow::Part::Count))==count);
+    window.Note(std::nullopt);
+    CHECK(Shows(part(ProgressWindow::Part::Note),L""));
 }
 
 int main() {
@@ -125,5 +167,7 @@ int main() {
     TestLifetime();
     TestReports();
     TestEnglishNames();
+    TestNoticeText();
+    TestLiveness();
     return 0;
 }

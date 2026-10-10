@@ -2198,6 +2198,18 @@ msgstr "Sustituyendo archivos..."
 msgid "update.stage.confirming"
 msgstr "Comprobando los archivos instalados..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Esperando a que se cierre SF4 Ember Netplay..."
+
+msgid "update.notice.waiting_file"
+msgstr "Esperando a que otro programa libere {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Restaurando los archivos anteriores..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} transcurrido"
+
 msgid "room.member_left"
 msgstr "Ha salido"
 

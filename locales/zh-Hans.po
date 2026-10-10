@@ -2198,6 +2198,18 @@ msgstr "正在替换文件..."
 msgid "update.stage.confirming"
 msgstr "正在检查已安装的文件..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "正在等待 SF4 Ember Netplay 关闭..."
+
+msgid "update.notice.waiting_file"
+msgstr "正在等待其他程序释放 {0}..."
+
+msgid "update.notice.restoring"
+msgstr "正在恢复之前的文件..."
+
+msgid "update.notice.elapsed"
+msgstr "已用时 {0}"
+
 msgid "room.member_left"
 msgstr "成员已离开"
 

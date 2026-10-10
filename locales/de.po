@@ -2198,6 +2198,18 @@ msgstr "Dateien werden ersetzt..."
 msgid "update.stage.confirming"
 msgstr "Installierte Dateien werden geprüft..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "Warten, bis SF4 Ember Netplay geschlossen ist..."
+
+msgid "update.notice.waiting_file"
+msgstr "Warten, bis ein anderes Programm {0} freigibt..."
+
+msgid "update.notice.restoring"
+msgstr "Vorherige Dateien werden wiederhergestellt..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} vergangen"
+
 msgid "room.member_left"
 msgstr "Mitglied weg"
 

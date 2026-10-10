@@ -2198,6 +2198,18 @@ msgstr "ファイルを置き換え中..."
 msgid "update.stage.confirming"
 msgstr "インストールしたファイルを確認中..."
 
+msgid "update.notice.waiting_launcher"
+msgstr "SF4 Ember Netplay の終了を待っています..."
+
+msgid "update.notice.waiting_file"
+msgstr "別のプログラムが {0} を解放するのを待っています..."
+
+msgid "update.notice.restoring"
+msgstr "以前のファイルを復元中..."
+
+msgid "update.notice.elapsed"
+msgstr "経過時間 {0}"
+
 msgid "room.member_left"
 msgstr "メンバーが退出しました"
 

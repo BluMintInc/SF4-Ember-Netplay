@@ -807,21 +807,24 @@ namespace launcher {
 		AppendUpdateLog("package validation ok");
 
         if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
-		// The Updater's window text and its steps' names, in the player's
-		// language, passed whole with Windows' quoting (UpdaterArguments.hxx).
-		// An Updater.exe from before -Status or -Stages ignores them.
+		// The Updater's window text, its steps' names and its notices, in the
+		// player's language, passed whole with Windows' quoting
+		// (UpdaterArguments.hxx). An Updater.exe from before any of them
+		// ignores it.
 		UpdaterArguments arguments;
 		arguments.installDir = installDir; arguments.stagingDir = stagingDir;
 		arguments.waitPid = GetCurrentProcessId();
 		arguments.status = platform::Utf8ToWide(installingText);
 		for (const auto& step : InstallerSteps) arguments.stages.push_back(platform::Utf8ToWide(loc::T(step.nameKey)));
+		for (const auto& notice : UpdaterNotices) arguments.notices.push_back(platform::Utf8ToWide(loc::T(notice.key)));
 		std::wstring updaterParams;
 		if (!BuildUpdaterArguments(arguments, updaterParams)) {
 			AppendUpdateLog("the updater's command line would be too long");
 			result.error = loc::T("update.updater_start_failed"); return result;
 		}
 		std::wstring joined;
-		if (!JoinStageNames(arguments.stages, joined)) AppendUpdateLog("the install steps' names cannot be passed; the updater names them in English");
+		if (!JoinNames(arguments.stages, InstallerStepCount, joined) || !JoinNames(arguments.notices, UpdaterNoticeCount, joined))
+			AppendUpdateLog("the updater's texts cannot all be passed; it shows those in English");
         SpawnResult spawned = SpawnResult::Failed;
         if (!HandoffPreparedUpdate(cancel, [&] {
             spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams.c_str());

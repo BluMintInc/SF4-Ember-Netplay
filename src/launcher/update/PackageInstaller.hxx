@@ -55,6 +55,11 @@ inline int InstallerBarPosition(UpdateStage stage, std::uint64_t done, std::uint
 // How far a step is: bytes while downloading and verifying, files after. Each
 // step counts from zero to its own total; a total of 0 is not known.
 using Progress = std::function<void(UpdateStage stage, std::uint64_t done, std::uint64_t total)>;
+// What an install is doing while no count moves: waiting for a file another
+// process holds (heard with that file), or restoring the prior files after a
+// failure. None when a wait for a file ends.
+enum class InstallActivity { None, WaitingForFile, Restoring };
+using Activity = std::function<void(InstallActivity activity, const std::filesystem::path& file)>;
 // Every pass that takes a `cancel` stops soon after it is set. For a caller
 // that cannot cancel.
 inline const std::atomic<bool> NeverCancelled{false};
@@ -62,6 +67,9 @@ namespace testing {
 // For tests only; Ember never sets it. Hears each block the package passes'
 // worker threads hash: the file and the bytes of it hashed so far.
 extern std::function<void(const std::filesystem::path& file, std::uint64_t hashed)> HashedBlock;
+// For tests only. Hears each installed file just copied to the backup, before
+// the copy is checked against it.
+extern std::function<void(const std::filesystem::path& installed)> BackupCopied;
 // How long a file Windows reports in use is tried again before replacing or
 // removing it fails. Tests that hold a file open to make a step fail shorten it.
 extern unsigned InUseWaitMilliseconds;
@@ -70,8 +78,9 @@ extern unsigned InUseWaitMilliseconds;
 // every file the manifest names is present with that hash, nothing else is in
 // it, its inventory's required files are among them and none of its obsolete
 // ones, and every path is one this build's inventory knows, current or
-// obsolete, so an older package passes too. `progress` hears, as Preparing,
-// how many of the manifest's files are checked; a cancel fails it.
+// obsolete, so an older package passes too. `progress` hears, as Preparing
+// and from (0, total), how many of the manifest's files are checked; a
+// cancel fails it.
 bool ValidatePackageFolder(const std::filesystem::path& package, std::string& error,
     const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {});
 // Lowercase hex SHA-256 of a file, as MANIFEST.txt writes it. `progress`
@@ -85,13 +94,15 @@ std::string Sha256Hex(const std::filesystem::path& file, const std::atomic<bool>
 // MANIFEST.txt names, or the obsolete list, that the package lacks are
 // removed; each with a rollback copy and a journal entry. Anything else in
 // the folder is the player's and is never touched. Refuses reparse points in
-// either tree. `progress` hears each step on its own: Preparing (the
-// package's files checked), Comparing (the folder's copies), BackingUp,
-// Replacing and Confirming (the result checked). A file another process holds
-// is tried again for a few seconds before its step fails. A cancel ends it
-// like any other failure: once files have changed, the prior ones are restored.
+// either tree. `progress` hears each step on its own, from (0, total) before
+// its first file: Preparing (the package's files checked), Comparing (the
+// folder's copies), BackingUp, Replacing and Confirming (the result checked).
+// A file another process holds is tried again for a few seconds before its
+// step fails, and `activity` hears the wait. A cancel ends it like any other
+// failure, a wait included: once files have changed, the prior ones are
+// restored, which `activity` hears too and nothing interrupts.
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error,
-    const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {});
+    const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {}, const Activity& activity = {});
 // Observes an interrupted transaction's full target inventory before clearing
 // a finished update, restoring its operations or preserving a replaced folder.
 // An unreadable file keeps the journal for retry. A missing skipped file has
