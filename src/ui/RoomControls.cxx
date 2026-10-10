@@ -180,19 +180,36 @@ std::string HoldStatus(const ShellView& v, const room::Table& t) {
     const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
     return HoldingStart(v, t) ? loc::Tf("room.hold.waiting_you", seconds) : loc::Tf("room.hold.status", seconds);
 }
-std::string ReadyTimeoutText(const ShellView& v, const room::Table& t) {
-    if (v.room.closed || t.phase != room::TablePhase::Waiting || !t.p1 || !t.p2 ||
-        t.ready[0] == t.ready[1] || !t.readyRemainingMs || t.readyRemainingMs > 30000) return {};
-    const auto member = t.ready[0] ? t.p2 : t.p1;
+ReadyDeadline DescribeReadyDeadline(const ShellView& v, const room::Table& t) {
+    ReadyDeadline deadline;
+    if (v.room.closed || !t.p1 || !t.p2 || (t.phase != room::TablePhase::Idle && t.phase != room::TablePhase::Waiting)) return deadline;
+    if (t.phase == room::TablePhase::Waiting && t.ready[0] != t.ready[1] && t.readyRemainingMs && t.readyRemainingMs <= 30000) {
+        deadline.seat = t.ready[0] ? 1 : 0;
+        deadline.seconds = (t.readyRemainingMs + 999) / 1000;
+    }
+    const auto place = room::PlaceOf(v.room, v.room.localMember);
+    const auto window = static_cast<unsigned>((std::max)(v.trainingReadySeconds, 0));
+    if (window && place.kind == room::Place::Kind::Seat && place.table == static_cast<int>(t.id) && !t.ready[place.seat] &&
+        (!deadline.seconds || window < deadline.seconds)) {
+        deadline.seat = place.seat; deadline.seconds = window; deadline.training = true;
+    }
+    if (!deadline.seconds) return deadline;
+    const auto member = deadline.seat ? t.p2 : t.p1;
     const auto* fighter = room::FindMember(v.room, member);
-    const unsigned seconds = (t.readyRemainingMs + 999) / 1000;
-    return member == v.room.localMember ? loc::Tf("room.ready_timeout.you", seconds) :
-        loc::Tf("room.ready_timeout.other", seconds, fighter ? fighter->name : loc::T("room.player"));
+    deadline.text = deadline.training ? TrainingReadyText(static_cast<int>(deadline.seconds)) :
+        member == v.room.localMember ? loc::Tf("room.ready_timeout.you", deadline.seconds) :
+        loc::Tf("room.ready_timeout.other", deadline.seconds, fighter ? fighter->name : loc::T("room.player"));
+    return deadline;
 }
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
     TableBanner banner;
     banner.text = HoldText(v, t);
     if (!banner.text.empty()) return banner;
+    // The room's own Ready deadline comes before why a fighter is away: it
+    // takes the seat whatever the reason. The local player's Training window
+    // is theirs alone and shows on the Ready row and the status line.
+    const auto deadline = DescribeReadyDeadline(v, t);
+    if (deadline.seconds && !deadline.training) { banner.text = deadline.text; banner.seat = deadline.seat; return banner; }
     // A fighter waiting in Training is being called back to an opponent who
     // sat down (TrainingCall's rule): everyone at the table can see why the
     // game has not started. The trainee is not told about themselves.
@@ -205,8 +222,6 @@ TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
             return banner;
         }
     }
-    banner.text = ReadyTimeoutText(v, t);
-    if (!banner.text.empty()) { banner.seat = t.ready[0] ? 1 : 0; return banner; }
     const auto place = room::PlaceOf(v.room, v.room.localMember);
     // OpponentFighterWatch keeps the fighter only while the local player sits
     // at this matchup unready, so the seat is the other one at their table.

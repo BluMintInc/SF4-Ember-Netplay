@@ -753,6 +753,20 @@ int main() try {
         view.room.localMember = 99; table.readyRemainingMs = 1;
         Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 1, "Local"),
             "A bystander did not see the final second");
+        // A Training call's window and the room's deadline both take the seat,
+        // so the local fighter is told the one that ends first.
+        view.room.localMember = 1; table.readyRemainingMs = 5000; view.trainingReadySeconds = 15;
+        auto deadline = room_controls::DescribeReadyDeadline(view, table);
+        Check(!deadline.training && deadline.seat == 0 && deadline.text == Tf("room.ready_timeout.you", 5),
+            "A longer Training window hid the room's deadline");
+        table.readyRemainingMs = 20000; view.trainingReadySeconds = 4;
+        deadline = room_controls::DescribeReadyDeadline(view, table);
+        Check(deadline.training && deadline.seat == 0 && deadline.seconds == 4, "A shorter Training window was not the deadline");
+        // Away in Training does not hide the room's last seconds from others.
+        view.trainingReadySeconds = 0; view.room.localMember = 99; view.room.members[0].training = true; table.readyRemainingMs = 1000;
+        Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 1, "Local"),
+            "The Training call hid the final second of the room's deadline");
+        view.room.members[0].training = false;
         view.room.localMember = 1; table.ready[1] = false; table.readyRemainingMs = 0;
         shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
     }

@@ -84,8 +84,18 @@ std::string HoldText(const ShellView& v, const room::Table& t);
 // The same in one short line for the status line, without names, which can be
 // any length: "Waiting for spectators: 7 s", or the spectator's own line.
 std::string HoldStatus(const ShellView& v, const room::Table& t);
-// The last 30 seconds of a waiting fighter's Ready deadline, or empty.
-std::string ReadyTimeoutText(const ShellView& v, const room::Table& t);
+// The deadline a seated fighter who has not readied is under: the room's
+// Ready timeout in its last 30 seconds and, for the local player, the window
+// of a Training call. Either one takes the seat, so with both running the
+// one that ends first counts. seconds is 0 when there is none; text is the
+// line to show for it.
+struct ReadyDeadline {
+    std::string text;
+    int seat = -1;
+    unsigned seconds = 0;
+    bool training = false;
+};
+ReadyDeadline DescribeReadyDeadline(const ShellView& v, const room::Table& t);
 // A highlighted line across a table card, for something the player at it
 // should act on or wait for: a held start, a seated fighter being called back
 // from Training, or the opponent's new fighter until the player readies or

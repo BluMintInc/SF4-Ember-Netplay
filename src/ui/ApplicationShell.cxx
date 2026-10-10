@@ -433,8 +433,12 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   status=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  // Chat keeps the board's line, so a lost connection shows while typing.
- if(screen=="room"&&status.empty()&&v.trainingReadySeconds>0){
-  status=TrainingReadyText(v.trainingReadySeconds);statusTone=Tone::Pending;
+ if(screen=="room"&&status.empty()){
+  const auto place=room::PlaceOf(v.room,v.room.localMember);
+  if(place.kind==room::Place::Kind::Seat){
+   const auto deadline=room_controls::DescribeReadyDeadline(v,v.room.tables[place.table]);
+   if(deadline.seat==place.seat){status=deadline.text;statusTone=Tone::Pending;}
+  }
  }
  if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
@@ -472,8 +476,9 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    statusTone=Tone::Pending;
   }
   else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
-  if(v.trainingReadySeconds>0&&v.room.localMember&&seatedLocal){
-   status=TrainingReadyText(v.trainingReadySeconds);statusTone=Tone::Pending;
+  const auto deadline=room_controls::DescribeReadyDeadline(v,table);
+  if(seatedLocal&&deadline.seconds&&(deadline.seat?table.p2:table.p1)==v.room.localMember){
+   status=deadline.text;statusTone=Tone::Pending;
   }
  }
  // A tournament room says what its next game waits for: the other fighter,

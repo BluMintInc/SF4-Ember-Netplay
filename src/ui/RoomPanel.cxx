@@ -267,9 +267,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(seated){
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
-    // Called out of Training, the row says how long there is to ready;
-    // otherwise the room's own Ready timeout, in its last 30 seconds.
-    const auto timeout=v.trainingReadySeconds>0?TrainingReadyText(v.trainingReadySeconds):ReadyTimeoutText(v,t);
+    // A Training call's window or the room's Ready timeout: the row says how
+    // long there is to ready.
+    const auto deadline=DescribeReadyDeadline(v,t);
+    const auto timeout=deadline.seat==place.seat?deadline.text:std::string();
     rows.push_back(Row("ready",readyControl.label,timeout.empty()?readyControl.detail:timeout+"\n"+readyControl.detail,readyControl.kind!=ReadyControl::None));
     if(t.spectatorHold||!timeout.empty())rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
