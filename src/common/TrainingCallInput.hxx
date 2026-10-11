@@ -42,14 +42,18 @@ public:
     CallIdentity Offered() const { std::lock_guard<std::mutex> lock(mutex_); return offered_; }
     // Any thread, for a fresh press. free: the press is nobody else's now
     // (Ember's menu takes no input and the game's pause menu is closed; for
-    // the key, the game's window has the focus too, while the pad's View
-    // counts behind another window, TrainingPad.hxx: PadGoNowBehind). True
-    // when it is taken for the call that stands.
+    // the key, the game's window has the focus too). True when it is taken
+    // for the call that stands.
     bool Press(Source source, bool free) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!free || !offered_.Live() || requests_.size() >= MostRequests) return false;
-        requests_.push_back({offered_, source});
-        return true;
+        return PressOffered(source, free);
+    }
+    // The same for a press read under expected, the call offered when its
+    // input was sampled: taken only while that call is still the one offered,
+    // so a press can never go now for a call that replaced it.
+    bool Press(Source source, bool free, const CallIdentity& expected) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return offered_ == expected && PressOffered(source, free);
     }
     // Game thread: the requests taken since the last call, in order.
     std::vector<Request> Take() {
@@ -59,6 +63,11 @@ public:
         return taken;
     }
 private:
+    bool PressOffered(Source source, bool free) {
+        if (!free || !offered_.Live() || requests_.size() >= MostRequests) return false;
+        requests_.push_back({offered_, source});
+        return true;
+    }
     mutable std::mutex mutex_;
     CallIdentity offered_;
     std::vector<Request> requests_;

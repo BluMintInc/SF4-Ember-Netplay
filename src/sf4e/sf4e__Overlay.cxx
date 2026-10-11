@@ -44,10 +44,14 @@ static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
 // The menu takes the keys and the mouse: shown, with the focus.
 static std::atomic<bool> capture{false};
-// The menu takes the pads: shown, with the focus or not, since the pads reach
-// a window behind another (BackgroundPlay). Published by the drawing thread,
-// as is whether the menu takes them where Start opens it, for the pad update.
-static std::atomic<bool> s_menuShown{false}, s_menuTakesPads{false};
+// The menu is shown, focus or not, as the drawing thread's last frame
+// published it; that thread alone writes it.
+static std::atomic<bool> s_menuShown{false};
+// Whether the menu may hold the pads where the game is now, decided by the
+// game thread's pad update (input::ShellPadPlace) and read with s_menuShown
+// and the pending open requests (ShellHoldsPads).
+static sf4e::input::ShellPadPlace s_shellPlace;
+static std::atomic<bool> s_shellMayHold{false};
 // The pointer is over the training HUD's chip: the mouse (only) is Ember's.
 static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
@@ -80,18 +84,20 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 // The window's keys and mouse are Ember's while its menu is shown with the
 // focus or the training controls are open (TrainingPad.hxx: CapturesInput);
-// the game's pads while the menu is shown, focus or not, or those controls are open.
+// the game's pads while the menu holds them, focus or not, or those controls are open.
 static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
-bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(capture.load() || s_menuShown.load(), s_trainingControls); }
+bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(capture.load() || ShellHoldsPads(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
-bool Overlay::MenuTakesPads() { return s_menuTakesPads.load(); }
-// Start at the main menu, in front or behind another window. The press is
-// Ember's at once, so it never reaches the native menu; the keys and the
-// mouse only with the focus.
+void Overlay::UpdatePadOwnership(sf4e::input::MenuContext context, bool fighting) {
+    s_shellMayHold = s_shellPlace.Update(context, fighting);
+}
+bool Overlay::ShellHoldsPads() { return s_shellMayHold.load() && (s_menuShown.load() || s_openRequests.Pending()); }
+// Start at the main menu, in front or behind another window. The request
+// holds the pads at once, until the frame that takes it has shown the menu
+// (OpenRequests), so the press never reaches the native menu; the keys and
+// the mouse are taken only with the focus.
 void Overlay::RequestMainControls() {
-    if (!focused && !s_menuTakesPads) return;
     if (focused) capture = true;
-    s_menuShown = true;
     s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls);
 }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
@@ -410,6 +416,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
     presentation.Update(snapshot.atMainMenu || exporting, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
+    const auto requestsSeen = s_openRequests.Posted();
     const auto openRequest = s_openRequests.Take();
     if (openRequest != sf4e::ui::OpenRequests::Kind::None && presentation.Available()) {
         presentation.Open();
@@ -465,7 +472,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             sf4e::ui::Win32InputBridge::MaxQueuedEvents);
         notedOverflows = overflows;
     }
-    // The pad drives the menu behind another window too (s_menuShown).
+    // The pad drives the menu behind another window too (ShellHoldsPads).
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || s_trainingControls.Open(), !assigning);
     // Start opens Ember at the main menu only; in Training and over an export it is the game's pause.
@@ -646,8 +653,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
     capture = focused && presentation.Visible();
+    // Shown first, then the requests this frame took answered: a request
+    // holds the pads until then (OpenRequests).
     s_menuShown = presentation.Visible();
-    s_menuTakesPads = sf4e::input::MenuTakesPads(presentation.Visible(), presentation.Available(), snapshot.menuContext);
+    s_openRequests.Acknowledge(requestsSeen);
     static bool wasCapturing = false;
     const bool capturing = CapturesInput();
     if (wasCapturing && !capturing) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
@@ -678,7 +687,6 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
 }
 void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
-    s_menuShown = false; s_menuTakesPads = false;
     trainingAvailable = false; replayPlayback = false;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");

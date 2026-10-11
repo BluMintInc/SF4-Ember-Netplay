@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <cstdint>
 #include "../common/BattlePause.hxx"
 #include "../netplay/SessionController.hxx"
 
@@ -54,15 +55,26 @@ private:
 // drawing thread touches the presentation and the shell's navigation, so a
 // request waits for its next frame. Requests arriving before then coalesce,
 // and Play outranks Controls.
+// A request stays pending until the frame that took it has published what it
+// made of it (the menu shown or not): the frame reads Posted before Take, and
+// acknowledges that count once it has published. Until then Ember holds the
+// pads as if the menu were shown, so the press that asked never reaches the
+// game, even when it arrives after a frame's Take and before that frame
+// publishes the menu still hidden.
 class OpenRequests {
 public:
     enum class Kind : int { None = 0, Controls = 1, Play = 2 };
     void Post(Kind kind) {
         int current = value_.load();
         while (current < static_cast<int>(kind) && !value_.compare_exchange_weak(current, static_cast<int>(kind))) {}
+        posted_.fetch_add(1);
     }
+    std::uint32_t Posted() const { return posted_.load(); }
     Kind Take() { return static_cast<Kind>(value_.exchange(static_cast<int>(Kind::None))); }
+    void Acknowledge(std::uint32_t posted) { acknowledged_.store(posted); }
+    bool Pending() const { return posted_.load() != acknowledged_.load(); }
 private:
     std::atomic<int> value_{0};
+    std::atomic<std::uint32_t> posted_{0}, acknowledged_{0};
 };
 } }

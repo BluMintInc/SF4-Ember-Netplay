@@ -71,5 +71,33 @@ int main() {
     CHECK(requests.Take() == Kind::Play);
     requests.Post(Kind::Controls);
     CHECK(requests.Take() == Kind::Controls);
+    {
+        // A request stays pending until the frame that took it has published.
+        // Start arrives after a frame's Take and before that frame publishes
+        // the menu still hidden: the request still holds the pads, and the
+        // next frame takes it, shows the menu and only then lets it go.
+        OverlayPresentation shell; shell.Update(true, MatchState::None, false, false); shell.Close();
+        sf4e::ui::OpenRequests starts;
+        bool shown = false;
+        const auto holds = [&] { return shown || starts.Pending(); };
+        auto seen = starts.Posted();
+        CHECK(starts.Take() == Kind::None);
+        starts.Post(Kind::Controls);                 // the game thread, mid-frame
+        CHECK(holds());
+        shown = shell.Visible(); starts.Acknowledge(seen);  // this frame publishes: still hidden
+        CHECK(!shown && holds());
+        seen = starts.Posted();
+        if (starts.Take() == Kind::Controls) shell.Open();
+        CHECK(holds());                              // taken, not yet published
+        shown = shell.Visible(); starts.Acknowledge(seen);
+        CHECK(shown && !starts.Pending() && holds());
+        // A request the menu cannot answer lets the pads go once answered.
+        shell.Close(); shell.Update(false, MatchState::Preparing, false, false);
+        starts.Post(Kind::Controls);
+        seen = starts.Posted();
+        if (starts.Take() == Kind::Controls) shell.Open();
+        shown = shell.Visible(); starts.Acknowledge(seen);
+        CHECK(!holds());
+    }
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

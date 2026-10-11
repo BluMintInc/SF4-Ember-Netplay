@@ -48,21 +48,29 @@ void fSystem::Install() {
 }
 
 void fSystem::UpdateInputs() {
-    // The focus period this poll samples under, taken before any input is
-    // read: what the training controls are asked from this poll is accepted
-    // only while it is still current (TrainingPad.hxx: TrainingControls).
+    // The focus period this poll samples under, and the call back from
+    // Training offered as it begins, taken before any input is read: what the
+    // training controls and go now are asked from this poll is accepted only
+    // while both are still current (TrainingPad.hxx: TrainingControls).
     const auto focus=sf4e::Overlay::TrainingControls().Sample();
+    auto& goNowGate=sf4e::input::TrainingGoNow();
+    const auto offeredCall=goNowGate.Offered();
     const auto sharedSnapshot=sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const auto& snapshot=*sharedSnapshot;
+    // Where Ember's menu may hold the pads follows where the game is now,
+    // whatever the drawing thread last published (Overlay::ShellHoldsPads).
+    const bool fighting=snapshot.session.match==sf4e::netplay::MatchState::Preparing||
+        snapshot.session.match==sf4e::netplay::MatchState::Playing;
+    sf4e::Overlay::UpdatePadOwnership(snapshot.menuContext,fighting);
     // A replay exported as a video, and a room's match this PC only watches,
     // run on behind another window whatever the player's setting says. Ember's
-    // menu reads the pads there too, while it is shown and where Start opens it,
-    // and so does go now while a call back from Training offers it.
+    // menu reads the pads there too, while it holds them and where Start opens
+    // it, and so does go now while a call back from Training offers it.
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
-    auto& goNowGate=sf4e::input::TrainingGoNow();
-    const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&goNowGate.Offered().Live();
+    const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const bool menuOnly=sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
-        sf4e::replaystore::Exporting(),watching,sf4e::Overlay::MenuTakesPads()||callOffered));
+        sf4e::replaystore::Exporting(),watching,
+        sf4e::input::MenuTakesPads(sf4e::Overlay::ShellHoldsPads(),snapshot.menuContext,fighting)||callOffered));
     menuOnlyInput=menuOnly;
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
@@ -84,16 +92,6 @@ void fSystem::UpdateInputs() {
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
         mainArmed=false;sf4e::Overlay::RequestMainControls();
     }
-    // Go now on the call back from Training, behind another window: View
-    // alone, the gesture below being the focus's (TrainingPad.hxx: PadGoNowBehind).
-    static sf4e::input::PadGoNowBehind goNowBehind;
-    const bool offeredBehind=!focused&&callOffered&&connected&&device.type==sf4e::input::PadXInput&&
-        snapshot.inputCapture==sf4e::input::Capture::Idle&&ownerType==device.type&&ownerIndex==device.index;
-    if(goNowBehind.Update(offeredBehind,physical)) {
-        const bool free=!sf4e::Overlay::CapturesMenuInput()&&!sf4e::battlePause.Paused();
-        if(goNowGate.Press(sf4e::input::GoNowGate::Source::Pad,free)) spdlog::info("Training: go now taken on the pad behind another window");
-        else spdlog::info("Training: go now on the pad behind another window was not taken");
-    }
     // Offline Training: the pad's Back and Start (TrainingPad.hxx). Each press
     // keeps the battle and pad owner it went down under, and the position
     // events it makes are posted in order for the drawing thread with them.
@@ -101,10 +99,13 @@ void fSystem::UpdateInputs() {
     // the capture follows that controller, so the caches cleared below hide
     // its Start from native pause in this same frame; a chord that opens
     // nothing (under the call) still owns its Start, cleared there as well.
+    // Behind another window the gesture is read only while a call offers go
+    // now, for go now: the reset, save and controls it asks for there are
+    // refused without the focus (PostTrainingPad, TrainingControls::Accept).
     static sf4e::input::TrainingPadInput trainingPad;
     static bool trainingPadOwned=false;
     std::uint32_t ownedByGesture=0;
-    const bool training=focused&&connected&&snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&
+    const bool training=(focused||callOffered)&&connected&&snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&
         snapshot.inputCapture==sf4e::input::Capture::Idle&&ownerType==device.type&&ownerIndex==device.index;
     if(!training) {
         trainingPad.Reset();
@@ -113,11 +114,11 @@ void fSystem::UpdateInputs() {
     }
     else {
         trainingPadOwned=true;
-        // The call back from a room, as its owner offers it now; go now is
-        // the pad's only while nobody else has the press (TrainingCallInput.hxx).
-        auto& goNow=sf4e::input::TrainingGoNow();
+        // The call back from a room, as its owner offered it when this poll
+        // began; go now is the pad's only while nobody else has the press
+        // (TrainingCallInput.hxx).
         const bool free=!sf4e::Overlay::CapturesMenuInput()&&!sf4e::battlePause.Paused();
-        const auto call=!goNow.Offered().Live()?sf4e::input::TrainingCall::None:
+        const auto call=!offeredCall.Live()?sf4e::input::TrainingCall::None:
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
         sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
@@ -125,9 +126,12 @@ void fSystem::UpdateInputs() {
         const auto& events=result.events;
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus
-        // period its press was sampled in.
-        if(events.goNow&&!sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,goNow,sf4e::input::GoNowGate::Source::Pad,free))
-            spdlog::info("Training: go now on the pad was not taken");
+        // period its press was sampled in, and only for the call offered then.
+        if(events.goNow) {
+            if(!sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,offeredCall,goNowGate,sf4e::input::GoNowGate::Source::Pad,free))
+                spdlog::info("Training: go now on the pad was not taken");
+            else if(!focused) spdlog::info("Training: go now taken on the pad behind another window");
+        }
         using Kind=sf4e::input::TrainingPadEvent::Kind;
         for(const Kind kind:{Kind::Reset,Kind::Save}) {
             if(kind==Kind::Reset?!events.reset:!events.save) continue;

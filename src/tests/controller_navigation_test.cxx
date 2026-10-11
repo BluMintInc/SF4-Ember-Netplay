@@ -183,13 +183,34 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
- // Ember's menu keeps the pads behind another window while it is shown and
- // where Start opens it; never over an export or in Training with it hidden.
+ // Ember's menu keeps the pads behind another window while it holds them and
+ // where Start opens it; never over an export or in Training with it hidden,
+ // nor at the main menu while a match is being prepared.
  using sf4e::input::MenuTakesPads;
- Check(MenuTakesPads(true,true,MenuContext::ReplayExport)&&MenuTakesPads(true,true,MenuContext::MainMenu)&&
-  MenuTakesPads(false,true,MenuContext::MainMenu),"The menu lost the pads behind another window");
- Check(!MenuTakesPads(false,true,MenuContext::ReplayExport)&&!MenuTakesPads(false,false,MenuContext::MainMenu)&&
-  !MenuTakesPads(false,true,MenuContext::OfflineTraining),"The menu took the pads where they are the game's");
+ Check(MenuTakesPads(true,MenuContext::ReplayExport,false)&&MenuTakesPads(true,MenuContext::MainMenu,false)&&
+  MenuTakesPads(false,MenuContext::MainMenu,false),"The menu lost the pads behind another window");
+ Check(!MenuTakesPads(false,MenuContext::ReplayExport,false)&&!MenuTakesPads(false,MenuContext::MainMenu,true)&&
+  !MenuTakesPads(false,MenuContext::OfflineTraining,false),"The menu took the pads where they are the game's");
+ // The drawing thread stops (a lost device, a minimized fullscreen game) with
+ // the menu shown, and what it last published stays "shown". The pad update
+ // still lets the menu hold the pads only where the game is now: a match
+ // being prepared ends that at once, and so does Training once the menu's
+ // own availability would have run out; back at the main menu it holds again.
+ {
+  using sf4e::input::ShellPadPlace;
+  ShellPadPlace place;const bool published=true;
+  Check(!place.Update(MenuContext::Unavailable,false),"The menu held the pads before it was ever where it can be shown");
+  Check(place.Update(MenuContext::MainMenu,false)&&published,"The shown menu did not hold the pads at the main menu");
+  Check(!place.Update(MenuContext::MainMenu,true),"A match being prepared left the pads with a menu no frame hid");
+  Check(!place.Update(MenuContext::Unavailable,true)&&!place.Update(MenuContext::Unavailable,false),"A match left the pads with a menu no frame hid");
+  Check(place.Update(MenuContext::MainMenu,false),"Back at the main menu the shown menu lost the pads");
+  // A brief drop of the native menu is ridden out, as the menu's own availability rides it.
+  for(unsigned i=0;i+1<ShellPadPlace::AwayUpdates;++i)Check(place.Update(MenuContext::Unavailable,false),"A brief drop took the pads from the menu");
+  Check(place.Update(MenuContext::MainMenu,false),"The menu lost the pads after a brief drop");
+  for(unsigned i=0;i+1<ShellPadPlace::AwayUpdates;++i)place.Update(MenuContext::OfflineTraining,false);
+  Check(!place.Update(MenuContext::OfflineTraining,false),"Training kept the pads with a menu no frame hid");
+  Check(!place.Update(MenuContext::ReplayExport,true)&&place.Update(MenuContext::ReplayExport,false),"The menu over an export did not hold the pads");
+ }
  // The overlay enables the adapter whatever the window's focus (only a device
  // being assigned stops it): behind another window Start opens the hidden
  // menu and the shown menu takes presses, with no refocus between.
@@ -539,15 +560,54 @@ void GoNowFocus(){
   PadOwner owner;owner.generation=40;owner.epoch=token.epoch;
   const auto stale=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
   Check(stale.events.goNow,"View under the call did not ask for go now");
-  Check(!controls.PressGoNow(stale.owner.epoch,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),"A View sampled as the focus went was taken for go now");
+  Check(!controls.PressGoNow(stale.owner.epoch,a,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),"A View sampled as the focus went was taken for go now");
   Check(!tick()&&countdown.Left()==118,"A View sampled as the focus went hurried the call");
   pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
   if(!regain)controls.GainFocus();
   owner.epoch=controls.Sample().epoch;
   const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
-  Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,gate,GoNowGate::Source::Pad,true),"A fresh View was not taken for go now");
+  Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,a,gate,GoNowGate::Source::Pad,true),"A fresh View was not taken for go now");
   Check(tick()&&!tick()&&countdown.Left()==0,"A fresh go now did not leave once");
  }
+}
+// Behind another window go now comes through the same gesture and the same
+// check: a fresh View under the call is taken without the focus; a View held
+// as the focus went (and came back, and went again) between two polls is
+// not; a View read under a call the room has since replaced is not; and the
+// gesture's reset, save and controls are still refused there.
+void GoNowBehind(){
+ using namespace sf4e::input;
+ const float place[2]={0,0};
+ TrainingControls controls;TrainingPadInput pad;GoNowGate gate;
+ CallIdentity a;a.roomEpoch=7;a.table=1;a.opponent=2;a.generation=40;a.serial=1;
+ CallIdentity b=a;b.opponent=3;b.serial=2;
+ double now=0;
+ controls.LoseFocus();
+ gate.Offer(a);
+ PadOwner owner;owner.generation=40;owner.epoch=controls.Sample().epoch;
+ pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,a,gate,GoNowGate::Source::Pad,true),"A fresh View behind another window was not taken for go now");
+ Check(gate.Take().size()==1,"Go now behind another window did not reach the call once");
+ // Held: the focus comes and goes between two polls. The press keeps its old
+ // owner, the gesture drops it, and the View still held is not go now.
+ const auto heldOwner=controls.Sample().epoch;
+ controls.GainFocus();controls.LoseFocus();
+ owner.epoch=controls.Sample().epoch;
+ const auto held=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ Check(!held.events.goNow&&heldOwner!=owner.epoch,"A View held across a focus change was taken as a fresh press");
+ Check(!controls.PressGoNow(heldOwner,a,gate,GoNowGate::Source::Pad,true),"A View read under an ended focus period was taken");
+ // The call is replaced between the poll that read View and the press.
+ pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ const auto read=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ gate.Offer(b);
+ Check(read.events.goNow&&!controls.PressGoNow(read.owner.epoch,a,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),
+  "A View read under a call since replaced went now for its replacement");
+ // Reset, save and the controls' chord ask nothing of an unfocused window.
+ pad.Update(0,controls,now+=.02,TrainingCall::None,owner,place);
+ pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::None,owner,place);
+ const auto chord=pad.Update(PhysicalBack|PhysicalStart,controls,now+=.02,TrainingCall::None,owner,place);
+ Check(!chord.events.open&&!controls.Open(),"The controls opened behind another window");
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts
@@ -754,5 +814,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
