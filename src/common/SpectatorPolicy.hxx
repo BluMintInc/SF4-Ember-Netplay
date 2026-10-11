@@ -54,14 +54,14 @@ public:
 	static int DropFrames(int pingMs) { return std::max(DropQueueFrames, InFlightFrames(pingMs) + 2 * FramesPerSample); }
 
 	// A spectator client gives up a stream whose own GGPO link has not reached
-	// RUNNING this long after its session started. Once P1's session answers,
-	// the link needs a few round trips. P1 waits SyncDeadlineMs for a
-	// spectator after the fighters synchronize, so P1 may start that much
-	// later than us; the second SyncDeadlineMs covers the round trips with a
-	// lost packet's retry. A spectator P1 dropped before it synchronized
-	// would otherwise wait forever: P1 answers sync requests for 5 s after
-	// the drop, then goes silent.
-	static constexpr std::uint64_t StreamSyncTimeoutMs = 2 * SyncDeadlineMs;
+	// RUNNING this long after its session started. P1's session starts only
+	// once P1 has loaded the battle, which on a slow disk or behind a slow
+	// opponent can take well over SyncDeadlineMs, so this is generous: giving
+	// up on a stream that would have come up is worse than a late notice. A
+	// spectator P1 dropped before it synchronized would otherwise wait
+	// forever: P1 answers sync requests for 5 s after the drop, then goes
+	// silent.
+	static constexpr std::uint64_t StreamSyncTimeoutMs = 30000;
 
 	// A player enters a started match only from the main menu. A spectator that
 	// is elsewhere (Training, Options) for SyncDeadlineMs has missed the window
