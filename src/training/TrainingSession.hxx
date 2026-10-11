@@ -339,7 +339,7 @@ public:
         const auto next = view_.generation + 1;
         view_ = View{}; view_.generation = next;
         for (auto& slot : slots_) slot.clear();
-        once_ = {}; actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resume_ = -1; firstOnLeft_ = true;
+        actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resume_ = -1; firstOnLeft_ = true;
     }
     void SetReady(bool ready) { view_.ready = ready; }
     // What the fight showed this frame, for the waiting frames of a playback:
@@ -391,12 +391,12 @@ public:
         switch (command.action) {
         case Action::Record:
             Stop(); slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0;
-            view_.mode = Mode::Recording; view_.playbackSide = 1; once_[view_.selected] = false; return true;
+            view_.mode = Mode::Recording; view_.playbackSide = 1; return true;
         case Action::Load:
             if (view_.mode != Mode::Idle || command.frames.empty() || (command.side != 0 && command.side != 1)) return false;
             slots_[view_.selected].assign(command.frames.begin(), command.frames.begin() + (std::min)(command.frames.size(), std::size_t(MaxFrames)));
             view_.lengths[view_.selected] = static_cast<int>(slots_[view_.selected].size());
-            view_.playbackSide = command.side; once_[view_.selected] = true; return true;
+            view_.playbackSide = command.side; return true;
         case Action::Play:
             Stop();
             if (slots_[view_.selected].empty()) return false;
@@ -484,7 +484,7 @@ public:
             if ((frame.raw & AttackButtons) && !(lastRaw_ & AttackButtons)) hit_ = false;
             lastRaw_ = frame.raw;
             if (++view_.cursor == view_.lengths[view_.selected]) {
-                if (view_.loop && !once_[view_.selected] && resume_ < 0) view_.cursor = 0;
+                if (view_.loop && resume_ < 0) view_.cursor = 0;
                 else Stop();
             }
         }
@@ -492,8 +492,6 @@ public:
 private:
     View view_;
     std::array<std::vector<Input>, SlotCount + 1> slots_;
-    // Loaded input plays once, whatever the loop setting.
-    std::array<bool, SlotCount + 1> once_{};
     bool actionable_ = false, hit_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0;

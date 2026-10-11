@@ -183,10 +183,10 @@ int main() {
             Require(frame[0].raw == 0x410, "Loaded input did not advance");
             Command empty; empty.action = Action::Load; empty.generation = load.generation;
             Require(!session.Apply(empty), "Empty load accepted while playing");
-            // Loaded input plays one pass even with looping on.
+            // Loaded input follows the loop choice as a recording does.
             Require(session.GetView().loop, "Loop is not the default");
             session.Commit(frame);
-            Require(session.GetView().mode == Mode::Idle, "Loaded input looped");
+            Require(session.GetView().mode == Mode::Playback && session.GetView().cursor == 0, "Loaded input did not loop");
             apply(Action::Stop);
             // A waiting frame repeats, buttons held, until the fight shows its
             // cue, then its offset's frames more; it gives up after a while.

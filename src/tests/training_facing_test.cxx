@@ -121,6 +121,21 @@ int main() {
         Require(recorded.Apply(load) && send(Action::Play) && recorded.Prepare(Frame{})[0].raw == R, "Loaded input on Player 1 facing right was turned");
         recorded.SetPositions(100, 0);
         Require(recorded.Prepare(Frame{})[0].raw == L, "Loaded input on Player 1 did not turn with Player 1");
+        // Loaded and mirrored slots play once or looped as Play's choice says, as a recording does.
+        Require(send(Action::Stop), "The loaded playback did not stop");
+        load.side = 1; load.frames = {Input{R, R, 0, 0}, Input{D, D, 0, 0}};
+        Require(recorded.Apply(load), "The two-frame load was refused");
+        // Frames played before the playback stops, at most six.
+        const auto framesPlayed = [&](bool loop) {
+            Command choice; choice.action = Action::Loop; choice.generation = recorded.GetView().generation; choice.loop = loop;
+            Require(recorded.Apply(choice) && send(Action::Play), "The playback did not start");
+            int frames = 0;
+            for (; recorded.GetView().mode == Mode::Playback && frames < 6; ++frames) recorded.Commit(recorded.Prepare(Frame{}));
+            send(Action::Stop);
+            return frames;
+        };
+        Require(framesPlayed(false) == 2 && framesPlayed(true) == 6, "A loaded recording did not follow Play's once or looped");
+        Require(send(Action::Mirror) && framesPlayed(false) == 2 && framesPlayed(true) == 6, "A mirrored recording did not follow Play's once or looped");
         std::puts("Training facing checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }
