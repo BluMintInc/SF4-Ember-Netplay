@@ -833,6 +833,9 @@ int main() {
                 // Decided in a timed stun, the button sent the frame after, the dummy free and in its move the frame after that.
                 frame(stun(2, 0, 7), false, true); frame(stun(2, 0, 7), false);
                 Require(frame(stun(0, 2, 7), true) && timing.sent == 1 && timing.freed == 2 && timing.move == 2, "A reply's button, free frame or move was misplaced");
+                // The log's differences: on time, the move starts on the free frame and the frame the button is acted on.
+                Require(FramesBetween(timing.freed, timing.move) == "0" && FramesBetween(timing.Acted(), timing.move) == "0",
+                    "A traced reply's timing was misreported");
                 // The reply plays on after its report, the dummy in its move: no second report.
                 idle(2 * ReplyTrace::Grace, true);
                 Require(reports == 1 && !replies.Replying(), "A reply was traced again after its report");
@@ -846,6 +849,8 @@ int main() {
                 while (!frame(stun(0, 0, 0), false)) ++after;
                 Require(reports == 2 && after == static_cast<int>(move.size()) - 1 + ReplyTrace::Grace && timing.sent == 1 && timing.freed == 2 && timing.move == -1,
                     "A reply whose move never came was not reported after its grace, or took the stopped reply's press");
+                Require(FramesBetween(timing.freed, timing.move) == "none" && FramesBetween(timing.Acted(), timing.move) == "none" &&
+                    FramesBetween(timing.Acted(), timing.freed) == "0" && ReplyTiming{}.Acted() == -1, "A move never seen was given a timing");
                 // Hit again: dropped, and not traced again while the same reply plays on.
                 frame(stun(0, 1, 10), false, true);
                 frame(stun(1, 0, 11), false);

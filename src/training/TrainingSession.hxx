@@ -52,6 +52,13 @@ enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, Clea
 // super, revenge: the gauge settings as the menu stores them, 0 normal, 5
 // max at round start, 7 infinite, 8 refill.
 struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -1, stun = -1, super = -1, revenge = -1; };
+// Updates from the one Ember's input for the dummy is read in to the one the
+// dummy acts on it, whether Lower input lag (InputLagEdit.hxx) is on or not.
+// Measured in the game, not derived: a reply's button read in one update
+// started the dummy's move in the next with the setting off, and in the next
+// as well with it on, though the edit at 0x5CFBB6 stores both sides' input
+// under the frame being read.
+constexpr int DummyInputLag = 1;
 // When the dummy plays from Player 2's pad input, which Ember overrides while
 // it drives Player 2 (DrivesDummy). The game plays the dummy by its own logic,
 // which follows the Training menu's Action and Guard, and plays a side from
@@ -60,11 +67,11 @@ struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -
 // the game's own back after, so the menu's settings, blocking among them,
 // hold everywhere else and the player never sets anything. The game reads a
 // side's pad only while its control says so (0x599410, any other control
-// reads nothing), and the input reaches the fighter lag simulated frames
-// later (DummyInputLag), where the fighter plays from it only while the
-// control still says so (0x5996F0, 0x59A6A0). So the pad control starts
-// with the first update Ember supplies and ends lag updates after the last
-// one; an update the battle does not simulate moves nothing on.
+// reads nothing), and the input reaches the fighter the next simulated frame
+// (DummyInputLag), where the fighter plays from it only while the control
+// still says so (0x5996F0, 0x59A6A0). So the pad control starts with the
+// first update Ember supplies and ends with the simulated one after the
+// last; an update the battle does not simulate moves nothing on.
 // The Action found when Ember began to drive Player 2 stays the player's
 // while Ember drives it or the pad control lasts: a different one found there
 // was picked in the pause menu, which ends both (Reconcile) so that choice
@@ -83,9 +90,10 @@ public:
     }
     // Once the update's input is planned. supplies: Ember plays Player 2's
     // input in it (InputPlan). action: the Training menu's Action now.
-    Step Follow(bool supplies, int lag, int action) {
+    Step Follow(bool supplies, int action) {
+        static_assert(DummyInputLag == 1, "the pad control covers one simulated update after the last input");
         supplies_ = supplies;
-        const bool pad = supplies || (lag > 0 && supplied_);
+        const bool pad = supplies || supplied_;
         if (!owned_) action_ = action;
         owned_ = supplies || pad;
         if (pad == pad_) return pad ? Step::Keep : Step::None;
@@ -207,26 +215,25 @@ private:
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
     return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
-// Updates from the one Ember's input for the dummy is read in to the one the
-// dummy acts on it, whether Lower input lag (InputLagEdit.hxx) is on or not.
-// Measured in the game, not derived: a reply's button read in one update
-// started the dummy's move in the next with the setting off, and in the next
-// as well with it on, though the edit at 0x5CFBB6 stores both sides' input
-// under the frame being read. Should a trace ever show the move in the
-// update the button was read in with the setting on, return 0 for it.
-inline int DummyInputLag(bool /*lowered*/) { return 1; }
 // Whether a reply should start after this frame's observation: its first
-// attack button, acted on lead frames in (its ReplyLead and DummyInputLag),
+// attack button, acted on lead frames in (its ReplyLead plus DummyInputLag),
 // then meets the free frame (plus timing).
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
 }
 // Where one reply's button met the dummy, in frames after the one the reply
 // was decided in, -1 where not seen: the frame its first attack button was
-// sent in (acted on input lag frames later), the dummy's first free frame,
-// and the first frame of its move. A stun ends and a move starts in the same
-// game frame, so a button that meets the free frame shows the last two the same.
-struct ReplyTiming { int sent = -1, freed = -1, move = -1; };
+// sent in (acted on DummyInputLag frames later), the dummy's first free
+// frame, and the first frame of its move. A stun ends and a move starts in
+// the same game frame, so a button that meets the free frame shows the last
+// two the same.
+struct ReplyTiming {
+    int sent = -1, freed = -1, move = -1;
+    int Acted() const { return sent < 0 ? -1 : sent + DummyInputLag; }
+};
+// For the trace: frames from one observation to a later one, "none" when
+// either was not seen.
+inline std::string FramesBetween(int from, int to) { return from < 0 || to < 0 ? "none" : std::to_string(to - from); }
 // Follows each reply once, for the log, from the frame it is decided in
 // (Session::Replies changes) over consecutive frames, counting them itself.
 // It is done once all three are seen, or Grace frames after the reply's
