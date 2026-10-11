@@ -10,8 +10,8 @@ struct HWND__;
 // playing and keeps its sound while the window is behind or minimized, and
 // a room's match this PC only watches keeps playing there too. Ember's menu
 // keeps the pads behind another window too, while it is shown and at the
-// main menu, where Start opens it; without the setting the game is given
-// none of them there.
+// main menu, where Start opens it, and so does go now while a call back from
+// Training offers it; without the setting the game is given none of them there.
 namespace sf4e {
 	namespace BackgroundPlay {
 		// What the game keeps doing while its window is not in front. The caller
@@ -31,8 +31,9 @@ namespace sf4e {
 			bool keepSoundMinimized = false;
 		};
 		// The policy for the setting, a replay being exported as a video, a
-		// room's match this PC only watches, and Ember's menu taking the pads
-		// (input::MenuTakesPads). An export is heard wherever the window is; a
+		// room's match this PC only watches, and Ember taking the pads: its menu
+		// (input::MenuTakesPads) or go now on a call back from Training. An
+		// export is heard wherever the window is; a
 		// watched match runs on but stays muted behind as before. The menu
 		// changes only what is polled, never the sound or the running.
 		inline Policy PolicyFor(bool setting, bool exporting, bool watching, bool menu = false) {
