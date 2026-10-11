@@ -174,10 +174,15 @@ void ChatJourneys(){
  Check(row("compose").value=="Try again"&&row("compose").enabled,"A message the room never took lost its draft");
  key(ImGuiKey_KeypadEnter);
  Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Try again","A refused message could not be sent again, or the numpad's Enter does not send");
- // A send the shell refuses outright (the connection is lost) also keeps it.
+ // A connection that is lost leaves the box and the draft alone. Enter holds the message and it goes out once, when the room is back.
+ h.Wait(9);h.Frame();
  h.view.session.control=netplay::Health::Lost;h.Frame(0,2);
- Check(!row("compose").enabled&&row("compose").value=="Try again","A lost connection offered Send or took the draft");
- h.view.session.control=netplay::Health::Healthy;h.Frame(0,2);
+ Check(row("compose").enabled&&row("compose").value=="Try again"&&io.WantTextInput,"A lost connection took the message box or the draft");
+ sent=h.actions.size();key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent&&!row("compose").enabled,"A message was sent into a lost connection, or Enter did not hold it");
+ h.view.session.control=netplay::Health::Healthy;h.Frame(0,5);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Try again","A held message did not go out when the connection came back");
+ h.Frame(0,5);Check(h.actions.size()==sent+1&&row("compose").value=="Try again","A held message went out twice, or its draft left before the room had it");
  // The draft is the player's own for the room they are in: another room starts empty.
  JoinChatRoom(h,21);h.Frame(0,3);
  Check(row("compose").value.empty()&&h.shell.Navigation().Screen()=="room-chat","A different room kept the draft");
@@ -260,5 +265,64 @@ void ChatJourneys(){
  io.AddInputCharactersUTF8(" more");h.Frame(0,2);
  say(1,"Edited later");h.Frame(0,2);
  Check(row("compose").value=="Edited later more","A late arrival took a draft the player had changed");
+ // A room fence that opens and closes every frame (a room updating over a slow link) leaves the box, the screen and the keys alone.
+ sequence=0;JoinChatRoom(h,30);h.view.session.coordinated=true;h.view.session.authorityWritable=true;
+ h.Screen("room");h.Frame();h.Frame(MenuInput::Chat);
+ const auto flip=[&]{h.view.session.authorityWritable=!h.view.session.authorityWritable;};
+ // What each frame offered: the keys that type letters are never advertised, and Send follows the draft alone.
+ std::set<std::string> offered;
+ SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))offered.insert(id+7);});
+ const auto flicker=[&](const std::string& text){
+  for(const char c:text){
+   flip();
+   const ImGuiKey letter=c=='f'?ImGuiKey_F:c=='c'?ImGuiKey_C:c=='t'?ImGuiKey_T:c==' '?ImGuiKey_Space:ImGuiKey_X;
+   io.AddKeyEvent(letter,true);io.AddInputCharactersUTF8(std::string(1,c).c_str());h.Frame();io.AddKeyEvent(letter,false);
+   Check(h.shell.Navigation().Screen()=="room-chat"&&io.WantTextInput,"The fence flipping took the message box or the screen");
+   Check(row("compose").value.empty()||row("compose").enabled,"The fence flipping switched Send off while there was a draft");
+  }
+ };
+ // The very first frame of the screen has a key down too: a letter pressed as Chat opens is text, not a shortcut.
+ io.AddKeyEvent(ImGuiKey_C,true);io.AddInputCharactersUTF8("c");h.Frame();io.AddKeyEvent(ImGuiKey_C,false);
+ Check(h.shell.Navigation().Screen()=="room-chat","A letter pressed as Chat opened acted as a menu key");
+ flip();h.Frame(0,3);
+ flicker("fct xtc f");
+ h.Frame(0,2);
+ SetMenuTextProbe({});
+ Check(!offered.count(loc::T("room.legend_fighter"))&&offered.count(loc::T("common.back")),"The fence flipping changed the keys the chat legend offers");
+ const std::string drafted=row("compose").value;
+ Check(drafted.size()>=9&&drafted.compare(drafted.size()-9,9,"fct xtc f")==0,"Characters were lost while the fence flipped under the message box");
+ // With the box not yet active, the keys are still text on this screen.
+ io.AddKeyEvent(ImGuiKey_C,true);h.Frame();io.WantTextInput=false;
+ Check((KeyboardMenuBits()&MenuInput::Chat)&&!(KeyboardMenuBits(true)&MenuInput::Chat),"A chat screen's letters still count as menu keys");
+ io.AddKeyEvent(ImGuiKey_C,false);h.Frame();
+ // Enter while the room is catching up holds the message; it goes out once, when the room can take it.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent&&!row("compose").enabled&&row("compose").value==drafted,"A message was sent while the room was fenced, or was not held");
+ flip();h.Frame(0,3);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text==drafted,
+  "A held message did not go out when the room could take it");
+ for(int i=0;i<6;++i){flip();h.Frame();}
+ Check(h.actions.size()==sent+1,"A held message went out again as the fence flipped");
+ say(1,drafted);h.Frame(0,2);
+ Check(row("compose").value.empty(),"The draft stayed after the room's chat had the held message");
+ // A message held when the room closes is let go, and the draft stays for the player to decide.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ io.AddInputCharactersUTF8("Too late");h.Frame(0,2);key(ImGuiKey_Enter);
+ h.view.room.closed=true;h.Frame(0,2);
+ Check(row("compose").value=="Too late","A closed room took the draft");
+ sent=h.actions.size();h.view.room.closed=false;h.view.session.authorityWritable=true;h.Frame(0,4);
+ Check(h.actions.size()==sent&&row("compose").enabled,"A message held when the room closed was sent later");
+ // The log says what changed, at most once a second, with how many changes each line stands for.
+ std::vector<std::string> logged;h.shell.SetChatLog([&](const std::string& line){logged.push_back(line);});
+ h.Wait(2);logged.clear();
+ for(int i=0;i<120;++i){flip();h.Frame();}
+ h.view.session.authorityWritable=true;h.Wait(1.5f);
+ Check(!logged.empty()&&logged.size()<=4,"Chat availability changes were not logged at a limited rate");
+ const auto counted=[&](const std::string& line){const auto at=line.find("last line: ");return at==std::string::npos?0:std::stoi(line.substr(at+11));};
+ Check(std::any_of(logged.begin(),logged.end(),[&](const std::string& l){return counted(l)>=10;})&&logged.back().find("sending is writable")!=std::string::npos,
+  "The log lines did not count the changes they stand for, or the last one was not the state the chat settled in");
+ h.shell.SetChatLog({});
+ h.view.session.coordinated=false;
  SetMenuEntriesProbe({});
 }

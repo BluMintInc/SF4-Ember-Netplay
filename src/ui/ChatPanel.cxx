@@ -31,6 +31,14 @@ int CaretToEnd(ImGuiInputTextCallbackData* data) {
     if (*fresh) { *fresh = false; data->CursorPos = data->BufTextLen; data->SelectionStart = data->SelectionEnd = data->CursorPos; }
     return 0;
 }
+const char* ChatGateName(ChatGate gate) {
+    switch (gate) {
+    case ChatGate::NotJoined: return "not joined";
+    case ChatGate::Recovering: return "recovering, rebind pending";
+    case ChatGate::CatchingUp: return "catching up";
+    default: return "writable";
+    }
+}
 bool HasText(const char* text) {
     for (; *text; ++text) if (!std::isspace(static_cast<unsigned char>(*text))) return true;
     return false;
@@ -65,7 +73,7 @@ void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& roo
     // The draft goes once the room's chat has the message, and not before: a send the room refuses,
     // or one that never arrives, leaves what was typed where it was. One that arrives after its
     // 8 seconds (ChatInFlight) still takes it, so what was delivered is not left to be sent again.
-    if (!pendingChat_) return;
+    if (!pendingChat_ || pendingChat_->queued) return;
     for (auto line = transcript_.Lines().rbegin(); line != transcript_.Lines().rend(); ++line) {
         if (line->kind != ChatLine::Kind::Message) continue;
         if (line->sequence <= pendingChat_->after) break;
@@ -79,11 +87,48 @@ void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& roo
 }
 // The drawn frame's, wherever the player is, so a message that arrives while
 // they are on Home still counts. Only the Chat screen on view reads it.
-void ApplicationShell::UpdateChat(const ShellView& v) {
+void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
     const bool onChat = menu_.navigation.Screen() == "room-chat";
     if (!onChat) chatOpen_ = false;
     ObserveChat(v, v.room);
     if (onChat) transcript_.MarkRead();
+    NoteChatGate(ChatGateOf(v), ImGui::GetTime());
+    FlushChat(v, submit);
+}
+
+// A message entered while the room could not take it waits here, and goes out once the room can. It is
+// let go, with the draft left in the box, if the room closes or is left first. Only a drawn frame has the
+// room to send into, so a message still waiting when Ember is hidden is let go too (Background).
+void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
+    if (!pendingChat_ || !pendingChat_->queued) return;
+    const ChatGate gate = ChatGateOf(v);
+    if (gate == ChatGate::NotJoined) { pendingChat_.reset(); return; }
+    if (gate != ChatGate::Writable) return;
+    room::Action request;
+    request.table = static_cast<std::uint8_t>(selectedTable_);
+    request.kind = room::ActionKind::Chat;
+    request.text = pendingChat_->text;
+    if (!SendRoom(std::move(request), v, submit)) {
+        pendingChat_.reset();
+        if (error_.empty()) error_ = loc::T("room.action_rejected");
+        return;
+    }
+    pendingChat_->queued = false;
+    pendingChat_->after = transcript_.LastSequence();
+    pendingChat_->since = ImGui::GetTime();
+}
+
+// A room under many updates can flip the fence every few frames, so a change is written at most once
+// a second, with how many changes it stands for. The state that last settled is still written.
+void ApplicationShell::NoteChatGate(ChatGate gate, double now) {
+    if (gate != chatGate_) { chatGate_ = gate; ++chatGateChanges_; }
+    if (chatGate_ == chatGateLogged_ || (now >= chatGateLoggedAt_ && now - chatGateLoggedAt_ < 1)) return;
+    if (chatLog_)
+        chatLog_(std::string("Chat: sending is ") + ChatGateName(chatGate_) + " (was " + ChatGateName(chatGateLogged_) +
+            "), changes since the last line: " + std::to_string(chatGateChanges_));
+    chatGateLogged_ = chatGate_;
+    chatGateLoggedAt_ = now;
+    chatGateChanges_ = 0;
 }
 
 // The transcript's lines in the current child, oldest first.
@@ -156,7 +201,8 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
 void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<MenuEntry>&, MenuNavigation&, MenuAction&, float height,
                                       const MenuVisualFeedback&) {
     const float s = Scale(), spacing = ImGui::GetStyle().ItemSpacing.y;
-    const bool canSend = RoomActionsAvailable(v);
+    const ChatGate gate = ChatGateOf(v);
+    const bool typable = gate != ChatGate::NotJoined;
     const float available = ImGui::GetContentRegionAvail().x, width = (std::min)(available, 900 * s);
     const float x = ImGui::GetCursorPosX() + (available - width) * .5f;
     // What goes under the conversation: the box, then one wrapped line of help
@@ -166,8 +212,11 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     const float counterWidth = ImGui::CalcTextSize(counter.c_str()).x;
     std::string note = loc::T("chat.detail");
     Tone noteTone = Tone::Neutral;
-    if (!canSend) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
-    else if (ChatInFlight(ImGui::GetTime())) { note = loc::T("chat.sending"); noteTone = Tone::Pending; }
+    // The box takes typing whatever the fence does. A brief catch-up says nothing, as on the status line.
+    const bool inFlight = ChatInFlight(ImGui::GetTime());
+    const bool waiting = gate == ChatGate::Recovering || (gate == ChatGate::CatchingUp && roomUpdateVisible_);
+    if (!typable || (waiting && !inFlight)) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
+    else if (inFlight) { note = loc::T("chat.sending"); noteTone = Tone::Pending; }
     const float wrap = (std::max)(1.f, width - counterWidth - 12 * s);
     const float lineHeight = ImGui::GetTextLineHeight();
     const float boxHeight = ImGui::GetFrameHeight();
@@ -211,8 +260,8 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     bool fresh = false;
     if (chatBoxText_ != chat_)
         if (auto* state = ImGui::GetInputTextState(ImGui::GetID("##chat-draft"))) state->ReloadUserBufAndMoveToEnd();
-    ImGui::BeginDisabled(!canSend);
-    if (canSend && !menu_.NoticeOpen() && !ImGui::IsAnyItemActive()) { ImGui::SetKeyboardFocusHere(); fresh = true; }
+    ImGui::BeginDisabled(!typable);
+    if (typable && !menu_.NoticeOpen() && !ImGui::IsAnyItemActive()) { ImGui::SetKeyboardFocusHere(); fresh = true; }
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4 * s);
     const bool edited = ImGui::InputTextWithHint("##chat-draft", loc::T("chat.hint"), buffer, sizeof(buffer), ImGuiInputTextFlags_CallbackAlways, CaretToEnd, &fresh);
     ImGui::PopStyleVar();

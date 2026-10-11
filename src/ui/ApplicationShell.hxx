@@ -174,6 +174,10 @@ struct ShellAction {
     replay::Request replay;
 };
 
+// Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
+// CatchingUp hold one the player sent until the room can take it.
+enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
+
 class ApplicationShell {
 public:
     using Submit = std::function<bool(ShellAction)>;
@@ -220,6 +224,8 @@ public:
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
     void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
+    // Where chat availability changes are written; nowhere unless the overlay or a test supplies one.
+    void SetChatLog(std::function<void(const std::string&)> log) { chatLog_ = std::move(log); }
     // Where the tournament matches already announced are kept; the platform store unless a test supplies its own.
     void SetAnnouncedStore(IdentityPanel::AnnouncedLoader loader, IdentityPanel::AnnouncedSaver saver) {
         identity_.SetAnnouncedStore(std::move(loader), std::move(saver));
@@ -298,7 +304,10 @@ private:
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
     void ObserveChat(const ShellView& view,const room::Snapshot& room);
-    void UpdateChat(const ShellView& view);
+    void UpdateChat(const ShellView& view,const Submit& submit);
+    // Sends the message the player queued once the room can take it (see PendingChat).
+    void FlushChat(const ShellView& view,const Submit& submit);
+    void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
@@ -306,10 +315,18 @@ private:
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
     // from `since` the same text is not sent again (ChatInFlight); after that it may be, and is still
-    // looked for.
-    struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
+    // looked for. A message `queued` was entered while the room could not take it: it goes out once, when
+    // it can (FlushChat), and counts as on its way until then.
+    struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; bool queued = false; };
     std::optional<PendingChat> pendingChat_;
-    bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    bool ChatInFlight(double now) const {
+        return pendingChat_ && (pendingChat_->queued || (now >= pendingChat_->since && now - pendingChat_->since <= 8));
+    }
+    // Chat availability changes go to the log at most once a second, with how many they cover.
+    ChatGate chatGate_ = ChatGate::NotJoined, chatGateLogged_ = ChatGate::NotJoined;
+    double chatGateLoggedAt_ = -1e9;
+    unsigned chatGateChanges_ = 0;
+    std::function<void(const std::string&)> chatLog_;
     // The Chat screen has been drawn since the player last left it.
     bool chatOpen_=false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the
