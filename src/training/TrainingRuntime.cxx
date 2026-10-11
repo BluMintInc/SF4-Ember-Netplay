@@ -180,7 +180,10 @@ void FollowDummy(Native* system) {
         *control = Native::PC_PAD;
         break;
     // The pause menu closing puts the menu's control back over it.
-    case DummyControl::Step::Keep: *control = Native::PC_PAD; break;
+    case DummyControl::Step::Keep:
+        if (*control != Native::PC_PAD) spdlog::info("Training: Player 2's control {} set again to {}", *control, static_cast<int>(Native::PC_PAD));
+        *control = Native::PC_PAD;
+        break;
     case DummyControl::Step::End: ReturnDummyControl(system); break;
     case DummyControl::Step::Taken:
         spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
