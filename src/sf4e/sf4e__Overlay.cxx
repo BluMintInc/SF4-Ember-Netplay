@@ -530,7 +530,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // its prompt while it can be pressed.
     const auto& call = snapshot.trainingCall;
     const bool called = training.available && training.leavingIn > 0 && call.Live() && call.generation == training.generation && training.leavingCall == call.serial;
-    const bool offerGoNow = called && focused && !presentation.Visible() && !nativePaused;
+    // Behind another window only the Xbox pad's View can go now (sf4e__Pad.cxx),
+    // so the banner offers that one there; Enter needs the focus.
+    const bool padBehind = !focused && snapshot.inputDevice.connected && snapshot.inputDevice.type == sf4e::input::PadXInput;
+    const bool offerGoNow = called && (focused || padBehind) && !presentation.Visible() && !nativePaused;
     if (called) s_trainingControls.Close();
     // Training's keys and pad stay off during any replay, an export's too.
     if (focused && training.available && !playback.playback && !presentation.Visible()) {
@@ -578,7 +581,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
     if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.room, shell.UnreadChat());
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room, call);
-    if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(sf4e::ui::MenuPromptDevice());
+    if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
     if (snapshot.replays.captionShown) {
         const auto& caption = snapshot.replays.caption;

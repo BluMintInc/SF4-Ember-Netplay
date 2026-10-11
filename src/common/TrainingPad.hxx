@@ -208,6 +208,26 @@ struct PadOwner {
     bool operator==(const PadOwner& other) const { return generation == other.generation && epoch == other.epoch; }
     bool operator!=(const PadOwner& other) const { return !(*this == other); }
 };
+// Go now from the pad while the game's window is behind another. The training
+// controls and their gesture need the focus, so there the pad is read for
+// go now alone: a fresh Back (an Xbox pad's View) while the call is offered,
+// never one held from before the call or from before the window went behind,
+// and never with Start, which is the game's pause. It resets, saves and
+// opens nothing.
+class PadGoNowBehind {
+public:
+    // offered: the window is behind another and the call offers go now on
+    // this pad. True for the press that is go now.
+    bool Update(bool offered, std::uint32_t physical) {
+        if (!offered) { armed_ = false; return false; }
+        if (!(physical & PhysicalBack)) { armed_ = true; return false; }
+        const bool fresh = armed_ && !(physical & PhysicalStart);
+        armed_ = false;
+        return fresh;
+    }
+private:
+    bool armed_ = false;
+};
 // The gesture with its owner, on the game thread. Each Back press takes the
 // owner current as it goes down and keeps it to the end: when the battle or
 // the pad owner changes before the gesture ends (focus lost and back between

@@ -1,6 +1,7 @@
 #pragma once
 
 namespace Dimps { namespace Pad { struct System; } }
+struct HWND__;
 
 // Background play (Player > Play in the background): the game's sound and the
 // pads keep working while another window, such as OBS, is in front. The
@@ -54,5 +55,7 @@ namespace sf4e {
 		// the menu alone: the caller then hides this update's input from the
 		// game, as the menu's capture does.
 		bool BeforePadUpdate(Dimps::Pad::System* system, const Policy& policy);
+		// The game's window, as the last pad update found it; null before.
+		HWND__* GameWindow();
 	}
 }

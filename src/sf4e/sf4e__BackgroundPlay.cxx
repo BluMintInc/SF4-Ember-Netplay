@@ -143,6 +143,8 @@ void sf4e::BackgroundPlay::Activate() {
     ready.store(true);
 }
 
+HWND sf4e::BackgroundPlay::GameWindow() { return gameWindow.load(); }
+
 bool sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& policy) {
     const rMain::Win32_WindowData* const data = WindowData();
     gameWindow.store(data ? data->hWnd : nullptr);

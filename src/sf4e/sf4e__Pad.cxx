@@ -56,10 +56,13 @@ void fSystem::UpdateInputs() {
     const auto& snapshot=*sharedSnapshot;
     // A replay exported as a video, and a room's match this PC only watches,
     // run on behind another window whatever the player's setting says. Ember's
-    // menu reads the pads there too, while it is shown and where Start opens it.
+    // menu reads the pads there too, while it is shown and where Start opens it,
+    // and so does go now while a call back from Training offers it.
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
+    auto& goNowGate=sf4e::input::TrainingGoNow();
+    const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&goNowGate.Offered().Live();
     const bool menuOnly=sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
-        sf4e::replaystore::Exporting(),watching,sf4e::Overlay::MenuTakesPads()));
+        sf4e::replaystore::Exporting(),watching,sf4e::Overlay::MenuTakesPads()||callOffered));
     menuOnlyInput=menuOnly;
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
@@ -80,6 +83,16 @@ void fSystem::UpdateInputs() {
     else if(!physical)mainArmed=true;
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
         mainArmed=false;sf4e::Overlay::RequestMainControls();
+    }
+    // Go now on the call back from Training, behind another window: View
+    // alone, the gesture below being the focus's (TrainingPad.hxx: PadGoNowBehind).
+    static sf4e::input::PadGoNowBehind goNowBehind;
+    const bool offeredBehind=!focused&&callOffered&&connected&&device.type==sf4e::input::PadXInput&&
+        snapshot.inputCapture==sf4e::input::Capture::Idle&&ownerType==device.type&&ownerIndex==device.index;
+    if(goNowBehind.Update(offeredBehind,physical)) {
+        const bool free=!sf4e::Overlay::CapturesMenuInput()&&!sf4e::battlePause.Paused();
+        if(goNowGate.Press(sf4e::input::GoNowGate::Source::Pad,free)) spdlog::info("Training: go now taken on the pad behind another window");
+        else spdlog::info("Training: go now on the pad behind another window was not taken");
     }
     // Offline Training: the pad's Back and Start (TrainingPad.hxx). Each press
     // keeps the battle and pad owner it went down under, and the position

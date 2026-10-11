@@ -34,6 +34,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME HudMementoBounds SOURCES "src/tests/hud_memento_bounds_test.cxx")
     sf4e_add_unit_test(NAME VfxObjectMemento SOURCES "src/tests/vfx_object_memento_test.cxx")
     sf4e_add_unit_test(NAME FocusGate SOURCES "src/tests/focus_gate_test.cxx")
+    sf4e_add_unit_test(NAME AwayAlert SOURCES "src/tests/away_alert_test.cxx")
     sf4e_add_unit_test(NAME InputLagControl SOURCES "src/tests/input_lag_control_test.cxx")
     sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
     sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
@@ -389,6 +390,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__AwayAlert.hxx"
+    "src/sf4e/sf4e__AwayAlert.cxx"
     "src/sf4e/sf4e__InputLag.hxx"
     "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Platform.hxx"
@@ -424,7 +427,7 @@ endif()
 target_link_libraries(sf4e PRIVATE sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
-    PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp"
+    PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"
     PUBLIC imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog  ggpo::GGPO
 )
 

@@ -40,9 +40,11 @@ public:
     // Game thread: the call that stands, or none.
     void Offer(const CallIdentity& call) { std::lock_guard<std::mutex> lock(mutex_); offered_ = call; }
     CallIdentity Offered() const { std::lock_guard<std::mutex> lock(mutex_); return offered_; }
-    // Any thread, for a fresh press. free: the press is nobody else's now (the
-    // game's window has the focus, Ember's menu takes no input and the game's
-    // pause menu is closed). True when it is taken for the call that stands.
+    // Any thread, for a fresh press. free: the press is nobody else's now
+    // (Ember's menu takes no input and the game's pause menu is closed; for
+    // the key, the game's window has the focus too, while the pad's View
+    // counts behind another window, TrainingPad.hxx: PadGoNowBehind). True
+    // when it is taken for the call that stands.
     bool Press(Source source, bool free) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!free || !offered_.Live() || requests_.size() >= MostRequests) return false;
