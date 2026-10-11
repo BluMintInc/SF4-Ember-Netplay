@@ -99,16 +99,15 @@ void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
 }
 
 // A message entered while the room could not take it waits here, and goes out once the room can. It is
-// let go, with the draft left in the box, if the room closes or is left first, or after
-// MaximumChatAttempts refused submissions. Only a drawn frame has the room to send into, so one still
-// waiting while Ember is hidden goes when it is shown again.
+// let go, with the draft left in the box, only if the room closes or is left first. Only a drawn frame has
+// the room to send into, so one still waiting while Ember is hidden goes when it is shown again.
 void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
     if (!queuedChat_) return;
     const ChatGate gate = ChatGateOf(v);
     if (gate == ChatGate::NotJoined) { queuedChat_.reset(); return; }
     const double now = ImGui::GetTime();
-    // A clock that went back (the device was reset) does not hold a retry for longer than its second.
-    if (gate != ChatGate::Writable || (now < queuedChat_->retryAt && queuedChat_->retryAt - now <= 1)) return;
+    // A clock that went back (the device was reset) does not hold a retry for longer than its wait.
+    if (gate != ChatGate::Writable || (now < queuedChat_->retryAt && queuedChat_->retryAt - now <= MaximumChatRetrySeconds)) return;
     room::Action request;
     request.table = static_cast<std::uint8_t>(selectedTable_);
     request.kind = room::ActionKind::Chat;
@@ -119,8 +118,7 @@ void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
         return;
     }
     if (error_.empty()) error_ = loc::T("room.action_rejected");
-    queuedChat_->retryAt = now + 1;
-    if (++queuedChat_->attempts >= MaximumChatAttempts) queuedChat_.reset();
+    queuedChat_->retryAt = now + (std::min)(static_cast<double>(++queuedChat_->attempts), MaximumChatRetrySeconds);
 }
 
 // A room under many updates can flip the fence every few frames, so a change is written at most once

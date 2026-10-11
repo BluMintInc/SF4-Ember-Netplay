@@ -322,11 +322,11 @@ private:
     // A message entered while the room could not take it, apart from the draft the player keeps editing and
     // from pendingChat_, whose receipt is still looked for. It goes out once, when the room can (FlushChat),
     // and no other is accepted until then. A retry of text that arrives first is not sent. It stays held
-    // until the runtime has taken it: a refused submission is tried again a second later, up to
-    // MaximumChatAttempts times in all. It lasts as long as the member is in the same open room, whether or
-    // not Ember is shown.
+    // until the runtime has taken it: a refused submission is tried again after a second, then after one
+    // more each time, to at most MaximumChatRetrySeconds. It lasts as long as the member is in the same open
+    // room, whether or not Ember is shown.
     struct QueuedChat { std::string text; double retryAt = 0; unsigned attempts = 0; };
-    static constexpr unsigned MaximumChatAttempts = 5;
+    static constexpr double MaximumChatRetrySeconds = 5;
     std::optional<QueuedChat> queuedChat_;
     // Chat availability changes go to the log at most once a second, with how many they cover.
     ChatGate chatGate_ = ChatGate::NotJoined, chatGateLogged_ = ChatGate::NotJoined;

@@ -358,11 +358,17 @@ void ChatJourneys(){
  Check(row("compose").value=="Away A B!"&&!row("compose").enabled,"The refusal fixture did not hold the message with an edited draft");
  sent=h.actions.size();h.accept=false;h.view.session.authorityWritable=true;h.Frame();
  Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled,"A refused submission dropped the held message");
- h.accept=true;h.Frame(0,5);
+ h.Frame(0,5);
  Check(h.actions.size()==sent+1,"A refused submission was tried again at once");
- h.Wait(1.1f);h.Frame(0,2);
- Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Away A B","A refused submission was not sent when tried again, or the edited draft went instead");
- h.Frame(0,5);Check(h.actions.size()==sent+2&&row("compose").value=="Away A B!","The retried message went out twice, or touched the draft");
+ // It stays held through more refusals than any limit would allow, each retry a little later than the last.
+ for(int refusal=2;refusal<=7;++refusal){
+  h.Wait(5.5f);h.Frame();
+  Check(h.actions.size()==sent+refusal&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled&&row("compose").value=="Away A B!",
+   "A message was given up after repeated refusals, or the edited draft went instead");
+ }
+ h.accept=true;h.Wait(5.5f);h.Frame(0,2);
+ Check(h.actions.size()==sent+8&&h.actions.back().roomAction.text=="Away A B","A refused submission was not sent once the runtime took submissions again");
+ h.Frame(0,5);Check(h.actions.size()==sent+8&&row("compose").value=="Away A B!","The retried message went out twice, or touched the draft");
  say(1,"Away A B");h.Frame(0,2);
  // After a long fence the hint holds through short writable gaps, as the status line does.
  std::vector<std::string> notes;
