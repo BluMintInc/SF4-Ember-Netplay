@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "더미 녹화"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1의 조작을 P2에 녹화합니다. 게임에서 더미를 플레이어 / 컨트롤러 조작으로 설정하세요."
+msgstr "P1의 조작을 P2에 녹화하고 재생합니다. 게임 설정은 필요 없습니다. 녹화나 재생 중에는 Ember가 더미를 P2 입력으로 바꿉니다."
 
 msgid "training.input_history"
 msgstr "입력 기록"
@@ -1484,6 +1484,9 @@ msgstr "반격 슬롯"
 
 msgid "training.reply.slot.detail"
 msgstr "반격 기술이 비어 있을 때 반격으로 재생하는 더미 녹화입니다. 첫 입력부터 재생합니다."
+
+msgid "training.reply.slot_empty"
+msgstr "슬롯 {0}이(가) 비어 있어 더미가 반격하지 않습니다. 녹화하거나 기술을 고르세요."
 
 msgid "training.reply.chance"
 msgstr "반격 확률"
@@ -1556,6 +1559,9 @@ msgstr "점프"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "사람"
 
 msgid "training.dummy.guard_none"
 msgstr "가드 없음"
@@ -1749,6 +1755,30 @@ msgstr "HUD에 경직 표시"
 msgid "training.meter.hud_recovery.detail"
 msgstr "각 캐릭터의 마지막 기술 경직을 미터의 발생 옆에 표시합니다."
 
+msgid "training.meter.hud_numbers"
+msgstr "HUD에 숫자 표시"
+
+msgid "training.meter.hud_bars"
+msgstr "HUD에 막대 표시"
+
+msgid "training.meter.hud_state"
+msgstr "HUD에 상태 표시"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "HUD에 단축키 표시"
+
+msgid "training.meter.hud_status"
+msgstr "HUD에 녹화 표시"
+
+msgid "training.meter.hud_part.detail"
+msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."
+
+msgid "training.meter.hud_size"
+msgstr "HUD 크기"
+
+msgid "training.meter.hud_size.detail"
+msgstr "트레이닝 HUD의 글자와 바 크기를 바꿉니다. 화면 크기로도 커집니다."
+
 msgid "training.recovery_frames"
 msgstr "경직 {0} f"
 
@@ -1796,6 +1826,9 @@ msgstr "실시간"
 
 msgid "training.advantage"
 msgstr "유리"
+
+msgid "training.last_advantage"
+msgstr "직전 유리"
 
 msgid "selection.preview_unavailable"
 msgstr "미리 보기\n불가"
@@ -4139,6 +4172,12 @@ msgstr "프레임 데이터"
 
 msgid "training.frame_data.detail"
 msgstr "각 플레이어의 마지막 기술, 프레임 이득과 기상에 겹치는 공격 타이밍을 확인합니다."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "대전 중 HUD의 항목을 켜거나 끕니다."
 
 msgid "training.color_key"
 msgstr "색상 설명"

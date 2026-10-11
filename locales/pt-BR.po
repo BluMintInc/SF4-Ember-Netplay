@@ -1398,7 +1398,7 @@ msgstr "Toque: restaurar, segure: salvar"
 msgid "training.dummy_recording"
 msgstr "Gravação do boneco"
 msgid "training.dummy_recording.detail"
-msgstr "Grave os controles do P1 no P2. Defina o boneco nativo como Jogador / controle."
+msgstr "Grave os controles do P1 no P2 e depois reproduza. Nenhuma configuração do jogo é necessária: o Ember passa o boneco para a entrada do P2 enquanto grava ou reproduz."
 msgid "training.input_history"
 msgstr "Histórico de comandos"
 msgid "training.input_history.detail"
@@ -1492,6 +1492,9 @@ msgstr "ao vivo"
 msgid "training.advantage"
 msgstr "Vantagem"
 
+msgid "training.last_advantage"
+msgstr "Última vantagem"
+
 msgid "training.meter.active"
 msgstr "Ativo"
 
@@ -1548,6 +1551,30 @@ msgstr "Recuperação no HUD"
 
 msgid "training.meter.hud_recovery.detail"
 msgstr "Mostra a recuperação do último golpe de cada lutador ao lado do início no medidor."
+
+msgid "training.meter.hud_numbers"
+msgstr "Números no HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Barras no HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Estado no HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Atalhos no HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Gravação no HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Mostra esta parte do HUD de treino durante a luta. F5 oculta todo o HUD."
+
+msgid "training.meter.hud_size"
+msgstr "Tamanho do HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Define o tamanho do texto e das barras do HUD de treino. O tamanho da interface também o aumenta."
 
 msgid "training.recovery_frames"
 msgstr "Rec. {0} q"
@@ -1630,6 +1657,9 @@ msgstr "Espaço de resposta"
 msgid "training.reply.slot.detail"
 msgstr "A gravação do boneco reproduzida como resposta enquanto Golpes de resposta estiver vazio, a partir do primeiro toque."
 
+msgid "training.reply.slot_empty"
+msgstr "O espaço {0} está vazio, então o boneco não responde. Grave-o ou escolha um golpe."
+
 msgid "training.reply.chance"
 msgstr "Chance de resposta"
 
@@ -1701,6 +1731,9 @@ msgstr "Pulo"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humano"
 
 msgid "training.dummy.guard_none"
 msgstr "Sem defesa"
@@ -3683,6 +3716,12 @@ msgstr "Dados de quadros"
 
 msgid "training.frame_data.detail"
 msgstr "Veja o último golpe de cada jogador, a vantagem e o tempo do meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Ligue ou desligue partes do HUD durante a luta."
 
 msgid "training.color_key"
 msgstr "Legenda de cores"

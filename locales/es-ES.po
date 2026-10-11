@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "Grabar al sparring"
 
 msgid "training.dummy_recording.detail"
-msgstr "Graba los controles de P1 en P2. Pon el sparring original bajo control de jugador o mando."
+msgstr "Graba los controles de P1 en P2 y luego reprodúcelos. No hace falta ningún ajuste del juego: Ember pasa el sparring a la entrada de P2 mientras graba o reproduce."
 
 msgid "training.input_history"
 msgstr "Hist. comandos"
@@ -1484,6 +1484,9 @@ msgstr "Ranura de respuesta"
 
 msgid "training.reply.slot.detail"
 msgstr "La grabación del muñeco que se reproduce como respuesta mientras Golpes de respuesta esté vacío, desde su primera pulsación."
+
+msgid "training.reply.slot_empty"
+msgstr "La ranura {0} está vacía, así que el sparring no responde. Grábala o elige un movimiento."
 
 msgid "training.reply.chance"
 msgstr "Probabilidad de respuesta"
@@ -1556,6 +1559,9 @@ msgstr "Salto"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humano"
 
 msgid "training.dummy.guard_none"
 msgstr "Sin bloqueo"
@@ -1749,6 +1755,30 @@ msgstr "Recuperación en el HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Muestra la recuperación del último movimiento de cada luchador junto a su inicio en el medidor."
 
+msgid "training.meter.hud_numbers"
+msgstr "Números en el HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Barras en el HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Estado en el HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Atajos en el HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Grabación en el HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Muestra esta parte del HUD de entrenamiento durante el combate. F5 lo oculta todo."
+
+msgid "training.meter.hud_size"
+msgstr "Tamaño del HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Ajusta el tamaño del texto y las barras del HUD de entrenamiento. Tamaño interfaz también lo agranda."
+
 msgid "training.recovery_frames"
 msgstr "Rec. {0} f"
 
@@ -1796,6 +1826,9 @@ msgstr "activo"
 
 msgid "training.advantage"
 msgstr "Ventaja"
+
+msgid "training.last_advantage"
+msgstr "Última ventaja"
 
 msgid "selection.preview_unavailable"
 msgstr "Vista previa\nno disponible"
@@ -4139,6 +4172,12 @@ msgstr "Datos de fotogramas"
 
 msgid "training.frame_data.detail"
 msgstr "Consulta el último movimiento de cada jugador, su ventaja y el momento del meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Activa o desactiva partes del HUD durante el combate."
 
 msgid "training.color_key"
 msgstr "Clave de colores"

@@ -48,6 +48,7 @@ std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
 // What the current atlas holds, and the script-font ranges it was built from,
 // which ImGui reads by pointer and so must outlive the build.
 std::optional<loc::Locale> atlasCatalog;
+float interfaceSize = 1.f;
 ImVector<ImWchar> scriptRanges[ScriptFontCount];
 
 // Characters of player-written text that Inter cannot draw, which every script
@@ -123,6 +124,7 @@ void BuildScriptRanges(std::optional<loc::Locale> catalog, const std::vector<ImW
 float Scale() {
     return ImGui::GetIO().FontGlobalScale;
 }
+float InterfaceScale() { return interfaceSize; }
 ImFont* HeadingFont() {
     const auto& fonts = ImGui::GetIO().Fonts->Fonts;
     return fonts.Size == 3 ? fonts[1] : ImGui::GetFont();
@@ -156,8 +158,9 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
     }
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
-bool ApplyTheme(float dpiScale) {
-    dpiScale = (std::max)(1.f, (std::min)(dpiScale, 3.f));
+bool ApplyTheme(float dpiScale, float interfaceScale) {
+    interfaceSize = interfaceScale;
+    dpiScale = (std::max)(1.f, (std::min)(dpiScale * interfaceScale, 3.f));
     auto& io = ImGui::GetIO();
     const auto catalog = CatalogInAtlas(loc::Active());
     // Font configuration survives device resets; texture ownership stays with DX9.

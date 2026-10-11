@@ -123,8 +123,10 @@ const std::vector<int>& DummyChoices(int kind) {
     static const std::vector<int> choices[5]={{0,1,2,3},{0,1,2,3},{0,1,2},{0,1,2,3},{0,5,7,8}};
     return choices[kind];
 }
-// Empty until the game's own setting has been read.
+// Empty until the game's own setting has been read. The action's last three
+// are the pause menu's own and are named but never picked here.
 const char* DummyLabel(int kind,int value) {
+    if(kind==0&&value>=4&&value<=6) return loc::T(value==4?"training.dummy.human":value==5?"training.record":"training.play");
     static const char* const names[5][4]={
         {"training.dummy.stand","training.dummy.crouch","training.dummy.jump","training.dummy.cpu"},
         {"training.dummy.guard_none","training.dummy.guard_first","training.dummy.guard_all","training.dummy.guard_random"},
@@ -143,7 +145,7 @@ int StepDummy(int kind,int value,int delta) {
     return choices[(found-choices.begin()+choices.size()+(delta>0?1:choices.size()-1))%choices.size()];
 }
 // A hotkey's key as the hint and its row show it.
-std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):"F"+std::to_string(lab.keys[which]+1); }
+std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):TrainingKeyName(lab.keys[which]); }
 constexpr const char* ReplyNames[]={"common.off","training.reply.hit","training.reply.block","training.reply.rise","training.reply.any"};
 // Where the reply's pick list stands: 0 the reply slot (no moves), then the
 // presets, then Custom for anything else. A saved reply that spells a preset
@@ -276,6 +278,7 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
 }
 training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }
 void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }
+std::string TrainingKeyName(int fromF1) { return "F"+std::to_string(fromF1+1); }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::string TrainingKeyHints() {
     std::string hints;
@@ -396,6 +399,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
    Row("frame-data",loc::T("training.frame_data"),loc::T("training.frame_data.detail")),
+   Row("hud",loc::T("training.hud"),loc::T("training.hud.detail")),
    Row("dummy",loc::T("training.dummy"),loc::T("training.dummy.detail")),
    Row("reply",loc::T("training.reply"),loc::T("training.reply.detail")),
    Row("tools",loc::T("training.position"),std::string(loc::T("training.position.save.detail"))+"\n"+loc::T("training.position.reset.detail")),
@@ -427,6 +431,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
         Value("frames-shown",loc::T("training.meter.frames_shown"),std::to_string(lab.meter.shown),loc::T("training.meter.frames_shown.detail")),
         Value("hud-recovery",loc::T("training.meter.hud_recovery"),onOff(lab.meter.recovery),loc::T("training.meter.hud_recovery.detail"))};
   rows[0].reading=rows[1].reading=rows[2].reading=true;
+ }else if(screen=="hud"){
+  LoadPractice();
+  const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
+  rows.push_back(Value("hud-size",loc::T("training.meter.hud_size"),loc::T(sizes[lab.meter.size]),loc::T("training.meter.hud_size.detail")));
+  for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
   rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
@@ -449,7 +458,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);
  Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
- trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"?.58f:.5f;
+ // A reply that plays an empty slot would do nothing; the page says so.
+ else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&v.lengths[lab.plan.slot]==0){status=loc::Tf("training.reply.slot_empty",lab.plan.slot+1);statusTone=Tone::Pending;}
+ trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"?.58f:.5f;
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
@@ -460,6 +471,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
+ // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
+ if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
+ if(screen=="hud"&&a.kind==MenuAction::Adjust)for(const auto& part:HudParts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return;}
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
   // Angled first, then Flat; 60, 90, then 120 frames; Recovery Off, then On.
   if(a.id=="meter-style")lab.meter.flat=a.delta>0;

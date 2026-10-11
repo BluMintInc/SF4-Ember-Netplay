@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "假想对手录制"
 
 msgid "training.dummy_recording.detail"
-msgstr "将 P1 的操作录制到 P2。请在游戏设置中将假想对手设为玩家／控制器控制。"
+msgstr "将 P1 的操作录制到 P2 并回放。无需更改游戏设置：录制或回放时，Ember 会让假想对手接受 P2 的输入。"
 
 msgid "training.input_history"
 msgstr "输入记录"
@@ -1484,6 +1484,9 @@ msgstr "反击槽位"
 
 msgid "training.reply.slot.detail"
 msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。"
+
+msgid "training.reply.slot_empty"
+msgstr "槽位 {0} 为空，假想对手无法反击。请先录制或选择一个招式。"
 
 msgid "training.reply.chance"
 msgstr "反击概率"
@@ -1556,6 +1559,9 @@ msgstr "跳跃"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "玩家操作"
 
 msgid "training.dummy.guard_none"
 msgstr "不防御"
@@ -1749,6 +1755,30 @@ msgstr "在 HUD 显示硬直"
 msgid "training.meter.hud_recovery.detail"
 msgstr "在计量条上起手旁显示每名角色最后一招的硬直。"
 
+msgid "training.meter.hud_numbers"
+msgstr "在 HUD 显示数值"
+
+msgid "training.meter.hud_bars"
+msgstr "在 HUD 显示帧数条"
+
+msgid "training.meter.hud_state"
+msgstr "在 HUD 显示状态"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "在 HUD 显示快捷键"
+
+msgid "training.meter.hud_status"
+msgstr "在 HUD 显示录制"
+
+msgid "training.meter.hud_part.detail"
+msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
+
+msgid "training.meter.hud_size"
+msgstr "HUD 大小"
+
+msgid "training.meter.hud_size.detail"
+msgstr "设置训练 HUD 文字和条的大小。界面大小也会放大它。"
+
 msgid "training.recovery_frames"
 msgstr "硬直 {0} 帧"
 
@@ -1796,6 +1826,9 @@ msgstr "实时"
 
 msgid "training.advantage"
 msgstr "优势"
+
+msgid "training.last_advantage"
+msgstr "上次优势"
 
 msgid "selection.preview_unavailable"
 msgstr "预览\n不可用"
@@ -4139,6 +4172,12 @@ msgstr "帧数数据"
 
 msgid "training.frame_data.detail"
 msgstr "查看双方上一招的帧数优势和压起身时机。"
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "开关对战中 HUD 的各项。"
 
 msgid "training.color_key"
 msgstr "颜色图例"

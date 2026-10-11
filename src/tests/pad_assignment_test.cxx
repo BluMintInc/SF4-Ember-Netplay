@@ -16,6 +16,7 @@ struct FakePad : Pad {
     unsigned Mapped(int side) { return 0x10u << side; }
     unsigned Raw(int side) { return 0x40000u << side; }
     void Assigned(int side, int value) { assigned[side] = value ? side : -1; }
+    int Status(int side) { return assigned[side]; }
     void Mapping(int value) { mapping = value; }
 };
 struct FakeBackend : Backend {
@@ -44,6 +45,7 @@ int main() {
     methods.AssociatePlayerAndGamepad = static_cast<void(Pad::*)(int,int)>(&FakePad::Associate);
     methods.SetDeviceTypeForPlayer = static_cast<void(Pad::*)(int,int)>(&FakePad::SetType);
     methods.SetSideHasAssignedController = static_cast<void(Pad::*)(int,int)>(&FakePad::Assigned);
+    methods.GetAssigmentStatusForPlayer = static_cast<int(Pad::*)(int)>(&FakePad::Status);
     methods.SetActiveButtonMapping = static_cast<void(Pad::*)(int)>(&FakePad::Mapping);
     Backend::staticMethods.GetSingleton = Controllers;
     Backend::publicMethods.SetDeviceInUse = static_cast<unsigned(Backend::*)(int,int)>(&FakeBackend::Release);
@@ -78,6 +80,10 @@ int main() {
         pad.type[1]=1;pad.index[1]=1;pad.assigned[1]=1;
         CHECK(sf4e::input::AssignToSide(keyboard,0,true)&&pad.assigned[1]==-1);
         pad.type[1]=1;pad.index[1]=0;
+        // Two players on one keyboard, each side assigned a slot of its own by the game.
+        pad.type[0]=pad.type[1]=1;pad.index[0]=0;pad.index[1]=1;pad.assigned[0]=0;pad.assigned[1]=1;
+        CHECK(sf4e::input::SideAssigned(0)&&sf4e::input::SideAssigned(1));
+        pad.index[1]=0;pad.assigned[1]=-1;
     }
     backend.connected[0]=backend.connected[4]=backend.connected[5]=true;
     for (int index : {0,4,5}) {
@@ -107,6 +113,10 @@ int main() {
             pad.index[side]=index;
             if (side == 1) CHECK(pad.assigned[0] == -1 && (backend.released & (1u << index)));
         }
+        // Given back to Player 1 after a match as Player 2: the second side is
+        // released but still names the pad, and reads every device from then on.
+        CHECK(sf4e::input::AssignToSide(assignment.Selected(), 1, true) && sf4e::input::AssignToSide(assignment.Selected(), 0, false));
+        CHECK(pad.type[1] == expectedType && pad.index[1] == index && sf4e::input::SideAssigned(0) && !sf4e::input::SideAssigned(1));
         assignment.Begin(); assignment.Cancel(); CHECK(assignment.Ready());
         const auto stale=assignment.Selected();backend.connected[index] = false;
         CHECK(!sf4e::input::AssignToSide(stale,0,true));

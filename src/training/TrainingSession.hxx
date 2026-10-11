@@ -35,23 +35,50 @@ enum class Mode { Idle, Recording, Playback };
 enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
-// crouch, jump, cpu. guard: no block, after first hit, all, random.
+// crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
+// playback. guard: no block, after first hit, all, random.
 // quickStand: quick, normal, delayed, random. counterHit: off, on, random.
 // stun: normal, constant, none.
 // super, revenge: the gauge settings as the menu stores them, 0 normal, 5
 // max at round start, 7 infinite, 8 refill.
 struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -1, stun = -1, super = -1, revenge = -1; };
-// The logical Training-menu action and its temporary Stand override for
-// reply input. Only the game thread owns this; edits during a reply change
-// what is restored, leaving the native driver on Stand until playback ends.
+// The action that gives the dummy Player 2's pad input, which Ember overrides.
+constexpr int DummyHuman = 4;
+// The dummy's Training-menu action, held on HUMAN while Ember drives Player 2
+// (DrivesDummy), so the player never sets it. The player's own action is kept
+// and put back when the hold ends; edits during the hold change what is put
+// back. Ember owns the game's value only while it is still HUMAN: any other
+// value found there was set from outside (the pause menu), which ends the
+// hold, and that value stands. Hold, Release and Reconcile each look for that
+// first and return true when they found it. Only the game thread owns this.
 class DummyAction {
 public:
-    int Read(int native) const { return saved_ >= 0 ? saved_ : native; }
-    void Set(int& native, int value) { if (saved_ >= 0) saved_ = value; else native = value; }
-    void BeginReply(int& native) { if (saved_ < 0) saved_ = native; native = 0; }
-    void EndReply(int& native) { if (saved_ >= 0) { native = saved_; saved_ = -1; } }
+    int Read(int native) const { return Owns(native) ? player_ : native; }
+    void Set(int& native, int value) { if (Owns(native)) player_ = value; else native = value; }
+    bool Held() const { return held_; }
+    bool Reconcile(int native) {
+        if (!held_ || native == DummyHuman) return false;
+        held_ = false; return true;
+    }
+    // Each frame Ember drives Player 2.
+    bool Hold(int& native) {
+        if (Reconcile(native)) return true;
+        if (!held_) { player_ = native; held_ = true; native = DummyHuman; }
+        return false;
+    }
+    bool Release(int& native) {
+        const bool taken = Reconcile(native);
+        if (held_) native = player_;
+        held_ = false; return taken;
+    }
+    // A checkpoint was put back with the action it was saved with: player,
+    // what Read gave after Reconcile and before the load, under the hold if
+    // there still is one.
+    void Restored(int& native, int player) const { native = held_ ? DummyHuman : player; }
 private:
-    int saved_ = -1;
+    bool Owns(int native) const { return held_ && native == DummyHuman; }
+    int player_ = -1;
+    bool held_ = false;
 };
 constexpr int GaugeValues[] = {0, 5, 7, 8};
 inline bool operator==(const DummyState& a, const DummyState& b) {
@@ -60,7 +87,7 @@ inline bool operator==(const DummyState& a, const DummyState& b) {
 }
 // Whether every value is -1 or a choice the menu offers.
 inline bool ValidDummyState(const DummyState& s) {
-    return s.action >= -1 && s.action <= 3 && s.guard >= -1 && s.guard <= 3 && s.quickStand >= -1 && s.quickStand <= 3 &&
+    return s.action >= -1 && s.action <= 6 && s.guard >= -1 && s.guard <= 3 && s.quickStand >= -1 && s.quickStand <= 3 &&
         s.counterHit >= -1 && s.counterHit <= 2 && s.stun >= -1 && s.stun <= 2 &&
         (s.super == -1 || s.super == 0 || s.super == 5 || s.super == 7 || s.super == 8) &&
         (s.revenge == -1 || s.revenge == 0 || s.revenge == 5 || s.revenge == 7 || s.revenge == 8);
@@ -254,6 +281,12 @@ struct View {
     DummyState dummy;
 };
 
+// Whether Ember plays Player 2 this frame: a recording, or a playback (a
+// reply among them) on its side. The dummy's action is held on HUMAN then.
+inline bool DrivesDummy(const View& view) {
+    return view.mode == Mode::Recording || (view.mode == Mode::Playback && view.playbackSide == 1);
+}
+
 // Owns only practice input data. The game adapter owns native save states.
 // Prepare is repeatable; only Commit advances a recording or playback cursor.
 class Session {
@@ -319,10 +352,10 @@ public:
         case Action::Clear:
             if (view_.mode != Mode::Idle) return false;
             slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0; return true;
-        case Action::Save: Stop(); return true;
+        case Action::Save: return true;
         case Action::Restore:
             if (!view_.checkpoint) return false;
-            Stop(); ClearHistory(); return true;
+            Rewind(); return true;
         default: return false;
         }
     }
@@ -415,6 +448,18 @@ private:
     }
     void ClearHistory() {
         for (auto& rows : view_.history) rows.clear();
+    }
+    // Back to a checkpoint. What the session saw of the fight (a hit, a free
+    // fighter, a wait's progress) belongs to the timeline the reset undid, and
+    // so does a playback's place in its slot, whose waits that timeline cued:
+    // a playback starts again from its first frame, in step with the restored
+    // positions, and a reply ends, its stun gone. A recording goes on: it only
+    // takes the player's input.
+    void Rewind() {
+        StopReply();
+        if (view_.mode == Mode::Playback) view_.cursor = 0;
+        actionable_ = hit_ = false; untilActionable_ = -1; waited_ = waitedPast_ = 0; lastRaw_ = 0;
+        ClearHistory();
     }
 };
 } }

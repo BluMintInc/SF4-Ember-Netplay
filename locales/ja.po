@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "ダミーレコーディング"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1の操作をP2として記録します。ゲーム本体のダミーを「プレイヤー/コントローラー操作」に設定してください。"
+msgstr "P1の操作をP2として記録し、再生します。ゲーム側の設定は不要です。記録中と再生中はEmberがダミーをP2の入力に切り替えます。"
 
 msgid "training.input_history"
 msgstr "入力履歴"
@@ -1484,6 +1484,9 @@ msgstr "反撃スロット"
 
 msgid "training.reply.slot.detail"
 msgstr "反撃の技が空のとき、反撃として再生するダミーの記録です。最初の入力から再生します。"
+
+msgid "training.reply.slot_empty"
+msgstr "スロット{0}が空なので、ダミーは反撃しません。記録するか技を選んでください。"
 
 msgid "training.reply.chance"
 msgstr "反撃の確率"
@@ -1556,6 +1559,9 @@ msgstr "ジャンプ"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "人間"
 
 msgid "training.dummy.guard_none"
 msgstr "ガードなし"
@@ -1749,6 +1755,30 @@ msgstr "HUDに硬直を表示"
 msgid "training.meter.hud_recovery.detail"
 msgstr "各キャラクターの最後の技の硬直を、メーターの発生の横に表示します。"
 
+msgid "training.meter.hud_numbers"
+msgstr "HUDに数値を表示"
+
+msgid "training.meter.hud_bars"
+msgstr "HUDにバーを表示"
+
+msgid "training.meter.hud_state"
+msgstr "HUDに状態を表示"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "HUDにショートカットを表示"
+
+msgid "training.meter.hud_status"
+msgstr "HUDに記録を表示"
+
+msgid "training.meter.hud_part.detail"
+msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"
+
+msgid "training.meter.hud_size"
+msgstr "HUDのサイズ"
+
+msgid "training.meter.hud_size.detail"
+msgstr "トレーニングHUDの文字とバーの大きさを変えます。画面サイズでも大きくなります。"
+
 msgid "training.recovery_frames"
 msgstr "硬直{0}F"
 
@@ -1796,6 +1826,9 @@ msgstr "リアルタイム"
 
 msgid "training.advantage"
 msgstr "硬直差"
+
+msgid "training.last_advantage"
+msgstr "前回の硬直差"
 
 msgid "selection.preview_unavailable"
 msgstr "プレビューを\n表示できません"
@@ -4139,6 +4172,12 @@ msgstr "フレームデータ"
 
 msgid "training.frame_data.detail"
 msgstr "各プレイヤーの直前の技、フレーム有利差、起き上がりへの重ねのタイミングを確認します。"
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "対戦中のHUDの項目をオン・オフします。"
 
 msgid "training.color_key"
 msgstr "色の凡例"

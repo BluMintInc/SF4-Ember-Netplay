@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "Nagrywanie P2"
 
 msgid "training.dummy_recording.detail"
-msgstr "Nagraj sterowanie P1 dla P2. W ustawieniach gry ustaw sterowanie przeciwnikiem na gracza / kontroler."
+msgstr "Nagraj sterowanie P1 dla P2, a potem je odtwórz. Nie trzeba nic ustawiać w grze: podczas nagrywania i odtwarzania Ember oddaje przeciwnika wejściu P2."
 
 msgid "training.input_history"
 msgstr "Historia wejść"
@@ -1484,6 +1484,9 @@ msgstr "Slot odpowiedzi"
 
 msgid "training.reply.slot.detail"
 msgstr "Nagranie manekina odtwarzane jako odpowiedź, gdy Ciosy odpowiedzi są puste, od pierwszego naciśnięcia."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} jest pusty, więc przeciwnik nie odpowie. Nagraj go albo wybierz ruch."
 
 msgid "training.reply.chance"
 msgstr "Szansa odpowiedzi"
@@ -1556,6 +1559,9 @@ msgstr "Skok"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Człowiek"
 
 msgid "training.dummy.guard_none"
 msgstr "Bez bloku"
@@ -1749,6 +1755,30 @@ msgstr "Powrót na HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Pokazuje powrót ostatniego ruchu każdej postaci obok startu na mierniku."
 
+msgid "training.meter.hud_numbers"
+msgstr "Liczby na HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Paski na HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Stan na HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Skróty na HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Nagrywanie na HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Pokazuje tę część HUD treningu podczas walki. F5 ukrywa cały HUD."
+
+msgid "training.meter.hud_size"
+msgstr "Rozmiar HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Ustawia rozmiar tekstu i pasków HUD treningu. Rozmiar interfejsu też go powiększa."
+
 msgid "training.recovery_frames"
 msgstr "Powr. {0} kl."
 
@@ -1796,6 +1826,9 @@ msgstr "na żywo"
 
 msgid "training.advantage"
 msgstr "Przewaga"
+
+msgid "training.last_advantage"
+msgstr "Ostatnia przewaga"
 
 msgid "selection.preview_unavailable"
 msgstr "Podgląd\nniedostępny"
@@ -4139,6 +4172,12 @@ msgstr "Dane klatek"
 
 msgid "training.frame_data.detail"
 msgstr "Sprawdź ostatni ruch każdego gracza, przewagę i moment ataku przy wstawaniu."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Włącz lub wyłącz części HUD podczas walki."
 
 msgid "training.color_key"
 msgstr "Legenda kolorów"

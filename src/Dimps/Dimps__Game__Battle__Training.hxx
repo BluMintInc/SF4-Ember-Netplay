@@ -38,7 +38,8 @@ namespace Dimps {
 					// once. Values are the menu's choice indices, except the
 					// gauges (0 normal, 5 max, 7 infinite, 8 refill).
 					enum Option {
-						// stand, crouch, jump, cpu; 4 and 5 are the menu's own recorder.
+						// stand, crouch, jump, cpu, human (the dummy takes Player 2's
+						// pad input), then the menu's own record (5) and playback (6).
 						OPT_ACTION = 0,
 						// no block, after first hit, all, random
 						OPT_GUARD = 1,

@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "Dummyopname"
 
 msgid "training.dummy_recording.detail"
-msgstr "Neem P1-besturing op voor P2. Stel de dummy in het spel in op bediening door speler/controller."
+msgstr "Neem P1-besturing op voor P2 en speel die af. Geen spelinstelling nodig: Ember geeft de dummy tijdens opnemen of afspelen aan de P2-invoer."
 
 msgid "training.input_history"
 msgstr "Invoergeschiedenis"
@@ -1484,6 +1484,9 @@ msgstr "Antwoordslot"
 
 msgid "training.reply.slot.detail"
 msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} is leeg, dus de dummy reageert niet. Neem het op of kies een actie."
 
 msgid "training.reply.chance"
 msgstr "Antwoordkans"
@@ -1556,6 +1559,9 @@ msgstr "Springen"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Mens"
 
 msgid "training.dummy.guard_none"
 msgstr "Niet blokken"
@@ -1749,6 +1755,30 @@ msgstr "Herstel op de HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Toont het herstel van de laatste move van elke vechter naast de start op de meter."
 
+msgid "training.meter.hud_numbers"
+msgstr "Getallen op de HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Balken op de HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Status op de HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Sneltoetsen op de HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Opname op de HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."
+
+msgid "training.meter.hud_size"
+msgstr "HUD-grootte"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Stelt de grootte van de tekst en balken van de trainings-HUD in. Interfacegrootte maakt hem ook groter."
+
 msgid "training.recovery_frames"
 msgstr "Herst. {0} f"
 
@@ -1796,6 +1826,9 @@ msgstr "live"
 
 msgid "training.advantage"
 msgstr "Voordeel"
+
+msgid "training.last_advantage"
+msgstr "Laatste voordeel"
 
 msgid "selection.preview_unavailable"
 msgstr "Voorbeeld\nniet beschikbaar"
@@ -4139,6 +4172,12 @@ msgstr "Framegegevens"
 
 msgid "training.frame_data.detail"
 msgstr "Bekijk de laatste aanval van elke speler, het framevoordeel en de timing van een meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Zet onderdelen van de HUD tijdens het gevecht aan of uit."
 
 msgid "training.color_key"
 msgstr "Kleurenlegenda"

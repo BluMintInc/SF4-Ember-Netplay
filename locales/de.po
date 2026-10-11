@@ -1423,7 +1423,7 @@ msgid "training.dummy_recording"
 msgstr "Dummy-Aufnahme"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1-Steuerung für P2 aufnehmen. Stellen Sie den nativen Dummy auf Spieler-/Controller-Steuerung."
+msgstr "P1-Steuerung für P2 aufnehmen und abspielen. Keine Spieleinstellung nötig: Ember gibt den Dummy während Aufnahme und Wiedergabe an die P2-Eingabe."
 
 msgid "training.input_history"
 msgstr "Input-Verlauf"
@@ -1484,6 +1484,9 @@ msgstr "Antwort-Slot"
 
 msgid "training.reply.slot.detail"
 msgstr "Die Dummy-Aufnahme, die als Antwort abgespielt wird, solange Antwortzüge leer ist, ab dem ersten Tastendruck."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} ist leer, der Dummy hat keine Antwort. Nehmen Sie ihn auf oder wählen Sie eine Aktion."
 
 msgid "training.reply.chance"
 msgstr "Antwortchance"
@@ -1556,6 +1559,9 @@ msgstr "Springen"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Mensch"
 
 msgid "training.dummy.guard_none"
 msgstr "Kein Block"
@@ -1749,6 +1755,30 @@ msgstr "Erholung im HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Zeigt die Erholung der letzten Aktion jedes Kämpfers neben ihrem Start im Meter."
 
+msgid "training.meter.hud_numbers"
+msgstr "Zahlen im HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Balken im HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Status im HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Kürzel im HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Aufnahme im HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Zeigt diesen Teil des Trainings-HUD im Kampf. F5 blendet das ganze HUD aus."
+
+msgid "training.meter.hud_size"
+msgstr "HUD-Größe"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Legt die Größe von Text und Balken des Trainings-HUD fest. Auch die Oberflächengröße vergrößert es."
+
 msgid "training.recovery_frames"
 msgstr "Erh. {0} F"
 
@@ -1796,6 +1826,9 @@ msgstr "live"
 
 msgid "training.advantage"
 msgstr "Vorteil"
+
+msgid "training.last_advantage"
+msgstr "Letzter Vorteil"
 
 msgid "selection.preview_unavailable"
 msgstr "Vorschau\nnicht verfügbar"
@@ -4139,6 +4172,12 @@ msgstr "Framedaten"
 
 msgid "training.frame_data.detail"
 msgstr "Zeigt den letzten Angriff jedes Spielers, den Framevorteil und das Meaty-Timing."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Teile des HUD im Kampf ein- oder ausschalten."
 
 msgid "training.color_key"
 msgstr "Farblegende"

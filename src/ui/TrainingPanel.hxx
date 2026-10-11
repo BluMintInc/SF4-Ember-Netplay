@@ -28,6 +28,11 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
 void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
+// The keys that record and play a slot, and stop either again, counted from
+// F1 as the hotkeys are. Fixed: no hotkey can take them (FreePositionKey).
+constexpr int TrainingRecordKey = 6, TrainingPlayKey = 7;
+// A key counted from F1 as the controls and the HUD name it.
+std::string TrainingKeyName(int fromF1);
 // The two hotkeys as the HUD's hint names them, those without a key left out.
 std::string TrainingKeyHints();
 // What the last position command did, while it is news; empty after a few seconds.
@@ -65,6 +70,12 @@ struct TrainingHudInput { bool open = false, pointer = false; };
 // Bottom edge of the frame meter as a fraction of the viewport height, above
 // the game's super meters.
 constexpr float TrainingHudBottom = .82f;
+// The passive HUD's size: it follows the game's window, smaller with a smaller
+// or narrower one down to the smallest text that still reads, times the HUD
+// size picked on the HUD page and the player's Interface size. Windows' DPI is
+// left out: the HUD is laid out in the game's pixels, which the window's size
+// already measures.
+float TrainingHudScale();
 // called: a room calls the player back (ChallengerCall::called); the chip is
 // not drawn then.
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false);

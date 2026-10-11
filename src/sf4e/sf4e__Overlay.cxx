@@ -388,7 +388,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
-    if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
+    if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs.
     const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
@@ -534,12 +534,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
-            if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
+            if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingRecordKey), false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
                     sf4e::ui::OpenTrainingRecordings(s_trainingControls, focus);
                 } else practice(training.mode == sf4e::training::Mode::Recording ? sf4e::training::Action::Stop : sf4e::training::Action::Record);
             }
-            if (ImGui::IsKeyPressed(ImGuiKey_F8, false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
+            if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingPlayKey), false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
         }
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.

@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
+#include "../sf4e/sf4e__InputDevices.hxx"
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__Pad.hxx"
 #include <mutex>
@@ -74,6 +75,9 @@ std::minstd_rand dummyRandom{std::random_device{}()};
 // The stretch of stun a reply was last decided for, so each gets one roll.
 unsigned decidedStretch = 0;
 DummyAction dummyAction;
+// Both fighters as the last update left them, which a playback's waits read
+// a hit against (AfterUpdate); a reset reseeds them from the restored state.
+std::array<FighterSample, 2> playbackSeen;
 // Normal shutdown owns this worker. Never join a thread from a DLL destructor
 // while Windows holds the loader lock.
 TrainingCapture* capture = nullptr;
@@ -108,18 +112,6 @@ bool PlaceFighters(Native* system, const float* x) {
     }
     return true;
 }
-// Back to the checkpoint; false when the engine did not come back whole,
-// after which the battle is left rather than played on.
-bool RestoreCheckpoint(Native* system) {
-    const bool restored = Battle::SaveState::Load(&checkpoint);
-    meter.Reset(); dummyWatch.Reset();
-    if (!restored) {
-        spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
-        *Native::GetReadyState(system) = Native::RS_ISLEAVING;
-    }
-    return restored;
-}
-}
 // The game's Training menu settings live in Training::Manager; the dummy
 // driver reads them every frame, so a write there is the whole change.
 using Manager = Dimps::Game::Battle::Training::Manager;
@@ -128,6 +120,65 @@ int* DummyOptions() {
     static bool warned = false;
     if (!manager && !warned) { warned = true; spdlog::warn("Training: the game's training options are not reachable; dummy settings stay as they are"); }
     return manager ? Manager::GetOptions(manager) : nullptr;
+}
+// The pause menu set the dummy's action over the hold (DummyAction): that
+// action stands, and what Ember plays on Player 2 stops, so it is not held again.
+void DummyTaken(int action) {
+    spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
+    session.Apply({Action::Stop, session.GetView().generation});
+}
+// Back to the checkpoint; false when the engine did not come back whole,
+// after which the battle is left rather than played on. The checkpoint puts
+// back the dummy action it was saved with, maybe the hold's: the action
+// found before it stands, under the hold if Ember still plays Player 2.
+bool RestoreCheckpoint(Native* system) {
+    int* options = DummyOptions();
+    const bool taken = options && dummyAction.Reconcile(options[Manager::OPT_ACTION]);
+    const int action = options ? dummyAction.Read(options[Manager::OPT_ACTION]) : -1;
+    const bool restored = Battle::SaveState::Load(&checkpoint);
+    if (options) dummyAction.Restored(options[Manager::OPT_ACTION], action);
+    if (taken) DummyTaken(action);
+    meter.Reset(); dummyWatch.Reset();
+    if (!restored) {
+        spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
+        *Native::GetReadyState(system) = Native::RS_ISLEAVING;
+    }
+    return restored;
+}
+// What Ember plays on the fighters, as the log names it.
+struct Playing {
+    Mode mode = Mode::Idle; int slot = 0, side = 1; bool reply = false;
+    bool operator==(const Playing& other) const { return mode == other.mode && slot == other.slot && side == other.side && reply == other.reply; }
+};
+Playing playing;
+void LogPlaying(const Playing& what, const char* change) {
+    if (what.mode == Mode::Idle) return;
+    const char* kind = what.mode == Mode::Recording ? "recording" : what.reply ? "reply" : "playback";
+    if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
+    else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
+}
+void ReleaseDummy(int& action) {
+    if (!dummyAction.Held()) return;
+    if (dummyAction.Release(action)) spdlog::info("Training: dummy action set to {} in the pause menu stands", action);
+    else spdlog::info("Training: dummy action {} put back", action);
+}
+// Before each update: the dummy's action is held on HUMAN while Ember plays
+// Player 2 and the player's is put back after, so the game reads Player 2's
+// input (ReadOverride) from the first frame Ember plays it. A different
+// action picked in the pause menu meanwhile stops what Ember plays rather
+// than being overwritten.
+void FollowDummy() {
+    const auto& view = session.GetView();
+    const Playing now{view.mode, view.selected, view.playbackSide, session.Replying()};
+    if (!(now == playing)) { LogPlaying(playing, "ended"); LogPlaying(now, "started"); playing = now; }
+    int* options = DummyOptions();
+    if (!options) return;
+    int& action = options[Manager::OPT_ACTION];
+    if (!DrivesDummy(view)) { ReleaseDummy(action); return; }
+    const bool held = dummyAction.Held();
+    if (dummyAction.Hold(action)) DummyTaken(action);
+    else if (!held) spdlog::info("Training: dummy action {} held on HUMAN while Ember plays Player 2", dummyAction.Read(action));
+}
 }
 void WriteDummyState(const DummyState& state) {
     int* options = DummyOptions();
@@ -175,6 +226,7 @@ bool ReadOverride(int side, Input& result) {
 // Applies one command from the panel or the hotkeys; whether it took effect.
 // The session checks every command once, for its battle and whether it can
 // apply now; only then is the game touched.
+std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 static bool Dispatch(Native* system, const Command& command) {
     if (!session.Apply(command)) {
         // A position that was asked for and not saved or put back is the
@@ -203,6 +255,7 @@ static bool Dispatch(Native* system, const Command& command) {
     }
     case Action::Restore: {
         const bool restored = RestoreCheckpoint(system);
+        playbackSeen = ReadFighters(system, false);
         spdlog::info("Training: position {}", restored ? "reset to the saved one" : "not reset");
         return restored;
     }
@@ -226,7 +279,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     std::deque<Command> pending;
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
     for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
-    if (!session.Replying()) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
+    FollowDummy();
     // The countdown follows the call that stands for this battle, before it
     // ticks, so a call that has ended can never take the battle away and a
     // go now taken for the call is never lost (TrainingSession.hxx).
@@ -260,6 +313,10 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         physical[side].mapped = (pad->*Pad::publicMethods.GetButtons_MappedOn)(side);
         physical[side].raw = (pad->*Pad::publicMethods.GetButtons_RawOn)(side);
     }
+    // A second side the game holds no assignment for reads every device, so
+    // its presses are Player 1's: after a match as Player 2 it still names the
+    // pad given back to Player 1. Two players on one keyboard are both assigned.
+    if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
     output = session.Prepare(physical);
     commitInput = true;
     overriding = session.GetView().mode != Mode::Idle;
@@ -358,17 +415,16 @@ void AfterUpdate(Native* system) {
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
-            static std::array<FighterSample, 2> previous;
             const int side = session.GetView().playbackSide;
-            const auto& own = fighters[side], & other = fighters[1 - side];
-            const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(previous[1 - side].status) != Phase::Hit) ||
-                other.comboDamage > previous[1 - side].comboDamage);
+            const auto& own = fighters[side], & other = fighters[1 - side], & before = playbackSeen[1 - side];
+            const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(before.status) != Phase::Hit) ||
+                other.comboDamage > before.comboDamage);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
-            previous = fighters;
+            playbackSeen = fighters;
         }
         if (commitInput) session.Commit(output);
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
@@ -381,15 +437,15 @@ void AfterUpdate(Native* system) {
             int* options = DummyOptions();
             // Hit again: a reply already begun is dropped, and this stretch decides anew.
             if (seen.held && seen.stretch != decidedStretch) session.StopReply();
-            if (!session.Replying() && options) dummyAction.EndReply(options[Manager::OPT_ACTION]);
             const bool typed = !dummyPlan.moves[0].empty();
             const auto& frames = typed ? dummyPlan.moves[session.GetView().x[1] < session.GetView().x[0] ? 0 : 1] : session.Slot(dummyPlan.slot);
             const int cause = seen.freed ? seen.freed : seen.held;
             if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames), dummyPlan.timing)) {
                 decidedStretch = seen.stretch;
-                if (DummyReplies(dummyPlan, cause, dummyRandom()) &&
-                    (typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && options) {
-                    dummyAction.BeginReply(options[Manager::OPT_ACTION]);
+                if (DummyReplies(dummyPlan, cause, dummyRandom())) {
+                    // Ember plays the reply from the next update, which holds the dummy for it (FollowDummy).
+                    if (!(typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && !typed && frames.empty())
+                        spdlog::info("Training: no reply, slot {} is empty", dummyPlan.slot + 1);
                 }
             }
             if (seen.freed && dummyPlan.varyStance && options) {
@@ -446,9 +502,10 @@ void CloseBattle() {
     gapResets = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-    if (session.GetView().available) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
+    if (session.GetView().available) if (int* options = DummyOptions()) ReleaseDummy(options[Manager::OPT_ACTION]);
+    playing = {};
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{};
+    matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{}; playbackSeen = {};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

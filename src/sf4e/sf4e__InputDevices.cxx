@@ -163,6 +163,11 @@ bool ReadAssignedInput(const Device& device,int side,unsigned& mapped,unsigned& 
     mapped=(pad->*methods.GetButtons_MappedOn)(side);raw=(pad->*methods.GetButtons_RawOn)(side);
     return true;
 }
+bool SideAssigned(int side) {
+    using namespace Dimps::Pad;
+    auto* pad = System::staticMethods.GetSingleton();
+    return pad && side >= 0 && side <= 1 && (pad->*System::publicMethods.GetAssigmentStatusForPlayer)(side) >= 0;
+}
 void LogInventory(const std::vector<Device>& devices) {
     // ReadDevices lists the keyboard once the provider is ready; before that
     // there is nothing to report. The first list is logged even with no pads.
