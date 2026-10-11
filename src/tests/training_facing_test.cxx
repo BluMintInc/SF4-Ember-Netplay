@@ -136,6 +136,23 @@ int main() {
         };
         Require(framesPlayed(false) == 2 && framesPlayed(true) == 6, "A loaded recording did not follow Play's once or looped");
         Require(send(Action::Mirror) && framesPlayed(false) == 2 && framesPlayed(true) == 6, "A mirrored recording did not follow Play's once or looped");
+        // A Place that swaps the fighters turns the input of the update it
+        // comes in: the frame a recording holds and the frame a playback plays.
+        Session placed; placed.Enter(); placed.SetReady(true);
+        const auto order = [&](Action action, float x0 = 0, float x1 = 0) {
+            Command command; command.action = action; command.generation = placed.GetView().generation; command.place[0] = x0; command.place[1] = x1;
+            return placed.Apply(command);
+        };
+        placed.SetPositions(0, 100);
+        Require(order(Action::Record), "The recording did not start");
+        { Frame pad; pad[0] = {L, L, 0, 0}; placed.Commit(placed.Prepare(pad)); }
+        Require(order(Action::Place, 100, 0) && placed.FacingRight(1) && placed.GetView().x[0] == 100, "A Place that swapped the fighters did not turn them");
+        { Frame pad; pad[0] = {R, R, 0, 0}; placed.Commit(placed.Prepare(pad)); }
+        Require(order(Action::Stop) && placed.Slot(0).size() == 2 && placed.Slot(0)[0].raw == R && placed.Slot(0)[1].raw == R,
+            "A recording after a Place that swapped the fighters was held for the old facing");
+        placed.SetPositions(0, 100);
+        Require(order(Action::Play) && placed.Prepare(Frame{})[1].raw == L, "The playback did not play for the dummy facing left");
+        Require(order(Action::Place, 100, 0) && placed.Prepare(Frame{})[1].raw == R, "A playback after a Place that swapped the fighters played for the old facing");
         std::puts("Training facing checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

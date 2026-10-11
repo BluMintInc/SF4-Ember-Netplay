@@ -207,7 +207,8 @@ struct Command {
     std::vector<Input> frames; int side = 1;
     // DummyState: the settings to change.
     DummyState dummy;
-    // Place: where to put Player 1 and Player 2 (x).
+    // Place: where to put Player 1 and Player 2 (x); the session takes them as
+    // the fighters' positions at once, so the update's input already turns for them.
     float place[2] = {0, 0};
     // DummyPlan: the whole plan, replacing the one before.
     DummyPlan plan;
@@ -350,7 +351,9 @@ public:
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     // The fighters face each other, by where they stood after the last
-    // update; level, they keep the sides they had. A slot plays, and is
+    // update, or where a Place put them (Apply); level, they keep the sides
+    // they had. The runtime reads the game for every other move: each
+    // simulated update and a reset to the checkpoint. A slot plays, and is
     // recorded, for the facing the update's input was prepared with, so the
     // runtime sets the new positions after Commit.
     // Limitation: the game turns a fighter a few frames after the two pass
@@ -362,12 +365,13 @@ public:
     // The fighter on the left faces right.
     bool FacingRight(int side) const { return (side == 0) == firstOnLeft_; }
     // Every command passes here first, and only here is its battle checked.
-    // Place, DummyPlan and ExportSlot change nothing in the
-    // session; accepted, the runtime carries them out.
+    // Accepted, the runtime carries out Place, DummyPlan and ExportSlot;
+    // of them only Place changes the session, which takes its positions.
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::ExportSlot: return true;
+        case Action::Place: SetPositions(command.place[0], command.place[1]); return true;
+        case Action::ExportSlot: return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         case Action::Stop: Stop(); return true;
         case Action::Select:
