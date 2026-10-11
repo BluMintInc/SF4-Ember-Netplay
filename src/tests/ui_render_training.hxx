@@ -392,6 +392,9 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     }
     io.AddKeyEvent(ImGuiKey_F5,true);draw(nullptr,0,1);NoteMenuDevice(0);io.AddKeyEvent(ImGuiKey_F5,false);draw(nullptr,0,1);
     Require(MenuPromptDevice()==input::PadKeyboard,"A function key did not turn the HUD's prompts to the keyboard");
-    SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
+    SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");
+    // While a slot plays F8 stops it, and the strip says so.
+    training.mode=training::Mode::Playback;training.cursor=40;draw("training-hud-playing");training.mode=training::Mode::Idle;training.cursor=0;
+    SetMenuGlyphs(3,0x40000,0x20000);
 }
 }

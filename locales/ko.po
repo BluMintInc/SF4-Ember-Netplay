@@ -1386,17 +1386,20 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "트레이닝 조작"
 
-msgid "training.open_chip"
-msgstr "F6 트레이닝 조작"
-
 msgid "training.hide_hint"
-msgstr "F5 HUD 숨기기"
+msgstr "HUD 숨기기"
 
 msgid "training.controls_chip"
 msgstr "트레이닝 조작"
 
 msgid "training.pad_hint"
 msgstr "누르기: 복원, 길게: 저장"
+
+msgid "training.hint.reset"
+msgstr "복원"
+
+msgid "training.hint.save"
+msgstr "저장"
 
 msgid "training.save_recording"
 msgstr "녹화 이름 지정 저장"

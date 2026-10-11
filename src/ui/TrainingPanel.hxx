@@ -33,8 +33,11 @@ bool TrainingHotkeyBound(int fromF1);
 constexpr int TrainingRecordKey = 6, TrainingPlayKey = 7;
 // A key counted from F1 as the controls and the HUD name it.
 std::string TrainingKeyName(int fromF1);
-// The two hotkeys as the HUD's hint names them, those without a key left out.
-std::string TrainingKeyHints();
+// The position hotkeys as the HUD's strip names them: reset then save, each
+// with its key and a short locale key for what it does; a hotkey set to Off
+// is left out.
+struct TrainingKeyHint { std::string key; const char* label; };
+std::vector<TrainingKeyHint> TrainingPositionKeys();
 // What the last position command did, while it is news; empty after a few seconds.
 std::string TrainingNotice(bool& failed);
 MenuNavigation& TrainingNavigation();

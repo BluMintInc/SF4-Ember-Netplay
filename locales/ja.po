@@ -1386,17 +1386,20 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "トレーニング操作"
 
-msgid "training.open_chip"
-msgstr "F6 トレーニング操作"
-
 msgid "training.hide_hint"
-msgstr "F5 HUDを隠す"
+msgstr "HUDを隠す"
 
 msgid "training.controls_chip"
 msgstr "トレーニング操作"
 
 msgid "training.pad_hint"
 msgstr "押す：位置を戻す　長押し：保存"
+
+msgid "training.hint.reset"
+msgstr "位置を戻す"
+
+msgid "training.hint.save"
+msgstr "位置を保存"
 
 msgid "training.save_recording"
 msgstr "録画を名前を付けて保存"
