@@ -6,7 +6,7 @@
 
 #include "../session/sf4e__SessionClient.hxx"
 #include "../common/TrainingPad.hxx"
-#include "../common/MenuInputCapture.hxx"
+#include "../ui/OverlayPresentation.hxx"
 
 namespace sf4e {
 	namespace Overlay {
@@ -16,12 +16,10 @@ namespace sf4e {
         // The game window has the focus: the keyboard, the mouse and the
         // training controls need it; Ember's menu does not.
         bool HasInputFocus();
-        // Game thread, first in each pad update: where the game is now, which
-        // decides where the menu may hold the pads (input::ShellPadPlace).
-        void UpdatePadOwnership(input::MenuContext context, bool fighting);
-        // The menu holds the pads: shown or an open asked for, and still
-        // where it may hold them. They are then polled behind another window.
-        bool ShellHoldsPads();
+        // The menu's opens and its hold on the pads (OverlayPresentation.hxx):
+        // the pad update says where the game is, first in each update, and
+        // polls the pads behind another window while the menu holds them.
+        ui::MenuPads& MenuPads();
         void RequestMainControls();
         // Game thread: what the pad's Back and Start ask for in offline
         // Training, in order (TrainingPad.hxx). An event posted under an epoch

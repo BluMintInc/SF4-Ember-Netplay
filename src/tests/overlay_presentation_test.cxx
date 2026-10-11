@@ -72,32 +72,55 @@ int main() {
     requests.Post(Kind::Controls);
     CHECK(requests.Take() == Kind::Controls);
     {
-        // A request stays pending until the frame that took it has published.
-        // Start arrives after a frame's Take and before that frame publishes
-        // the menu still hidden: the request still holds the pads, and the
-        // next frame takes it, shows the menu and only then lets it go.
+        // The menu's hold on the pads, as the overlay and the pad update use it.
+        using sf4e::input::MenuContext;
+        using sf4e::ui::MenuPads;
         OverlayPresentation shell; shell.Update(true, MatchState::None, false, false); shell.Close();
-        sf4e::ui::OpenRequests starts;
-        bool shown = false;
-        const auto holds = [&] { return shown || starts.Pending(); };
-        auto seen = starts.Posted();
-        CHECK(starts.Take() == Kind::None);
-        starts.Post(Kind::Controls);                 // the game thread, mid-frame
-        CHECK(holds());
-        shown = shell.Visible(); starts.Acknowledge(seen);  // this frame publishes: still hidden
-        CHECK(!shown && holds());
-        seen = starts.Posted();
-        if (starts.Take() == Kind::Controls) shell.Open();
-        CHECK(holds());                              // taken, not yet published
-        shown = shell.Visible(); starts.Acknowledge(seen);
-        CHECK(shown && !starts.Pending() && holds());
+        // Start arrives after a frame took the opens and before that frame
+        // publishes the menu still hidden: the request holds the pads until
+        // the next frame has shown the menu.
+        MenuPads pads; pads.Place(MenuContext::MainMenu, false);
+        CHECK(!pads.Holds());
+        auto taken = pads.Take();
+        pads.Request(MenuPads::Kind::Controls);          // the game thread, mid-frame
+        CHECK(pads.Holds());
+        pads.Publish(shell.Visible(), taken);           // that frame: still hidden
+        CHECK(!shell.Visible() && pads.Holds());
+        taken = pads.Take();
+        CHECK(taken.kind == MenuPads::Kind::Controls);
+        shell.Open();
+        CHECK(pads.Holds());                            // taken, not yet published
+        pads.Publish(shell.Visible(), taken);
+        CHECK(shell.Visible() && pads.Holds());
         // A request the menu cannot answer lets the pads go once answered.
-        shell.Close(); shell.Update(false, MatchState::Preparing, false, false);
-        starts.Post(Kind::Controls);
-        seen = starts.Posted();
-        if (starts.Take() == Kind::Controls) shell.Open();
-        shown = shell.Visible(); starts.Acknowledge(seen);
-        CHECK(!holds());
+        MenuPads refused; refused.Place(MenuContext::MainMenu, false);
+        OverlayPresentation fight; fight.Update(true, MatchState::Preparing, false, true);
+        refused.Request(MenuPads::Kind::Controls);
+        CHECK(refused.Holds());
+        const auto none = refused.Take(); if (none.kind != MenuPads::Kind::None && fight.Available()) fight.Open();
+        refused.Publish(fight.Visible(), none);
+        CHECK(!refused.Holds());
+        // Drawing stops with the menu shown, so its last word stays "shown":
+        // a match being prepared takes the pads from it at once, and they stay
+        // the game's after the match until the main menu is back.
+        CHECK(pads.Holds());
+        pads.Place(MenuContext::MainMenu, true); CHECK(!pads.Holds());
+        pads.Place(MenuContext::Unavailable, true); CHECK(!pads.Holds());
+        pads.Place(MenuContext::Unavailable, false); CHECK(!pads.Holds());
+        pads.Place(MenuContext::MainMenu, false); CHECK(pads.Holds());
+        // A brief drop of the native menu is ridden out, as the menu's own
+        // availability rides it; Training past that takes the pads back.
+        for (unsigned i = 0; i + 1 < OverlayPresentation::AwayFrames; ++i) { pads.Place(MenuContext::Unavailable, false); CHECK(pads.Holds()); }
+        pads.Place(MenuContext::MainMenu, false);
+        for (unsigned i = 0; i + 1 < OverlayPresentation::AwayFrames; ++i) pads.Place(MenuContext::OfflineTraining, false);
+        CHECK(pads.Holds());
+        pads.Place(MenuContext::OfflineTraining, false); CHECK(!pads.Holds());
+        // Over an export the menu holds them again, once no match is being prepared.
+        pads.Place(MenuContext::ReplayExport, true); CHECK(!pads.Holds());
+        pads.Place(MenuContext::ReplayExport, false); CHECK(pads.Holds());
+        // Nothing holds before the game was ever where the menu can be shown.
+        MenuPads early; early.Request(MenuPads::Kind::Controls);
+        early.Place(MenuContext::Unavailable, false); CHECK(!early.Holds());
     }
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

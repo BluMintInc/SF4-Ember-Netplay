@@ -58,10 +58,11 @@ void fSystem::UpdateInputs() {
     const auto sharedSnapshot=sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const auto& snapshot=*sharedSnapshot;
     // Where Ember's menu may hold the pads follows where the game is now,
-    // whatever the drawing thread last published (Overlay::ShellHoldsPads).
+    // whatever the drawing thread last published (ui::MenuPads).
     const bool fighting=snapshot.session.match==sf4e::netplay::MatchState::Preparing||
         snapshot.session.match==sf4e::netplay::MatchState::Playing;
-    sf4e::Overlay::UpdatePadOwnership(snapshot.menuContext,fighting);
+    auto& menuPads=sf4e::Overlay::MenuPads();
+    menuPads.Place(snapshot.menuContext,fighting);
     // A replay exported as a video, and a room's match this PC only watches,
     // run on behind another window whatever the player's setting says. Ember's
     // menu reads the pads there too, while it holds them and where Start opens
@@ -70,7 +71,7 @@ void fSystem::UpdateInputs() {
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const bool menuOnly=sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
         sf4e::replaystore::Exporting(),watching,
-        sf4e::input::MenuTakesPads(sf4e::Overlay::ShellHoldsPads(),snapshot.menuContext,fighting)||callOffered));
+        sf4e::input::MenuTakesPads(menuPads.Holds(),snapshot.menuContext,fighting)||callOffered));
     menuOnlyInput=menuOnly;
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
@@ -127,11 +128,9 @@ void fSystem::UpdateInputs() {
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus
         // period its press was sampled in, and only for the call offered then.
-        if(events.goNow) {
-            if(!sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,offeredCall,goNowGate,sf4e::input::GoNowGate::Source::Pad,free))
-                spdlog::info("Training: go now on the pad was not taken");
-            else if(!focused) spdlog::info("Training: go now taken on the pad behind another window");
-        }
+        if(events.goNow) spdlog::info("Training: go now on the pad was {}{}",
+            sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,offeredCall,goNowGate,sf4e::input::GoNowGate::Source::Pad,free)?"taken":"not taken",
+            focused?"":" behind another window");
         using Kind=sf4e::input::TrainingPadEvent::Kind;
         for(const Kind kind:{Kind::Reset,Kind::Save}) {
             if(kind==Kind::Reset?!events.reset:!events.save) continue;

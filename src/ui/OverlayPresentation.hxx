@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "../common/BattlePause.hxx"
 #include "../netplay/SessionController.hxx"
+#include "../common/MenuInputCapture.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -55,26 +56,63 @@ private:
 // drawing thread touches the presentation and the shell's navigation, so a
 // request waits for its next frame. Requests arriving before then coalesce,
 // and Play outranks Controls.
-// A request stays pending until the frame that took it has published what it
-// made of it (the menu shown or not): the frame reads Posted before Take, and
-// acknowledges that count once it has published. Until then Ember holds the
-// pads as if the menu were shown, so the press that asked never reaches the
-// game, even when it arrives after a frame's Take and before that frame
-// publishes the menu still hidden.
 class OpenRequests {
 public:
     enum class Kind : int { None = 0, Controls = 1, Play = 2 };
     void Post(Kind kind) {
         int current = value_.load();
         while (current < static_cast<int>(kind) && !value_.compare_exchange_weak(current, static_cast<int>(kind))) {}
-        posted_.fetch_add(1);
     }
-    std::uint32_t Posted() const { return posted_.load(); }
     Kind Take() { return static_cast<Kind>(value_.exchange(static_cast<int>(Kind::None))); }
-    void Acknowledge(std::uint32_t posted) { acknowledged_.store(posted); }
-    bool Pending() const { return posted_.load() != acknowledged_.load(); }
 private:
     std::atomic<int> value_{0};
-    std::atomic<std::uint32_t> posted_{0}, acknowledged_{0};
+};
+
+// Where Ember's menu may hold the game's pads, decided on the game thread
+// from the context each pad update sees, as the presentation decides where
+// the menu is available: never while a match is prepared or played, nor
+// after it until the game is back where the menu can be shown (the main
+// menu, or over an export), and away from there only for the presentation's
+// AwayFrames, which ride out the native menu's brief drops.
+class ShellPadPlace {
+public:
+    bool Update(input::MenuContext context, bool fighting) {
+        if (fighting) away_ = OverlayPresentation::AwayFrames;
+        else if (context == input::MenuContext::MainMenu || context == input::MenuContext::ReplayExport) away_ = 0;
+        else if (away_ < OverlayPresentation::AwayFrames) ++away_;
+        return away_ < OverlayPresentation::AwayFrames;
+    }
+private:
+    // Away until the first update where the menu can be shown.
+    unsigned away_ = OverlayPresentation::AwayFrames;
+};
+
+// The game's pads and Ember's menu: one owner for what both threads touch.
+// The game thread asks for opens and says, first in each pad update, where
+// the game is; the drawing thread takes the opens and publishes the menu
+// shown or not. The menu holds the pads while it is shown or an open waits
+// for its frame's answer, and only where it may hold them (ShellPadPlace).
+// So what the drawing thread last published never holds the pads once the
+// menu has gone, even with no frame drawn to say it hid; and the press that
+// asked for an open never reaches the game, even when it comes after a
+// frame took the requests and before that frame published the menu hidden.
+class MenuPads {
+public:
+    using Kind = OpenRequests::Kind;
+    struct Taken { Kind kind = Kind::None; std::uint32_t through = 0; };
+    // Game thread.
+    void Request(Kind kind) { requests_.Post(kind); posted_.fetch_add(1); }
+    void Place(input::MenuContext context, bool fighting) { mayHold_ = place_.Update(context, fighting); }
+    // Drawing thread: the open this frame answers, then, once it has decided,
+    // the menu shown or not and those opens answered, in that order.
+    Taken Take() { Taken taken; taken.through = posted_.load(); taken.kind = requests_.Take(); return taken; }
+    void Publish(bool shown, const Taken& taken) { shown_ = shown; answered_ = taken.through; }
+    // Any thread.
+    bool Holds() const { return mayHold_.load() && (shown_.load() || posted_.load() != answered_.load()); }
+private:
+    OpenRequests requests_;
+    ShellPadPlace place_;
+    std::atomic<std::uint32_t> posted_{0}, answered_{0};
+    std::atomic<bool> shown_{false}, mayHold_{false};
 };
 } }

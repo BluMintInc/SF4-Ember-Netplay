@@ -191,26 +191,6 @@ void NativeCapture() {
   MenuTakesPads(false,MenuContext::MainMenu,false),"The menu lost the pads behind another window");
  Check(!MenuTakesPads(false,MenuContext::ReplayExport,false)&&!MenuTakesPads(false,MenuContext::MainMenu,true)&&
   !MenuTakesPads(false,MenuContext::OfflineTraining,false),"The menu took the pads where they are the game's");
- // The drawing thread stops (a lost device, a minimized fullscreen game) with
- // the menu shown, and what it last published stays "shown". The pad update
- // still lets the menu hold the pads only where the game is now: a match
- // being prepared ends that at once, and so does Training once the menu's
- // own availability would have run out; back at the main menu it holds again.
- {
-  using sf4e::input::ShellPadPlace;
-  ShellPadPlace place;const bool published=true;
-  Check(!place.Update(MenuContext::Unavailable,false),"The menu held the pads before it was ever where it can be shown");
-  Check(place.Update(MenuContext::MainMenu,false)&&published,"The shown menu did not hold the pads at the main menu");
-  Check(!place.Update(MenuContext::MainMenu,true),"A match being prepared left the pads with a menu no frame hid");
-  Check(!place.Update(MenuContext::Unavailable,true)&&!place.Update(MenuContext::Unavailable,false),"A match left the pads with a menu no frame hid");
-  Check(place.Update(MenuContext::MainMenu,false),"Back at the main menu the shown menu lost the pads");
-  // A brief drop of the native menu is ridden out, as the menu's own availability rides it.
-  for(unsigned i=0;i+1<ShellPadPlace::AwayUpdates;++i)Check(place.Update(MenuContext::Unavailable,false),"A brief drop took the pads from the menu");
-  Check(place.Update(MenuContext::MainMenu,false),"The menu lost the pads after a brief drop");
-  for(unsigned i=0;i+1<ShellPadPlace::AwayUpdates;++i)place.Update(MenuContext::OfflineTraining,false);
-  Check(!place.Update(MenuContext::OfflineTraining,false),"Training kept the pads with a menu no frame hid");
-  Check(!place.Update(MenuContext::ReplayExport,true)&&place.Update(MenuContext::ReplayExport,false),"The menu over an export did not hold the pads");
- }
  // The overlay enables the adapter whatever the window's focus (only a device
  // being assigned stops it): behind another window Start opens the hidden
  // menu and the shown menu takes presses, with no refocus between.

@@ -44,18 +44,11 @@ static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
 // The menu takes the keys and the mouse: shown, with the focus.
 static std::atomic<bool> capture{false};
-// The menu is shown, focus or not, as the drawing thread's last frame
-// published it; that thread alone writes it.
-static std::atomic<bool> s_menuShown{false};
-// Whether the menu may hold the pads where the game is now, decided by the
-// game thread's pad update (input::ShellPadPlace) and read with s_menuShown
-// and the pending open requests (ShellHoldsPads).
-static sf4e::input::ShellPadPlace s_shellPlace;
-static std::atomic<bool> s_shellMayHold{false};
+// The menu's opens and its hold on the pads, focus or not (OverlayPresentation.hxx).
+static sf4e::ui::MenuPads s_menuPads;
 // The pointer is over the training HUD's chip: the mouse (only) is Ember's.
 static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
-static sf4e::ui::OpenRequests s_openRequests;
 static bool trainingHud = true;
 // The training controls: whether they are open, the pad owner and the pad's
 // position events, under one controller for both threads (TrainingPad.hxx).
@@ -86,19 +79,16 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 // focus or the training controls are open (TrainingPad.hxx: CapturesInput);
 // the game's pads while the menu holds them, focus or not, or those controls are open.
 static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
-bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(capture.load() || ShellHoldsPads(), s_trainingControls); }
+bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(capture.load() || s_menuPads.Holds(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
-void Overlay::UpdatePadOwnership(sf4e::input::MenuContext context, bool fighting) {
-    s_shellMayHold = s_shellPlace.Update(context, fighting);
-}
-bool Overlay::ShellHoldsPads() { return s_shellMayHold.load() && (s_menuShown.load() || s_openRequests.Pending()); }
+sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 // Start at the main menu, in front or behind another window. The request
 // holds the pads at once, until the frame that takes it has shown the menu
-// (OpenRequests), so the press never reaches the native menu; the keys and
-// the mouse are taken only with the focus.
+// (MenuPads), so the press never reaches the native menu; the keys and the
+// mouse are taken only with the focus.
 void Overlay::RequestMainControls() {
     if (focused) capture = true;
-    s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls);
+    s_menuPads.Request(sf4e::ui::MenuPads::Kind::Controls);
 }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
@@ -113,7 +103,7 @@ void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const,
 // Game thread: the native menu's Network item opens the room shell instead.
 static int OnMainMenuModeSelected(int mode) {
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
-    s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Play); return 1;
+    s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
 }
 // Which thread creates and frees the overlay, against the one that draws it.
 // Freeing it on another thread while a frame draws would use a freed context;
@@ -416,11 +406,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
     presentation.Update(snapshot.atMainMenu || exporting, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
-    const auto requestsSeen = s_openRequests.Posted();
-    const auto openRequest = s_openRequests.Take();
-    if (openRequest != sf4e::ui::OpenRequests::Kind::None && presentation.Available()) {
+    const auto openRequest = s_menuPads.Take();
+    if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
         presentation.Open();
-        if (openRequest == sf4e::ui::OpenRequests::Kind::Play) shell.ShowPlay();
+        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
     }
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
@@ -653,10 +642,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
     capture = focused && presentation.Visible();
-    // Shown first, then the requests this frame took answered: a request
-    // holds the pads until then (OpenRequests).
-    s_menuShown = presentation.Visible();
-    s_openRequests.Acknowledge(requestsSeen);
+    s_menuPads.Publish(presentation.Visible(), openRequest);
     static bool wasCapturing = false;
     const bool capturing = CapturesInput();
     if (wasCapturing && !capturing) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
