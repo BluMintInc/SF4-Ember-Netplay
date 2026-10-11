@@ -70,9 +70,11 @@ struct TrainingHudInput { bool open = false, pointer = false; };
 // Bottom edge of the frame meter as a fraction of the viewport height, above
 // the game's super meters.
 constexpr float TrainingHudBottom = .82f;
-// The passive HUD's size, from the game's window and not the menu's DPI scale:
-// Stable's at 900p, half as large again at most, and smaller with a smaller
-// or narrower window, down to the smallest text that still reads.
+// The passive HUD's size: it follows the game's window, smaller with a smaller
+// or narrower one down to the smallest text that still reads, times the HUD
+// size picked on the HUD page and the player's Interface size. Windows' DPI is
+// left out: the HUD is laid out in the game's pixels, which the window's size
+// already measures.
 float TrainingHudScale();
 // called: a room calls the player back (ChallengerCall::called); the chip is
 // not drawn then.

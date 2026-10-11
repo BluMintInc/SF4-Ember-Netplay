@@ -1755,6 +1755,12 @@ msgstr "Registrazione nell'HUD"
 msgid "training.meter.hud_part.detail"
 msgstr "Mostra questa parte dell'HUD di allenamento durante lo scontro. F5 nasconde tutto l'HUD."
 
+msgid "training.meter.hud_size"
+msgstr "Dim. HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Imposta la dimensione del testo e delle barre dell'HUD di allenamento. Anche Dim. interfaccia lo ingrandisce."
+
 msgid "training.recovery_frames"
 msgstr "Rec. {0} f"
 

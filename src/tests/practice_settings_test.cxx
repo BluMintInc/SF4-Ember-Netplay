@@ -125,5 +125,11 @@ int main() {
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
         for (const auto& other : HudParts) CHECK(read.*other.shown == (&other != &part));
     }
+    // The HUD is standard size unless small (0) or large (2) is saved, and keeps its size through a round trip.
+    for (const json& size : {json(), json(3), json(-1), json(1.5), json("2"), json(true)}) CHECK(ReadMeterOptions(json{{"hud_size", size}}).size == 1);
+    for (int size = 0; size < HudSizes; ++size) {
+        MeterOptions options; options.size = size;
+        CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(options).dump())).size == size);
+    }
     return 0;
 }

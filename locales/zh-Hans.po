@@ -1755,6 +1755,12 @@ msgstr "在 HUD 显示录制"
 msgid "training.meter.hud_part.detail"
 msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
 
+msgid "training.meter.hud_size"
+msgstr "HUD 大小"
+
+msgid "training.meter.hud_size.detail"
+msgstr "设置训练 HUD 文字和条的大小。界面大小也会放大它。"
+
 msgid "training.recovery_frames"
 msgstr "硬直 {0} 帧"
 

@@ -26,6 +26,8 @@ ImU32 PhaseColor(Phase phase) {
     default: return IM_COL32(220, 206, 166, 255);
     }
 }
+// The HUD's windows: dark enough to read over a bright stage, which still shows through.
+constexpr float HudBackground = .62f;
 ImU32 CellAlpha(ImU32 color, bool idle) {
     return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(idle ? 130 : 215) << IM_COL32_A_SHIFT);
 }
@@ -150,7 +152,8 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     const float startup=(std::max)(measure(loc::Tf("training.start_frames",999).c_str()),measure(loc::T("training.start_unknown")));
     const float recovery=options.recovery?(std::max)(measure(loc::Tf("training.recovery_frames",999).c_str()),measure(loc::T("training.recovery_unknown")))+gap:0;
     const float label = options.numbers ? measure("P2") + gap + measure("+999 f") + gap + startup + gap + recovery : 0;
-    const float height = 12 * hudScale;
+    // As tall as the text beside it allows, so the run lengths read too.
+    const float height = 14 * hudScale;
     const float width = (std::max)(120.f, ImGui::GetContentRegionAvail().x - label);
     // A held meter scrolls back through the frames it keeps with the mouse
     // wheel over the bars, ten frames a notch; it shows the newest again once
@@ -170,7 +173,7 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     for (int side = 0; side < 2; ++side) {
         const float rowStart = ImGui::GetCursorPosX();
         if (options.numbers) {
-            ImGui::Text("P%d", side + 1);
+            ImGui::TextDisabled("P%d", side + 1);
             ImGui::SameLine(0,gap); Advantage(meter.advantage, side);
             ImGui::SameLine(0,gap);
             if (meter.startupFrames[side] >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", meter.startupFrames[side]).c_str());
@@ -318,15 +321,19 @@ void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
     }
 }
 float TrainingHudScale() {
+    // Small is the size the HUD had before it could be chosen; standard sets its
+    // text 22 pixels tall at 1080p, and large 28.
+    constexpr float sizes[HudSizes] = {1.f, 1.3f, 1.6f};
     const auto* vp = ImGui::GetMainViewport();
-    return (std::max)(.65f, (std::min)(1.5f, (std::min)(vp->Size.y / 900.f, vp->Size.x / 1200.f)));
+    const float window = (std::min)(vp->Size.y / 900.f, vp->Size.x / 1200.f);
+    return (std::max)(.65f, window * sizes[TrainingMeterOptions().size] * InterfaceScale());
 }
 void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
     if (status.Empty()) return;
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, vp->Pos.y + vp->Size.y * TrainingRoomStatusTop), ImGuiCond_Always, ImVec2(.5f, 0));
-    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::SetNextWindowBgAlpha(HudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     if (ImGui::Begin("Training room status", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
@@ -396,7 +403,7 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
     if (!strip && !options.numbers && !options.bars && !options.state) return hudTop;
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
-    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::SetNextWindowBgAlpha(HudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * hudScale, 6 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
@@ -436,7 +443,7 @@ void DrawMatchPracticeNotice() {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
-    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::SetNextWindowBgAlpha(HudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(4*hudScale,3*hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
     if(ImGui::Begin("Match practice keys",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
@@ -472,7 +479,7 @@ TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     // With the shortcuts off only what a position key just did is told.
     if (called || (!options.shortcuts && notice.empty())) return input;
     ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
-    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::SetNextWindowBgAlpha(HudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     if (ImGui::Begin("Training shortcuts", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |

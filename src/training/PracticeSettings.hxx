@@ -35,7 +35,8 @@ constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &M
     {"hud_status", "training.meter.hud_status", &MeterOptions::status}};
 // The meter's drawing options: angled unless the style is "flat", the
 // recovery number only for a literal true, 60 frames shown unless 90 or 120
-// is saved, and every part of the HUD unless it is saved as a literal false.
+// is saved, every part of the HUD unless it is saved as a literal false, and
+// the standard size unless another one is saved.
 inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     MeterOptions options;
     if (!meter.is_object()) return options;
@@ -44,10 +45,12 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     const auto shown = meter.value("frames_shown", nlohmann::json());
     for (const int choice : MeterShownChoices) if (shown.is_number_integer() && shown == choice) options.shown = choice;
     for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
+    const auto size = meter.value("hud_size", nlohmann::json());
+    for (int choice = 0; choice < HudSizes; ++choice) if (size.is_number_integer() && size == choice) options.size = choice;
     return options;
 }
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
-    nlohmann::json meter{{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}};
+    nlohmann::json meter{{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     return meter;
 }

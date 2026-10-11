@@ -1755,6 +1755,12 @@ msgstr "Nahrávání na HUD"
 msgid "training.meter.hud_part.detail"
 msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
 
+msgid "training.meter.hud_size"
+msgstr "Velikost HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Nastaví velikost textu a pruhů tréninkového HUD. Zvětší ho i Velikost rozhraní."
+
 msgid "training.recovery_frames"
 msgstr "Zot. {0} sn."
 

@@ -1755,6 +1755,12 @@ msgstr "HUD에 녹화 표시"
 msgid "training.meter.hud_part.detail"
 msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."
 
+msgid "training.meter.hud_size"
+msgstr "HUD 크기"
+
+msgid "training.meter.hud_size.detail"
+msgstr "트레이닝 HUD의 글자와 바 크기를 바꿉니다. 화면 크기로도 커집니다."
+
 msgid "training.recovery_frames"
 msgstr "경직 {0} f"
 

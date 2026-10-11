@@ -74,7 +74,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         if(std::string(screen)=="reply")Require(trainingRows.size()==7,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==5,"HUD page lost one of its parts");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==6&&trainingRows[0].id=="hud-size","HUD page lost its size or one of its parts");
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)if(row.id=="reply-slot"){
             Require(row.value==loc::Tf("training.slot",1),"Reply slot value includes recorded frame count");
             Require(row.detail.find(loc::Tf("training.recorded_frames",120))!=std::string::npos,"Reply slot detail lost recorded frame count");
@@ -117,10 +117,14 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         focus("color-key");draw("training-color-key-flat");
         SetTrainingMeterOptions({});
     }
-    // The HUD page: every part is on at first, and Left turns the focused one off.
+    // The HUD page: standard size and every part on at first. Left on the
+    // size makes the HUD smaller, and on a part turns it off.
     TrainingNavigation().Home();TrainingNavigation().Push("hud");draw();
-    for(int i=0;i<5;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+    for(int i=0;i<6;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+    Require(TrainingMeterOptions().size==1,"The HUD is not standard size at first");
     draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
+    Require(TrainingMeterOptions().size==0,"HUD page did not make the HUD smaller");
+    draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
     Require(!TrainingMeterOptions().numbers&&TrainingMeterOptions().bars,"HUD page did not turn its first part off");
     SetTrainingMeterOptions({});
     // The reply's pick list: Right from the reply slot picks the first preset,
@@ -306,10 +310,34 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     parts.bars=false;SetTrainingMeterOptions(parts);draw();
     Require(hud->LastFrameActive!=ImGui::GetFrameCount(),"HUD drew with every part off");
     SetTrainingMeterOptions({});
-    // A small window: the HUD shrinks with it and keeps its place over the gauges.
-    io.DisplaySize=ImVec2(640,480);draw("training-hud-small");
-    Require(hud->Size.x<=640*.76f&&hud->Size.y<480*.17f&&hud->Pos.y+hud->Size.y<=480*.82f+1,"Training HUD does not fit a small window");
+    // A small window: the HUD shrinks with it and keeps its place over the
+    // gauges, at every size and while it records.
+    {
+        const char* names[training::HudSizes][2]={{"training-hud-small-small","training-hud-small-small-recording"},
+            {"training-hud-small","training-hud-small-recording"},{"training-hud-small-large","training-hud-small-large-recording"}};
+        training::MeterOptions sized;
+        for(int hudSize=0;hudSize<training::HudSizes;++hudSize)for(const bool recording:{false,true}){
+            sized.size=hudSize;SetTrainingMeterOptions(sized);training.mode=recording?training::Mode::Recording:training::Mode::Idle;
+            io.DisplaySize=ImVec2(640,480);draw(names[hudSize][recording]);
+            Require(hud->Size.x<=640*.76f&&hud->Size.y<480*.17f&&hud->Pos.y+hud->Size.y<=480*.82f+1,"Training HUD does not fit a small window");
+        }
+        training.mode=training::Mode::Idle;SetTrainingMeterOptions({});
+    }
     io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));draw();
+    // Each size is larger than the one before, and the largest still fits
+    // over the gauges with a recording's strip.
+    {
+        training::MeterOptions sized;float previous=0;
+        for(int hudSize=0;hudSize<training::HudSizes;++hudSize){
+            sized.size=hudSize;SetTrainingMeterOptions(sized);
+            draw(hudSize==0?"training-hud-size-small":hudSize==2?"training-hud-size-large":nullptr);
+            Require(TrainingHudScale()>previous&&hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.17f,"HUD sizes do not grow or the largest is too large");
+            previous=TrainingHudScale();
+        }
+        training.mode=training::Mode::Recording;draw("training-hud-size-large-recording");
+        Require(hud->Size.y<size.h*.17f&&hud->Pos.y+hud->Size.y<=size.h*.82f+1,"The largest HUD with a recording's strip is too large");
+        training.mode=training::Mode::Idle;SetTrainingMeterOptions({});draw();
+    }
     // Run lengths and counting marks: P1's jab and a special it cancels into
     // each count their own startup, active and recovery; P2's two hits of the
     // combo count apart; every fifth and tenth cell boundary is marked.

@@ -1755,6 +1755,12 @@ msgstr "Opname op de HUD"
 msgid "training.meter.hud_part.detail"
 msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."
 
+msgid "training.meter.hud_size"
+msgstr "HUD-grootte"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Stelt de grootte van de tekst en balken van de trainings-HUD in. Interfacegrootte maakt hem ook groter."
+
 msgid "training.recovery_frames"
 msgstr "Herst. {0} f"
 

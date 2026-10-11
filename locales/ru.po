@@ -1756,6 +1756,12 @@ msgstr "Запись на HUD"
 msgid "training.meter.hud_part.detail"
 msgstr "Показывает эту часть HUD тренировки во время боя. F5 скрывает весь HUD."
 
+msgid "training.meter.hud_size"
+msgstr "Размер HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Задаёт размер текста и полос HUD тренировки. Размер интерфейса тоже его увеличивает."
+
 msgid "training.recovery_frames"
 msgstr "Восст.: {0} к."
 

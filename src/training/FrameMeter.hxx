@@ -125,7 +125,9 @@ constexpr int MeterShownChoices[] = {60, 90, 120};
 // The HUD's parts, each shown until it is turned off: numbers (the readings
 // beside the bars), the bars, state (the line under them), shortcuts (the
 // chip and its hint) and status (the strip a recording or a playback adds).
-struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; };
+// size: the HUD's, small, standard or large (0 to HudSizes - 1).
+constexpr int HudSizes = 3;
+struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1; };
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
     switch (status) {

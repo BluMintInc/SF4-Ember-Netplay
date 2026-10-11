@@ -32,7 +32,9 @@ inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.2
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
 
 // Call between frames. A true result requires backend font texture recreation.
-bool ApplyTheme(float dpiScale);
+// Text is drawn at Windows' DPI scale for the window times the player's
+// Interface size (Scale()).
+bool ApplyTheme(float dpiScale, float interfaceScale = 1.f);
 // What player text is, from most to least worth atlas space when more distinct
 // characters are on screen than the atlas can hold.
 enum class UserTextRole { Name, Chat, Draft };
@@ -61,6 +63,9 @@ void SetAtlasBuildLog(std::function<void(const char*)> log);
 // to retire text.
 void SetUserGlyphRetention(std::chrono::milliseconds retention);
 float Scale();
+// The player's Interface size alone, for what is laid out in the game's
+// pixels and so leaves Windows' DPI out (the training HUD).
+float InterfaceScale();
 ImFont* HeadingFont();
 ImFont* DiagnosticFont();
 const char* FontLicense();
