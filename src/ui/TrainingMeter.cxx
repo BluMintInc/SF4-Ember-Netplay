@@ -61,16 +61,19 @@ void Edged(ImDrawList* draw, float size, ImVec2 at, ImU32 colour, const char* te
 // to its right while a held meter is scrolled back.
 struct BarWindow { int cells; std::size_t back; };
 // Counting marks, the same in both styles: a thin dark gap parts every cell
-// (left by the cells themselves), every fifth boundary is a faint ivory line
-// and every tenth a brighter one with a tick under the bar. slant leans them
-// with angled cells. Quiet beside the cells' own colours.
+// (left by the cells themselves), every fifth boundary is an ivory line and
+// every tenth a thicker, brighter one with a tick under the bar. slant leans
+// them with angled cells. They grow with the HUD (height is 14 at scale 1)
+// and stay short of opaque, so a cell's colour still shows beside them.
 void CountMarks(ImDrawList* draw, ImVec2 origin, float cell, float height, float slant, int cells) {
+    const float unit = height / 14;
     for (int i = 5; i < cells; i += 5) {
         const bool tenth = i % 10 == 0;
-        const float x = origin.x + i * cell - .5f;
-        const ImU32 colour = tenth ? IM_COL32(243, 235, 221, 150) : IM_COL32(243, 235, 221, 70);
-        draw->AddLine(ImVec2(x + slant, origin.y), ImVec2(x, origin.y + height), colour);
-        draw->AddLine(ImVec2(x, origin.y + height), ImVec2(x, origin.y + height + (tenth ? 2.f : 1.f)), colour);
+        const float x = origin.x + i * cell;
+        const float thickness = (std::max)(1.f, (tenth ? 2.f : 1.5f) * unit);
+        const ImU32 colour = (palette::Ivory & ~IM_COL32_A_MASK) | (static_cast<ImU32>(tenth ? 220 : 150) << IM_COL32_A_SHIFT);
+        draw->AddLine(ImVec2(x + slant, origin.y), ImVec2(x, origin.y + height), colour, thickness);
+        draw->AddLine(ImVec2(x, origin.y + height), ImVec2(x, origin.y + height + (tenth ? 2.5f : 1.5f) * unit), colour, thickness);
     }
 }
 // Stable's flat bars: a cell's colour is its state group, so an attack is one
@@ -84,8 +87,9 @@ void FlatBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin, 
         const auto& shown = meter.frames[index].cells[side];
         draw->AddRectFilled(ImVec2(origin.x + i * cell, origin.y),
             ImVec2(origin.x + (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), origin.y + height), TrainingCellColor(shown, false));
+        // Opaque and thicker than a counting mark, so the two do not read alike.
         if (shown.newAction)
-            draw->AddLine(ImVec2(origin.x + i * cell, origin.y), ImVec2(origin.x + i * cell, origin.y + height), palette::Ivory, 2);
+            draw->AddLine(ImVec2(origin.x + i * cell, origin.y), ImVec2(origin.x + i * cell, origin.y + height), palette::Ivory, (std::max)(2.f, 2.5f * height / 14));
     }
     CountMarks(draw, origin, cell, height, 0, window.cells);
 }
@@ -108,6 +112,9 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
         if (extent.x + 2 > (to - from) * cell) return;
         Edged(draw, digits, ImVec2(origin.x + slant / 2 + (from + to) * cell / 2 - extent.x / 2, origin.y + (height - extent.y) / 2), palette::Ivory, text.c_str());
     };
+    // The run lengths are drawn last, over the counting marks.
+    struct Run { int from, to; MeterKind kind; };
+    std::vector<Run> runs;
     int runStart = -1; MeterKind runKind = MeterKind::Neutral;
     for (int i = 0; i < window.cells; ++i) {
         const int index = MeterFrameIndex(meter.frames.size(), static_cast<std::size_t>(i), static_cast<std::size_t>(window.cells), window.back);
@@ -120,10 +127,11 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
         const bool split = runStart >= 0 && shown.split;
         if (split && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(10, 10, 10, 255));
         if (runStart < 0) { runStart = i; runKind = kind; }
-        else if (kind != runKind || split) { label(runStart, i, runKind); runStart = i; runKind = kind; }
+        else if (kind != runKind || split) { runs.push_back({runStart, i, runKind}); runStart = i; runKind = kind; }
     }
-    if (runStart >= 0) label(runStart, window.cells, runKind);
+    if (runStart >= 0) runs.push_back({runStart, window.cells, runKind});
     CountMarks(draw, origin, cell, height, slant, window.cells);
+    for (const auto& run : runs) label(run.from, run.to, run.kind);
 }
 ImVec4 AdvantageColor(int frames) {
     return ImGui::ColorConvertU32ToFloat4(frames > 0 ? IM_COL32(118, 224, 160, 255) :
