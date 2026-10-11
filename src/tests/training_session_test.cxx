@@ -781,6 +781,33 @@ int main() {
             watch.Reset();
             watch.Observe(sample(22, 500, 0), 100);
             Require(watch.Observe(sample(0, 0, 0), 0).freed == 2, "A block's end was not reported");
+            // Guard stance with nothing landed (the dummy held back while an
+            // attack is near) is no stun, standing or crouching.
+            for (unsigned guard : {14u, 15u}) {
+                watch.Reset();
+                Require(!watch.Observe(sample(0, 0, 0), 0).freed, "An idle dummy was freed");
+                for (int frame = 0; frame < 4; ++frame) {
+                    const auto near = watch.Observe(sample(guard, 600, static_cast<float>(frame)), 100);
+                    Require(!near.held && !near.freed, "Guard stance with no hit held the dummy");
+                }
+                Require(!watch.Observe(sample(0, 0, 0), 0).freed, "Guard stance with no hit was replied to as a block");
+            }
+            // Blockstun into guard stance: free when the blockstun ends, the
+            // stance after it neither delays that nor counts as a stun.
+            watch.Reset();
+            for (int frame = 0; frame < 3; ++frame) Require(watch.Observe(sample(22, 501, static_cast<float>(frame)), 100).held == 2, "Blockstun did not hold the dummy");
+            const auto blocked = watch.Observe(sample(14, 600, 0), 100);
+            Require(blocked.freed == 2 && !blocked.held, "The end of blockstun was not reported where guard stance followed");
+            Require(!watch.Observe(sample(14, 600, 1), 100).freed && !watch.Observe(sample(0, 0, 0), 0).freed, "Guard stance after blockstun reported it again");
+            const auto again = watch.Observe(sample(22, 501, 0), 100);
+            Require(again.held == 2 && again.until == 3 && again.stretch != blocked.stretch, "Blockstun was not timed to its own end");
+            // Hitstun into crouching guard stance, and a throw's sequence between frames, which neither ends nor starts a stun.
+            watch.Reset();
+            watch.Observe(sample(21, 300, 0, 10), 100);
+            Require(watch.Observe(sample(15, 600, 0), 100).freed == 1, "The end of hitstun was not reported where guard stance followed");
+            Require(!watch.Observe(sample(24, 0, 0), 100).held && !watch.Observe(sample(0, 0, 0), 0).freed, "A throw's sequence was taken for a stun");
+            watch.Observe(sample(23, 310, 0, 10), 100); watch.Observe(sample(24, 0, 0), 100);
+            Require(watch.Observe(sample(16, 700, 0), 0).freed == 1, "A launch did not reach its end across a sequence");
             DummyPlan plan;
             Require(!DummyReplies(plan, 1, 0), "A dummy with no plan replied");
             plan.when = 1; plan.chance = 50;

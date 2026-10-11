@@ -135,6 +135,22 @@ inline int ReplyLead(const std::vector<Input>& frames) {
 // frames from now to that free frame, -1 while not known. stretch: counts the
 // hits, blocks and reactions, so a change says the wait began again.
 struct DummySeen { int freed = 0, held = 0, until = -1; unsigned stretch = 0; };
+// What the dummy's status holds it in, numbered as DummyPlan::when: 1 hit
+// or dizzy, 2 blockstun, 3 knocked down or getting up, 0 free. Not the
+// frame meter's grouping: the game sets GuardStand and GuardCrouch only to
+// hold the dummy back while an attack is near, with nothing landed, and the
+// dummy can act from them; blockstun is DamageGuard alone. -1: neither, as
+// a throw's sequence or a frame not read, which neither starts nor ends a stun.
+inline int DummyHold(const FighterSample& dummy) {
+    using S = ActorStatus;
+    if (!dummy.valid) return -1;
+    switch (dummy.status) {
+    case S::Damage: case S::DamageBlow: case S::Stun: return 1;
+    case S::DamageGuard: return 2;
+    case S::Bound: case S::Down: case S::Rise: return 3;
+    default: return ClassifyStatus(dummy.status) == Phase::Unknown ? -1 : 0;
+    }
+}
 // Fed the dummy once per simulated frame. The game does not say how long a
 // stun lasts, so each one is timed the first time it is seen, from its last
 // hit or change of reaction to the free frame, and known from then on.
@@ -146,8 +162,7 @@ public:
     // attacker: the other fighter's action id.
     DummySeen Observe(const FighterSample& dummy, int attacker) {
         DummySeen seen; seen.stretch = stretch_;
-        const Phase phase = dummy.valid ? ClassifyStatus(dummy.status) : Phase::Unknown;
-        const int held = phase == Phase::Hit ? 1 : phase == Phase::Guard ? 2 : phase == Phase::Down ? 3 : 0;
+        const int hold = DummyHold(dummy), held = (std::max)(0, hold);
         if (held) {
             if (!from_ || dummy.status != last_.status || dummy.action != last_.action || dummy.actionFrame < last_.actionFrame ||
                 dummy.comboDamage > last_.comboDamage) {
@@ -158,7 +173,7 @@ public:
             const auto known = learned_.find(key_);
             seen.held = held; seen.stretch = stretch_;
             if (known != learned_.end()) seen.until = (std::max)(0, known->second - elapsed_);
-        } else if (from_ && phase == Phase::Unknown) ++elapsed_;
+        } else if (from_ && hold < 0) ++elapsed_;
         else if (from_) {
             if (learned_.size() >= 4096) learned_.clear();
             learned_[key_] = elapsed_ + 1; seen.freed = from_; from_ = 0;
