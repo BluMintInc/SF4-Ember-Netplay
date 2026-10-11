@@ -13,6 +13,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
+#include "../sf4e/sf4e__InputDevices.hxx"
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__Pad.hxx"
 #include <mutex>
@@ -260,11 +261,10 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         physical[side].mapped = (pad->*Pad::publicMethods.GetButtons_MappedOn)(side);
         physical[side].raw = (pad->*Pad::publicMethods.GetButtons_RawOn)(side);
     }
-    // A pad that played a match as Player 2 and was given back to Player 1 is
-    // still named by the game's second side, which then reads it too: Player 2
-    // would show Player 1's presses. Two sides on one device are one player's.
-    const auto device = [&](int side) { return std::make_pair((pad->*Pad::publicMethods.GetDeviceTypeForPlayer)(side), (pad->*Pad::publicMethods.GetDeviceIndexForPlayer)(side)); };
-    if (!menu && device(0) == device(1)) physical[1] = Input{};
+    // A second side the game holds no assignment for reads every device, so
+    // its presses are Player 1's: after a match as Player 2 it still names the
+    // pad given back to Player 1. Two players on one keyboard are both assigned.
+    if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
     output = session.Prepare(physical);
     commitInput = true;
     overriding = session.GetView().mode != Mode::Idle;

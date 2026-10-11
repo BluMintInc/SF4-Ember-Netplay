@@ -28,6 +28,11 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
 void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
+// The keys that record and play a slot, and stop either again, counted from
+// F1 as the hotkeys are. Fixed: no hotkey can take them (FreePositionKey).
+constexpr int TrainingRecordKey = 6, TrainingPlayKey = 7;
+// A key counted from F1 as the controls and the HUD name it.
+std::string TrainingKeyName(int fromF1);
 // The two hotkeys as the HUD's hint names them, those without a key left out.
 std::string TrainingKeyHints();
 // What the last position command did, while it is news; empty after a few seconds.

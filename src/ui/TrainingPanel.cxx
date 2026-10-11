@@ -143,7 +143,7 @@ int StepDummy(int kind,int value,int delta) {
     return choices[(found-choices.begin()+choices.size()+(delta>0?1:choices.size()-1))%choices.size()];
 }
 // A hotkey's key as the hint and its row show it.
-std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):"F"+std::to_string(lab.keys[which]+1); }
+std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):TrainingKeyName(lab.keys[which]); }
 constexpr const char* ReplyNames[]={"common.off","training.reply.hit","training.reply.block","training.reply.rise","training.reply.any"};
 // Where the reply's pick list stands: 0 the reply slot (no moves), then the
 // presets, then Custom for anything else. A saved reply that spells a preset
@@ -276,6 +276,7 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
 }
 training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }
 void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }
+std::string TrainingKeyName(int fromF1) { return "F"+std::to_string(fromF1+1); }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::string TrainingKeyHints() {
     std::string hints;

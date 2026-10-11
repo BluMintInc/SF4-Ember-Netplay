@@ -376,7 +376,7 @@ static void ModeStrip(const training::View& view, float hudScale) {
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colour), "%s", loc::T(recording ? "training.record" : "training.play"));
     ImGui::SameLine(0, 10 * hudScale); ImGui::Text("%s  %d / %d f", loc::Tf("training.slot", view.selected + 1).c_str(), view.cursor, total);
     if (MenuPromptDevice() == sf4e::input::PadKeyboard) {
-        const std::string stop = std::string(recording ? "F7 " : "F8 ") + loc::T("training.stop");
+        const std::string stop = TrainingKeyName(recording ? TrainingRecordKey : TrainingPlayKey) + " " + loc::T("training.stop");
         ImGui::SameLine(left + full - ImGui::CalcTextSize(stop.c_str()).x); ImGui::TextDisabled("%s", stop.c_str());
     }
     const ImVec2 bar = ImGui::GetCursorScreenPos();
