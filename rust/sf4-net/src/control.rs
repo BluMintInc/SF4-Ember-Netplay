@@ -169,15 +169,30 @@ impl ControlWorker {
                 mpsc::error::TrySendError::Closed(_) => QueueError::Closed,
             }
         });
-        let queued = outgoing.max_capacity() - outgoing.capacity();
+        // A refused frame met a full queue, whatever the writer has taken since.
+        let queued = if sent == Err(QueueError::Full) {
+            CONTROL_QUEUE_CAPACITY
+        } else {
+            self.queued()
+        };
         self.queue_peak.fetch_max(queued, Ordering::Relaxed);
         sent
     }
 
+    /// Frames waiting in the send queue now.
+    fn queued(&self) -> usize {
+        self.outgoing
+            .as_ref()
+            .map_or(0, |outgoing| outgoing.max_capacity() - outgoing.capacity())
+    }
+
     /// The most frames the send queue held since the last call, which starts
-    /// the count over.
+    /// the count over from what it holds now: frames still waiting stay in the
+    /// next count.
     pub fn take_queue_peak(&self) -> usize {
-        self.queue_peak.swap(0, Ordering::Relaxed)
+        self.queue_peak
+            .swap(0, Ordering::Relaxed)
+            .max(self.queued())
     }
 
     /// Stop accepting frames. The writer delivers what is already queued and
