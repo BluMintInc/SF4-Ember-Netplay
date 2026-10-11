@@ -200,6 +200,42 @@ inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
 }
+// Where one reply's button met the dummy, as battle frames, -1 where not
+// seen: the frame its first attack button was sent in (acted on input lag
+// frames later), the dummy's first free frame, and the first frame of its
+// move. A stun ends and a move starts in the same game frame, so a button
+// that meets the free frame shows the last two the same.
+struct ReplyTiming { int sent = -1, freed = -1, move = -1; };
+// Follows a reply from its decision, for the log. It is done once all three
+// are seen, or Grace frames after the reply's last; a new stun drops it.
+// Reset with DummyWatch, when the frames stop being consecutive.
+class ReplyTrace {
+public:
+    static constexpr int Grace = 30;
+    // Each frame DummyWatch sees, after the reply's decision. replying: a
+    // reply was decided or played this frame; pressed: it played its attack
+    // button; moving: the dummy is in a move (Skill). True when done, with out set.
+    bool Observe(int frame, bool replying, bool pressed, const DummySeen& seen, bool moving, ReplyTiming& out) {
+        if (!on_) {
+            if (!replying) return false;
+            on_ = true; timing_ = {}; stretch_ = seen.stretch; after_ = 0;
+        }
+        if (seen.held && seen.stretch != stretch_) { Reset(); return false; }
+        if (pressed && timing_.sent < 0) timing_.sent = frame;
+        if (seen.freed && timing_.freed < 0) timing_.freed = frame;
+        if (moving && timing_.move < 0) timing_.move = frame;
+        if (replying) after_ = 0;
+        const bool seenAll = timing_.sent >= 0 && timing_.freed >= 0 && timing_.move >= 0;
+        if (!seenAll && after_++ < Grace) return false;
+        out = timing_; Reset(); return true;
+    }
+    void Reset() { on_ = false; }
+private:
+    bool on_ = false;
+    ReplyTiming timing_;
+    unsigned stretch_ = 0;
+    int after_ = 0;
+};
 // Each action reads only the fields named for it; the rest are ignored.
 struct Command {
     Action action = Action::Stop; std::uint64_t generation = 0; std::uint64_t requestId = 0;

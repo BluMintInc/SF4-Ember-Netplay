@@ -808,6 +808,33 @@ int main() {
             Require(!watch.Observe(sample(24, 0, 0), 100).held && !watch.Observe(sample(0, 0, 0), 0).freed, "A throw's sequence was taken for a stun");
             watch.Observe(sample(23, 310, 0, 10), 100); watch.Observe(sample(24, 0, 0), 100);
             Require(watch.Observe(sample(16, 700, 0), 0).freed == 1, "A launch did not reach its end across a sequence");
+            {
+                // Where a reply's button met the dummy: traced from its decision, once.
+                ReplyTrace trace; ReplyTiming timing;
+                const auto stun = [](int held, int freed, unsigned stretch) { DummySeen seen; seen.held = held; seen.freed = freed; seen.stretch = stretch; return seen; };
+                Require(!trace.Observe(90, false, false, stun(0, 2, 6), false, timing), "A trace began with no reply");
+                // Decided in a timed stun, the button sent a frame before the free frame, the move on it.
+                Require(!trace.Observe(100, true, false, stun(2, 0, 7), false, timing) && !trace.Observe(101, true, true, stun(2, 0, 7), false, timing),
+                    "A trace ended before it saw the dummy free");
+                Require(trace.Observe(102, true, false, stun(0, 2, 7), true, timing) && timing.sent == 101 && timing.freed == 102 && timing.move == 102,
+                    "A reply's button, free frame or move was misplaced");
+                Require(!trace.Observe(103, false, false, stun(0, 0, 7), true, timing), "A finished trace reported again");
+                // Hit again: the trace is dropped, and does not begin again without a reply.
+                trace.Observe(200, true, false, stun(1, 0, 8), false, timing);
+                Require(!trace.Observe(201, true, true, stun(1, 0, 9), false, timing) && !trace.Observe(202, false, false, stun(0, 1, 9), true, timing),
+                    "A trace went on across a new stun");
+                // Decided as the dummy is freed; no move ever comes: reported Grace frames after the reply's last.
+                trace.Observe(300, true, false, stun(0, 1, 9), false, timing);
+                trace.Observe(301, true, true, stun(0, 0, 9), false, timing);
+                int frame = 302;
+                while (!trace.Observe(frame, false, false, stun(0, 0, 9), false, timing)) ++frame;
+                Require(frame == 301 + ReplyTrace::Grace && timing.sent == 301 && timing.freed == 300 && timing.move == -1,
+                    "A reply whose move never came was not reported after its grace");
+                // A reset drops a trace begun.
+                trace.Observe(400, true, false, stun(0, 1, 10), false, timing);
+                trace.Reset();
+                Require(!trace.Observe(401, false, true, stun(0, 0, 10), true, timing), "A reset kept a trace");
+            }
             DummyPlan plan;
             Require(!DummyReplies(plan, 1, 0), "A dummy with no plan replied");
             plan.when = 1; plan.chance = 50;

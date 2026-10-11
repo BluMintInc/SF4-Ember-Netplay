@@ -72,6 +72,7 @@ std::atomic<bool> matchPractice{false};
 // offline practice only, so the random numbers need not be reproducible.
 DummyPlan dummyPlan;
 DummyWatch dummyWatch;
+ReplyTrace replyTrace;
 std::minstd_rand dummyRandom{std::random_device{}()};
 // The stretch of stun a reply was last decided for, so each gets one roll.
 unsigned decidedStretch = 0;
@@ -147,7 +148,7 @@ bool RestoreCheckpoint(Native* system) {
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); dummyWatch.Reset();
+    meter.Reset(); dummyWatch.Reset(); replyTrace.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -481,11 +482,18 @@ void AfterUpdate(Native* system) {
                 const int action = options[Manager::OPT_ACTION];
                 if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
             }
+            // Where the reply's button met the dummy, once per reply, to check timing 0 in the game.
+            ReplyTiming timing;
+            const bool pressed = playing.reply && commitInput && (output[1].raw & AttackButtons);
+            if (replyTrace.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, session.Replying() || playing.reply, pressed, seen,
+                    fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
+                spdlog::info("Training: reply trace: button sent in frame {}, dummy free from frame {}, in its move from frame {}; input lag {}, timing {}",
+                    timing.sent, timing.freed, timing.move, InputLag(), dummyPlan.timing);
         }
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        meter.Reset(); dummyWatch.Reset();
+        meter.Reset(); dummyWatch.Reset(); replyTrace.Reset();
         ++gapResets;
     }
     sampling = false; following = false;
