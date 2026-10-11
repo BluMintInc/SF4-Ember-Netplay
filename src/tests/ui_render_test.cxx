@@ -992,7 +992,7 @@ int main(int argc, char** argv) {
                 view.tournament.link.sequence=seenLink;
             }
             CheckHomeRendering(shell,view,mode,size,draw);
-            ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io);
+            ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io,[&](float dpi){ApplyTheme(dpi);renderer.Invalidate();});
             CheckOverlayVisibility(training,overlayLayers,overlayTooltip,mode,draw);
             ShootReplayControls(training,overlayLayers,mode,size.h,draw);
             ShootTrainingRoom(training,overlayLayers,mode,size,draw);

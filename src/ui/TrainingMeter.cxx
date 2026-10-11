@@ -26,8 +26,6 @@ ImU32 PhaseColor(Phase phase) {
     default: return IM_COL32(220, 206, 166, 255);
     }
 }
-// The HUD's windows: dark enough to read over a bright stage, which still shows through.
-constexpr float HudBackground = .62f;
 ImU32 CellAlpha(ImU32 color, bool idle) {
     return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(idle ? 130 : 215) << IM_COL32_A_SHIFT);
 }
@@ -361,7 +359,7 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, vp->Pos.y + vp->Size.y * TrainingRoomStatusTop), ImGuiCond_Always, ImVec2(.5f, 0));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
+    ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     if (ImGui::Begin("Training room status", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
@@ -431,7 +429,7 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
     if (!strip && !options.numbers && !options.bars && !options.state) return hudTop;
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
+    ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * hudScale, 6 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
@@ -471,7 +469,7 @@ void DrawMatchPracticeNotice() {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
+    ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(4*hudScale,3*hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
     if(ImGui::Begin("Match practice keys",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
@@ -483,27 +481,6 @@ void DrawMatchPracticeNotice() {
     ImGui::End();
     ImGui::PopStyleVar(2);
 }
-// The shortcut strip's text is never smaller than this on screen, whatever
-// the HUD's size, the window's or the DPI: at the smallest HUD size a 720p
-// window would otherwise draw it under 12 pixels.
-constexpr float StripMinText = 15.f;
-// A key or a pad button in the shortcut strip: its name on an outlined cap
-// as tall as the line, a pill for a pad's button. The pad's Back and Start
-// are named in letters: the prompt art's own lettering would be a few
-// pixels tall at this size. The name is a little brighter than the dim hint
-// beside it, so the key is what the eye finds.
-static float CapWidth(const char* name, bool pill, float unit) {
-    return ImGui::CalcTextSize(name).x + 2 * (pill ? 6 : 4) * unit;
-}
-static void StripCap(const char* name, bool pill, float unit) {
-    const float h = ImGui::GetTextLineHeight(), w = CapWidth(name, pill, unit);
-    const ImVec2 at = ImGui::GetCursorScreenPos();
-    auto* draw = ImGui::GetWindowDrawList();
-    draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), IM_COL32(243, 235, 221, 130),
-        pill ? h / 2 : 3 * unit, 0, (std::max)(1.f, unit));
-    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + (pill ? 6 : 4) * unit, at.y), IM_COL32(243, 235, 221, 215), name);
-    ImGui::Dummy(ImVec2(w, h));
-}
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
@@ -512,84 +489,7 @@ TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     // The game's super meters and their SUPER! banners start about 17% above
     // the bottom edge and scale with the height, so the meter sits just above them.
     const float hudBottom = vp->Pos.y + vp->Size.y * TrainingHudBottom;
-    const auto options = TrainingMeterOptions();
-    const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, options);
-    // The one input this HUD takes: a chip that opens the controls for a
-    // mouse, as F6 does from the keyboard. It captures the mouse only while
-    // the pointer is over it, so the passive meter below never does. Beside
-    // it, the keys the lab answers: after a pad press the pad's buttons, Back
-    // and Start for the controls and Back alone to reset or save the
-    // position, then the keys that record and play, which the pad has no
-    // button for; from the keyboard, F6, then those keys, the position keys
-    // the player picked and F5. One line within the meter's width: what does
-    // not fit is left out from the end, the least needed first.
-    TrainingHudInput input;
-    // Under the call back from a room the controls cannot open, so the chip
-    // that opens them and its pad hints would be wrong; the call's banner
-    // says what can be pressed then.
-    bool failed = false;
-    const auto notice = TrainingNotice(failed);
-    // With the shortcuts off only what a position key just did is told.
-    if (called || (!options.shortcuts && notice.empty())) return input;
-    // At least StripMinText pixels, otherwise as the meter's own text.
-    const float textPx = (std::max)(StripMinText, .8f * ImGui::GetFont()->FontSize * hudScale);
-    const float unit = textPx / (.8f * ImGui::GetFont()->FontSize);
-    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * unit, 3 * unit));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    if (ImGui::Begin("Training shortcuts", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) {
-        ImGui::SetWindowFontScale(textPx / (ImGui::GetFont()->FontSize * Scale()));
-        const int device = MenuPromptDevice();
-        const bool pad = device == sf4e::input::PadXInput || device == sf4e::input::PadDirectInput;
-        // An Xbox pad's Back; a DirectInput pad's labels are unknown, so its is named Select.
-        const char* back = device == sf4e::input::PadXInput ? "Back" : "Select";
-        const float gap = 4 * unit, between = 12 * unit, end = width - ImGui::GetStyle().WindowPadding.x;
-        if (options.shortcuts) {
-            if (pad) {
-                StripCap(back, true, unit); ImGui::SameLine(0, 2 * unit); ImGui::TextDisabled("+"); ImGui::SameLine(0, 2 * unit);
-                StripCap("Start", true, unit);
-            } else StripCap("F6", false, unit);
-            ImGui::SameLine(0, gap);
-            input.open = ImGui::SmallButton(loc::T("training.controls_chip"));
-            ReportMenuCard("training-open", ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-            ImGui::SameLine(0, between);
-        }
-        if (!notice.empty()) {
-            const auto hint = FitLabel(notice, end - ImGui::GetCursorPosX());
-            if (failed) ImGui::TextColored(AdvantageColor(-1), "%s", hint.c_str());
-            else ImGui::TextDisabled("%s", hint.c_str());
-        } else {
-            struct Hint { std::string key; const char* label; bool pill; };
-            std::vector<Hint> hints;
-            if (pad) hints.push_back({back, loc::T("training.pad_hint"), true});
-            // F7 and F8 stop what they started.
-            hints.push_back({TrainingKeyName(TrainingRecordKey), loc::T(view.mode == training::Mode::Recording ? "training.stop" : "training.record"), false});
-            hints.push_back({TrainingKeyName(TrainingPlayKey), loc::T(view.mode == training::Mode::Playback ? "training.stop" : "training.play"), false});
-            if (!pad) {
-                for (const auto& key : TrainingPositionKeys()) hints.push_back({key.key, loc::T(key.label), false});
-                hints.push_back({"F5", loc::T("training.hide_hint"), false});
-            }
-            for (std::size_t i = 0; i < hints.size(); ++i) {
-                const auto& hint = hints[i];
-                // Measured from where it would start: SameLine, with nothing after it, adds nothing.
-                if (i) ImGui::SameLine(0, between);
-                const float cap = CapWidth(hint.key.c_str(), hint.pill, unit), room = end - ImGui::GetCursorPosX();
-                // The pad's own hint always shows, shortened if it must be.
-                const bool fits = cap + gap + ImGui::CalcTextSize(hint.label).x <= room;
-                if (!fits && !(pad && i == 0)) break;
-                StripCap(hint.key.c_str(), hint.pill, unit); ImGui::SameLine(0, gap);
-                ImGui::TextDisabled("%s", fits ? hint.label : FitLabel(hint.label, (std::max)(0.f, room - cap - gap)).c_str());
-            }
-        }
-        ReportMenuText("training-shortcuts", ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight(),
-            ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x - ImGui::GetStyle().WindowPadding.x, end - ImGui::GetStyle().WindowPadding.x);
-        ImGui::SetWindowFontScale(1.f);
-        input.pointer = ImGui::IsWindowHovered();
-    }
-    ImGui::End();
-    ImGui::PopStyleVar(2);
-    return input;
+    const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, TrainingMeterOptions());
+    return DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
 }
 } }

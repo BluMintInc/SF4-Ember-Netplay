@@ -278,6 +278,7 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
 }
 training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }
 void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }
+void SetTrainingPositionKeys(int reset,int save) { LoadPractice(); lab.keys={{reset,save}}; }
 std::string TrainingKeyName(int fromF1) { return "F"+std::to_string(fromF1+1); }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::vector<TrainingKeyHint> TrainingPositionKeys() {

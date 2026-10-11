@@ -47,6 +47,9 @@ std::string TrainingFrameData(const training::MeterView& meter, int side);
 // tests, as the page sets them.
 training::MeterOptions TrainingMeterOptions();
 void SetTrainingMeterOptions(const training::MeterOptions& options);
+// The reset and save hotkeys counted from F1, -1 for Off, as the Position
+// page sets them; for tests.
+void SetTrainingPositionKeys(int reset, int save);
 void DrawTrainingColorKey(bool angled);
 // One row of the F6 colour key: a locale key, what it names and the exact
 // colour (ImU32) the frame meter bars draw for it. Flat bars colour a cell by
@@ -79,9 +82,20 @@ constexpr float TrainingHudBottom = .82f;
 // left out: the HUD is laid out in the game's pixels, which the window's size
 // already measures.
 float TrainingHudScale();
+// The HUD's windows: dark enough to read over a bright stage, which still shows through.
+constexpr float TrainingHudBackground = .62f;
 // called: a room calls the player back (ChallengerCall::called); the chip is
 // not drawn then.
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false);
+// The strip of keys over the meter (TrainingShortcuts.cxx): its left edge at
+// left, its bottom just above meterTop, and no wider than width.
+TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, float left, float meterTop, float width, float hudScale);
+// What the HUD's shortcut strip drew in its last call, for the render tests:
+// its text height in pixels, the width its line took and the width it had,
+// and each piece's text in order (key, button, chip, label or notice).
+// Empty when the strip was not drawn.
+struct TrainingStripShown { float textPixels = 0, width = 0, room = 0; std::vector<std::string> pieces; };
+const TrainingStripShown& LastTrainingStrip();
 // The frame meter's window, alone over a rollback match or a replay the
 // runtime is watching, or with the training HUD.
 constexpr const char* FrameMeterWindow = "Training frame meter";
