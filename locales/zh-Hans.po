@@ -990,6 +990,18 @@ msgstr "后台游玩"
 msgid "player.background_play_detail"
 msgstr "当 OBS 等其他窗口位于前台时，游戏声音和控制器仍可正常使用。键盘和 Ember 菜单仍需要游戏窗口。请使用窗口模式：全屏时游戏仍会最小化。"
 
+msgid "player.lower_input_lag"
+msgstr "降低输入延迟（实验性）"
+
+msgid "player.lower_input_lag_detail"
+msgstr "实验性功能。去掉游戏给每个输入添加的 1 帧延迟。在房间中，只有双方玩家都开启时才生效，届时观战者也会一起生效。离线对战和训练只按此设置。"
+
+msgid "player.lower_keyboard_lag"
+msgstr "降低键盘延迟（实验性）"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "实验性功能。游戏读取键盘比读取控制器晚 1 帧；此选项去掉这一帧。只影响键盘，且只影响这台电脑：对方玩家无需开启。"
+
 msgid "player.native_menus"
 msgstr "打开游戏菜单"
 
@@ -2047,6 +2059,9 @@ msgstr "等待对手加入大厅..."
 
 msgid "runtime.authorized_connection_unavailable"
 msgstr "授权的对战连接不可用。"
+
+msgid "runtime.input_lag_unavailable"
+msgstr "这台电脑无法按本场对战的要求设置游戏的输入时机（降低输入延迟），因此对战已停止。重新启动游戏应能解决。"
 
 msgid "runtime.waiting_opponent_start"
 msgstr "等待对手进入大厅，对战才能开始。"

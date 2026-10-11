@@ -990,6 +990,18 @@ msgstr "Op de achtergrond spelen"
 msgid "player.background_play_detail"
 msgstr "Het geluid van het spel en je controller blijven werken terwijl een ander venster, zoals OBS, op de voorgrond staat. Het toetsenbord en de menu's van Ember hebben nog steeds het spelvenster nodig. Gebruik de venstermodus: in volledig scherm wordt het spel nog steeds geminimaliseerd."
 
+msgid "player.lower_input_lag"
+msgstr "Minder invoervertraging (experimenteel)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimenteel. Haalt een frame vertraging weg dat het spel aan elke invoer toevoegt. In een kamer geldt het alleen als beide spelers het aanzetten, en dan ook voor wie kijkt. Offline gevechten en Training volgen alleen deze instelling."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Toetsenbord sneller (experimenteel)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimenteel. Het spel leest het toetsenbord een frame later dan een controller; dit haalt dat frame weg. Het geldt alleen voor het toetsenbord, en alleen op deze pc: de andere speler hoeft het niet aan te zetten."
+
 msgid "player.native_menus"
 msgstr "Spelmenu's openen"
 
@@ -2047,6 +2059,9 @@ msgstr "Wachten tot tegenstander de lobby betreedt..."
 
 msgid "runtime.authorized_connection_unavailable"
 msgstr "De toegestane matchverbinding is niet beschikbaar."
+
+msgid "runtime.input_lag_unavailable"
+msgstr "Deze pc kon de invoertiming van het spel niet instellen zoals deze wedstrijd vraagt (Minder invoervertraging), dus de wedstrijd is gestopt. Het spel opnieuw starten zou het moeten oplossen."
 
 msgid "runtime.waiting_opponent_start"
 msgstr "Wachten op tegenstander in de lobby voordat de match kan beginnen."

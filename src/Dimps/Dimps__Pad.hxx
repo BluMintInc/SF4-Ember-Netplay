@@ -74,6 +74,12 @@ namespace Dimps {
 				unsigned int(System_RawInput::* SetDeviceInUse)(int deviceIdx, int bInUse);
 				// Virtual +0x44 (0x6DF8E0): releases every key of every keyboard.
 				void (System_RawInput::* ClearKeys)();
+				// Virtual +0xC (0x6DFA00): turns the window's raw keyboard input
+				// into key states, while the byte at +0x10 is set. The device
+				// loop (0x6C97E0) calls it each frame; the pad update (0x512180)
+				// sets the byte for the next one, and clears it while the Steam
+				// overlay is open.
+				void (System_RawInput::* Update)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {

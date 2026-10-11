@@ -285,6 +285,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		item->frozenDelay = action.inputDelay;
 		item->delayLocked = true;
 		table->inputDelay[seat] = action.inputDelay;
+		table->lowerLag[seat] = action.lowerLag;
 	} else {
 		ReleaseReady(*table, seat, *item);
 	}
@@ -292,8 +293,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 }
 
 void RoomAuthority::ReleaseReady(Table& table, int seat, Member& item) {
-	table.ready[seat] = false;
-	item.delayLocked = false;
+	ClearSeatReadiness(table, seat);
 	table.inputDelay[seat] = item.selectedDelay;
 }
 

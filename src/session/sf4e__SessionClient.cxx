@@ -714,7 +714,9 @@ session::SendResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessage
 session::SendResult SessionClient::Lobby_Ready()
 {
 	if (_customRoomsSeen) {
-		return SendRoomAction(TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay));
+		auto ready = TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay);
+		ready.lowerLag = _selectedLowerLag;
+		return SendRoomAction(ready);
 	}
 	LobbyReady msg;
 	json j = msg;

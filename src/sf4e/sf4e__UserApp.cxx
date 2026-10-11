@@ -25,6 +25,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__InputLag.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
@@ -153,6 +154,24 @@ sf4e::UserApp::Netplay::Netplay(
     delay(_delay)
 {}
 
+// The table the local member sits or watches at, if any.
+static const sf4e::room::Table* LocalTable(const sf4e::room::Snapshot& room) {
+    for (const auto& member : room.members)
+        if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount))
+            return &room.tables[member.table];
+    return nullptr;
+}
+
+// Every PC simulating the match, fighters and spectators alike, reads inputs
+// the match's way from its first frame.
+static bool StartMatchInputLag() {
+    const auto& netplay = fUserApp::netplay;
+    bool seats[2] = {false, false};
+    if (const auto* table = LocalTable(netplay->client.GetRoomSnapshot()))
+        for (int side = 0; side < 2; ++side) seats[side] = table->lowerLag[side];
+    return sf4e::InputLag::StartMatch(netplay->client._matchData.lowerInputLag, seats);
+}
+
 static bool StartRuntimeGgpo() {
     static_assert(sizeof(sf4e::Pad::System::Inputs) == sf4e::session::GgpoInputBytes, "Recalculate gameplay packet admission when SF4 inputs change");
     sf4e::NetplayFacade::RuntimeMatchEndpoints endpoints;
@@ -169,13 +188,11 @@ static bool StartRuntimeGgpo() {
             if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
     }
     netplay->spectating = endpoints.localSlot >= 2;
-    netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;
-    for (const auto& member : room.members)
-        if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount)) {
-            netplay->startScoreKnown = true;
-            for (int side = 0; side < 2; ++side) netplay->startScore[side] = room.tables[member.table].score[side];
-        }
+    const auto* table = LocalTable(room);
+    netplay->startScoreKnown = table != nullptr;
+    if (table)
+        for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return false;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
@@ -234,7 +251,11 @@ void fUserApp::_OnVsBattleTasksRegistered() {
     // Every netplay battle passes here once, before any session exists, so a
     // start that fails below still ends in a battle that leaves (F-016).
     fSystem::simGate.OnNetplayBattleClaimed();
-    if (!sf4e::NetplayFacade::IsRuntimeRoomActive() || !StartRuntimeGgpo())
+    if (!sf4e::NetplayFacade::IsRuntimeRoomActive())
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
+    else if (!StartMatchInputLag())
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.input_lag_unavailable"));
+    else if (!StartRuntimeGgpo())
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
 }
 

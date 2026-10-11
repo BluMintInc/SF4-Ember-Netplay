@@ -990,6 +990,18 @@ msgstr "Jugar en segundo plano"
 msgid "player.background_play_detail"
 msgstr "El sonido del juego y tu mando siguen funcionando mientras otra ventana, como OBS, está delante. El teclado y los menús de Ember siguen necesitando la ventana del juego. Usa el modo ventana: en pantalla completa el juego se sigue minimizando."
 
+msgid "player.lower_input_lag"
+msgstr "Menos retraso de entrada (experimental)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimental. Elimina un fotograma de retraso que el juego añade a cada entrada. En una sala solo se aplica cuando ambos jugadores lo activan, y entonces también para quienes miran. Los combates sin conexión y el Entrenamiento siguen solo este ajuste."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Menos retraso de teclado (experimental)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimental. El juego lee el teclado un fotograma después que un mando; esto elimina ese fotograma. Solo afecta al teclado y solo en este PC: el otro jugador no necesita activarlo."
+
 msgid "player.native_menus"
 msgstr "Abrir menús nativos"
 
@@ -2047,6 +2059,9 @@ msgstr "Esperando al rival en el punto de encuentro..."
 
 msgid "runtime.authorized_connection_unavailable"
 msgstr "La conexión autorizada de la partida no está disponible."
+
+msgid "runtime.input_lag_unavailable"
+msgstr "Este PC no ha podido ajustar el tiempo de entrada del juego como exige esta partida (Menos retraso de entrada), así que la partida se ha detenido. Reiniciar el juego debería solucionarlo."
 
 msgid "runtime.waiting_opponent_start"
 msgstr "Esperando al rival en el punto de encuentro para iniciar la partida."

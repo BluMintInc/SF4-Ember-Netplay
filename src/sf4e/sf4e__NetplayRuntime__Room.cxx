@@ -416,6 +416,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::SendReady: {
 		auto& client = UserApp::netplay->client;
         client.SetSelectedDelay(ReadyDelay());
+        client.SetSelectedLowerLag(runtime->preferences.lowerInputLag);
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;

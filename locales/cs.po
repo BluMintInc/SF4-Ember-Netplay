@@ -990,6 +990,18 @@ msgstr "Hrát na pozadí"
 msgid "player.background_play_detail"
 msgstr "Zvuk hry a ovladač fungují dál, i když je v popředí jiné okno, například OBS. Klávesnice a nabídky Ember dál potřebují okno hry. Použijte režim okna: na celé obrazovce se hra stále minimalizuje."
 
+msgid "player.lower_input_lag"
+msgstr "Menší zpoždění vstupu (experimentální)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimentální. Odstraní jeden snímek zpoždění, který hra přidává ke každému vstupu. V místnosti platí jen tehdy, když ho zapnou oba hráči, a pak i pro diváky. Offline souboje a Trénink se řídí jen tímto nastavením."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Rychlejší klávesnice (experimentální)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimentální. Hra čte klávesnici o jeden snímek později než ovladač; toto ten snímek odebere. Týká se jen klávesnice a jen tohoto počítače: druhý hráč to zapínat nemusí."
+
 msgid "player.native_menus"
 msgstr "Otevřít nabídky hry"
 
@@ -2047,6 +2059,9 @@ msgstr "Čeká se na připojení soupeře do lobby..."
 
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Schválené spojení pro zápas není dostupné."
+
+msgid "runtime.input_lag_unavailable"
+msgstr "Tento počítač nemohl nastavit časování vstupu hry tak, jak tento zápas vyžaduje (Menší zpoždění vstupu), takže byl zápas zastaven. Restart hry by to měl vyřešit."
 
 msgid "runtime.waiting_opponent_start"
 msgstr "Před začátkem zápasu se čeká na soupeře v lobby."

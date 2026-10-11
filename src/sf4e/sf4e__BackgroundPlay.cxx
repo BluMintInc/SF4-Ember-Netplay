@@ -10,6 +10,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../common/FocusGate.hxx"
+#include "sf4e__CodePages.hxx"
 #include "sf4e__BackgroundPlay.hxx"
 
 namespace rPad = Dimps::Pad;
@@ -74,23 +75,7 @@ BOOL WINAPI ActiveIconic(HWND window) { return KeepRunning() ? FALSE : IsIconic(
 BOOL WINAPI SoundIconic(HWND window) { return KeepSoundMinimized() ? FALSE : IsIconic(window); }
 BOOL (WINAPI* windowIconic[2])(HWND) = { ActiveIconic, SoundIconic };
 
-// focus_gate::ApplyAll's access to the game's code. A protection that cannot
-// be put back leaves the bytes writable; they are already final.
-struct CodePages {
-    bool Unlock(std::uint8_t* at, std::uint8_t length, unsigned long& saved) {
-        DWORD old = 0;
-        if (!VirtualProtect(at, length, PAGE_EXECUTE_READWRITE, &old)) return false;
-        saved = old;
-        return true;
-    }
-    void Lock(std::uint8_t* at, std::uint8_t length, unsigned long saved) {
-        DWORD old = 0;
-        VirtualProtect(at, length, saved, &old);
-        FlushInstructionCache(GetCurrentProcess(), at, length);
-    }
-};
-
-gate::Edit edits[6];
+sf4e::code_edit::Edit edits[6];
 
 struct AppMessages : rApp {
     unsigned int HandleMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
@@ -134,7 +119,7 @@ void sf4e::BackgroundPlay::Install() {
     for (int i = 0; i < 2; i++)
         edits[4 + i] = gate::CallThrough(rApp::iconicChecks[i], rApp::iconicImport,
             static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&windowIconic[i])));
-    for (const gate::Edit& edit : edits) {
+    for (const sf4e::code_edit::Edit& edit : edits) {
         if (std::memcmp(edit.at, edit.native, edit.length) != 0) {
             unavailable = "the game's focus checks hold other bytes than this game build's";
             return;
@@ -149,8 +134,8 @@ void sf4e::BackgroundPlay::Install() {
 
 void sf4e::BackgroundPlay::Activate() {
     if (!hooked) return;
-    CodePages pages;
-    if (!gate::ApplyAll(edits, pages)) {
+    sf4e::CodePages pages;
+    if (!sf4e::code_edit::ApplyAll(edits, pages)) {
         unavailable = "the game's focus checks could not be patched";
         return;
     }
