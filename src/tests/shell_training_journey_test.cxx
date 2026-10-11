@@ -214,9 +214,10 @@ void TrainingJourneys() {
   ImGui::NewFrame();
   DrawTrainingFlyout(v,submit);ImGui::Render();};
  auto press=[&](unsigned held){frame();frame(held);frame();};
- auto choose=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
+ auto reach=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
   for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);
-  Check(TrainingNavigation().Focus()==id,"Training entry unreachable");press(MenuInput::Select);};
+  Check(TrainingNavigation().Focus()==id,"Training entry unreachable");};
+ auto choose=[&](const char* id){reach(id);press(MenuInput::Select);};
  frame();
  Check(TrainingNavigation().Focus()=="recording","Removed save-position section is still in training navigation");
  press(MenuInput::Down);
@@ -253,11 +254,12 @@ void TrainingJourneys() {
   io.DisplaySize=ImVec2(width,1080);frame();choose("recording");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});frame();
   Check((rows[0].height==30)==(width==1920),"Recording breakpoint fixture used the wrong layout");
-  choose("loop");commands.clear();press(MenuInput::Right);
-  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().loop,"Loop Right did not adjust in recording footer");
+  // Play's Left and Right choose once or looped, without playing.
+  reach("play");commands.clear();press(MenuInput::Right);
+  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().loop,"Play Right did not loop in the recording footer");
   v.acks.Note(commands.back().requestId,true);frame();
   commands.clear();press(MenuInput::Left);
-  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&!commands.back().loop,"Loop Left did not adjust in recording footer");
+  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&!commands.back().loop,"Play Left did not play once in the recording footer");
   v.acks.Note(commands.back().requestId,true);frame();
   choose("load-recording");commands.clear();press(MenuInput::Right);
   const auto load=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="load-recording";});
@@ -265,6 +267,9 @@ void TrainingJourneys() {
   press(MenuInput::Select);Check(commands.size()==1&&commands.back().action==training::Action::Load&&commands.back().frames.size()==7,"Load recording submitted the wrong selected file");
   commands.clear();press(MenuInput::Left);press(MenuInput::Select);
   Check(commands.size()==1&&commands.back().action==training::Action::Load&&commands.back().frames.size()==3,"Load recording Left did not restore the first file");
+  commands.clear();choose("mirror");
+  Check(commands.size()==1&&commands.back().action==training::Action::Mirror,"Mirror did not send its command");
+  v.acks.Note(commands.back().requestId,true);frame();
   SetMenuEntriesProbe({});press(MenuInput::Back);
  }
  io.DisplaySize=ImVec2(1280,960);frame();
@@ -314,14 +319,14 @@ void TrainingJourneys() {
  // Start with a valid enabled reply, then accept a nonempty line with no
  // moves. Rejection must preserve the editor, file and runtime together.
  edit("623HP");choose("reply");press(MenuInput::Right);
- Check(runtimePlan.when==1&&!runtimePlan.moves[0].empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
- const auto active=saved();const auto activeFrames=runtimePlan.moves[0].size();commands.clear();
+ Check(runtimePlan.when==1&&!runtimePlan.moves.empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
+ const auto active=saved();const auto activeFrames=runtimePlan.moves.size();commands.clear();
  edit("> ,");
- Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.moves[0].size()==activeFrames&&
+ Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.moves.size()==activeFrames&&
   !TrainingNotice(failed).empty()&&failed,"Rejected reply partially changed saved settings or runtime");
  choose("reply-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);
  choose("reply");press(MenuInput::Left);
- Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.moves[0].empty()&&runtimePlan.moves[1].empty()&&
+ Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.moves.empty()&&
   !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="623HP",
   "Reply Off disagreed with the saved settings or runtime after a rejected edit");
  // The editor still validates notation while Off; it cannot persist text
@@ -338,18 +343,18 @@ void TrainingJourneys() {
   std::vector<MenuEntry> replyRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){replyRows=rows;});
   const auto pick=[&]{frame();for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
   focus("reply");press(MenuInput::Right);
-  Check(runtimePlan.when==1&&!runtimePlan.moves[0].empty(),"The typed reply was not turned back on");
+  Check(runtimePlan.when==1&&!runtimePlan.moves.empty(),"The typed reply was not turned back on");
   Check(pick()==loc::T("training.reply.custom"),"A typed reply that is no preset did not show as Custom");
   focus("reply-move");commands.clear();press(MenuInput::Right);
   Check(pick()==loc::T("training.reply.slot")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
-   runtimePlan.moves[0].empty(),"Custom did not step on to the reply slot");
+   runtimePlan.moves.empty(),"Custom did not step on to the reply slot");
   press(MenuInput::Right);
   training::DummyPlan typed;std::string error;
   Check(training::BuildReplyPlan("623P",runtimePlan,typed,error),"The first preset is not notation");
   Check(pick()=="623P"&&saved()["reply"]["moves"]=="623P"&&commands.back().action==training::Action::DummyPlan&&
-   runtimePlan.moves[0].size()==typed.moves[0].size()&&runtimePlan.moves[1].size()==typed.moves[1].size(),"The first preset was not sent and saved as typed text");
+   runtimePlan.moves.size()==typed.moves.size(),"The first preset was not sent and saved as typed text");
   press(MenuInput::Left);press(MenuInput::Left);
-  Check(pick()==loc::T("training.reply.custom")&&saved()["reply"]["moves"]=="623HP"&&!runtimePlan.moves[0].empty(),"Custom did not bring the typed reply back");
+  Check(pick()==loc::T("training.reply.custom")&&saved()["reply"]["moves"]=="623HP"&&!runtimePlan.moves.empty(),"Custom did not bring the typed reply back");
   press(MenuInput::Select);frame();
   Check(TrainingNavigation().Editing()&&TrainingNavigation().Focus()=="reply-moves"&&TrainingNavigation().Draft()=="623HP","Select on the pick list did not open the typed field");
   press(MenuInput::Back);Check(!TrainingNavigation().Editing(),"The typed field did not close");

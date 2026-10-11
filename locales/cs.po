@@ -1410,6 +1410,12 @@ msgstr "Načíst nahrávku"
 msgid "training.load_recording.detail"
 msgstr "Vlevo a Vpravo vyberou uloženou nahrávku; Výběr ji načte do vybraného slotu."
 
+msgid "training.mirror"
+msgstr "Zrcadlit vybranou nahrávku"
+
+msgid "training.mirror.detail"
+msgstr "Prohodí v této pozici levou a pravou stranu, pro uloženou nahrávku, která hraje obráceně."
+
 msgid "training.recording_saved"
 msgstr "Nahrávka uložena jako {0}."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. Prázdné pole použije pozici odpovědi."
+msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. Prázdné pole použije pozici odpovědi."
 
 msgid "training.reply.move"
 msgstr "Předvolba odpovědi"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Přehrát"
 
 msgid "training.play.detail"
-msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Směry jsou absolutní, ne zrcadlené."
+msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Nahrávky se řídí stranou, kam se figurína dívá. Vlevo a Vpravo volí, zda se opakuje."
+
+msgid "training.play.once"
+msgstr "Jednou"
 
 msgid "training.slot_empty"
 msgstr "Tato pozice je prázdná."
@@ -1649,9 +1658,6 @@ msgstr "Zastavit nahrávání nebo přehrávání."
 
 msgid "training.loop"
 msgstr "Opakovat přehrávání"
-
-msgid "training.loop.detail"
-msgstr "Opakovat vybranou nahrávku."
 
 msgid "training.clear_recording"
 msgstr "Smazat vybranou nahrávku"

@@ -1410,6 +1410,12 @@ msgstr "Aufnahme laden"
 msgid "training.load_recording.detail"
 msgstr "Links und Rechts wählen eine gespeicherte Aufnahme; Auswahl lädt sie in den gewählten Slot."
 
+msgid "training.mirror"
+msgstr "Gewählte Aufnahme spiegeln"
+
+msgid "training.mirror.detail"
+msgstr "Tauscht links und rechts in diesem Slot, für eine gespeicherte Aufnahme, die seitenverkehrt abläuft."
+
 msgid "training.recording_saved"
 msgstr "Aufnahme als {0} gespeichert."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Antwortzüge"
 
 msgid "training.reply.moves.detail"
-msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. Leer nutzt den Antwort-Slot."
+msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. Leer nutzt den Antwort-Slot."
 
 msgid "training.reply.move"
 msgstr "Antwortvorlage"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Abspielen"
 
 msgid "training.play.detail"
-msgstr "Gewählten Slot abspielen und zum Training zurückkehren. Richtungen sind absolut, nicht gespiegelt."
+msgstr "Gewählten Slot abspielen und zum Training zurückkehren. Aufnahmen folgen der Seite, in die der Dummy blickt. Links und Rechts wählen, ob sie wiederholt wird."
+
+msgid "training.play.once"
+msgstr "Einmal"
 
 msgid "training.slot_empty"
 msgstr "Dieser Slot ist leer."
@@ -1649,9 +1658,6 @@ msgstr "Aufnahme oder Wiedergabe stoppen."
 
 msgid "training.loop"
 msgstr "Endlosschleife"
-
-msgid "training.loop.detail"
-msgstr "Gewählte Aufnahme wiederholen."
 
 msgid "training.clear_recording"
 msgstr "Gewählte Aufnahme löschen"

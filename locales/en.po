@@ -1410,6 +1410,12 @@ msgstr "Load recording"
 msgid "training.load_recording.detail"
 msgstr "Left and Right choose a saved recording; Select loads it into the selected slot."
 
+msgid "training.mirror"
+msgstr "Mirror selected recording"
+
+msgid "training.mirror.detail"
+msgstr "Swap left and right in this slot, for a saved recording that plays the wrong way round."
+
 msgid "training.recording_saved"
 msgstr "Recording saved as {0}."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Reply moves"
 
 msgid "training.reply.moves.detail"
-msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. The motion goes in while the dummy is still held, so the button lands on its first free frame. Empty uses the reply slot."
+msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. Empty uses the reply slot."
 
 msgid "training.reply.move"
 msgstr "Reply preset"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Play"
 
 msgid "training.play.detail"
-msgstr "Play the selected slot and return to practice. Directions are absolute, not mirrored."
+msgstr "Play the selected slot and return to practice. Recordings follow the side the dummy faces. Left and Right choose whether it repeats."
+
+msgid "training.play.once"
+msgstr "Once"
 
 msgid "training.slot_empty"
 msgstr "This slot is empty."
@@ -1649,9 +1658,6 @@ msgstr "Stop recording or playback."
 
 msgid "training.loop"
 msgstr "Loop playback"
-
-msgid "training.loop.detail"
-msgstr "Repeat the selected recording."
 
 msgid "training.clear_recording"
 msgstr "Clear selected recording"

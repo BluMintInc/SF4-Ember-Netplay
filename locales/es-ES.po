@@ -1410,6 +1410,12 @@ msgstr "Cargar grabación"
 msgid "training.load_recording.detail"
 msgstr "Izquierda y Derecha eligen una grabación guardada; Seleccionar la carga en la ranura seleccionada."
 
+msgid "training.mirror"
+msgstr "Invertir grabación seleccionada"
+
+msgid "training.mirror.detail"
+msgstr "Intercambia izquierda y derecha en esta ranura, para una grabación guardada que sale al revés."
+
 msgid "training.recording_saved"
 msgstr "Grabación guardada como {0}."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Golpes de respuesta"
 
 msgid "training.reply.moves.detail"
-msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. Vacío usa la ranura de respuesta."
+msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. También sirven los nombres de movimientos: qcf, qcb, dp, rdp, hcf y hcb, como en qcfP o dp+HP. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. Vacío usa la ranura de respuesta."
 
 msgid "training.reply.move"
 msgstr "Respuesta predefinida"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Repro."
 
 msgid "training.play.detail"
-msgstr "Reproduce la ranura seleccionada y vuelve al entrenamiento. Las direcciones son absolutas, no se invierten."
+msgstr "Reproduce la ranura seleccionada y vuelve al entrenamiento. Las grabaciones siguen el lado al que mira el muñeco. Izquierda y Derecha eligen si se repite."
+
+msgid "training.play.once"
+msgstr "Una vez"
 
 msgid "training.slot_empty"
 msgstr "Esta ranura está vacía."
@@ -1649,9 +1658,6 @@ msgstr "Detén la grabación o reproducción."
 
 msgid "training.loop"
 msgstr "Repetir"
-
-msgid "training.loop.detail"
-msgstr "Repite la grabación seleccionada."
 
 msgid "training.clear_recording"
 msgstr "Borrar grabación"

@@ -1410,6 +1410,12 @@ msgstr "Opname laden"
 msgid "training.load_recording.detail"
 msgstr "Links en Rechts kiezen een opgeslagen opname; Selecteren laadt hem in het gekozen slot."
 
+msgid "training.mirror"
+msgstr "Gekozen opname spiegelen"
+
+msgid "training.mirror.detail"
+msgstr "Wisselt links en rechts in dit slot, voor een opgeslagen opname die verkeerd om speelt."
+
 msgid "training.recording_saved"
 msgstr "Opname opgeslagen als {0}."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Antwoordmoves"
 
 msgid "training.reply.moves.detail"
-msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. Leeg gebruikt het antwoordslot."
+msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. Leeg gebruikt het antwoordslot."
 
 msgid "training.reply.move"
 msgstr "Antwoordvoorkeuze"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Afspelen"
 
 msgid "training.play.detail"
-msgstr "Speel het gekozen slot af en ga terug naar training. Richtingen zijn absoluut, niet gespiegeld."
+msgstr "Speel het gekozen slot af en ga terug naar training. Opnames volgen de kant waar de dummy naar kijkt. Links en Rechts kiezen of het herhaalt."
+
+msgid "training.play.once"
+msgstr "Eén keer"
 
 msgid "training.slot_empty"
 msgstr "Dit slot is leeg."
@@ -1649,9 +1658,6 @@ msgstr "Stop opname of afspelen."
 
 msgid "training.loop"
 msgstr "Herhalen"
-
-msgid "training.loop.detail"
-msgstr "Herhaal de gekozen opname."
 
 msgid "training.clear_recording"
 msgstr "Gekozen opname wissen"

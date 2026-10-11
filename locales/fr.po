@@ -1410,6 +1410,12 @@ msgstr "Charger une prise"
 msgid "training.load_recording.detail"
 msgstr "Gauche et Droite choisissent une prise enregistrée ; Sélection la charge dans l'emplacement choisi."
 
+msgid "training.mirror"
+msgstr "Inverser l'enregistrement choisi"
+
+msgid "training.mirror.detail"
+msgstr "Échange gauche et droite dans cet emplacement, pour une prise enregistrée qui joue à l'envers."
+
 msgid "training.recording_saved"
 msgstr "Prise enregistrée sous {0}."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Coups de riposte"
 
 msgid "training.reply.moves.detail"
-msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. Vide : l'emplacement de riposte est utilisé."
+msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Les noms de mouvements marchent aussi : qcf, qcb, dp, rdp, hcf et hcb, comme qcfP ou dp+HP. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. Vide : l'emplacement de riposte est utilisé."
 
 msgid "training.reply.move"
 msgstr "Riposte prédéfinie"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Rejouer"
 
 msgid "training.play.detail"
-msgstr "Rejouer l'emplacement choisi et reprendre l'entraînement. Les directions sont absolues, sans inversion."
+msgstr "Rejouer l'emplacement choisi et reprendre l'entraînement. Les enregistrements suivent le côté où regarde le mannequin. Gauche et Droite choisissent si elle se répète."
+
+msgid "training.play.once"
+msgstr "Une fois"
 
 msgid "training.slot_empty"
 msgstr "Cet emplacement est vide."
@@ -1649,9 +1658,6 @@ msgstr "Arrêter l'enregistrement ou la lecture."
 
 msgid "training.loop"
 msgstr "Lecture en boucle"
-
-msgid "training.loop.detail"
-msgstr "Répéter l'enregistrement sélectionné."
 
 msgid "training.clear_recording"
 msgstr "Effacer l'enregistrement choisi"

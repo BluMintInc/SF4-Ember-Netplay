@@ -64,7 +64,8 @@ constexpr int MaxAtFrame = 7200;
 
 // Strict notation, any case:
 //   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]   or   [xx] RFADC[66|44] [#N] [@N]
-//   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
+//   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720", or a word:
+//            qcf 236, qcb 214, dp 623, rdp 421, hcf 41236, hcb 63214, its button after it or after "+"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them,
 //            "(mash HP-MP-LP)" in that order, one press per frame, up to 10;
@@ -139,7 +140,12 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     else if (starts("CL.")) { step.motion = "5"; step.range = Range::Close; stance = true; }
     else if (starts("FAR.")) { step.motion = "5"; step.range = Range::Far; stance = true; }
     if (!stance) {
-        if (starts("360")) step.motion = "360";
+        // The motions players name in words, as their digits.
+        static const char* const words[][2] = {{"QCF", "236"}, {"QCB", "214"}, {"RDP", "421"}, {"DP", "623"}, {"HCF", "41236"}, {"HCB", "63214"}};
+        const char* word = nullptr;
+        for (const auto& alias : words) if (starts(alias[0])) { word = alias[1]; break; }
+        if (word) { step.motion = word; if (i < s.size() && s[i] == '+') ++i; }
+        else if (starts("360")) step.motion = "360";
         else if (starts("720")) step.motion = "720";
         else {
             if (i + 2 < s.size() && s[i] == '[' && s[i + 1] >= '1' && s[i + 1] <= '9' && s[i + 2] == ']') {

@@ -409,15 +409,19 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    loc::Tf("training.recorded_frames",v.lengths[slot]),ready&&v.mode==Mode::Idle));
   auto record=Row("record",loc::T("training.record"),loc::T(v.lengths[v.selected]?"training.record.overwrite":"training.record.detail"),ready);
   record.confirm=v.lengths[v.selected]>0;rows.push_back(record);
-  rows.push_back(Row("play",loc::T("training.play"),loc::T(v.lengths[v.selected]?"training.play.detail":"training.slot_empty"),ready&&v.lengths[v.selected]>0));
+  // Select plays; Left and Right choose once or looped.
+  rows.push_back(Value("play",loc::T("training.play"),loc::T(v.loop?"training.loop":"training.play.once"),
+   loc::T(v.lengths[v.selected]?"training.play.detail":"training.slot_empty"),ready&&v.lengths[v.selected]>0));
+  rows.back().opens=true;
   rows.push_back(Row("stop",loc::T("training.stop"),loc::T("training.stop.detail"),!pending));
-  rows.push_back(Value("loop",loc::T("training.loop"),loc::T(v.loop?"common.on":"common.off"),loc::T("training.loop.detail"),!pending));
   rows.push_back(ConfirmRow("clear",loc::T("training.clear_recording"),loc::T("training.clear_recording.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
   TakeExport(v);
   rows.push_back(TextRow("save-recording",loc::T("training.save_recording"),"",48,v.lengths[v.selected]>0&&!lab.directory.empty()));
   rows.back().detail=loc::T("training.save_recording.detail");
   rows.push_back(Value("load-recording",loc::T("training.load_recording"),recordings.empty()?loc::T("training.recording_none"):recordings[(std::min)(recordingChoice,recordings.size()-1)],loc::T("training.load_recording.detail"),!recordings.empty()&&ready&&v.mode==Mode::Idle));
   rows.back().opens=true;
+  // A file that comes out the wrong way round is turned in one press.
+  rows.push_back(Row("mirror",loc::T("training.mirror"),loc::T("training.mirror.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
   for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=recordingGrid?30:0;}
  }else if(screen=="tools"||screen=="dummy"||screen=="reply"){
   rows=ToolRows(v,screen);
@@ -485,10 +489,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  Command command;command.generation=v.generation;command.requestId=nextRequest++;
  if(a.id.compare(0,5,"slot-")==0){command.action=Action::Select;command.slot=std::stoi(a.id.substr(5));}
  else if(a.id=="record")command.action=Action::Record;
+ else if(a.id=="play"&&a.kind==MenuAction::Adjust){command.action=Action::Loop;command.loop=a.delta>0;}
  else if(a.id=="play")command.action=Action::Play;
  else if(a.id=="stop")command.action=Action::Stop;
  else if(a.id=="clear")command.action=Action::Clear;
- else if(a.id=="loop"){command.action=Action::Loop;command.loop=a.delta>0;}
+ else if(a.id=="mirror")command.action=Action::Mirror;
  else if(a.id=="clear-history")command.action=Action::ClearHistory;
  else return;
  if(submit&&submit(command)){

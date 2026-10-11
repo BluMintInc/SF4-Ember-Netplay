@@ -1410,6 +1410,12 @@ msgstr "Carica registrazione"
 msgid "training.load_recording.detail"
 msgstr "Sinistra e Destra scelgono una registrazione salvata; Seleziona la carica nello slot selezionato."
 
+msgid "training.mirror"
+msgstr "Specchia registrazione scelta"
+
+msgid "training.mirror.detail"
+msgstr "Scambia sinistra e destra in questo slot, per una registrazione salvata che esce al contrario."
+
 msgid "training.recording_saved"
 msgstr "Registrazione salvata come {0}."
 
@@ -1504,7 +1510,7 @@ msgid "training.reply.moves"
 msgstr "Mosse di risposta"
 
 msgid "training.reply.moves.detail"
-msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. Vuoto usa lo slot di risposta."
+msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. Vuoto usa lo slot di risposta."
 
 msgid "training.reply.move"
 msgstr "Risposta predefinita"
@@ -1636,7 +1642,10 @@ msgid "training.play"
 msgstr "Riproduci"
 
 msgid "training.play.detail"
-msgstr "Riproduci lo slot scelto e torna all'allenamento. Le direzioni sono assolute, non speculari."
+msgstr "Riproduci lo slot scelto e torna all'allenamento. Le registrazioni seguono il lato verso cui guarda il manichino. Sinistra e Destra scelgono se si ripete."
+
+msgid "training.play.once"
+msgstr "Una volta"
 
 msgid "training.slot_empty"
 msgstr "Questo slot è vuoto."
@@ -1649,9 +1658,6 @@ msgstr "Ferma registrazione o riproduzione."
 
 msgid "training.loop"
 msgstr "Ripeti riproduzione"
-
-msgid "training.loop.detail"
-msgstr "Ripeti la registrazione scelta."
 
 msgid "training.clear_recording"
 msgstr "Cancella registrazione scelta"
