@@ -14,12 +14,20 @@
 //    the fighters' own GGPO disconnect tolerance ends the session, so no
 //    spectator drop is needed.
 //  - backlog: send_queue_len is the spectator's count of unacknowledged
-//    frames. GGPO itself only gives up at 63 (its pending-output ring). A
-//    spectator at SlowQueueFrames or more on SlowSamples consecutive samples,
-//    taken every SampleIntervalMs, is dropped well before that. One sample at
-//    DropQueueFrames drops at once: a peer that stops acknowledging gains 12
-//    frames per sample, so waiting for a second could reach the ring.
+//    frames. GGPO itself gives up at 63 (its pending-output ring). Sampling
+//    starts SyncDeadlineMs after RUNNING: each end of a GGPO link
+//    synchronizes on its own, so a far spectator can still be finishing its
+//    end, acknowledging nothing, while P1 already streams. From then on a
+//    spectator at SlowFrames or more on SlowSamples consecutive samples,
+//    taken every SampleIntervalMs, is dropped. One sample at DropFrames drops
+//    at once: a peer that stops acknowledging gains FramesPerSample frames
+//    per sample, so waiting for a second could reach the ring. Both
+//    thresholds grow with the measured round trip, since a healthy spectator
+//    always has a round trip of frames unacknowledged, and never go below
+//    SlowQueueFrames and DropQueueFrames. Where they reach the ring, GGPO's
+//    own disconnect comes first.
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <vector>
@@ -33,8 +41,27 @@ public:
 	static constexpr int SlowQueueFrames = 32;
 	static constexpr int DropQueueFrames = 48;
 	// Five samples keep the one second a slow spectator always had to recover;
-	// DropQueueFrames, not this count, is what protects the ring.
+	// DropFrames, not this count, is what protects the ring.
 	static constexpr int SlowSamples = 5;
+	static constexpr int FramesPerSample = static_cast<int>(SampleIntervalMs * 60 / 1000);
+
+	// Frames a healthy spectator leaves unacknowledged: one round trip of the
+	// 60 frames per second stream. Zero until GGPO has measured the round trip.
+	static int InFlightFrames(int pingMs) { return pingMs > 0 ? pingMs * 60 / 1000 : 0; }
+	// The round trip plus one sample of growth kept up for SlowSamples, or
+	// plus two in a single sample.
+	static int SlowFrames(int pingMs) { return std::max(SlowQueueFrames, InFlightFrames(pingMs) + FramesPerSample); }
+	static int DropFrames(int pingMs) { return std::max(DropQueueFrames, InFlightFrames(pingMs) + 2 * FramesPerSample); }
+
+	// A spectator client gives up a stream whose own GGPO link has not reached
+	// RUNNING this long after its session started. Once P1's session answers,
+	// the link needs a few round trips. P1 waits SyncDeadlineMs for a
+	// spectator after the fighters synchronize, so P1 may start that much
+	// later than us; the second SyncDeadlineMs covers the round trips with a
+	// lost packet's retry. A spectator P1 dropped before it synchronized
+	// would otherwise wait forever: P1 answers sync requests for 5 s after
+	// the drop, then goes silent.
+	static constexpr std::uint64_t StreamSyncTimeoutMs = 2 * SyncDeadlineMs;
 
 	// A player enters a started match only from the main menu. A spectator that
 	// is elsewhere (Training, Options) for SyncDeadlineMs has missed the window
@@ -48,7 +75,7 @@ public:
 	}
 
 	void Start(std::uint64_t nowMs, const std::vector<int>& spectators) {
-		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; running_ = false;
+		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; runningMs_ = 0;
 		spectators_.clear();
 		for (const auto handle : spectators) spectators_[handle] = State{};
 	}
@@ -60,21 +87,23 @@ public:
 	void OnFighterSynchronized(std::uint64_t nowMs) {
 		if (fightersSyncedMs_ == 0) fightersSyncedMs_ = nowMs;
 	}
-	void OnRunning() { running_ = true; }
+	void OnRunning(std::uint64_t nowMs) { runningMs_ = nowMs; }
 	void OnDisconnected(int handle) { spectators_.erase(handle); }
 
 	// Spectators to drop now because initial sync overran its deadline.
 	std::vector<int> SyncOverdue(std::uint64_t nowMs) {
 		std::vector<int> drop;
-		if (running_ || fightersSyncedMs_ == 0 || nowMs < fightersSyncedMs_ + SyncDeadlineMs) return drop;
+		if (runningMs_ || fightersSyncedMs_ == 0 || nowMs < fightersSyncedMs_ + SyncDeadlineMs) return drop;
 		for (const auto& entry : spectators_) if (!entry.second.synchronized) drop.push_back(entry.first);
 		for (const auto handle : drop) spectators_.erase(handle);
 		return drop;
 	}
 
-	// True once per SampleIntervalMs; the caller then reports each spectator.
+	// True once per SampleIntervalMs from SyncDeadlineMs after RUNNING; the
+	// caller then reports each spectator.
 	bool SampleDue(std::uint64_t nowMs) {
-		if (!running_ || spectators_.empty() || nowMs < lastSampleMs_ + SampleIntervalMs) return false;
+		if (!runningMs_ || spectators_.empty() || nowMs < runningMs_ + SyncDeadlineMs ||
+			nowMs < lastSampleMs_ + SampleIntervalMs) return false;
 		lastSampleMs_ = nowMs;
 		return true;
 	}
@@ -86,12 +115,12 @@ public:
 		return handles;
 	}
 	// Returns true when this sample makes the spectator too slow to keep.
-	bool Sample(int handle, int sendQueueFrames) {
+	bool Sample(int handle, int sendQueueFrames, int pingMs) {
 		const auto found = spectators_.find(handle);
 		if (found == spectators_.end()) return false;
 		auto& state = found->second;
-		state.slowSamples = sendQueueFrames >= SlowQueueFrames ? state.slowSamples + 1 : 0;
-		if (state.slowSamples < SlowSamples && sendQueueFrames < DropQueueFrames) return false;
+		state.slowSamples = sendQueueFrames >= SlowFrames(pingMs) ? state.slowSamples + 1 : 0;
+		if (state.slowSamples < SlowSamples && sendQueueFrames < DropFrames(pingMs)) return false;
 		spectators_.erase(found);
 		return true;
 	}
@@ -99,9 +128,8 @@ public:
 private:
 	struct State { bool synchronized = false; int slowSamples = 0; };
 	std::map<int, State> spectators_;
-	// Zero until a fighter synchronizes in this session.
-	std::uint64_t fightersSyncedMs_ = 0, lastSampleMs_ = 0;
-	bool running_ = false;
+	// Zero until a fighter synchronizes, and until RUNNING, in this session.
+	std::uint64_t fightersSyncedMs_ = 0, runningMs_ = 0, lastSampleMs_ = 0;
 };
 
 }
