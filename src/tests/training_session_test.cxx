@@ -809,31 +809,62 @@ int main() {
             watch.Observe(sample(23, 310, 0, 10), 100); watch.Observe(sample(24, 0, 0), 100);
             Require(watch.Observe(sample(16, 700, 0), 0).freed == 1, "A launch did not reach its end across a sequence");
             {
-                // Where a reply's button met the dummy: traced from its decision, once.
-                ReplyTrace trace; ReplyTiming timing;
+                // Where a reply's button met the dummy: each reply traced once, from the frame
+                // it is decided in, in frames the trace counts itself.
+                Session replies; replies.Enter(); replies.SetReady(true);
+                ReplyTrace trace; ReplyTiming timing; int reports = 0;
+                const std::vector<Input> move(12, Input{0x10, 0x10, 0, 0});
                 const auto stun = [](int held, int freed, unsigned stretch) { DummySeen seen; seen.held = held; seen.freed = freed; seen.stretch = stretch; return seen; };
-                Require(!trace.Observe(90, false, false, stun(0, 2, 6), false, timing), "A trace began with no reply");
-                // Decided in a timed stun, the button sent a frame before the free frame, the move on it.
-                Require(!trace.Observe(100, true, false, stun(2, 0, 7), false, timing) && !trace.Observe(101, true, true, stun(2, 0, 7), false, timing),
-                    "A trace ended before it saw the dummy free");
-                Require(trace.Observe(102, true, false, stun(0, 2, 7), true, timing) && timing.sent == 101 && timing.freed == 102 && timing.move == 102,
-                    "A reply's button, free frame or move was misplaced");
-                Require(!trace.Observe(103, false, false, stun(0, 0, 7), true, timing), "A finished trace reported again");
-                // Hit again: the trace is dropped, and does not begin again without a reply.
-                trace.Observe(200, true, false, stun(1, 0, 8), false, timing);
-                Require(!trace.Observe(201, true, true, stun(1, 0, 9), false, timing) && !trace.Observe(202, false, false, stun(0, 1, 9), true, timing),
-                    "A trace went on across a new stun");
-                // Decided as the dummy is freed; no move ever comes: reported Grace frames after the reply's last.
-                trace.Observe(300, true, false, stun(0, 1, 9), false, timing);
-                trace.Observe(301, true, true, stun(0, 0, 9), false, timing);
-                int frame = 302;
-                while (!trace.Observe(frame, false, false, stun(0, 0, 9), false, timing)) ++frame;
-                Require(frame == 301 + ReplyTrace::Grace && timing.sent == 301 && timing.freed == 300 && timing.move == -1,
-                    "A reply whose move never came was not reported after its grace");
-                // A reset drops a trace begun.
-                trace.Observe(400, true, false, stun(0, 1, 10), false, timing);
+                // One frame as the runtime runs it: the playback's input, then
+                // the dummy seen, a reply decided if asked, then the trace.
+                // stop: a new stun drops the reply playing first.
+                const auto frame = [&](DummySeen seen, bool moving, bool decide = false, bool stop = false) {
+                    const bool pressed = replies.Replying();
+                    replies.Commit(replies.Prepare(Frame{}));
+                    if (stop) replies.StopReply();
+                    if (decide) Require(replies.Reply(move), "The reply did not start");
+                    const bool done = trace.Observe(replies.Replies(), replies.Replying(), pressed, seen, moving, timing);
+                    reports += done;
+                    return done;
+                };
+                const auto idle = [&](int frames, bool moving) { for (int i = 0; i < frames; ++i) frame(stun(0, 0, 0), moving); };
+                idle(3, true);
+                Require(reports == 0, "A trace began with no reply");
+                // Decided in a timed stun, the button sent the frame after, the dummy free and in its move the frame after that.
+                frame(stun(2, 0, 7), false, true); frame(stun(2, 0, 7), false);
+                Require(frame(stun(0, 2, 7), true) && timing.sent == 1 && timing.freed == 2 && timing.move == 2, "A reply's button, free frame or move was misplaced");
+                // The reply plays on after its report, the dummy in its move: no second report.
+                idle(2 * ReplyTrace::Grace, true);
+                Require(reports == 1 && !replies.Replying(), "A reply was traced again after its report");
+                // A new stun stops a reply and another is decided in the same frame: what played in it was the old one's.
+                frame(stun(2, 0, 8), false, true);
+                frame(stun(2, 0, 9), false, true, true);
+                frame(stun(2, 0, 9), false);
+                // Freed with no move ever coming: reported Grace frames after the reply's last frame.
+                frame(stun(0, 2, 9), false);
+                int after = 3;
+                while (!frame(stun(0, 0, 0), false)) ++after;
+                Require(reports == 2 && after == static_cast<int>(move.size()) - 1 + ReplyTrace::Grace && timing.sent == 1 && timing.freed == 2 && timing.move == -1,
+                    "A reply whose move never came was not reported after its grace, or took the stopped reply's press");
+                // Hit again: dropped, and not traced again while the same reply plays on.
+                frame(stun(0, 1, 10), false, true);
+                frame(stun(1, 0, 11), false);
+                idle(2 * ReplyTrace::Grace, true);
+                Require(reports == 2, "A trace went on across a new stun, or began again for the same reply");
+                // A reset or a gap in the frames: dropped, and not traced again for the same reply.
+                frame(stun(0, 1, 12), false, true);
                 trace.Reset();
-                Require(!trace.Observe(401, false, true, stun(0, 0, 10), true, timing), "A reset kept a trace");
+                idle(2 * ReplyTrace::Grace, true);
+                Require(reports == 2, "A trace went on across a reset");
+                // The battle closes with a trace begun, and another is entered:
+                // nothing of it is reported there, and its first reply is its own.
+                frame(stun(2, 0, 13), false, true); frame(stun(2, 0, 13), false);
+                trace.Reset(); replies.Reset(); replies.Enter(); replies.SetReady(true);
+                frame(stun(0, 2, 1), true); idle(2 * ReplyTrace::Grace, true);
+                Require(reports == 2, "A trace begun in a closed battle was reported in the next");
+                frame(stun(0, 1, 1), false, true); frame(stun(0, 0, 1), false);
+                Require(frame(stun(0, 0, 1), true) && reports == 3 && timing.sent == 1 && timing.freed == 0 && timing.move == 2,
+                    "A reply in a new battle was not traced on its own");
             }
             DummyPlan plan;
             Require(!DummyReplies(plan, 1, 0), "A dummy with no plan replied");

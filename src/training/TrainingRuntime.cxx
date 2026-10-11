@@ -485,9 +485,8 @@ void AfterUpdate(Native* system) {
             // Where the reply's button met the dummy, once per reply, to check timing 0 in the game.
             ReplyTiming timing;
             const bool pressed = playing.reply && commitInput && (output[1].raw & AttackButtons);
-            if (replyTrace.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, session.Replying() || playing.reply, pressed, seen,
-                    fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
-                spdlog::info("Training: reply trace: button sent in frame {}, dummy free from frame {}, in its move from frame {}; input lag {}, timing {}",
+            if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
+                spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; input lag {}, timing {}",
                     timing.sent, timing.freed, timing.move, InputLag(), dummyPlan.timing);
         }
         if (!capture) capture = new TrainingCapture();
@@ -542,7 +541,7 @@ void CloseBattle() {
     if (dummyControl.Release()) if (Native* system = Native::staticMethods.GetSingleton()) ReturnDummyControl(system);
     playing = {};
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; dummyWatch.Reset(); playbackSeen = {};
+    matchPractice = false; dummyWatch.Reset(); replyTrace.Reset(); playbackSeen = {};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }
