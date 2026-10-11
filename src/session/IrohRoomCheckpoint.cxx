@@ -98,9 +98,11 @@ void IrohRoom::StageCommittedCheckpoint(const coordination::TransferIdentity& id
     auto& journal=decoded.journal;
     std::map<room::MemberId,room::ConnectionRef> recipients;
     std::set<std::string> committedMembers;
+    std::size_t liveMembers=0;
     for(const auto& member:proposal.checkpoint.at("members")) {
         const auto& data=member.at("data");
         committedMembers.insert(data.at("authenticatedEndpoint").get<std::string>());
+        if(!member.value("frozen",false)) ++liveMembers;
         if(data.value("authenticatedEndpoint",std::string())==localIdentity_)
             recipients.emplace(member.at("member").get<room::MemberId>(),member.at("endpoint").get<room::ConnectionRef>());
     }
@@ -119,7 +121,7 @@ void IrohRoom::StageCommittedCheckpoint(const coordination::TransferIdentity& id
         }
     }
     committedCheckpoints_.push_back({identity,std::move(proposal),std::move(journal),
-        std::move(recipients),std::move(committedMembers)});
+        std::move(recipients),std::move(committedMembers),liveMembers});
     if (identity.transfer==proposalIdentity_.transfer && identity.term==proposalIdentity_.term) {
         proposalBytes_.clear(); proposalStatus_="committed";
     }
@@ -220,6 +222,7 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     appliedEffects_=std::move(staged.effects);
     effectsRevision_=identity.revision;
     committedMembers_=std::move(staged.members);
+    committedLiveMembers_=staged.liveMembers;
     receivedRevision_=(std::max)(receivedRevision_,identity.revision);
     haveCommittedMembers_=true;
     for(auto& peer:peers_) if(committedMembers_.count(peer.second.identity)) peer.second.admitted=true;
