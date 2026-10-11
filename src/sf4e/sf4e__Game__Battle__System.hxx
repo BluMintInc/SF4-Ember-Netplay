@@ -289,8 +289,9 @@ namespace sf4e {
 				// Publishes a GGPO-confirmed native outcome if one is waiting.
 				// Safe to call outside GGPO callbacks at any time.
 				static void PollNativeMatchResult();
-				// P1 only: drops a spectator that has not synchronized in time or
-				// has fallen too far behind (SpectatorPolicy). Outside callbacks.
+				// P1 drops a spectator that has not synchronized in time or has
+				// fallen too far behind; a spectator client ends a stream that
+				// never synchronized (SpectatorPolicy). Outside callbacks.
 				static void PollSpectators();
 				// Live spectator streams this client forwards inputs to. Only P1
 				// has any, so this is also the test for owning spectator edges.
