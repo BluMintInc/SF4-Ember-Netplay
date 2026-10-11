@@ -56,6 +56,14 @@ struct PlayerPreferences {
     // The game's sound and the pads keep working while another window, such
     // as OBS, is in front (sf4e__BackgroundPlay.cxx).
     bool backgroundPlay = false;
+    // Experimental (sf4e__InputLag.cxx): the battle reads each input in the
+    // frame it was made instead of the next. A room's match does so only when
+    // both fighters have it on, for them and whoever watches; offline battles
+    // follow this setting.
+    bool lowerInputLag = false;
+    // Experimental: key presses become key states as the pad update reads
+    // them, not a frame later. Only this PC's keyboard changes.
+    bool lowerKeyboardLag = false;
     // A match this PC only watches is recorded too, like one it plays
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;

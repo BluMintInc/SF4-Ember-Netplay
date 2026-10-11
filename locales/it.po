@@ -990,6 +990,18 @@ msgstr "Gioca in background"
 msgid "player.background_play_detail"
 msgstr "L'audio del gioco e il controller continuano a funzionare mentre un'altra finestra, come OBS, è in primo piano. La tastiera e i menu di Ember richiedono ancora la finestra del gioco. Usa la modalità finestra: a schermo intero il gioco si riduce comunque a icona."
 
+msgid "player.lower_input_lag"
+msgstr "Riduci il ritardo di input (sperimentale)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Sperimentale. Rimuove un frame di ritardo che il gioco aggiunge a ogni input. In una stanza vale solo se entrambi i giocatori lo attivano, e allora anche per chi guarda. Le battaglie offline e l'Allenamento seguono solo questa opzione."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Riduci il ritardo tastiera (sperimentale)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Sperimentale. Il gioco legge la tastiera un frame dopo un controller; questo rimuove quel frame. Riguarda solo la tastiera, e solo su questo PC: l'altro giocatore non deve attivarlo."
+
 msgid "player.native_menus"
 msgstr "Apri menu del gioco"
 

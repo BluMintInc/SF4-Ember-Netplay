@@ -990,6 +990,18 @@ msgstr "Play in the background"
 msgid "player.background_play_detail"
 msgstr "Game sound and your controller keep working while another window, such as OBS, is in front. The keyboard and Ember's menus still need the game window. Use windowed mode: fullscreen still minimizes."
 
+msgid "player.lower_input_lag"
+msgstr "Lower input lag (experimental)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimental. Removes a frame of delay the game adds to every input. In a room it applies only when both players turn it on, and then for whoever watches too. Offline battles and Training follow this setting alone."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Less keyboard lag (experimental)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimental. The game reads the keyboard a frame later than a controller; this removes that frame. It only affects the keyboard, and only on this PC: the other player does not need it on."
+
 msgid "player.native_menus"
 msgstr "Open native menus"
 

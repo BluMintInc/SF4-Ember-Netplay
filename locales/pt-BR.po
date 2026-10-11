@@ -990,6 +990,18 @@ msgstr "Jogar em segundo plano"
 msgid "player.background_play_detail"
 msgstr "O som do jogo e seu controle continuam funcionando enquanto outra janela, como o OBS, está na frente. O teclado e os menus do Ember ainda precisam da janela do jogo. Use o modo janela: em tela cheia o jogo ainda é minimizado."
 
+msgid "player.lower_input_lag"
+msgstr "Menos atraso de entrada (experimental)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimental. Remove um quadro de atraso que o jogo adiciona a cada comando. Em uma sala, só vale quando os dois jogadores ativam, e então também para quem assiste. Batalhas offline e o Treino seguem só esta opção."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Menos atraso no teclado (experimental)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimental. O jogo lê o teclado um quadro depois de um controle; isto remove esse quadro. Afeta só o teclado, e só neste PC: o outro jogador não precisa ativar."
+
 msgid "player.native_menus"
 msgstr "Abrir menus nativos"
 

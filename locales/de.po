@@ -990,6 +990,18 @@ msgstr "Im Hintergrund spielen"
 msgid "player.background_play_detail"
 msgstr "Spielsound und Controller funktionieren weiter, während ein anderes Fenster wie OBS im Vordergrund ist. Tastatur und Ember-Menüs brauchen weiterhin das Spielfenster. Verwenden Sie den Fenstermodus: Im Vollbild wird das Spiel weiterhin minimiert."
 
+msgid "player.lower_input_lag"
+msgstr "Weniger Eingabeverzögerung (experimentell)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimentell. Entfernt einen Frame Verzögerung, den das Spiel jeder Eingabe hinzufügt. In einem Raum gilt es nur, wenn beide Spieler es einschalten, und dann auch für Zuschauer. Offline-Kämpfe und das Training folgen nur dieser Einstellung."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Weniger Tastaturlatenz (experimentell)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimentell. Das Spiel liest die Tastatur einen Frame später als einen Controller; das entfernt diesen Frame. Es betrifft nur die Tastatur und nur diesen PC: Der andere Spieler muss es nicht einschalten."
+
 msgid "player.native_menus"
 msgstr "Native Menüs öffnen"
 
