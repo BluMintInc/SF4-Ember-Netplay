@@ -12,6 +12,11 @@
 namespace sf4e { namespace combo {
 constexpr unsigned Up = 1, Down = 2, Left = 4, Right = 8;
 constexpr int FollowDelay = 10;
+// Frames a charge is held. The fighters' command files ask 42 (M. Bison), 50
+// (Guile's and Dee Jay's Sonic Boom), 55 (most charge moves and every charge
+// super and ultra) and 60 (Crystal Flash, Gen); a typed move does not know
+// its fighter, so it holds enough for all of them, plus a little.
+constexpr int ChargeFrames = 62;
 inline unsigned DirectionBits(char digit, bool facingRight) {
     const unsigned f = facingRight ? Right : Left, b = facingRight ? Left : Right;
     switch (digit) {
@@ -75,7 +80,7 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         if (step.follow && index && !timed) push(0, (std::max)(0, FollowDelay + timing));
         if (timed) {
             int lead = 0;
-            for (std::size_t i = 0; i < motion.size(); ++i) lead += (step.charge && i == 0 ? 50 : step.cancel ? 2 : 3) + (i && motion[i] == motion[i - 1] ? 1 : 0);
+            for (std::size_t i = 0; i < motion.size(); ++i) lead += (step.charge && i == 0 ? ChargeFrames : step.cancel ? 2 : 3) + (i && motion[i] == motion[i - 1] ? 1 : 0);
             if (index) push(0, 1);
             reach(step.at - lead);
         } else if (link) wait(training::WaitActionable, motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
@@ -86,7 +91,7 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
             if (i && motion[i] == motion[i - 1]) push(0, 1);
             last = DirectionBits(motion[i], facingRight);
             const bool held = link && i == 0;
-            push(last, step.charge && i == 0 ? 50 : held ? 0 : step.cancel ? 2 : 3);
+            push(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
         }
         if (!buttons) continue;
         if (step.cancel && !step.follow && index && !timed) wait(training::WaitHit, last, timing);

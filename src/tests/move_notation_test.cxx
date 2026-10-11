@@ -133,7 +133,7 @@ int main() {
         CHECK(seen == expected);
         int held = 0;
         for (const auto& frame : frames) held += frame.raw == Left && !frame.wait;
-        CHECK(held == 50 && frames[0].mapped == frames[0].raw);
+        CHECK(held == ChargeFrames && frames[0].mapped == frames[0].raw);
         // Facing left mirrors forward and back.
         const auto mirrored = Synthesize(Steps("236HP > 5LP"), false);
         CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[11].wait == sf4e::training::WaitActionable && mirrored[12].raw == LP);
