@@ -26,7 +26,9 @@
 // go now on this pad, a fresh Back press is go now and nothing else: it
 // neither resets, saves nor opens, however long it is held and whatever
 // Start does after it. A Back already held when the call came is not go now;
-// it ends as the tap or hold it began as.
+// it ends as the tap or hold it began as. Behind another window the gesture
+// is read only while the call offers go now, for go now: its reset, save and
+// controls are refused without the focus.
 //
 // A Start that goes down while the gesture's Back is held is the gesture's
 // whether or not it opens anything (TrainingPadEvents::owned), so the game
@@ -139,14 +141,17 @@ public:
     }
     // The controls' own Back, the call, leaving Training.
     void Close() { std::lock_guard<std::mutex> lock(mutex_); open_ = false; }
-    // View's go now on the call, pressed under epoch: put to the call's gate
-    // only while that epoch is still current and the window has the focus,
-    // decided in the same step as the press, so a View sampled in a focus
-    // period that has ended never reaches the call.
-    bool PressGoNow(std::uint32_t epoch, GoNowGate& gate, GoNowGate::Source source, bool free) {
+    // View's go now on the call, pressed under epoch while call was offered:
+    // put to the call's gate only while that epoch is still current and that
+    // call is still the one offered, decided in the same step as the press,
+    // so a View sampled in a focus period that has ended, or under a call
+    // since replaced, never reaches a call. Unlike the controls it needs no
+    // focus: the pad goes now behind another window too, through this same
+    // gesture, whose reset, save and controls still need it.
+    bool PressGoNow(std::uint32_t epoch, const CallIdentity& call, GoNowGate& gate, GoNowGate::Source source, bool free) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!focused_ || epoch != epoch_) return false;
-        return gate.Press(source, free);
+        if (epoch != epoch_) return false;
+        return gate.Press(source, free, call);
     }
     // The pad's chord, pressed under epoch: false, changing nothing, when that
     // owner has gone, or when it would open them without the focus.

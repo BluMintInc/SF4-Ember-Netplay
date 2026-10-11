@@ -143,6 +143,8 @@ void sf4e::BackgroundPlay::Activate() {
     ready.store(true);
 }
 
+HWND sf4e::BackgroundPlay::GameWindow() { return gameWindow.load(); }
+
 void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& policy) {
     const rMain::Win32_WindowData* const data = WindowData();
     gameWindow.store(data ? data->hWnd : nullptr);
@@ -162,7 +164,12 @@ void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& p
         return;
     }
     // Key releases do not reach a window behind another, so a key held at
-    // alt-tab would stay down. The pads stay live.
+    // alt-tab would stay down. The pads stay live: the native gate's clear
+    // would empty the devices Ember's menu reads them from too.
     if (auto* keyboards = rPad::System_RawInput::staticMethods.GetSingleton())
         (keyboards->*rPad::System_RawInput::publicMethods.ClearKeys)();
+}
+
+bool sf4e::BackgroundPlay::HidesFromGame(const Policy& policy) {
+    return ready.load() && HidesInput(policy, WindowInFront());
 }

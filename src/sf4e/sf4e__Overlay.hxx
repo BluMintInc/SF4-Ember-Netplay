@@ -6,11 +6,25 @@
 
 #include "../session/sf4e__SessionClient.hxx"
 #include "../common/TrainingPad.hxx"
+#include "../ui/OverlayPresentation.hxx"
+#include "../ui/OverlayLifecycle.hxx"
 
 namespace sf4e {
 	namespace Overlay {
+        // Ember takes the game's input: the pads while its menu holds them, with
+        // the window in front or not, and while the training controls are open.
         bool CapturesMenuInput();
+        // The game window has the focus: the keyboard, the mouse and the
+        // training controls need it; Ember's menu does not.
         bool HasInputFocus();
+        // The menu's opens and its hold on the pads (OverlayPresentation.hxx):
+        // the pad update says where the game is, first in each update, and
+        // polls the pads behind another window while the menu takes them.
+        ui::MenuPads& MenuPads();
+        // Who may touch the overlay's drawing state (OverlayLifecycle.hxx):
+        // each frame holds it, and the context's creation and teardown take it
+        // whole, after any frame still drawing.
+        ui::OverlayLifecycle& Lifecycle();
         void RequestMainControls();
         // Game thread: what the pad's Back and Start ask for in offline
         // Training, in order (TrainingPad.hxx). An event posted under an epoch

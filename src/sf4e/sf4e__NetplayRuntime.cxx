@@ -3,6 +3,7 @@
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
+#include "sf4e__AwayAlert.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -542,12 +543,17 @@ static void SettleRoomState(bool helperReady) {
 }
 
 // The other fighter at this player's table readied first: the game's own
-// announcer says a challenger is here, unless the player turned it off.
+// announcer says a challenger is here, unless the player turned it off. With
+// the window behind another or minimized, where the game may be muted and
+// its announcer does not speak outside the main menu, Ember's own alert
+// says it too (sf4e__AwayAlert.hxx).
 static void CallOutOpponentReady() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; runtime->opponentFighterWatch = {}; return; }
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
-	if (runtime->readyChime.Update(room, GetTickCount64()) && runtime->preferences.readySound)
-		PlayChallengerCall(runtime->preferences.readySoundVolume);
+	if (runtime->readyChime.Update(room, GetTickCount64())) {
+		if (runtime->preferences.readySound) PlayChallengerCall(runtime->preferences.readySoundVolume);
+		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "the opponent readied");
+	}
 	if (runtime->opponentFighterWatch.Update(room)) {
 		++runtime->opponentChangeSequence;
 		spdlog::info("Room: the opponent changed fighter to {}", runtime->opponentFighterWatch.Pending());
@@ -601,6 +607,7 @@ static void CallOutOfTraining() {
 	switch (result.step) {
 	case room::TrainingCall::Step::Call:
 		spdlog::info("Room: a challenger sat down while the player is in Training");
+		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "a challenger sat down while in Training");
 		break;
 	case room::TrainingCall::Step::Open:
 		++runtime->trainingCallSequence;

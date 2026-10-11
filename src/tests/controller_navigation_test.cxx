@@ -183,6 +183,16 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
+ // The overlay enables the adapter whatever the window's focus (only a device
+ // being assigned stops it): behind another window Start opens the hidden
+ // menu and the shown menu takes presses, with no refocus between.
+ ControllerNavigation behind;ControllerSample pad{0,0,true,0};
+ behind.Update(pad,true,false,true);behind.Update(pad,true,false,true);
+ pad.buttons=ControllerSample::Menu;behind.Update(pad,true,false,true);
+ Check(behind.OpenRequested(),"Start did not open the menu behind another window");
+ pad.buttons=0;behind.Update(pad,true,true,true);
+ pad.buttons=ControllerSample::Down;behind.Update(pad,true,true,true);
+ Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
 }
 // The pad in offline Training: Back tapped resets, held saves, and Start
 // pressed while Back is held opens the controls or closes them. None of the
@@ -522,15 +532,54 @@ void GoNowFocus(){
   PadOwner owner;owner.generation=40;owner.epoch=token.epoch;
   const auto stale=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
   Check(stale.events.goNow,"View under the call did not ask for go now");
-  Check(!controls.PressGoNow(stale.owner.epoch,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),"A View sampled as the focus went was taken for go now");
+  Check(!controls.PressGoNow(stale.owner.epoch,a,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),"A View sampled as the focus went was taken for go now");
   Check(!tick()&&countdown.Left()==118,"A View sampled as the focus went hurried the call");
   pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
   if(!regain)controls.GainFocus();
   owner.epoch=controls.Sample().epoch;
   const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
-  Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,gate,GoNowGate::Source::Pad,true),"A fresh View was not taken for go now");
+  Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,a,gate,GoNowGate::Source::Pad,true),"A fresh View was not taken for go now");
   Check(tick()&&!tick()&&countdown.Left()==0,"A fresh go now did not leave once");
  }
+}
+// Behind another window go now comes through the same gesture and the same
+// check: a fresh View under the call is taken without the focus; a View held
+// as the focus went (and came back, and went again) between two polls is
+// not; a View read under a call the room has since replaced is not; and the
+// gesture's reset, save and controls are still refused there.
+void GoNowBehind(){
+ using namespace sf4e::input;
+ const float place[2]={0,0};
+ TrainingControls controls;TrainingPadInput pad;GoNowGate gate;
+ CallIdentity a;a.roomEpoch=7;a.table=1;a.opponent=2;a.generation=40;a.serial=1;
+ CallIdentity b=a;b.opponent=3;b.serial=2;
+ double now=0;
+ controls.LoseFocus();
+ gate.Offer(a);
+ PadOwner owner;owner.generation=40;owner.epoch=controls.Sample().epoch;
+ pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,a,gate,GoNowGate::Source::Pad,true),"A fresh View behind another window was not taken for go now");
+ Check(gate.Take().size()==1,"Go now behind another window did not reach the call once");
+ // Held: the focus comes and goes between two polls. The press keeps its old
+ // owner, the gesture drops it, and the View still held is not go now.
+ const auto heldOwner=controls.Sample().epoch;
+ controls.GainFocus();controls.LoseFocus();
+ owner.epoch=controls.Sample().epoch;
+ const auto held=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ Check(!held.events.goNow&&heldOwner!=owner.epoch,"A View held across a focus change was taken as a fresh press");
+ Check(!controls.PressGoNow(heldOwner,a,gate,GoNowGate::Source::Pad,true),"A View read under an ended focus period was taken");
+ // The call is replaced between the poll that read View and the press.
+ pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ const auto read=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ gate.Offer(b);
+ Check(read.events.goNow&&!controls.PressGoNow(read.owner.epoch,a,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),
+  "A View read under a call since replaced went now for its replacement");
+ // Reset, save and the controls' chord ask nothing of an unfocused window.
+ pad.Update(0,controls,now+=.02,TrainingCall::None,owner,place);
+ pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::None,owner,place);
+ const auto chord=pad.Update(PhysicalBack|PhysicalStart,controls,now+=.02,TrainingCall::None,owner,place);
+ Check(!chord.events.open&&!controls.Open(),"The controls opened behind another window");
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts
@@ -737,5 +786,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
