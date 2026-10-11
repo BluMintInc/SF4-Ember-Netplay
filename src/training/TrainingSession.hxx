@@ -207,8 +207,7 @@ struct Command {
     std::vector<Input> frames; int side = 1;
     // DummyState: the settings to change.
     DummyState dummy;
-    // Place: where to put Player 1 and Player 2 (x); the session takes them as
-    // the fighters' positions at once, so the update's input already turns for them.
+    // Place: where to put Player 1 and Player 2 (x), moved by the runtime (MoveFighters).
     float place[2] = {0, 0};
     // DummyPlan: the whole plan, replacing the one before.
     DummyPlan plan;
@@ -351,9 +350,8 @@ public:
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     // The fighters face each other, by where they stood after the last
-    // update, or where a Place put them (Apply); level, they keep the sides
-    // they had. The runtime reads the game for every other move: each
-    // simulated update and a reset to the checkpoint. A slot plays, and is
+    // update, or where a Place moved them (MoveFighters); level, they keep
+    // the sides they had. A slot plays, and is
     // recorded, for the facing the update's input was prepared with, so the
     // runtime sets the new positions after Commit.
     // Limitation: the game turns a fighter a few frames after the two pass
@@ -365,13 +363,12 @@ public:
     // The fighter on the left faces right.
     bool FacingRight(int side) const { return (side == 0) == firstOnLeft_; }
     // Every command passes here first, and only here is its battle checked.
-    // Accepted, the runtime carries out Place, DummyPlan and ExportSlot;
-    // of them only Place changes the session, which takes its positions.
+    // Place, DummyPlan and ExportSlot change nothing in the
+    // session; accepted, the runtime carries them out.
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: SetPositions(command.place[0], command.place[1]); return true;
-        case Action::ExportSlot: return true;
+        case Action::Place: case Action::ExportSlot: return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         case Action::Stop: Stop(); return true;
         case Action::Select:
@@ -524,4 +521,16 @@ private:
         ClearHistory();
     }
 };
+// The fighters' root positions as the game holds them ([0] is x), null
+// where a fighter is not there.
+using FighterRoots = std::array<float*, 2>;
+// A Place: both fighters to their x, or neither when either is not there,
+// and the session told where they stand at once, so the input of the update
+// the Place came in already turns for them.
+inline bool MoveFighters(Session& session, const FighterRoots& roots, const float (&x)[2]) {
+    if (!roots[0] || !roots[1]) return false;
+    roots[0][0] = x[0]; roots[1][0] = x[1];
+    session.SetPositions(x[0], x[1]);
+    return true;
+}
 } }

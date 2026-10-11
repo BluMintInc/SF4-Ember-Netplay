@@ -100,31 +100,22 @@ Acks acks;
 // meter. Logged per battle: a large count explains a missing frame-advantage
 // readout (ledger F-006).
 std::uint64_t gapResets = 0;
-// Puts both fighters at an x each, through the root position the engine
-// keeps for them. Only x, on the ground; add y and facing if they are ever
-// needed.
-bool PlaceFighters(Native* system, const float* x) {
+// The root position the engine keeps for each fighter, which a Place moves
+// (MoveFighters: only x, on the ground; add y and facing if they are ever
+// needed) and the session's facing is read from.
+FighterRoots ReadRoots(Native* system) {
     using Actor = Dimps::Game::Battle::Chara::Actor;
     using Unit = Dimps::Game::Battle::Chara::Unit;
+    FighterRoots roots{};
     Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
-    if (!unit) return false;
-    for (unsigned side = 0; side < 2; ++side) {
-        Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
-        float* position = actor ? (actor->*Actor::publicMethods.GetCurrentRootPosition)() : nullptr;
-        if (!position) return false;
-        position[0] = x[side];
-    }
-    return true;
+    for (unsigned side = 0; side < 2 && unit; ++side)
+        if (Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side)) roots[side] = (actor->*Actor::publicMethods.GetCurrentRootPosition)();
+    return roots;
 }
 // Where the fighters stand (x) for the session, which turns what it plays by them.
 void FollowPositions(Native* system) {
-    using Actor = Dimps::Game::Battle::Chara::Actor;
-    using Unit = Dimps::Game::Battle::Chara::Unit;
-    Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
-    float x[2] = {0, 0};
-    for (unsigned side = 0; side < 2 && unit; ++side)
-        if (Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side)) if (const float* position = (actor->*Actor::publicMethods.GetCurrentRootPosition)()) x[side] = position[0];
-    session.SetPositions(x[0], x[1]);
+    const FighterRoots roots = ReadRoots(system);
+    session.SetPositions(roots[0] ? roots[0][0] : 0, roots[1] ? roots[1][0] : 0);
 }
 // The game's Training menu settings live in Training::Manager; the dummy
 // driver reads them every frame, so a write there is the whole change.
@@ -274,7 +265,7 @@ static bool Dispatch(Native* system, const Command& command) {
         return false;
     }
     switch (command.action) {
-    case Action::Place: return PlaceFighters(system, command.place);
+    case Action::Place: return MoveFighters(session, ReadRoots(system), command.place);
     case Action::DummyPlan: dummyPlan = command.plan; return true;
     case Action::ExportSlot:
         exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
