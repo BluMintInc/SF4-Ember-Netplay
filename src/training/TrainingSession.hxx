@@ -135,6 +135,22 @@ inline int ReplyLead(const std::vector<Input>& frames) {
 // frames from now to that free frame, -1 while not known. stretch: counts the
 // hits, blocks and reactions, so a change says the wait began again.
 struct DummySeen { int freed = 0, held = 0, until = -1; unsigned stretch = 0; };
+// What the dummy's status holds it in, numbered as DummyPlan::when: 1 hit
+// or dizzy, 2 blockstun, 3 knocked down or getting up, 0 free. Not the
+// frame meter's grouping: the game sets GuardStand and GuardCrouch only to
+// hold the dummy back while an attack is near, with nothing landed, and the
+// dummy can act from them; blockstun is DamageGuard alone. -1: neither, as
+// a throw's sequence or a frame not read, which neither starts nor ends a stun.
+inline int DummyHold(const FighterSample& dummy) {
+    using S = ActorStatus;
+    if (!dummy.valid) return -1;
+    switch (dummy.status) {
+    case S::Damage: case S::DamageBlow: case S::Stun: return 1;
+    case S::DamageGuard: return 2;
+    case S::Bound: case S::Down: case S::Rise: return 3;
+    default: return ClassifyStatus(dummy.status) == Phase::Unknown ? -1 : 0;
+    }
+}
 // Fed the dummy once per simulated frame. The game does not say how long a
 // stun lasts, so each one is timed the first time it is seen, from its last
 // hit or change of reaction to the free frame, and known from then on.
@@ -146,8 +162,7 @@ public:
     // attacker: the other fighter's action id.
     DummySeen Observe(const FighterSample& dummy, int attacker) {
         DummySeen seen; seen.stretch = stretch_;
-        const Phase phase = dummy.valid ? ClassifyStatus(dummy.status) : Phase::Unknown;
-        const int held = phase == Phase::Hit ? 1 : phase == Phase::Guard ? 2 : phase == Phase::Down ? 3 : 0;
+        const int hold = DummyHold(dummy), held = (std::max)(0, hold);
         if (held) {
             if (!from_ || dummy.status != last_.status || dummy.action != last_.action || dummy.actionFrame < last_.actionFrame ||
                 dummy.comboDamage > last_.comboDamage) {
@@ -158,7 +173,7 @@ public:
             const auto known = learned_.find(key_);
             seen.held = held; seen.stretch = stretch_;
             if (known != learned_.end()) seen.until = (std::max)(0, known->second - elapsed_);
-        } else if (from_ && phase == Phase::Unknown) ++elapsed_;
+        } else if (from_ && hold < 0) ++elapsed_;
         else if (from_) {
             if (learned_.size() >= 4096) learned_.clear();
             learned_[key_] = elapsed_ + 1; seen.freed = from_; from_ = 0;
@@ -185,6 +200,47 @@ inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
 }
+// Where one reply's button met the dummy, in frames after the one the reply
+// was decided in, -1 where not seen: the frame its first attack button was
+// sent in (acted on input lag frames later), the dummy's first free frame,
+// and the first frame of its move. A stun ends and a move starts in the same
+// game frame, so a button that meets the free frame shows the last two the same.
+struct ReplyTiming { int sent = -1, freed = -1, move = -1; };
+// Follows each reply once, for the log, from the frame it is decided in
+// (Session::Replies changes) over consecutive frames, counting them itself.
+// It is done once all three are seen, or Grace frames after the reply's
+// last; a new stun drops it, and so does Reset, for a reset, a gap in the
+// frames or the battle closing. A reply dropped or done is never traced again.
+class ReplyTrace {
+public:
+    static constexpr int Grace = 30;
+    // Each frame DummyWatch sees, after the reply's decision. reply:
+    // Session::Replies; replying: Session::Replying; pressed: the frame
+    // played the reply's attack button; moving: the dummy is in a move
+    // (Skill). True when done, with out set.
+    bool Observe(std::uint64_t reply, bool replying, bool pressed, const DummySeen& seen, bool moving, ReplyTiming& out) {
+        const bool begins = reply != reply_;
+        if (begins) { reply_ = reply; on_ = true; timing_ = {}; stretch_ = seen.stretch; frame_ = after_ = 0; }
+        else if (on_) ++frame_;
+        if (!on_) return false;
+        if (seen.held && seen.stretch != stretch_) { Reset(); return false; }
+        // What played in the frame a reply is decided in was not that reply: it plays from the next.
+        if (pressed && !begins && timing_.sent < 0) timing_.sent = frame_;
+        if (seen.freed && timing_.freed < 0) timing_.freed = frame_;
+        if (moving && timing_.move < 0) timing_.move = frame_;
+        if (replying) after_ = 0;
+        const bool seenAll = timing_.sent >= 0 && timing_.freed >= 0 && timing_.move >= 0;
+        if (!seenAll && after_++ < Grace) return false;
+        out = timing_; Reset(); return true;
+    }
+    void Reset() { on_ = false; }
+private:
+    std::uint64_t reply_ = 0;
+    bool on_ = false;
+    ReplyTiming timing_;
+    unsigned stretch_ = 0;
+    int frame_ = 0, after_ = 0;
+};
 // Each action reads only the fields named for it; the rest are ignored.
 struct Command {
     Action action = Action::Stop; std::uint64_t generation = 0; std::uint64_t requestId = 0;
@@ -398,7 +454,7 @@ public:
         if (first < 0) return false;
         resume_ = view_.selected; resumeSide_ = view_.playbackSide;
         view_.selected = slot; view_.playbackSide = 1; view_.mode = Mode::Playback;
-        view_.cursor = first;
+        view_.cursor = first; ++replies_;
         return true;
     }
     // The same with made-up input, kept in a slot of its own.
@@ -408,6 +464,8 @@ public:
         return Reply(ReplySlot);
     }
     bool Replying() const { return resume_ >= 0; }
+    // Replies started so far, never reset: each new reply changes it.
+    std::uint64_t Replies() const { return replies_; }
     // The dummy was hit again: the reply it had begun is dropped.
     void StopReply() { if (resume_ >= 0) Stop(); }
     Frame Prepare(Frame physical) const {
@@ -472,6 +530,7 @@ private:
     unsigned lastRaw_ = 0;
     // The selection a reply borrowed, -1 when none plays.
     int resume_ = -1, resumeSide_ = 1;
+    std::uint64_t replies_ = 0;
     void Stop() {
         view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
         if (resume_ >= 0) { view_.selected = resume_; view_.playbackSide = resumeSide_; resume_ = -1; }

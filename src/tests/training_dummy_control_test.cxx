@@ -3,6 +3,7 @@
 // action under Ember, and the input plan, the session and the control
 // together through a held recording, resets and a restarted playback.
 #include "../training/TrainingSession.hxx"
+#include "../training/MoveInputs.hxx"
 #include <cstdio>
 #include <stdexcept>
 #include <vector>
@@ -147,6 +148,74 @@ int main() {
                 playbackTaken.action = 3;
                 Require(playbackTaken.Reset() && playbackTaken.session.GetView().mode == Mode::Idle && !playbackTaken.Finish() && !playbackTaken.Update(),
                     "A reset with a pause-menu action started the playback again under it");
+            }
+        }
+        {
+            // A typed charge reply, frame by frame as the runtime decides and
+            // plays it (TrainingRuntime.cxx, AfterUpdate): the dummy is watched
+            // after each update, a new stun drops a reply begun, and a reply
+            // due starts in the next update. The hold is the longest charge any
+            // fighter needs, and the button lands on the free frame (plus
+            // timing) when the stun is long enough to charge in, else as soon
+            // as the charge allows. Guard stance after the stun, the dummy
+            // holding back while an attack is near, leaves the reply playing.
+            struct Run { int button = -1, free = -1; bool dropped = false; };
+            // statuses: the dummy's, one per frame; it is free from the first
+            // one after the stun that holds it in none.
+            const auto play = [](DummyWatch& watch, Session& session, const std::vector<Input>& frames, int lag, int timing,
+                                 const std::vector<unsigned>& statuses) {
+                Run run; unsigned decided = ~0u; bool held = false;
+                const int lead = ReplyLead(frames) + lag;
+                for (int frame = 0; frame < static_cast<int>(statuses.size()); ++frame) {
+                    const bool replying = session.Replying();
+                    const Frame output = session.Prepare(Frame{});
+                    session.Commit(output);
+                    if (replying && run.button < 0 && (output[1].raw & AttackButtons)) run.button = frame;
+                    FighterSample dummy; dummy.valid = true; dummy.status = statuses[frame]; dummy.action = static_cast<int>(statuses[frame]) * 10;
+                    const DummySeen seen = watch.Observe(dummy, 100);
+                    if (seen.held) held = true;
+                    else if (held && run.free < 0) run.free = frame;
+                    if (seen.held && seen.stretch != decided && session.Replying()) { session.StopReply(); run.dropped = true; }
+                    const int cause = seen.freed ? seen.freed : seen.held;
+                    if (cause && seen.stretch != decided && ReplyDue(seen, lead, timing)) { decided = seen.stretch; session.Reply(frames); }
+                }
+                return run;
+            };
+            // Idle, the stun, then what follows it, then idle until the reply is long over.
+            const auto statuses = [](unsigned stun, int frames, unsigned after, int afterFrames) {
+                std::vector<unsigned> out(5, 0u);
+                out.insert(out.end(), frames, stun); out.insert(out.end(), afterFrames, after); out.insert(out.end(), 120, 0u);
+                return out;
+            };
+            using namespace sf4e::combo;
+            for (const char* move : {"[4]6P", "[2]8K"}) {
+                const auto frames = Synthesize({move}, true);
+                const unsigned back = move[1] == '4' ? Left : Down;
+                int hold = 0;
+                while (hold < static_cast<int>(frames.size()) && frames[hold].raw == back) ++hold;
+                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && ReplyLead(frames) == ChargeFrames + 3,
+                    "A charge was held too briefly for some fighter, or its lead misread");
+                for (const int lag : {0, 1}) for (const int timing : {-1, 0, 2}) {
+                    // Getting up, long enough to charge in: the first time it is
+                    // replied to as it ends; timed, the button lands on the free frame.
+                    DummyWatch watch; Session session; session.Enter(); session.SetReady(true);
+                    const auto wake = statuses(ActorStatus::Rise, 100, 0u, 0);
+                    const Run first = play(watch, session, frames, lag, timing, wake);
+                    Require(first.free == 105 && first.button == first.free + 1 + ChargeFrames + 3 && !first.dropped, "An untimed stun was not replied to as it ended");
+                    const Run timed = play(watch, session, frames, lag, timing, wake);
+                    Require(timed.button >= 0 && timed.button + lag == timed.free + timing && !timed.dropped,
+                        "A charge reply's button did not land on the free frame plus timing");
+                    // Blockstun too short to charge in, then guard stance standing or crouching:
+                    // the reply begins on the stun's first frame and is not dropped.
+                    for (const unsigned guard : {static_cast<unsigned>(ActorStatus::GuardStand), static_cast<unsigned>(ActorStatus::GuardCrouch)}) {
+                        DummyWatch blockWatch; Session blockSession; blockSession.Enter(); blockSession.SetReady(true);
+                        const auto block = statuses(ActorStatus::DamageGuard, 18, guard, 80);
+                        play(blockWatch, blockSession, frames, lag, timing, block);
+                        const Run blocked = play(blockWatch, blockSession, frames, lag, timing, block);
+                        Require(blocked.free == 23 && blocked.button == 5 + 1 + ChargeFrames + 3 && !blocked.dropped,
+                            "A charge reply over a short blockstun was dropped in guard stance, or started late");
+                    }
+                }
             }
         }
         std::puts("Training dummy control checks passed.");
