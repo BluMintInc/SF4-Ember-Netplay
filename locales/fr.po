@@ -2060,6 +2060,9 @@ msgstr "Attente de l'adversaire dans le salon..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "La connexion autorisée pour ce combat est indisponible."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Ce PC n'a pas pu régler le timing des entrées du jeu comme le demande ce match (Réduire le délai d'entrée), le match a donc été arrêté. Redémarrer le jeu devrait régler le problème."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Attente de l'adversaire dans le salon avant le début du combat."
 

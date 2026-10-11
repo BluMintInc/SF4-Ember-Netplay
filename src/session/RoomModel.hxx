@@ -752,7 +752,10 @@ private:
 	// Ends a streak whose holder no longer fights at the table.
 	void KeepStreak(Table& table);
 	void RemoveFromTable(MemberId member, bool preserveSpectator = false);
-	// Ready flags and the delay locks that go with them.
+	// A seat's Ready, what it captured for the match, and the delay lock of
+	// whoever sits there. Every readiness reset goes through it.
+	void ClearSeatReadiness(Table& table, int seat);
+	// Both seats' readiness.
 	void ClearReadiness(Table& table);
 	// The bookkeeping that ends a live generation: watchers who asked for the next
 	// game join the spectators, members whose place ended with this game leave

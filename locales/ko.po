@@ -2060,6 +2060,9 @@ msgstr "상대가 로비에 참가하기를 기다리는 중..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "승인된 대전 연결을 사용할 수 없습니다."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "이 PC에서 이 대전에 필요한 입력 타이밍(입력 지연 줄이기)을 설정하지 못해 대전을 중단했습니다. 게임을 다시 시작하면 해결될 것입니다."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "대전을 시작하려면 상대가 로비에 들어오기를 기다려야 합니다."
 

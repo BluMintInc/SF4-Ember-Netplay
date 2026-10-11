@@ -2060,6 +2060,9 @@ msgstr "In attesa che l'avversario entri nella sala..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Connessione autorizzata alla partita non disponibile."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Questo PC non è riuscito a impostare il tempo di input del gioco come richiede questo incontro (Riduci il ritardo di input), quindi l'incontro è stato interrotto. Riavviare il gioco dovrebbe risolvere."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "In attesa dell'avversario nella sala per iniziare la partita."
 

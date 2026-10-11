@@ -2060,6 +2060,9 @@ msgstr "Czekanie, aż przeciwnik dołączy do lobby..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Autoryzowane połączenie walki jest niedostępne."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Ten komputer nie mógł ustawić synchronizacji wejścia gry tak, jak wymaga ten mecz (Mniejsze opóźnienie wejścia), więc mecz został przerwany. Ponowne uruchomienie gry powinno pomóc."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Czekanie na przeciwnika w lobby przed rozpoczęciem walki."
 

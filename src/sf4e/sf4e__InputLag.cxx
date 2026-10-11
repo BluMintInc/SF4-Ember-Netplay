@@ -1,53 +1,44 @@
 #include <windows.h>
 #include <detours/detours.h>
 #include <atomic>
-#include <cstring>
 #include <string>
 
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
+#include "../common/InputLagControl.hxx"
 #include "../common/InputLagEdit.hxx"
 #include "sf4e__CodePages.hxx"
 #include "sf4e__InputLag.hxx"
 
 using rKeyboards = Dimps::Pad::System_RawInput;
 namespace fInputLag = sf4e::InputLag;
+namespace control = sf4e::input_lag;
 
 namespace {
 // The keyboard hook is queued, then committed. Until then the keyboard row
 // does nothing and the game keeps its own timing.
 bool attached = false;
 std::atomic<bool> hooked{false};
-// The keyboard row as the last pad update saw it.
-bool keyboardFirst = false;
 
-sf4e::code_edit::Edit Store() { return sf4e::input_lag::StoreAtReadFrame(Dimps::Game::Battle::Network::inputStoreFrame); }
+control::Battle battle;
+control::Keyboard keyboard;
 
-// The battle's choice is made once, before its first frame.
-bool decided = false;
+sf4e::code_edit::Edit Store() { return control::StoreAtReadFrame(Dimps::Game::Battle::Network::inputStoreFrame); }
 
-void Decide(bool on, const char* source, const std::string& seats) {
-	decided = true;
-	const auto store = Store();
-	sf4e::CodePages pages;
-	if (!sf4e::code_edit::Set(store, on, pages))
-		spdlog::warn("Input lag: the battle's input store was left as it is: it holds other bytes than this game build's, or could not be written");
-	const bool lowerLag = std::memcmp(store.at, store.patched, store.length) == 0;
-	spdlog::info("Input lag: battle P1={} source={} seats={} keyboard={}", lowerLag ? "on" : "off", source, seats,
-		keyboardFirst ? "on" : "off");
+void LogBattle(const sf4e::code_edit::Edit& store, const char* source, const std::string& seats) {
+	spdlog::info("Input lag: battle P1={} source={} seats={} keyboard={}", sf4e::code_edit::Reads(store, true) ? "on" : "off",
+		source, seats, keyboard.First() ? "on" : "off");
 }
 
 struct Keyboards : rKeyboards {
 	void Update();
 };
 
-// The device loop's pass. With the keyboard row on, the pad update already
-// took this frame's keys (BeforePadUpdate); this one would only age them.
+// The device loop's pass, unless the pad update already took this frame's keys.
 void Keyboards::Update() {
-	if (keyboardFirst) return;
-	(this->*rKeyboards::publicMethods.Update)();
+	if (keyboard.DeviceLoopPass()) (this->*rKeyboards::publicMethods.Update)();
 }
 }
 
@@ -60,26 +51,39 @@ void fInputLag::Activate() {
 	hooked.store(attached);
 }
 
-void fInputLag::StartMatch(bool on, const bool (&seats)[2]) {
-	Decide(on, "match", std::string(seats[0] ? "on" : "off") + "/" + (seats[1] ? "on" : "off"));
+bool fInputLag::StartMatch(bool on, const bool (&seats)[2]) {
+	const auto store = Store();
+	sf4e::CodePages pages;
+	const bool established = battle.StartMatch(store, on, pages);
+	LogBattle(store, "match", std::string(seats[0] ? "on" : "off") + "/" + (seats[1] ? "on" : "off"));
+	if (!established)
+		spdlog::error("Input lag: the match needs the battle's input store {}, and it could not be set; the match does not start",
+			on ? "lowered" : "native");
+	return established;
 }
 
 void fInputLag::BeforeBattleFrame(bool setting) {
-	if (!decided) Decide(setting, "setting", "-");
+	const auto store = Store();
+	sf4e::CodePages pages;
+	if (!battle.BeforeFrame(store, setting, pages)) return;
+	LogBattle(store, "setting", "-");
+	if (!sf4e::code_edit::Reads(store, setting))
+		spdlog::warn("Input lag: the battle's input store could not follow the setting; this battle plays as it reads");
 }
 
 void fInputLag::CloseBattle() {
-	decided = false;
+	const auto store = Store();
 	sf4e::CodePages pages;
-	if (!sf4e::code_edit::Set(Store(), false, pages))
-		spdlog::warn("Input lag: the battle's input store could not be put back");
+	if (!battle.Close(store, pages))
+		spdlog::warn("Input lag: the battle's input store could not be put back; matches that need it native will not start");
 }
 
-void fInputLag::BeforePadUpdate(bool keyboard) {
-	keyboardFirst = keyboard && hooked.load();
-	if (!keyboardFirst) return;
-	// The game's own step, through the hook's trampoline: it still waits for
-	// the pad update's request, so the keyboard stays frozen while the Steam
-	// overlay is open.
-	if (auto* keyboards = rKeyboards::staticMethods.GetSingleton()) (keyboards->*rKeyboards::publicMethods.Update)();
+void fInputLag::BeforePadUpdate(bool setting) {
+	// The game's own pass, through the hook's trampoline. It still waits for
+	// the pad update's request (+0x10), so the keyboard stays frozen while the
+	// Steam overlay is open. The manager is a static object, never null.
+	if (keyboard.BeforePadUpdate(setting, hooked.load())) {
+		auto* keyboards = rKeyboards::staticMethods.GetSingleton();
+		(keyboards->*rKeyboards::publicMethods.Update)();
+	}
 }

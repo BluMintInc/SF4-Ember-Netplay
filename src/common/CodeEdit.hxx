@@ -35,17 +35,20 @@ bool ApplyAll(const Edit (&edits)[N], Pages& pages) {
     return all;
 }
 
+// Whether the place reads the edit's patched or its native bytes.
+inline bool Reads(const Edit& edit, bool patched) {
+    return std::memcmp(edit.at, patched ? edit.patched : edit.native, edit.length) == 0;
+}
+
 // Puts one edit in its patched or its native state, as often as asked. Bytes
 // already there need no write; bytes that are neither (another game build)
 // are left alone, as is a place that cannot be made writable.
 template <class Pages>
 bool Set(const Edit& edit, bool patched, Pages& pages) {
-    const std::uint8_t* want = patched ? edit.patched : edit.native;
-    const std::uint8_t* other = patched ? edit.native : edit.patched;
-    if (std::memcmp(edit.at, want, edit.length) == 0) return true;
+    if (Reads(edit, patched)) return true;
     unsigned long saved = 0;
-    if (std::memcmp(edit.at, other, edit.length) != 0 || !pages.Unlock(edit.at, edit.length, saved)) return false;
-    std::memcpy(edit.at, want, edit.length);
+    if (!Reads(edit, !patched) || !pages.Unlock(edit.at, edit.length, saved)) return false;
+    std::memcpy(edit.at, patched ? edit.patched : edit.native, edit.length);
     pages.Lock(edit.at, edit.length, saved);
     return true;
 }

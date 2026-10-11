@@ -2060,6 +2060,9 @@ msgstr "対戦相手のロビー参加を待っています..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "許可された対戦接続を利用できません。"
 
+msgid "runtime.input_lag_unavailable"
+msgstr "この対戦に必要な入力タイミング（入力遅延を減らす）をこのPCで設定できなかったため、対戦を中止しました。ゲームを再起動すると直るはずです。"
+
 msgid "runtime.waiting_opponent_start"
 msgstr "対戦開始前に相手がロビーに来るのを待っています。"
 

@@ -2060,6 +2060,9 @@ msgstr "等待对手加入大厅..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "授权的对战连接不可用。"
 
+msgid "runtime.input_lag_unavailable"
+msgstr "这台电脑无法按本场对战的要求设置游戏的输入时机（降低输入延迟），因此对战已停止。重新启动游戏应能解决。"
+
 msgid "runtime.waiting_opponent_start"
 msgstr "等待对手进入大厅，对战才能开始。"
 

@@ -10,21 +10,23 @@
 //   setting on, Ember runs that step just before the pad update instead, so a
 //   key reaches the pad update in the frame it was pressed. Only this PC's
 //   keyboard changes, and what the pad update reads is what GGPO is given.
-// Everything here runs on the game thread, apart from Install and Activate.
+// What is decided lives in common/InputLagControl.hxx. Everything here runs
+// on the game thread, apart from Install and Activate.
 namespace sf4e {
 	namespace InputLag {
 		// Queues the keyboard hook in the open Detours transaction.
 		void Install();
 		// Once that transaction committed.
 		void Activate();
-		// A room's match, before its battle runs a frame. `seats` are the two
-		// fighters' own choices, for the log.
-		void StartMatch(bool on, const bool (&seats)[2]);
+		// A room's match, before GGPO starts. `seats` are the two fighters'
+		// own choices, for the log. False: this PC cannot play the match the
+		// way its peers do, and it must not start.
+		bool StartMatch(bool on, const bool (&seats)[2]);
 		// Before each battle frame: a battle no match decided follows `setting`.
 		void BeforeBattleFrame(bool setting);
 		// The battle closed: the game's own bytes come back.
 		void CloseBattle();
 		// Before the native pad update, with the keyboard row's setting.
-		void BeforePadUpdate(bool keyboard);
+		void BeforePadUpdate(bool setting);
 	}
 }

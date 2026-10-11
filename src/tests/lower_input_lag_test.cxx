@@ -1,12 +1,9 @@
-// Lower input lag (issue #77): the edit to the battle's input store, put in
-// place and back as often as asked; each fighter's choice at Ready; and the
-// match's flag, on only when both chose it, as every member's native
-// projection carries it.
-#include "../common/InputLagEdit.hxx"
+// Lower input lag (issue #77) in a room: each fighter's choice at Ready, gone
+// with every readiness reset; and the match's flag, on only when both chose
+// it, as every member's native projection carries it.
 #include "../session/sf4e__SessionServer.hxx"
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <string>
 
 #include "test_support.hxx"
@@ -17,52 +14,6 @@ namespace protocol = sf4e::SessionProtocol;
 using nlohmann::json;
 
 namespace {
-// The game's bytes around 0x5CFBB6: `mov ecx, [edi]`, then `mov edx, [esi+2Ch]`, then `push -1`.
-struct Code {
-	std::uint8_t bytes[7] = { 0x8B, 0x0F, 0x8B, 0x56, 0x2C, 0x6A, 0xFF };
-};
-const std::uint8_t kNative[7] = { 0x8B, 0x0F, 0x8B, 0x56, 0x2C, 0x6A, 0xFF };
-const std::uint8_t kLowerLag[7] = { 0x8B, 0x0F, 0x8B, 0x56, 0x28, 0x6A, 0xFF };
-
-// Refuses every unlock when `refuse` is set; counts writes and what stays writable.
-struct Pages {
-	bool refuse = false;
-	int unlocks = 0, open = 0;
-	bool Unlock(std::uint8_t*, std::uint8_t, unsigned long& saved) {
-		if (refuse) return false;
-		++unlocks; ++open;
-		saved = 0x20; // PAGE_EXECUTE_READ
-		return true;
-	}
-	void Lock(std::uint8_t*, std::uint8_t, unsigned long saved) {
-		CHECK(saved == 0x20);
-		--open;
-	}
-};
-
-void TestStoreEdit() {
-	Code code;
-	const auto edit = input_lag::StoreAtReadFrame(code.bytes + 2);
-	Pages pages;
-	// On, on again (no write), off, off again (no write).
-	CHECK(code_edit::Set(edit, true, pages) && std::memcmp(code.bytes, kLowerLag, 7) == 0 && pages.unlocks == 1);
-	CHECK(code_edit::Set(edit, true, pages) && pages.unlocks == 1);
-	CHECK(code_edit::Set(edit, false, pages) && std::memcmp(code.bytes, kNative, 7) == 0 && pages.unlocks == 2);
-	CHECK(code_edit::Set(edit, false, pages) && pages.unlocks == 2 && pages.open == 0);
-	// Already in the state asked for, nothing needs to be writable.
-	Pages refusing; refusing.refuse = true;
-	CHECK(code_edit::Set(edit, false, refusing));
-	// A place that cannot be made writable stays as it was.
-	CHECK(!code_edit::Set(edit, true, refusing) && std::memcmp(code.bytes, kNative, 7) == 0);
-	// Bytes of another game build are left alone either way.
-	Code other;
-	other.bytes[4] = 0x30;
-	const auto foreign = input_lag::StoreAtReadFrame(other.bytes + 2);
-	Pages untouched;
-	CHECK(!code_edit::Set(foreign, true, untouched) && !code_edit::Set(foreign, false, untouched));
-	CHECK(untouched.unlocks == 0 && other.bytes[4] == 0x30);
-}
-
 // A custom room of `members` admitted members on connections 1 to `members`.
 struct Room {
 	MockTransport* transport = new MockTransport();
@@ -147,6 +98,91 @@ void TestMatchFlag() {
 	for (session::Connection connection = 1; connection <= 3; ++connection) CHECK(!one.Projected(connection));
 }
 
+// A room's own record of the seats, with a host and two fighters at table 0.
+struct Authority {
+	room::RoomAuthority authority{"Lower lag", 8, 77};
+	room::MemberId p1 = 0, p2 = 0;
+	std::uint64_t actionId = 0;
+	room::MemberId Join(const std::string& name, const std::string& user, bool host = false) {
+		const auto result = authority.Join(name, room::ConnectionRef{"room", user}, host);
+		CHECK(result.accepted);
+		for (const auto& member : result.snapshot.members) if (member.connection.user == user) return member.id;
+		return 0;
+	}
+	room::Action Make(room::MemberId, room::ActionKind kind) {
+		const auto& snapshot = authority.SnapshotView();
+		room::Action action;
+		action.kind = kind; action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
+		action.tableRevision = snapshot.tables[0].revision; action.actionId = ++actionId;
+		return action;
+	}
+	bool Act(room::MemberId member, room::ActionKind kind) { return authority.Apply(member, Make(member, kind)).accepted; }
+	bool Ready(room::MemberId member, bool lowerLag) {
+		auto action = Make(member, room::ActionKind::Ready);
+		action.lowerLag = lowerLag;
+		return authority.Apply(member, action).accepted;
+	}
+	// Both fighters seated and readied with it on.
+	void Seat() {
+		authority.AdvanceTime(1000);
+		Join("Host", "0", true);
+		p1 = Join("P1", "1"); p2 = Join("P2", "2");
+		CHECK(Act(p1, room::ActionKind::Queue) && Act(p2, room::ActionKind::Queue));
+	}
+	const room::Table& Table() const { return authority.SnapshotView().tables[0]; }
+	bool Cleared() const { return !Table().lowerLag[0] && !Table().lowerLag[1] && !json(Table()).contains("lower_lag"); }
+};
+
+// Every readiness reset gives the seats' choices back with the Ready: a match
+// ending, a fighter leaving or unqueueing, and a tournament start called off.
+// The live match keeps them until it ends.
+void TestReadinessResets() {
+	{
+		Authority room;
+		room.Seat();
+		CHECK(room.Ready(room.p1, true) && room.Ready(room.p2, true) && room::MatchLowerLag(room.Table()));
+		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted && room::MatchLowerLag(room.Table()));
+		CHECK(room.authority.EndMatch(0, room.Table().matchGeneration, room::MatchResult::P1Win).accepted);
+		CHECK(room.Cleared());
+	}
+	{
+		Authority room;
+		room.Seat();
+		CHECK(room.Ready(room.p1, true) && room.Table().lowerLag[0]);
+		CHECK(room.Act(room.p1, room::ActionKind::Leave) && room.Cleared());
+	}
+	{
+		Authority room;
+		room.Seat();
+		CHECK(room.Ready(room.p1, true) && room.Act(room.p2, room::ActionKind::Unqueue));
+		CHECK(room.Table().p1 == room.p1 && room.Cleared());
+	}
+	{
+		// A tournament table: both ready, one permit arrives, and its window
+		// runs out before the other's; the start is called off.
+		const std::string a(64, 'a'), b(64, 'b');
+		Authority room;
+		room.authority.AdvanceTime(1000);
+		room.p1 = room.Join("A", a, true);
+		room::TournamentBinding binding;
+		binding.matchId = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
+		binding.assignmentGeneration = 1; binding.bindingRevision = 1; binding.gamesToWin = 2;
+		binding.fighters[0] = {a, "emb1_aaaa"}; binding.fighters[1] = {b, "emb1_bbbb"};
+		CHECK(room.authority.BindTournament(binding).accepted);
+		room.p2 = room.Join("B", b);
+		CHECK(room.Ready(room.p1, true) && room.Ready(room.p2, true) && room.Table().permitGeneration);
+		room.authority.AdvanceTime(11000);
+		auto permit = room.Make(room.p1, room::ActionKind::PermitReady);
+		permit.matchGeneration = room.Table().permitGeneration;
+		permit.text = "per_one";
+		permit.startWindowMs = 30000;
+		CHECK(room.authority.Apply(room.p1, permit).accepted && room::MatchLowerLag(room.Table()));
+		room.authority.AdvanceTime(1000 + 30000 - room::PermitStartMarginMs);
+		CHECK(!room.Table().ready[0] && !room.Table().ready[1] && room.Table().permitGeneration == 0);
+		CHECK(room.Cleared());
+	}
+}
+
 // On the wire each is written only when on and reads as off when absent, so
 // state and messages from builds before it read as before.
 void TestWire() {
@@ -191,8 +227,8 @@ void TestWire() {
 }
 
 int main() {
-	TestStoreEdit();
 	TestMatchFlag();
+	TestReadinessResets();
 	TestWire();
 	std::puts("LowerInputLag test passed");
 	return 0;

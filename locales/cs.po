@@ -2060,6 +2060,9 @@ msgstr "Čeká se na připojení soupeře do lobby..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Schválené spojení pro zápas není dostupné."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Tento počítač nemohl nastavit časování vstupu hry tak, jak tento zápas vyžaduje (Menší zpoždění vstupu), takže byl zápas zastaven. Restart hry by to měl vyřešit."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Před začátkem zápasu se čeká na soupeře v lobby."
 

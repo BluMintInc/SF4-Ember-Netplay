@@ -2060,6 +2060,9 @@ msgstr "Wachten tot tegenstander de lobby betreedt..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "De toegestane matchverbinding is niet beschikbaar."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Deze pc kon de invoertiming van het spel niet instellen zoals deze wedstrijd vraagt (Minder invoervertraging), dus de wedstrijd is gestopt. Het spel opnieuw starten zou het moeten oplossen."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Wachten op tegenstander in de lobby voordat de match kan beginnen."
 

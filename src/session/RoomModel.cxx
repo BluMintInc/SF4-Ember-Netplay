@@ -560,10 +560,15 @@ void RoomAuthority::KeepStreak(Table& table) {
 	}
 }
 
+void RoomAuthority::ClearSeatReadiness(Table& table, int seat) {
+	table.ready[seat] = false;
+	table.lowerLag[seat] = false;
+	if (auto* fighter = Find(seat == 0 ? table.p1 : table.p2)) fighter->delayLocked = false;
+}
+
 void RoomAuthority::ClearReadiness(Table& table) {
-	table.ready[0] = table.ready[1] = false;
-	for (const MemberId seated : {table.p1, table.p2})
-		if (auto* fighter = Find(seated)) fighter->delayLocked = false;
+	ClearSeatReadiness(table, 0);
+	ClearSeatReadiness(table, 1);
 }
 
 void RoomAuthority::CloseLiveGeneration(Table& table) {
