@@ -52,32 +52,43 @@ struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -
 // fighters lag simulated frames after the update it is read in (0, or 1 as
 // the game has it offline), so the pad control starts and ends that much
 // later; an update the battle does not simulate moves nothing on.
-// The Action the pad control began under stays the player's: a different one
-// found there was picked in the pause menu, which ends the pad control
-// (Taken) so that choice stands. Ember changes it only through Set. Only the
-// game thread owns this.
+// The Action found when Ember began to drive Player 2 stays the player's
+// while Ember drives it or the pad control lasts: a different one found there
+// was picked in the pause menu, which ends both (Reconcile) so that choice
+// stands. Ember changes it only through Set. A reset breaks the input's
+// history but not that: it is reconciled first. Only the game thread owns
+// this.
 class DummyControl {
 public:
-    enum class Step { None, Begin, Keep, End, Taken };
-    // Before each update. supplies: Ember plays Player 2's input in it
-    // (InputPlan). action: the Training menu's Action now.
+    enum class Step { None, Begin, Keep, End };
+    // At the start of each update, before its commands: whether the pause
+    // menu changed the action under Ember. The pad control and its history
+    // end then too.
+    bool Reconcile(int action) {
+        if (!owned_ || action == action_) return false;
+        owned_ = false; Rewind(); return true;
+    }
+    // Once the update's input is planned. supplies: Ember plays Player 2's
+    // input in it (InputPlan). action: the Training menu's Action now.
     Step Follow(bool supplies, int lag, int action) {
         supplies_ = supplies;
         const bool pad = lag > 0 ? supplied_ : supplies;
-        if (pad_ && action != action_) { pad_ = supplied_ = supplies_ = false; return Step::Taken; }
+        if (!owned_) action_ = action;
+        owned_ = supplies || pad;
         if (pad == pad_) return pad ? Step::Keep : Step::None;
-        pad_ = pad; action_ = action;
+        pad_ = pad;
         return pad ? Step::Begin : Step::End;
     }
     // After an update the battle simulated: its input is the next one's to act on.
     void Simulated() { supplied_ = supplies_; }
     void Set(int& native, int value) { native = value; action_ = value; }
-    // A break in the input's history: the battle closes, or a checkpoint puts
-    // back a timeline whose delayed input was never Ember's. Whether the pad
-    // control was on.
-    bool Release() { const bool was = pad_; pad_ = supplied_ = supplies_ = false; return was; }
+    // A checkpoint put back a timeline whose delayed input was never Ember's.
+    // Whether the pad control was on.
+    bool Rewind() { const bool was = pad_; pad_ = supplied_ = supplies_ = false; return was; }
+    // The battle closes. Whether the pad control was on.
+    bool Release() { owned_ = false; return Rewind(); }
 private:
-    bool pad_ = false, supplied_ = false, supplies_ = false;
+    bool owned_ = false, pad_ = false, supplied_ = false, supplies_ = false;
     int action_ = -1;
 };
 constexpr int GaugeValues[] = {0, 5, 7, 8};

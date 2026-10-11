@@ -146,7 +146,7 @@ bool RestoreCheckpoint(Native* system) {
     const int action = options ? options[Manager::OPT_ACTION] : -1;
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
-    if (dummyControl.Release()) ReturnDummyControl(system);
+    if (dummyControl.Rewind()) ReturnDummyControl(system);
     meter.Reset(); dummyWatch.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
@@ -168,11 +168,20 @@ void LogPlaying(const Playing& what, const char* change) {
 }
 // Updates from the one an input is read in to the one the fighters act on it.
 int InputLag() { return sf4e::InputLag::BattleInputLowered() ? 0 : 1; }
+// At the start of each update, before its commands can reset the battle: a
+// different action picked in the pause menu while Ember plays Player 2
+// stands, and what Ember plays stops.
+void ReconcileDummy(Native* system) {
+    int* options = DummyOptions();
+    if (!options || !dummyControl.Reconcile(options[Manager::OPT_ACTION])) return;
+    spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", options[Manager::OPT_ACTION]);
+    ReturnDummyControl(system);
+    session.Apply({Action::Stop, session.GetView().generation});
+}
 // Each update, once its input is planned: Player 2 plays from the pad while
 // the fighters act on what Ember plays there (DummyControl), from its first
 // input to its last, and the dummy's own control is put back after.
-// supplies: InputPlan::suppliesDummy. A different action picked in the
-// pause menu meanwhile stops what Ember plays, from this update on.
+// supplies: InputPlan::suppliesDummy.
 void FollowDummy(Native* system, bool supplies) {
     const auto& view = session.GetView();
     const Playing now{view.mode, view.selected, view.playbackSide, session.Replying()};
@@ -193,12 +202,6 @@ void FollowDummy(Native* system, bool supplies) {
         *control = Native::PC_PAD;
         break;
     case DummyControl::Step::End: ReturnDummyControl(system); break;
-    case DummyControl::Step::Taken:
-        spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
-        ReturnDummyControl(system);
-        session.Apply({Action::Stop, view.generation});
-        overriding = false; commitInput = false;
-        break;
     case DummyControl::Step::None: break;
     }
 }
@@ -299,6 +302,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     if (!session.GetView().available) session.Enter();
     session.SetReady((system->*Native::publicMethods.IsFight)() &&
         *Native::GetReadyState(system) == Native::RS_FIGHT);
+    ReconcileDummy(system);
     std::deque<Command> pending;
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
     for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
