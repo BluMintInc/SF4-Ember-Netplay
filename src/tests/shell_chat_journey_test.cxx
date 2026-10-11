@@ -313,6 +313,50 @@ void ChatJourneys(){
  Check(row("compose").value=="Too late","A closed room took the draft");
  sent=h.actions.size();h.view.room.closed=false;h.view.session.authorityWritable=true;h.Frame(0,4);
  Check(h.actions.size()==sent&&row("compose").enabled,"A message held when the room closed was sent later");
+ // Only one message is held at a time: editing the draft and pressing Enter again changes nothing about what goes out.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);h.Frame(0,2);
+ io.AddInputCharactersUTF8("!");h.Frame(0,2);key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent,"A second Enter while a message was held was sent");
+ Check(row("compose").value=="Too late!","The draft was not left to edit while a message was held");
+ Check(!row("compose").enabled,"Send stayed offered while a message was held");
+ h.view.session.authorityWritable=true;h.Frame(0,4);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Too late","The held message was replaced by the edited draft, or not sent");
+ say(1,"Too late");h.Frame(0,2);
+ Check(row("compose").value=="Too late!"&&row("compose").enabled,"The held message's arrival took the edited draft, or the edited draft could not be sent");
+ key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Too late!","The edited draft was not sent after the held message");
+ say(1,"Too late!");h.Frame(0,2);
+ // A retry held while the original is still on its way does not repeat it when the original turns up.
+ io.AddInputCharactersUTF8("Retry me");h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Wait(9);h.Frame();
+ sent=h.actions.size();
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent&&row("compose").value=="Retry me","A retry was sent into a fenced room, or its draft was lost");
+ say(1,"Retry me");h.Frame(0,2);
+ Check(row("compose").value.empty(),"The original's arrival did not take the draft while a retry waited");
+ h.view.session.authorityWritable=true;h.Frame(0,4);
+ Check(h.actions.size()==sent,"A held retry was sent after the original had arrived");
+ // After a long fence the hint holds through short writable gaps, as the status line does.
+ std::vector<std::string> notes;
+ SetMenuTextProbe([&](const char* id,float,float,float width,float available){
+  if(std::strcmp(id,"chat-note"))return;
+  const auto widthOf=[&](const char* text){return ImGui::CalcTextSize(text,nullptr,false,available).x;};
+  notes.push_back(width==widthOf(loc::T("room.wait.updating"))?"updating":width==widthOf(loc::T("chat.sending"))?"sending":
+   width==widthOf(loc::T("chat.detail"))?"detail":"other");
+ });
+ h.Wait(1);notes.clear();h.Frame(0,2);
+ Check(!notes.empty()&&notes.back()=="detail","The chat hint was not its plain help in a writable room");
+ h.view.session.authorityWritable=false;
+ for(int i=0;i<4;++i)h.Wait(.1f);
+ Check(notes.back()=="updating","A sustained fence did not show the room updating");
+ notes.clear();
+ for(int i=0;i<20;++i){flip();h.Frame();}
+ Check(!notes.empty()&&std::all_of(notes.begin(),notes.end(),[](const std::string& n){return n=="updating";}),"The chat hint flickered through short writable gaps");
+ h.view.session.authorityWritable=true;h.Wait(1);h.Frame(0,2);
+ Check(notes.back()=="detail","The chat hint stayed on the update after the room settled");
+ SetMenuTextProbe({});
  // The log says what changed, at most once a second, with how many changes each line stands for.
  std::vector<std::string> logged;h.shell.SetChatLog([&](const std::string& line){logged.push_back(line);});
  h.Wait(2);logged.clear();
@@ -322,6 +366,12 @@ void ChatJourneys(){
  const auto counted=[&](const std::string& line){const auto at=line.find("last line: ");return at==std::string::npos?0:std::stoi(line.substr(at+11));};
  Check(std::any_of(logged.begin(),logged.end(),[&](const std::string& l){return counted(l)>=10;})&&logged.back().find("sending is writable")!=std::string::npos,
   "The log lines did not count the changes they stand for, or the last one was not the state the chat settled in");
+ // A burst that ends where it began is still reported.
+ // (Writable is the last line written, and the burst is within the second after it.)
+ h.Wait(2);flip();h.Frame();flip();h.Wait(1.1f);logged.clear();
+ flip();h.Frame();flip();h.Frame();h.Wait(1.5f);
+ Check(logged.size()==1&&counted(logged.back())==2&&logged.back().find("sending is writable")!=std::string::npos,
+  "A burst that settled back where it was logged was never reported");
  h.shell.SetChatLog({});
  h.view.session.coordinated=false;
  SetMenuEntriesProbe({});

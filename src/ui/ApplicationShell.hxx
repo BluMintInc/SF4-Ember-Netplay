@@ -175,7 +175,7 @@ struct ShellAction {
 };
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
-// CatchingUp hold one the player sent until the room can take it.
+// CatchingUp hold one the player entered (queuedChat_) until the room can take it.
 enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
 
 class ApplicationShell {
@@ -305,7 +305,7 @@ private:
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
     void ObserveChat(const ShellView& view,const room::Snapshot& room);
     void UpdateChat(const ShellView& view,const Submit& submit);
-    // Sends the message the player queued once the room can take it (see PendingChat).
+    // Sends the message the player queued once the room can take it (see queuedChat_).
     void FlushChat(const ShellView& view,const Submit& submit);
     void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
@@ -315,13 +315,14 @@ private:
     // A message sent and not yet seen in the room's chat. The draft stays in the box until it is, however
     // late, or until the room changes; `after` is the newest message already looked at. For 8 seconds
     // from `since` the same text is not sent again (ChatInFlight); after that it may be, and is still
-    // looked for. A message `queued` was entered while the room could not take it: it goes out once, when
-    // it can (FlushChat), and counts as on its way until then.
-    struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; bool queued = false; };
+    // looked for.
+    struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
     std::optional<PendingChat> pendingChat_;
-    bool ChatInFlight(double now) const {
-        return pendingChat_ && (pendingChat_->queued || (now >= pendingChat_->since && now - pendingChat_->since <= 8));
-    }
+    bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    // A message entered while the room could not take it, apart from the draft the player keeps editing and
+    // from pendingChat_, whose receipt is still looked for. It goes out once, when the room can (FlushChat),
+    // and no other is accepted until then. A retry of text that arrives first is not sent.
+    std::optional<std::string> queuedChat_;
     // Chat availability changes go to the log at most once a second, with how many they cover.
     ChatGate chatGate_ = ChatGate::NotJoined, chatGateLogged_ = ChatGate::NotJoined;
     double chatGateLoggedAt_ = -1e9;
