@@ -37,9 +37,7 @@ std::string ReadyBlocker(const ShellView& v, const room::Table& t) {
     return v.selectionError;
 }
 }
-bool GameLive(const ShellView& v) {
-    return v.session.match == netplay::MatchState::Preparing || v.session.match == netplay::MatchState::Playing;
-}
+bool GameLive(const ShellView& v) { return netplay::Fighting(v.session.match); }
 bool PostMatch(const ShellView& v) { return v.session.match == netplay::MatchState::PostMatch; }
 const char* LeaveBlockerKey(room::SeatHold hold) {
     switch (hold) {
