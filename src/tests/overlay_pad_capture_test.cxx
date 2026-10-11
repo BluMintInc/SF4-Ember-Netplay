@@ -4,6 +4,9 @@
 // menu shown, a match being prepared gives the pads back to the game at once,
 // and behind another window the menu still holds them at the main menu.
 #include "../sf4e/sf4e__Overlay.hxx"
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 #include "test_support.hxx"
 
@@ -31,8 +34,23 @@ int main() {
     pads.Place(MenuContext::MainMenu, false); CHECK(Overlay::CapturesMenuInput());
     pads.Publish(false, pads.Take()); CHECK(!Overlay::CapturesMenuInput());
     Overlay::RequestMainControls(); CHECK(Overlay::CapturesMenuInput());
-    // A display reset drops what waited; the next pad update and frame decide again.
+    // A display reset while a frame is still drawing. The frame took Start's
+    // open, another Start comes after it, and the frame publishes the menu
+    // shown only once the teardown has begun. The teardown waits for the
+    // frame and then drops what was shown and asked, so the pads are the
+    // game's when it completes; the next pad update and frame decide again.
+    std::atomic<bool> drawing{false};
+    std::thread frame([&] {
+        const sf4e::ui::OverlayLifecycle::Frame guard(Overlay::Lifecycle());
+        const auto taken = pads.Take();
+        Overlay::RequestMainControls();
+        drawing = true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        pads.Publish(true, taken);
+    });
+    while (!drawing) std::this_thread::yield();
     Overlay::FreeOverlay();
+    frame.join();
     CHECK(!Overlay::CapturesMenuInput());
     return 0;
 }

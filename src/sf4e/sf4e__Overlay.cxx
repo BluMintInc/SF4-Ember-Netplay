@@ -83,6 +83,7 @@ static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), 
 bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads.Holds(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
+sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
 // Start at the main menu. The request holds the pads at once, until the
 // frame that takes it has shown the menu (MenuPads), so the press never
 // reaches the native menu. Behind another window it counts only where a pad
@@ -672,12 +673,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
 
 }
 void Overlay::FreeOverlay() {
+    NoteLifecycleThread("free");
+    // After any frame still drawing has ended, so nothing it publishes
+    // outlives the teardown.
+    sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
     capture = false; pointerCapture = false;
     s_menuPads.Reset();
     trainingAvailable = false; replayPlayback = false;
     fMainMenu::bOverrideItemObserverState = -1;
-    NoteLifecycleThread("free");
-    sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
     if (!ImGui::GetCurrentContext()) return;
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
