@@ -3,7 +3,6 @@
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
-#include "../common/AwayAlert.hxx"
 #include "sf4e__AwayAlert.hxx"
 #include <iterator>
 
@@ -552,10 +551,8 @@ static void CallOutOpponentReady() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; runtime->opponentFighterWatch = {}; return; }
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	if (runtime->readyChime.Update(room, GetTickCount64())) {
-		static std::uint64_t rings = 0;
 		if (runtime->preferences.readySound) PlayChallengerCall(runtime->preferences.readySoundVolume);
-		AwayAlert::Announce(away_alert::Key(away_alert::Source::ReadyChallenge, ++rings), runtime->preferences.readySound,
-			runtime->preferences.readySoundVolume, "the opponent readied");
+		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "the opponent readied");
 	}
 	if (runtime->opponentFighterWatch.Update(room)) {
 		++runtime->opponentChangeSequence;
@@ -610,8 +607,7 @@ static void CallOutOfTraining() {
 	switch (result.step) {
 	case room::TrainingCall::Step::Call:
 		spdlog::info("Room: a challenger sat down while the player is in Training");
-		AwayAlert::Announce(away_alert::Key(away_alert::Source::TrainingCall, result.state.call.serial), runtime->preferences.readySound,
-			runtime->preferences.readySoundVolume, "a challenger sat down while in Training");
+		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "a challenger sat down while in Training");
 		break;
 	case room::TrainingCall::Step::Open:
 		++runtime->trainingCallSequence;

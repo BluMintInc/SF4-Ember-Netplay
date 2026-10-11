@@ -13,32 +13,17 @@
 // changes.
 namespace sf4e { namespace away_alert {
 
-// What came in: each source numbers its own events, and a key carries both.
-enum class Source : std::uint8_t { TrainingCall = 1, ReadyChallenge = 2 };
-inline std::uint64_t Key(Source source, std::uint64_t serial) {
-    return (static_cast<std::uint64_t>(source) << 56) | (serial & ((std::uint64_t(1) << 56) - 1));
+// What an alert does now. Each call and each ready comes once from its own
+// transition (TrainingCall's Call step, ReadyChime), so nothing here counts
+// or merges them: only while the window is behind another or minimized does
+// the taskbar flash, and the chime plays there with the ready sound on.
+struct Plan { bool flash = false, chime = false; };
+inline Plan PlanFor(bool inFront, bool minimized, bool sound) {
+    Plan plan;
+    plan.flash = minimized || !inFront;
+    plan.chime = plan.flash && sound;
+    return plan;
 }
-
-// Says whether a call or a challenge is announced outside the game. Each is
-// announced at most once (its key, never 0), and only while the window is
-// away when it comes in: one that came in front stays unannounced if the
-// player leaves afterwards. A second one within QuietMs of the last alert is
-// not announced either, so a call and the ready of the same opponent
-// sitting down make one alert.
-class Alert {
-public:
-    static constexpr std::uint64_t QuietMs = 4000;
-    bool Ring(std::uint64_t key, bool away, std::uint64_t nowMs) {
-        if (!key || key == lastKey_) return false;
-        lastKey_ = key;
-        if (!away || (rang_ && nowMs - rangAtMs_ < QuietMs)) return false;
-        rang_ = true; rangAtMs_ = nowMs;
-        return true;
-    }
-private:
-    std::uint64_t lastKey_ = 0, rangAtMs_ = 0;
-    bool rang_ = false;
-};
 
 // The chime: two short rising tones, a 16-bit mono WAV file in memory for
 // PlaySoundW, at volumePercent (10 to 100) of its full level.
