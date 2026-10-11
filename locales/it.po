@@ -1815,6 +1815,9 @@ msgstr "Ora"
 msgid "training.advantage"
 msgstr "Vantaggio"
 
+msgid "training.last_advantage"
+msgstr "Ultimo vantaggio"
+
 msgid "selection.preview_unavailable"
 msgstr "Anteprima\nnon disponibile"
 

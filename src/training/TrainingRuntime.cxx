@@ -118,15 +118,23 @@ int* DummyOptions() {
     if (!manager && !warned) { warned = true; spdlog::warn("Training: the game's training options are not reachable; dummy settings stay as they are"); }
     return manager ? Manager::GetOptions(manager) : nullptr;
 }
+// The pause menu set the dummy's action over the hold (DummyAction): that
+// action stands, and what Ember plays on Player 2 stops, so it is not held again.
+void DummyTaken(int action) {
+    spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
+    session.Apply({Action::Stop, session.GetView().generation});
+}
 // Back to the checkpoint; false when the engine did not come back whole,
 // after which the battle is left rather than played on. The checkpoint puts
-// back the dummy action it was saved with, maybe the hold's: the player's
-// action stands, under the hold if Ember still plays Player 2.
+// back the dummy action it was saved with, maybe the hold's: the action
+// found before it stands, under the hold if Ember still plays Player 2.
 bool RestoreCheckpoint(Native* system) {
     int* options = DummyOptions();
+    const bool taken = options && dummyAction.Reconcile(options[Manager::OPT_ACTION]);
     const int action = options ? dummyAction.Read(options[Manager::OPT_ACTION]) : -1;
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) dummyAction.Restored(options[Manager::OPT_ACTION], action);
+    if (taken) DummyTaken(action);
     meter.Reset(); dummyWatch.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
@@ -148,8 +156,8 @@ void LogPlaying(const Playing& what, const char* change) {
 }
 void ReleaseDummy(int& action) {
     if (!dummyAction.Held()) return;
-    dummyAction.Release(action);
-    spdlog::info("Training: dummy action {} put back", action);
+    if (dummyAction.Release(action)) spdlog::info("Training: dummy action set to {} in the pause menu stands", action);
+    else spdlog::info("Training: dummy action {} put back", action);
 }
 // Before each update: the dummy's action is held on HUMAN while Ember plays
 // Player 2 and the player's is put back after, so the game reads Player 2's
@@ -165,10 +173,8 @@ void FollowDummy() {
     int& action = options[Manager::OPT_ACTION];
     if (!DrivesDummy(view)) { ReleaseDummy(action); return; }
     const bool held = dummyAction.Held();
-    if (!dummyAction.Hold(action)) {
-        spdlog::info("Training: dummy action set to {} in the pause menu; Ember stops playing Player 2", action);
-        session.Apply({Action::Stop, view.generation});
-    } else if (!held) spdlog::info("Training: dummy action {} held on HUMAN while Ember plays Player 2", dummyAction.Read(action));
+    if (dummyAction.Hold(action)) DummyTaken(action);
+    else if (!held) spdlog::info("Training: dummy action {} held on HUMAN while Ember plays Player 2", dummyAction.Read(action));
 }
 }
 void WriteDummyState(const DummyState& state) {

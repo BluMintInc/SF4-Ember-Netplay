@@ -1815,6 +1815,9 @@ msgstr "リアルタイム"
 msgid "training.advantage"
 msgstr "硬直差"
 
+msgid "training.last_advantage"
+msgstr "前回の硬直差"
+
 msgid "selection.preview_unavailable"
 msgstr "プレビューを\n表示できません"
 

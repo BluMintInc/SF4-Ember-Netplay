@@ -394,7 +394,7 @@ int main() {
         for (int i = 6; i < 50; ++i) meter.Observe(i, fighters);
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
         // A whiff, a walk and a jump leave the held bars as they are; contact
-        // replaces them with what came since both fighters were last idle.
+        // replaces them with what came since the whiff began the exchange it ends.
         fighters[0].status = 16; fighters[0].action = 102; meter.Observe(50, fighters);
         fighters[0].status = 10; fighters[0].action = 5; meter.Observe(51, fighters);
         fighters[0].status = 0; fighters[0].action = 0; meter.Observe(52, fighters);
@@ -402,7 +402,7 @@ int main() {
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "A whiff, a walk or a jump replaced the held exchange");
         fighters[0].status = 16; fighters[0].action = 103; meter.Observe(54, fighters);
         fighters[1].status = 22; fighters[1].action = 201; meter.Observe(55, fighters);
-        Require(!meter.View().frozen && meter.View().frames.size() == 3 && meter.View().frames.front().frame == 53 &&
+        Require(!meter.View().frozen && meter.View().frames.size() == 6 && meter.View().frames.front().frame == 50 &&
             meter.View().frames.back().frame == 55, "Contact did not put its own exchange in the held one's place");
         for (int i = 56; i < 156 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
         Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
@@ -585,6 +585,30 @@ int main() {
                 "A new move after a pause took the old bars or kept the old frames");
             step(tick++, 16, 2, 22);
             Require(!counted.View().frozen && counted.View().frames.size() == 2, "The new move's contact did not start the bars from it");
+            // A projectile thrown after a held exchange: its startup and its
+            // thrower's recovery stay kept through the idle frames it travels,
+            // and its contact shows them.
+            {
+                FrameMeter thrown; std::array<FighterSample, 2> fireball; int at = 0;
+                const auto frameOf = [&](unsigned own, unsigned other) {
+                    for (int side = 0; side < 2; ++side) {
+                        auto& fighter = fireball[side]; fighter = FighterSample{};
+                        fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false;
+                        fighter.status = side ? other : own; fighter.action = fighter.status ? 100 + side : 0; fighter.actionFrame = static_cast<float>(at);
+                    }
+                    thrown.Observe(at++, fireball);
+                };
+                frameOf(16, 0); frameOf(16, 22); frameOf(0, 22);
+                for (int idle = 0; idle < 40; ++idle) frameOf(0, 0);
+                Require(thrown.View().frozen, "The blocked exchange before the projectile was not held");
+                const int thrownAt = at;
+                for (int move = 0; move < 6; ++move) frameOf(16, 0);
+                for (int travel = 0; travel < 20; ++travel) frameOf(0, 0);
+                Require(thrown.View().frozen, "The projectile's flight took the held exchange away");
+                frameOf(0, 21);
+                Require(!thrown.View().frozen && thrown.View().frames.front().frame == thrownAt && thrown.View().frames.size() == 27 &&
+                    thrown.View().frames.front().cells[0].phase == Phase::Attack, "The projectile's startup and recovery were lost before it landed");
+            }
             attack.lastActiveFrame = -1;
             Require(at(5) == MeterKind::Attack, "An attack with no boundary was split");
             attack.status = 22;
@@ -667,23 +691,41 @@ int main() {
             // The dummy's action under the hold: HUMAN in the game, the
             // player's own kept and put back, edits during the hold kept for then.
             DummyAction action; int native = 1;
-            Require(action.Hold(native) && native == DummyHuman && action.Held() && action.Read(native) == 1, "The hold did not set HUMAN or lost the player's action");
+            Require(!action.Hold(native) && native == DummyHuman && action.Held() && action.Read(native) == 1, "The hold did not set HUMAN or lost the player's action");
             action.Set(native, 2);
-            Require(action.Hold(native) && native == DummyHuman && action.Read(native) == 2, "An edit during the hold reached the game or was lost");
-            action.Release(native); action.Release(native);
+            Require(!action.Hold(native) && native == DummyHuman && action.Read(native) == 2, "An edit during the hold reached the game or was lost");
+            Require(!action.Release(native) && !action.Release(native), "Putting the action back was taken for a pause-menu change");
             Require(native == 2 && !action.Held() && action.Read(native) == 2, "The hold did not put the edited action back");
             action.Set(native, 0);
             Require(native == 0 && action.Read(native) == 0, "An idle edit did not reach the game");
-            // A checkpoint saved under the hold puts back HUMAN: the player's
-            // action stands outside the hold, and the hold's inside it, which
-            // is not taken for a pause-menu change.
+            // A checkpoint saved under the hold puts back HUMAN: the action
+            // found before it stands outside the hold, and the hold's inside it.
             native = DummyHuman; action.Restored(native, 0);
             Require(native == 0, "A reset left the dummy on the hold's HUMAN");
             action.Hold(native); native = 3; action.Restored(native, 0);
-            Require(native == DummyHuman && action.Hold(native) && action.Read(native) == 0, "A reset under the hold ended it or lost the player's action");
-            // Crouch picked in the pause menu over the hold ends it and stands.
-            native = 1;
-            Require(!action.Hold(native) && native == 1 && !action.Held() && action.Read(native) == 1, "The hold overwrote the pause menu's choice");
+            Require(native == DummyHuman && !action.Hold(native) && action.Read(native) == 0, "A reset under the hold ended it or lost the player's action");
+            // An action picked in the pause menu over the hold (CPU over the
+            // player's Crouch) ends it and stands, whichever change of hands
+            // comes next: the next frame, a stop, the battle's end or a reset.
+            const auto taken = [&] { DummyAction held; native = 1; held.Hold(native); native = 3; return held; };
+            {
+                auto held = taken();
+                Require(held.Hold(native) && native == 3 && !held.Held() && held.Read(native) == 3, "The hold overwrote the pause menu's choice");
+            }
+            {
+                // A stop or the battle's end puts nothing back over it.
+                auto held = taken();
+                Require(held.Read(native) == 3, "The pause menu's choice read as the player's old one");
+                Require(held.Release(native) && native == 3 && !held.Held(), "Putting the action back overwrote the pause menu's choice");
+                Require(!held.Release(native) && native == 3, "A second release changed the action");
+            }
+            {
+                // A reset: Reconcile, Read and the load, then Restored.
+                auto held = taken();
+                const bool found = held.Reconcile(native); const int before = held.Read(native);
+                native = DummyHuman; held.Restored(native, before);
+                Require(found && before == 3 && native == 3 && !held.Held(), "A reset put the hold or the player's old action over the pause menu's choice");
+            }
         }
         {
             // The dummy's own reply: what it came out of, how long it stays there, and what it plays.

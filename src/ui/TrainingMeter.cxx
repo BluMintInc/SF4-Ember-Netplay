@@ -224,22 +224,32 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
         {loc::T("training.startup"), number(meter.startupFrames[side])},
         {loc::T("training.meter.active"), number(move.seen ? move.active : 0)},
         {loc::T("training.meter.recovery"), number(move.seen && !move.live ? move.recovery : 0)}};
-    // What the move met, and the frames it left its user ahead or behind,
-    // from the last reading until the next one is measured.
-    const auto& advantage = ShownAdvantage(meter);
-    const char* met = advantage.attacker == side ? (advantage.blocked ? "training.meter.block" : "training.meter.hit") :
-        advantage.attacker < 0 && !advantage.pending && move.seen && !move.live ? "training.meter.whiff" : nullptr;
-    char frames[16] = "--";
-    if (advantage.valid) std::snprintf(frames, sizeof frames, "%+d", advantage.frames[side]);
+    // What the move met, and the frames it left its user ahead or behind:
+    // this exchange's, so it is never told of another's move.
+    const auto& advantage = meter.advantage;
+    const auto met = [&](const FrameAdvantage& exchange) -> const char* {
+        return exchange.attacker == side ? (exchange.blocked ? "training.meter.block" : "training.meter.hit") : nullptr;
+    };
+    const auto signedFrames = [&](const FrameAdvantage& exchange) {
+        char frames[16] = "--";
+        if (exchange.valid) std::snprintf(frames, sizeof frames, "%+d", exchange.frames[side]);
+        return std::string(frames);
+    };
+    const char* result = advantage.attacker < 0 && !advantage.pending && move.seen && !move.live ? "training.meter.whiff" : met(advantage);
     if (meter.meatyValid[side]) {
         const int offset = meter.meatyFrames[side];
         const bool landed = offset <= 0 && -offset < (std::max)(1, move.active);
         char timing[16]; std::snprintf(timing, sizeof timing, landed ? "%d" : "%+d", landed ? -offset : offset);
         readings.push_back({loc::T("training.meter.meaty"), timing});
     }
-    if (met) readings.push_back({loc::T("training.result"), std::string(loc::T(met)) +
-        (std::string(met) == "training.meter.whiff" ? "" : " " + std::string(frames))});
-    else readings.push_back({loc::T("training.advantage"), frames});
+    if (result) readings.push_back({loc::T("training.result"), std::string(loc::T(result)) +
+        (std::string(result) == "training.meter.whiff" ? "" : " " + signedFrames(advantage))});
+    else readings.push_back({loc::T("training.advantage"), signedFrames(advantage)});
+    // The HUD keeps the last exchange measured until the next one is
+    // (ShownAdvantage); here it is a reading of its own, apart from the moves above.
+    const auto& last = meter.lastAdvantage;
+    if (!advantage.valid && last.valid)
+        readings.push_back({loc::T("training.last_advantage"), (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last)});
     return readings;
 }
 }

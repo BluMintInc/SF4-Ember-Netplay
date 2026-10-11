@@ -1815,6 +1815,9 @@ msgstr "实时"
 msgid "training.advantage"
 msgstr "优势"
 
+msgid "training.last_advantage"
+msgstr "上次优势"
+
 msgid "selection.preview_unavailable"
 msgstr "预览\n不可用"
 

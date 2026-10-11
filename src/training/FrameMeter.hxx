@@ -377,12 +377,16 @@ public:
         // they are until a fighter is hit or blocks (or is thrown), so a whiff,
         // a walk or a jump never takes the last exchange away, and the bars and
         // the advantage beside them always tell of the same one. Meanwhile the
-        // frames since both were last idle are kept aside; contact puts them in
-        // the bars' place, so the new exchange shows from its first move.
+        // frames are kept aside, from the first move after both were last idle
+        // with no attack under way; contact puts them in the bars' place, so the
+        // new exchange shows from its first move. An attack waiting for its
+        // contact (ObserveAdvantage's armed exchange), a projectile in flight
+        // among them, keeps them through idle frames until it lands or is given up.
         const MeterFrame latest{fighters, cells, frame};
         if (view_.frozen) {
-            if (neutral) aside_.clear();
-            else Append(aside_, latest);
+            const bool attacking = (armed_[0] || armed_[1]) && !view_.advantage.valid;
+            if (neutral && !attacking) aside_.clear();
+            else if (!neutral || !aside_.empty()) Append(aside_, latest);
             if (contact) { view_.frames.swap(aside_); aside_.clear(); view_.frozen = false; }
         } else if (hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
         else Append(view_.frames, latest);

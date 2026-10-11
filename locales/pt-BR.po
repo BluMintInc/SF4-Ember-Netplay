@@ -1480,6 +1480,9 @@ msgstr "ao vivo"
 msgid "training.advantage"
 msgstr "Vantagem"
 
+msgid "training.last_advantage"
+msgstr "Última vantagem"
+
 msgid "training.meter.active"
 msgstr "Ativo"
 

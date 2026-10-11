@@ -1815,6 +1815,9 @@ msgstr "activo"
 msgid "training.advantage"
 msgstr "Ventaja"
 
+msgid "training.last_advantage"
+msgstr "Última ventaja"
+
 msgid "selection.preview_unavailable"
 msgstr "Vista previa\nno disponible"
 

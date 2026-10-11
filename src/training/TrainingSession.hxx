@@ -47,25 +47,36 @@ constexpr int DummyHuman = 4;
 // The dummy's Training-menu action, held on HUMAN while Ember drives Player 2
 // (DrivesDummy), so the player never sets it. The player's own action is kept
 // and put back when the hold ends; edits during the hold change what is put
-// back. A different action set in the game's pause menu over the hold ends it,
-// and that choice stands. Only the game thread owns this.
+// back. Ember owns the game's value only while it is still HUMAN: any other
+// value found there was set from outside (the pause menu), which ends the
+// hold, and that value stands. Hold, Release and Reconcile each look for that
+// first and return true when they found it. Only the game thread owns this.
 class DummyAction {
 public:
-    int Read(int native) const { return held_ ? player_ : native; }
-    void Set(int& native, int value) { if (held_) player_ = value; else native = value; }
+    int Read(int native) const { return Owns(native) ? player_ : native; }
+    void Set(int& native, int value) { if (Owns(native)) player_ = value; else native = value; }
     bool Held() const { return held_; }
-    // Each frame Ember drives Player 2. False when the pause menu has set
-    // another action over the hold: the hold has ended then.
-    bool Hold(int& native) {
-        if (!held_) { player_ = native; held_ = true; native = DummyHuman; return true; }
-        if (native == DummyHuman) return true;
-        held_ = false; return false;
+    bool Reconcile(int native) {
+        if (!held_ || native == DummyHuman) return false;
+        held_ = false; return true;
     }
-    void Release(int& native) { if (held_) { native = player_; held_ = false; } }
-    // After a checkpoint was put back with the action it was saved with:
-    // player, what Read gave before, under the hold if there is one.
+    // Each frame Ember drives Player 2.
+    bool Hold(int& native) {
+        if (Reconcile(native)) return true;
+        if (!held_) { player_ = native; held_ = true; native = DummyHuman; }
+        return false;
+    }
+    bool Release(int& native) {
+        const bool taken = Reconcile(native);
+        if (held_) native = player_;
+        held_ = false; return taken;
+    }
+    // A checkpoint was put back with the action it was saved with: player,
+    // what Read gave after Reconcile and before the load, under the hold if
+    // there still is one.
     void Restored(int& native, int player) const { native = held_ ? DummyHuman : player; }
 private:
+    bool Owns(int native) const { return held_ && native == DummyHuman; }
     int player_ = -1;
     bool held_ = false;
 };

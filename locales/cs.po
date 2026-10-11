@@ -1815,6 +1815,9 @@ msgstr "živě"
 msgid "training.advantage"
 msgstr "Výhoda"
 
+msgid "training.last_advantage"
+msgstr "Poslední výhoda"
+
 msgid "selection.preview_unavailable"
 msgstr "Náhled\nnení dostupný"
 

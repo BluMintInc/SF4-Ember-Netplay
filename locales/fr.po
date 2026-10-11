@@ -1815,6 +1815,9 @@ msgstr "en direct"
 msgid "training.advantage"
 msgstr "Avantage"
 
+msgid "training.last_advantage"
+msgstr "Dernier avantage"
+
 msgid "selection.preview_unavailable"
 msgstr "Aperçu\nindisponible"
 

@@ -62,6 +62,17 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         const auto result=std::string(loc::T("training.result"))+": "+loc::T(blocked?"training.meter.block":"training.meter.hit")+(blocked?" -2":" +3");
         Require(TrainingFrameData(resultMeter,0).find(result)!=std::string::npos,"Frame data hit or block lost its labeled advantage");
     }
+    // A blocked attack, then another move that whiffed: the page gives the
+    // whiff's own result beside its frames and the block apart, as the last advantage.
+    {
+        auto mixed=resultMeter;mixed.lastAdvantage=resultMeter.advantage;mixed.advantage=training::FrameAdvantage{};
+        const auto text=TrainingFrameData(mixed,0);
+        const auto label=[](const char* id,const std::string& value){return std::string(loc::T(id))+": "+value;};
+        Require(text.find(label("training.result",loc::T("training.meter.whiff")))!=std::string::npos&&
+            text.find(label("training.result",loc::T("training.meter.block")))==std::string::npos&&
+            text.find(label("training.last_advantage",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
+            "Frame data told a whiff's frames with the blocked attack before it");
+    }
     Require(TrainingNavigation().Focus()=="recording","Removed practice position still occupies training root");
     // The dummy rows name the game's own settings, as the adapter reads them.
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;

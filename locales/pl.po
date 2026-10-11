@@ -1815,6 +1815,9 @@ msgstr "na żywo"
 msgid "training.advantage"
 msgstr "Przewaga"
 
+msgid "training.last_advantage"
+msgstr "Ostatnia przewaga"
+
 msgid "selection.preview_unavailable"
 msgstr "Podgląd\nniedostępny"
 

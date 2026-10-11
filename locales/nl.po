@@ -1815,6 +1815,9 @@ msgstr "live"
 msgid "training.advantage"
 msgstr "Voordeel"
 
+msgid "training.last_advantage"
+msgstr "Laatste voordeel"
+
 msgid "selection.preview_unavailable"
 msgstr "Voorbeeld\nniet beschikbaar"
 

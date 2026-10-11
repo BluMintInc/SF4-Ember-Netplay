@@ -1816,6 +1816,9 @@ msgstr "сейчас"
 msgid "training.advantage"
 msgstr "Преимущество"
 
+msgid "training.last_advantage"
+msgstr "Последнее преимущество"
+
 msgid "selection.preview_unavailable"
 msgstr "Превью\nнедоступно"
 
