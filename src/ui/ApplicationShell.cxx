@@ -734,7 +734,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateRoomTransitions(v,now);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
- UpdateChat(v);
+ UpdateChat(v,submit);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);
@@ -893,7 +893,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=screen=="room-chat"&&keys&&RoomActionsAvailable(v)?std::vector<LegendHint>{}:roomHints;
+ menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.

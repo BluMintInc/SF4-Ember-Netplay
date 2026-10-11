@@ -174,10 +174,15 @@ void ChatJourneys(){
  Check(row("compose").value=="Try again"&&row("compose").enabled,"A message the room never took lost its draft");
  key(ImGuiKey_KeypadEnter);
  Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Try again","A refused message could not be sent again, or the numpad's Enter does not send");
- // A send the shell refuses outright (the connection is lost) also keeps it.
+ // A connection that is lost leaves the box and the draft alone. Enter holds the message and it goes out once, when the room is back.
+ h.Wait(9);h.Frame();
  h.view.session.control=netplay::Health::Lost;h.Frame(0,2);
- Check(!row("compose").enabled&&row("compose").value=="Try again","A lost connection offered Send or took the draft");
- h.view.session.control=netplay::Health::Healthy;h.Frame(0,2);
+ Check(row("compose").enabled&&row("compose").value=="Try again"&&io.WantTextInput,"A lost connection took the message box or the draft");
+ sent=h.actions.size();key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent&&!row("compose").enabled,"A message was sent into a lost connection, or Enter did not hold it");
+ h.view.session.control=netplay::Health::Healthy;h.Frame(0,5);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Try again","A held message did not go out when the connection came back");
+ h.Frame(0,5);Check(h.actions.size()==sent+1&&row("compose").value=="Try again","A held message went out twice, or its draft left before the room had it");
  // The draft is the player's own for the room they are in: another room starts empty.
  JoinChatRoom(h,21);h.Frame(0,3);
  Check(row("compose").value.empty()&&h.shell.Navigation().Screen()=="room-chat","A different room kept the draft");
@@ -260,5 +265,146 @@ void ChatJourneys(){
  io.AddInputCharactersUTF8(" more");h.Frame(0,2);
  say(1,"Edited later");h.Frame(0,2);
  Check(row("compose").value=="Edited later more","A late arrival took a draft the player had changed");
+ // A room fence that opens and closes every frame (a room updating over a slow link) leaves the box, the screen and the keys alone.
+ sequence=0;JoinChatRoom(h,30);h.view.session.coordinated=true;h.view.session.authorityWritable=true;
+ h.Screen("room");h.Frame();h.Frame(MenuInput::Chat);
+ const auto flip=[&]{h.view.session.authorityWritable=!h.view.session.authorityWritable;};
+ // What each frame offered: the keys that type letters are never advertised, and Send follows the draft alone.
+ std::set<std::string> offered;
+ SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))offered.insert(id+7);});
+ const auto flicker=[&](const std::string& text){
+  for(const char c:text){
+   flip();
+   const ImGuiKey letter=c=='f'?ImGuiKey_F:c=='c'?ImGuiKey_C:c=='t'?ImGuiKey_T:c==' '?ImGuiKey_Space:ImGuiKey_X;
+   io.AddKeyEvent(letter,true);io.AddInputCharactersUTF8(std::string(1,c).c_str());h.Frame();io.AddKeyEvent(letter,false);
+   Check(h.shell.Navigation().Screen()=="room-chat"&&io.WantTextInput,"The fence flipping took the message box or the screen");
+   Check(row("compose").value.empty()||row("compose").enabled,"The fence flipping switched Send off while there was a draft");
+  }
+ };
+ // The very first frame of the screen has a key down too: a letter pressed as Chat opens is text, not a shortcut.
+ io.AddKeyEvent(ImGuiKey_C,true);io.AddInputCharactersUTF8("c");h.Frame();io.AddKeyEvent(ImGuiKey_C,false);
+ Check(h.shell.Navigation().Screen()=="room-chat","A letter pressed as Chat opened acted as a menu key");
+ flip();h.Frame(0,3);
+ flicker("fct xtc f");
+ h.Frame(0,2);
+ SetMenuTextProbe({});
+ Check(!offered.count(loc::T("room.legend_fighter"))&&offered.count(loc::T("common.back")),"The fence flipping changed the keys the chat legend offers");
+ const std::string drafted=row("compose").value;
+ Check(drafted.size()>=9&&drafted.compare(drafted.size()-9,9,"fct xtc f")==0,"Characters were lost while the fence flipped under the message box");
+ // With the box not yet active, the keys are still text on this screen.
+ io.AddKeyEvent(ImGuiKey_C,true);h.Frame();io.WantTextInput=false;
+ Check((KeyboardMenuBits()&MenuInput::Chat)&&!(KeyboardMenuBits(true)&MenuInput::Chat),"A chat screen's letters still count as menu keys");
+ io.AddKeyEvent(ImGuiKey_C,false);h.Frame();
+ // Enter while the room is catching up holds the message; it goes out once, when the room can take it.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent&&!row("compose").enabled&&row("compose").value==drafted,"A message was sent while the room was fenced, or was not held");
+ flip();h.Frame(0,3);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text==drafted,
+  "A held message did not go out when the room could take it");
+ for(int i=0;i<6;++i){flip();h.Frame();}
+ Check(h.actions.size()==sent+1,"A held message went out again as the fence flipped");
+ say(1,drafted);h.Frame(0,2);
+ Check(row("compose").value.empty(),"The draft stayed after the room's chat had the held message");
+ // A message held when the room closes is let go, and the draft stays for the player to decide.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ io.AddInputCharactersUTF8("Too late");h.Frame(0,2);key(ImGuiKey_Enter);
+ h.view.room.closed=true;h.Frame(0,2);
+ Check(row("compose").value=="Too late","A closed room took the draft");
+ sent=h.actions.size();h.view.room.closed=false;h.view.session.authorityWritable=true;h.Frame(0,4);
+ Check(h.actions.size()==sent&&row("compose").enabled,"A message held when the room closed was sent later");
+ // Only one message is held at a time: editing the draft and pressing Enter again changes nothing about what goes out.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);h.Frame(0,2);
+ io.AddInputCharactersUTF8("!");h.Frame(0,2);key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent,"A second Enter while a message was held was sent");
+ Check(row("compose").value=="Too late!","The draft was not left to edit while a message was held");
+ Check(!row("compose").enabled,"Send stayed offered while a message was held");
+ h.view.session.authorityWritable=true;h.Frame(0,4);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Too late","The held message was replaced by the edited draft, or not sent");
+ say(1,"Too late");h.Frame(0,2);
+ Check(row("compose").value=="Too late!"&&row("compose").enabled,"The held message's arrival took the edited draft, or the edited draft could not be sent");
+ key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Too late!","The edited draft was not sent after the held message");
+ say(1,"Too late!");h.Frame(0,2);
+ // A retry held while the original is still on its way does not repeat it when the original turns up.
+ io.AddInputCharactersUTF8("Retry me");h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Wait(9);h.Frame();
+ sent=h.actions.size();
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent&&row("compose").value=="Retry me","A retry was sent into a fenced room, or its draft was lost");
+ say(1,"Retry me");h.Frame(0,2);
+ Check(row("compose").value.empty(),"The original's arrival did not take the draft while a retry waited");
+ h.view.session.authorityWritable=true;h.Frame(0,4);
+ Check(h.actions.size()==sent,"A held retry was sent after the original had arrived");
+ // Hiding Ember does not cancel a held message: it goes out once, unedited, when the room is back and Ember is shown.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ io.AddInputCharactersUTF8("Away A");h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Frame(0,2);
+ io.AddInputCharactersUTF8(" B");h.Frame(0,2);
+ Check(row("compose").value=="Away A B"&&!row("compose").enabled,"The away fixture did not hold A with B in the draft");
+ sent=h.actions.size();
+ hidden(3,1.f/60);h.view.session.authorityWritable=true;hidden(3,1.f/60);
+ Check(h.actions.size()==sent,"A held message was sent from a frame that could not see the room");
+ h.Frame(0,3);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A","A message held while Ember was hidden was lost, or the edited draft went instead");
+ h.Frame(0,5);Check(h.actions.size()==sent+1&&row("compose").value=="Away A B","A message held while Ember was hidden went out twice, or touched the draft");
+ say(1,"Away A");h.Frame(0,2);
+ // A submission the runtime refuses leaves the message held; it is tried again later and goes out once.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Frame(0,2);
+ io.AddInputCharactersUTF8("!");h.Frame(0,2);
+ Check(row("compose").value=="Away A B!"&&!row("compose").enabled,"The refusal fixture did not hold the message with an edited draft");
+ sent=h.actions.size();h.accept=false;h.view.session.authorityWritable=true;h.Frame();
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled,"A refused submission dropped the held message");
+ h.Frame(0,5);
+ Check(h.actions.size()==sent+1,"A refused submission was tried again at once");
+ // It stays held through more refusals than any limit would allow, each retry a little later than the last.
+ for(int refusal=2;refusal<=7;++refusal){
+  h.Wait(5.5f);h.Frame();
+  Check(h.actions.size()==sent+refusal&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled&&row("compose").value=="Away A B!",
+   "A message was given up after repeated refusals, or the edited draft went instead");
+ }
+ h.accept=true;h.Wait(5.5f);h.Frame(0,2);
+ Check(h.actions.size()==sent+8&&h.actions.back().roomAction.text=="Away A B","A refused submission was not sent once the runtime took submissions again");
+ h.Frame(0,5);Check(h.actions.size()==sent+8&&row("compose").value=="Away A B!","The retried message went out twice, or touched the draft");
+ say(1,"Away A B");h.Frame(0,2);
+ // After a long fence the hint holds through short writable gaps, as the status line does.
+ std::vector<std::string> notes;
+ SetMenuTextProbe([&](const char* id,float,float,float width,float available){
+  if(std::strcmp(id,"chat-note"))return;
+  const auto widthOf=[&](const char* text){return ImGui::CalcTextSize(text,nullptr,false,available).x;};
+  notes.push_back(width==widthOf(loc::T("room.wait.updating"))?"updating":width==widthOf(loc::T("chat.sending"))?"sending":
+   width==widthOf(loc::T("chat.detail"))?"detail":"other");
+ });
+ h.Wait(1);notes.clear();h.Frame(0,2);
+ Check(!notes.empty()&&notes.back()=="detail","The chat hint was not its plain help in a writable room");
+ h.view.session.authorityWritable=false;
+ for(int i=0;i<4;++i)h.Wait(.1f);
+ Check(notes.back()=="updating","A sustained fence did not show the room updating");
+ notes.clear();
+ for(int i=0;i<20;++i){flip();h.Frame();}
+ Check(!notes.empty()&&std::all_of(notes.begin(),notes.end(),[](const std::string& n){return n=="updating";}),"The chat hint flickered through short writable gaps");
+ h.view.session.authorityWritable=true;h.Wait(1);h.Frame(0,2);
+ Check(notes.back()=="detail","The chat hint stayed on the update after the room settled");
+ SetMenuTextProbe({});
+ // The log says what changed, at most once a second, with how many changes each line stands for.
+ std::vector<std::string> logged;h.shell.SetChatLog([&](const std::string& line){logged.push_back(line);});
+ h.Wait(2);logged.clear();
+ for(int i=0;i<120;++i){flip();h.Frame();}
+ h.view.session.authorityWritable=true;h.Wait(1.5f);
+ Check(!logged.empty()&&logged.size()<=4,"Chat availability changes were not logged at a limited rate");
+ const auto counted=[&](const std::string& line){const auto at=line.find("last line: ");return at==std::string::npos?0:std::stoi(line.substr(at+11));};
+ Check(std::any_of(logged.begin(),logged.end(),[&](const std::string& l){return counted(l)>=10;})&&logged.back().find("sending is writable")!=std::string::npos,
+  "The log lines did not count the changes they stand for, or the last one was not the state the chat settled in");
+ // A burst that ends where it began is still reported.
+ // (Writable is the last line written, and the burst is within the second after it.)
+ h.Wait(2);flip();h.Frame();flip();h.Wait(1.1f);logged.clear();
+ flip();h.Frame();flip();h.Frame();h.Wait(1.5f);
+ Check(logged.size()==1&&counted(logged.back())==2&&logged.back().find("sending is writable")!=std::string::npos,
+  "A burst that settled back where it was logged was never reported");
+ h.shell.SetChatLog({});
+ h.view.session.coordinated=false;
  SetMenuEntriesProbe({});
 }

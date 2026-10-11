@@ -38,12 +38,13 @@ void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_CO
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 // Editors own keyboard Select and acceptance; pad Select still reaches them.
-MenuInput ReadMenuInput(bool textEditing=false);
+MenuInput ReadMenuInput(bool textEditing=false,bool typesText=false);
 // The MenuInput bits of the menu keys held now; ReadMenuInput adds them to
 // the pad's, and surfaces that only need to know whether the keyboard was
 // used read them alone. While a text field has the keyboard only the arrows,
-// Enter and Escape count, so typing never presses a menu key.
-unsigned KeyboardMenuBits();
+// Enter and Escape count, so typing never presses a menu key; typesText
+// says a field holds the keyboard even before ImGui has activated it.
+unsigned KeyboardMenuBits(bool typesText=false);
 // True while the legend shows keyboard keys: the gameplay device is the
 // keyboard, or a key moved the menu after the pad last did.
 bool KeyboardPrompts();
@@ -77,6 +78,10 @@ public:
     // The Xbox X/Y/View hints for the screen being drawn; other devices have
     // no such buttons, so they are shown only with the A/B glyphs.
     std::vector<LegendHint> shortcutHints;
+    // A text box on this screen holds the keyboard whether or not ImGui has
+    // activated it this frame, so letters, Space, Backspace and Delete are
+    // text and never menu keys.
+    bool typesText = false;
     // What Back does on this screen when it is not the usual return; empty
     // for Back.
     std::string backHint;

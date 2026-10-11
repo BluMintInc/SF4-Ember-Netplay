@@ -174,6 +174,10 @@ struct ShellAction {
     replay::Request replay;
 };
 
+// Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
+// CatchingUp hold one the player entered (queuedChat_) until the room can take it.
+enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
+
 class ApplicationShell {
 public:
     using Submit = std::function<bool(ShellAction)>;
@@ -220,6 +224,8 @@ public:
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
     void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
+    // Where chat availability changes are written; nowhere unless the overlay or a test supplies one.
+    void SetChatLog(std::function<void(const std::string&)> log) { chatLog_ = std::move(log); }
     // Where the tournament matches already announced are kept; the platform store unless a test supplies its own.
     void SetAnnouncedStore(IdentityPanel::AnnouncedLoader loader, IdentityPanel::AnnouncedSaver saver) {
         identity_.SetAnnouncedStore(std::move(loader), std::move(saver));
@@ -298,7 +304,10 @@ private:
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
     void ObserveChat(const ShellView& view,const room::Snapshot& room);
-    void UpdateChat(const ShellView& view);
+    void UpdateChat(const ShellView& view,const Submit& submit);
+    // Sends the message the player queued once the room can take it (see queuedChat_).
+    void FlushChat(const ShellView& view,const Submit& submit);
+    void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
@@ -310,6 +319,20 @@ private:
     struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
     std::optional<PendingChat> pendingChat_;
     bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    // A message entered while the room could not take it, apart from the draft the player keeps editing and
+    // from pendingChat_, whose receipt is still looked for. It goes out once, when the room can (FlushChat),
+    // and no other is accepted until then. A retry of text that arrives first is not sent. It stays held
+    // until the runtime has taken it: a refused submission is tried again after a second, then after one
+    // more each time, to at most MaximumChatRetrySeconds. It lasts as long as the member is in the same open
+    // room, whether or not Ember is shown.
+    struct QueuedChat { std::string text; double retryAt = 0; unsigned attempts = 0; };
+    static constexpr double MaximumChatRetrySeconds = 5;
+    std::optional<QueuedChat> queuedChat_;
+    // Chat availability changes go to the log at most once a second, with how many they cover.
+    ChatGate chatGate_ = ChatGate::NotJoined, chatGateLogged_ = ChatGate::NotJoined;
+    double chatGateLoggedAt_ = -1e9;
+    unsigned chatGateChanges_ = 0;
+    std::function<void(const std::string&)> chatLog_;
     // The Chat screen has been drawn since the player last left it.
     bool chatOpen_=false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the

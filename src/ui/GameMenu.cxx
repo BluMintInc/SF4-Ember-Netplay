@@ -181,7 +181,7 @@ const EmbeddedReturn& EmbeddedReturnContext() { return embeddedReturn; }
 bool TakeEmbeddedFresh() { return std::exchange(embeddedReturn.fresh,false); }
 MenuAction TakeForwardedMenuAction() { return std::exchange(forwarded,MenuAction{}); }
 void SetMenuInput(MenuInput value) { input=value; }
-unsigned KeyboardMenuBits() {
+unsigned KeyboardMenuBits(bool typesText) {
     struct Mapping { ImGuiKey key; unsigned bit; };
     static const Mapping always[]={
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
@@ -193,13 +193,13 @@ unsigned KeyboardMenuBits() {
         {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave}};
     unsigned bits=0;
     for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
-    if(!ImGui::GetIO().WantTextInput)
+    if(!typesText&&!ImGui::GetIO().WantTextInput)
         for(const auto& mapping:menuOnly) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
     return bits;
 }
-MenuInput ReadMenuInput(bool textEditing) {
+MenuInput ReadMenuInput(bool textEditing,bool typesText) {
     auto value=input; value.time=ImGui::GetTime();
-    const unsigned keys=KeyboardMenuBits();
+    const unsigned keys=KeyboardMenuBits(typesText);
     // Typing counts as using the keyboard, though its keys press no menu bit.
     const auto& io=ImGui::GetIO();
     const bool typed=!io.InputQueueCharacters.empty()||ImGui::IsKeyPressed(ImGuiKey_Backspace,false)||ImGui::IsKeyPressed(ImGuiKey_Delete,false);
@@ -239,7 +239,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
-    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty()); menuInput.time=now;
+    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText); menuInput.time=now;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
     // neither activate the focused row nor leak into the list behind it.
