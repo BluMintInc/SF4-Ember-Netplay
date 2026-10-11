@@ -149,25 +149,11 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
     const auto receipts=roomState.at("terminal_receipts");
     if (!receipts.is_array() || receipts.size()>64 || !coordination_.active || !coordination_.rebound ||
         identity.term==0 || identity.revision==0 || localIdentity_.empty()) return false;
-    if (!checkpoint.contains("members") || !checkpoint.at("members").is_array()) return false;
-
-    struct LocalMember { room::MemberId id=0; room::ConnectionRef endpoint; std::uint64_t incarnation=0; };
-    std::vector<LocalMember> localMembers;
-    for (const auto& row : checkpoint.at("members")) {
-        if (!row.is_object() || !row.contains("member") || !row.contains("endpoint") || !row.contains("data")) return false;
-        const auto member=row.at("member").get<room::MemberId>();
-        const auto endpoint=row.at("endpoint").get<room::ConnectionRef>();
-        const auto data=row.at("data");
-        const auto authenticated=data.value("authenticatedEndpoint",std::string());
-        const auto incarnation=row.value("incarnation",data.value("incarnation",std::uint64_t(0)));
-        if (!member || endpoint.host.empty() || endpoint.user.empty() || !incarnation) return false;
-        if (authenticated==localIdentity_)
-            localMembers.push_back({member,endpoint,incarnation});
-    }
-    if (localMembers.size()>1) return false;
-    if (localMembers.empty()) return true;
-    const auto local=localMembers.front();
-    const auto stagedRecipient=staged.recipients.find(local.id);
+    if (!checkpoint.contains("members")) return false;
+    RosterRow local;
+    if (!ActiveRosterRow(checkpoint.at("members"),localIdentity_,local)) return false;
+    if (!local.member) return true;
+    const auto stagedRecipient=staged.recipients.find(local.member);
     if (stagedRecipient==staged.recipients.end() || !(stagedRecipient->second==local.endpoint)) return false;
 
     std::uint64_t roomEpoch=identity.epoch;
@@ -181,7 +167,7 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
         if (deliveredTerminalReplays_.count(key) || alreadyPending || alreadyInFlight) return true;
         TerminalReplayEffect effect;
         effect.key=key; effect.roomEpoch=roomEpoch; effect.generation=generation;
-        effect.activationRevision=identity.revision; effect.recipient=local.id;
+        effect.activationRevision=identity.revision; effect.recipient=local.member;
         effect.endpoint=local.endpoint; effect.type=type; effect.payloadDigest=PayloadDigest(payload);
         effect.publicPayload=payload;
         effects.push_back(std::move(effect));
@@ -208,9 +194,9 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
             const auto endpoint=recipient.at("endpoint").get<room::ConnectionRef>();
             const auto incarnation=recipient.at("incarnation").get<std::uint64_t>();
             if (!member || !incarnation || endpoint.host.empty() || endpoint.user.empty() || !seen.insert(member).second) return false;
-            if (member!=local.id || recipient.value("acknowledged",false)) continue;
+            if (member!=local.member || recipient.value("acknowledged",false)) continue;
             if (!(endpoint==local.endpoint) || incarnation!=local.incarnation) return false;
-            TerminalReplayKey roomKey{static_cast<std::uint8_t>(table),generation,local.id,local.endpoint,local.incarnation,"room_event"};
+            TerminalReplayKey roomKey{static_cast<std::uint8_t>(table),generation,local.member,local.endpoint,local.incarnation,"room_event"};
             TerminalReplayKey gameKey=roomKey; gameKey.type="game_end";
             activeKeys.insert(roomKey); activeKeys.insert(gameKey);
             SessionProtocol::RoomEventMessage event;

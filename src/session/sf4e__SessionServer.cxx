@@ -76,8 +76,13 @@ void SessionServer::CaptureFrozenMember(room::MemberId member, const room::Snaps
 	if (!member) return;
 	const auto priorMember = std::find_if(prior.members.begin(), prior.members.end(),
 		[&](const room::Member& value) { return value.id == member; });
+	// Authorities name participants by endpoint, and a restore maps every
+	// participation of an endpoint through one row, so an endpoint already
+	// frozen by an earlier departure needs no second row.
 	if (priorMember == prior.members.end() ||
-		!MatchAuthorityNames({priorMember->connection.host, priorMember->connection.user})) return;
+		!MatchAuthorityNames({priorMember->connection.host, priorMember->connection.user}) ||
+		std::any_of(roomFrozenMembers.begin(), roomFrozenMembers.end(),
+			[&](const auto& frozen) { return frozen.second.endpoint == priorMember->connection; })) return;
 	FrozenMember frozen;
 	frozen.endpoint = priorMember->connection;
 	frozen.data.connId = {frozen.endpoint.host, frozen.endpoint.user};
@@ -105,9 +110,18 @@ bool SessionServer::MatchAuthorityNames(const SessionProtocol::ConnectionID& end
 	return names(_matchAuthority) || std::any_of(_roomMatchAuthorities.begin(), _roomMatchAuthorities.end(), names);
 }
 
+// A row goes once no authority names its endpoint, or once the endpoint is on
+// the roster again: a member that rejoined restores those participations
+// through its live row, and a second row for the endpoint is not history.
 void SessionServer::PruneFrozenMembers() {
+	const auto onRoster = [&](const room::ConnectionRef& endpoint) {
+		if (!_roomAuthority) return false;
+		const auto& members = _roomAuthority->SnapshotView().members;
+		return std::any_of(members.begin(), members.end(), [&](const room::Member& member) { return member.connection == endpoint; });
+	};
 	for (auto frozen = roomFrozenMembers.begin(); frozen != roomFrozenMembers.end();) {
-		if (MatchAuthorityNames({frozen->second.endpoint.host, frozen->second.endpoint.user})) ++frozen;
+		const auto& endpoint = frozen->second.endpoint;
+		if (!onRoster(endpoint) && MatchAuthorityNames({endpoint.host, endpoint.user})) ++frozen;
 		else frozen = roomFrozenMembers.erase(frozen);
 	}
 }
