@@ -1386,7 +1386,7 @@ msgstr "Toca: restablecer, mantén: guardar"
 msgid "training.dummy_recording"
 msgstr "Grabación del muñeco"
 msgid "training.dummy_recording.detail"
-msgstr "Graba los controles de P1 en P2. Configura el muñeco nativo como Jugador / control."
+msgstr "Graba los controles de P1 en P2 y luego reprodúcelos. No hace falta ningún ajuste del juego: Ember pasa el muñeco a la entrada de P2 mientras graba o reproduce."
 msgid "training.input_history"
 msgstr "Historial de entradas"
 msgid "training.input_history.detail"
@@ -1642,6 +1642,9 @@ msgstr "Espacio de respuesta"
 msgid "training.reply.slot.detail"
 msgstr "La grabación del muñeco que se reproduce como respuesta mientras Golpes de respuesta esté vacío, desde su primera pulsación."
 
+msgid "training.reply.slot_empty"
+msgstr "El espacio {0} está vacío, así que el muñeco no responde. Grábalo o elige un movimiento."
+
 msgid "training.reply.chance"
 msgstr "Probabilidad de respuesta"
 
@@ -1713,6 +1716,9 @@ msgstr "Salto"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humano"
 
 msgid "training.dummy.guard_none"
 msgstr "Sin bloqueo"

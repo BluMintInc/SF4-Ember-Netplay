@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Dummyopname"
 
 msgid "training.dummy_recording.detail"
-msgstr "Neem P1-besturing op voor P2. Stel de dummy in het spel in op bediening door speler/controller."
+msgstr "Neem P1-besturing op voor P2 en speel die af. Geen spelinstelling nodig: Ember geeft de dummy tijdens opnemen of afspelen aan de P2-invoer."
 
 msgid "training.input_history"
 msgstr "Invoergeschiedenis"
@@ -1472,6 +1472,9 @@ msgstr "Antwoordslot"
 
 msgid "training.reply.slot.detail"
 msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} is leeg, dus de dummy reageert niet. Neem het op of kies een actie."
 
 msgid "training.reply.chance"
 msgstr "Antwoordkans"
@@ -1544,6 +1547,9 @@ msgstr "Springen"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Mens"
 
 msgid "training.dummy.guard_none"
 msgstr "Niet blokken"

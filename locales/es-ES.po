@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Grabar al sparring"
 
 msgid "training.dummy_recording.detail"
-msgstr "Graba los controles de P1 en P2. Pon el sparring original bajo control de jugador o mando."
+msgstr "Graba los controles de P1 en P2 y luego reprodúcelos. No hace falta ningún ajuste del juego: Ember pasa el sparring a la entrada de P2 mientras graba o reproduce."
 
 msgid "training.input_history"
 msgstr "Hist. comandos"
@@ -1472,6 +1472,9 @@ msgstr "Ranura de respuesta"
 
 msgid "training.reply.slot.detail"
 msgstr "La grabación del muñeco que se reproduce como respuesta mientras Golpes de respuesta esté vacío, desde su primera pulsación."
+
+msgid "training.reply.slot_empty"
+msgstr "La ranura {0} está vacía, así que el sparring no responde. Grábala o elige un movimiento."
 
 msgid "training.reply.chance"
 msgstr "Probabilidad de respuesta"
@@ -1544,6 +1547,9 @@ msgstr "Salto"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humano"
 
 msgid "training.dummy.guard_none"
 msgstr "Sin bloqueo"

@@ -1386,7 +1386,7 @@ msgstr "Toque: restaurar, segure: salvar"
 msgid "training.dummy_recording"
 msgstr "Gravação do boneco"
 msgid "training.dummy_recording.detail"
-msgstr "Grave os controles do P1 no P2. Defina o boneco nativo como Jogador / controle."
+msgstr "Grave os controles do P1 no P2 e depois reproduza. Nenhuma configuração do jogo é necessária: o Ember passa o boneco para a entrada do P2 enquanto grava ou reproduz."
 msgid "training.input_history"
 msgstr "Histórico de comandos"
 msgid "training.input_history.detail"
@@ -1642,6 +1642,9 @@ msgstr "Espaço de resposta"
 msgid "training.reply.slot.detail"
 msgstr "A gravação do boneco reproduzida como resposta enquanto Golpes de resposta estiver vazio, a partir do primeiro toque."
 
+msgid "training.reply.slot_empty"
+msgstr "O espaço {0} está vazio, então o boneco não responde. Grave-o ou escolha um golpe."
+
 msgid "training.reply.chance"
 msgstr "Chance de resposta"
 
@@ -1713,6 +1716,9 @@ msgstr "Pulo"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humano"
 
 msgid "training.dummy.guard_none"
 msgstr "Sem defesa"

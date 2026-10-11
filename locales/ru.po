@@ -1412,7 +1412,7 @@ msgid "training.dummy_recording"
 msgstr "Запись манекена"
 
 msgid "training.dummy_recording.detail"
-msgstr "Запишите управление P1 для P2. В игре задайте манекену управление «Игрок / контроллер»."
+msgstr "Запишите управление P1 для P2 и воспроизведите его. Настраивать игру не нужно: на время записи и воспроизведения Ember отдаёт манекен вводу P2."
 
 msgid "training.input_history"
 msgstr "История нажатий"
@@ -1473,6 +1473,9 @@ msgstr "Ячейка ответа"
 
 msgid "training.reply.slot.detail"
 msgstr "Запись манекена, которая воспроизводится как ответ, пока «Приёмы ответа» пусты, с первого нажатия."
+
+msgid "training.reply.slot_empty"
+msgstr "Ячейка {0} пуста, манекену нечем ответить. Запишите её или выберите приём."
 
 msgid "training.reply.chance"
 msgstr "Шанс ответа"
@@ -1545,6 +1548,9 @@ msgstr "Прыжок"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Человек"
 
 msgid "training.dummy.guard_none"
 msgstr "Без блока"

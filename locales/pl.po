@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Nagrywanie P2"
 
 msgid "training.dummy_recording.detail"
-msgstr "Nagraj sterowanie P1 dla P2. W ustawieniach gry ustaw sterowanie przeciwnikiem na gracza / kontroler."
+msgstr "Nagraj sterowanie P1 dla P2, a potem je odtwórz. Nie trzeba nic ustawiać w grze: podczas nagrywania i odtwarzania Ember oddaje przeciwnika wejściu P2."
 
 msgid "training.input_history"
 msgstr "Historia wejść"
@@ -1472,6 +1472,9 @@ msgstr "Slot odpowiedzi"
 
 msgid "training.reply.slot.detail"
 msgstr "Nagranie manekina odtwarzane jako odpowiedź, gdy Ciosy odpowiedzi są puste, od pierwszego naciśnięcia."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} jest pusty, więc przeciwnik nie odpowie. Nagraj go albo wybierz ruch."
 
 msgid "training.reply.chance"
 msgstr "Szansa odpowiedzi"
@@ -1544,6 +1547,9 @@ msgstr "Skok"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Człowiek"
 
 msgid "training.dummy.guard_none"
 msgstr "Bez bloku"

@@ -111,7 +111,7 @@ For Waldo's report, capture both sides and each light/medium/heavy/EX Ryu or Ken
 
 ## Record a dummy sequence
 
-Set the native training dummy to **Player/controller control** first; CPU and native playback can supersede controller input. Select one of eight slots, close the controls, and press F7. P1's controller operates P2 while P1 stays neutral. Press F7 again to stop, then F8 to replay. Each slot holds at most 7,200 accepted simulation frames (120 seconds at 60 fps). Playback can loop. Directions are absolute, so switching sides does not mirror a recording. Recordings are local to the current battle.
+Nothing needs setting in the game first, and Player 2 needs no controller: while Ember records or plays a slot on Player 2, or plays the dummy's reply, it holds the dummy's Training-menu action on HUMAN, the one that takes Player 2's input, and puts the player's own action back after. Picking another action in the pause menu meanwhile stops the recording or playback instead of being overwritten. Select one of eight slots, close the controls, and press F7. P1's controller operates P2 while P1 stays neutral. Press F7 again to stop, then F8 to replay. Each slot holds at most 7,200 accepted simulation frames (120 seconds at 60 fps). Playback can loop. Directions are absolute, so switching sides does not mirror a recording. Recordings are local to the current battle.
 
 Input history shows controller inputs, newest first, with how many simulated frames each input was held. It does not identify CPU-generated moves or measure startup.
 
@@ -121,7 +121,7 @@ Open the training controls (F6) and select **Position** for the position rows an
 
 **Save position** keeps both fighters' place, health, meters and dummy state for this battle. **Reset position** restores the saved state. On a pad, a tap of Back (View on an Xbox pad, Select on a DirectInput pad) resets and a hold of half a second saves; Back held while Start is pressed opens or closes the controls instead and does neither.
 
-The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) show the game's own Training menu settings and change them at once.
+The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) show the game's own Training menu settings and change them at once. The action row offers Stand, Crouch, Jump and CPU; Human, Record and Playback set in the pause menu are shown by name. Save position and Reset position leave a recording or playback running; a reset ends a reply, whose timing belonged to the stun the reset undid.
 
 ### Dummy reply
 
@@ -129,7 +129,7 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
 **Reply preset** picks a common reply with Left and Right: **Reply slot** (no moves, so the dummy plays the reply slot), `623P`, `44`, `66`, `LP+LK`, `8`, `9`, `2LK`, `214K`, `236P`, or **Custom**, which brings back the last reply typed that is not a preset. Select on it opens Reply moves to type one. A preset is checked and sent exactly as the same text typed into Reply moves would be, and a reply that spells a preset, in any spelling (`lp+lk`, or an old `throw`), shows as that preset.
 
-**Reply moves** is the reply typed in numpad notation (`623HP`, `44`, `2LK > 2LP xx 623HP`), read for the side the dummy faces. Older saved replies using shared names such as `dash`, `throw` or `focus` migrate to notation when loaded. Character-specific move names are not read. Invalid nonempty text shows an error and is not sent to the dummy. While the line is empty the dummy plays the **Reply slot** instead, a dummy recording, once from its first pressed frame.
+**Reply moves** is the reply typed in numpad notation (`623HP`, `44`, `2LK > 2LP xx 623HP`), read for the side the dummy faces. Older saved replies using shared names such as `dash`, `throw` or `focus` migrate to notation when loaded. Character-specific move names are not read. Invalid nonempty text shows an error and is not sent to the dummy. While the line is empty the dummy plays the **Reply slot** instead, a dummy recording, once from its first pressed frame. If that slot is empty, the Dummy reply page says so in its status line.
 
 Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, `~` that it is a follow-up pressed about ten frames into it with no hit to wait for (`@N` moves it), otherwise it links. Notation is numpad or prefix style, any case:
 
@@ -148,7 +148,7 @@ Directions take a few frames each and a button two; between moves the input wait
 
 The reply is timed to the stun. The game does not say how long a stun lasts, so each one is measured the first time it is seen, from the last hit or change of reaction to the free frame, per attacking move and reaction. The first time, the reply starts as the stun ends; from then on its motion goes in while the dummy is still held and its first attack button lands on the first free frame. **Reply timing** moves that frame by up to five either way. A counter hit's longer stun replaces the plain hit's until the plain hit is seen again. Hit again before it is free, the dummy drops the reply it had begun.
 
-While a reply plays the dummy's Training-menu action is set to Stand, so the pad input is the dummy's, and put back after. The Dummy action row continues to show the chosen setting; editing it during a reply changes what is restored when the reply ends. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
+While a reply plays the dummy's Training-menu action is held on HUMAN, so the pad input is the dummy's, and put back after. The Dummy action row continues to show the chosen setting; editing it during a reply changes what is restored when the reply ends. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
 
 Recordings last for the battle, so a reply slot has to be recorded again; reply moves need nothing.
 

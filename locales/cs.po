@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Nahrávání soupeře"
 
 msgid "training.dummy_recording.detail"
-msgstr "Nahrajte ovládání 1H pro 2H. Ve hře nastavte tréninkového soupeře na ovládání hráčem."
+msgstr "Nahrajte ovládání 1H pro 2H a pak ho přehrajte. Ve hře nic nastavovat nemusíte: Ember předá soupeře vstupu 2H, dokud nahrává nebo přehrává."
 
 msgid "training.input_history"
 msgstr "Historie vstupů"
@@ -1472,6 +1472,9 @@ msgstr "Pozice odpovědi"
 
 msgid "training.reply.slot.detail"
 msgstr "Nahrávka figuríny přehraná jako odpověď, dokud jsou Údery odpovědi prázdné, od prvního stisku."
+
+msgid "training.reply.slot_empty"
+msgstr "Pozice {0} je prázdná, soupeř nemá čím odpovědět. Nahrajte ji, nebo vyberte pohyb."
 
 msgid "training.reply.chance"
 msgstr "Šance na odpověď"
@@ -1544,6 +1547,9 @@ msgstr "Skok"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Člověk"
 
 msgid "training.dummy.guard_none"
 msgstr "Bez bloku"

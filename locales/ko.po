@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "더미 녹화"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1의 조작을 P2에 녹화합니다. 게임에서 더미를 플레이어 / 컨트롤러 조작으로 설정하세요."
+msgstr "P1의 조작을 P2에 녹화하고 재생합니다. 게임 설정은 필요 없습니다. 녹화나 재생 중에는 Ember가 더미를 P2 입력으로 바꿉니다."
 
 msgid "training.input_history"
 msgstr "입력 기록"
@@ -1472,6 +1472,9 @@ msgstr "반격 슬롯"
 
 msgid "training.reply.slot.detail"
 msgstr "반격 기술이 비어 있을 때 반격으로 재생하는 더미 녹화입니다. 첫 입력부터 재생합니다."
+
+msgid "training.reply.slot_empty"
+msgstr "슬롯 {0}이(가) 비어 있어 더미가 반격하지 않습니다. 녹화하거나 기술을 고르세요."
 
 msgid "training.reply.chance"
 msgstr "반격 확률"
@@ -1544,6 +1547,9 @@ msgstr "점프"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "사람"
 
 msgid "training.dummy.guard_none"
 msgstr "가드 없음"

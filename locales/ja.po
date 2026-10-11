@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "ダミーレコーディング"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1の操作をP2として記録します。ゲーム本体のダミーを「プレイヤー/コントローラー操作」に設定してください。"
+msgstr "P1の操作をP2として記録し、再生します。ゲーム側の設定は不要です。記録中と再生中はEmberがダミーをP2の入力に切り替えます。"
 
 msgid "training.input_history"
 msgstr "入力履歴"
@@ -1472,6 +1472,9 @@ msgstr "反撃スロット"
 
 msgid "training.reply.slot.detail"
 msgstr "反撃の技が空のとき、反撃として再生するダミーの記録です。最初の入力から再生します。"
+
+msgid "training.reply.slot_empty"
+msgstr "スロット{0}が空なので、ダミーは反撃しません。記録するか技を選んでください。"
 
 msgid "training.reply.chance"
 msgstr "反撃の確率"
@@ -1544,6 +1547,9 @@ msgstr "ジャンプ"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "人間"
 
 msgid "training.dummy.guard_none"
 msgstr "ガードなし"

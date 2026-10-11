@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Dummy-Aufnahme"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1-Steuerung für P2 aufnehmen. Stellen Sie den nativen Dummy auf Spieler-/Controller-Steuerung."
+msgstr "P1-Steuerung für P2 aufnehmen und abspielen. Keine Spieleinstellung nötig: Ember gibt den Dummy während Aufnahme und Wiedergabe an die P2-Eingabe."
 
 msgid "training.input_history"
 msgstr "Input-Verlauf"
@@ -1472,6 +1472,9 @@ msgstr "Antwort-Slot"
 
 msgid "training.reply.slot.detail"
 msgstr "Die Dummy-Aufnahme, die als Antwort abgespielt wird, solange Antwortzüge leer ist, ab dem ersten Tastendruck."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} ist leer, der Dummy hat keine Antwort. Nehmen Sie ihn auf oder wählen Sie eine Aktion."
 
 msgid "training.reply.chance"
 msgstr "Antwortchance"
@@ -1544,6 +1547,9 @@ msgstr "Springen"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Mensch"
 
 msgid "training.dummy.guard_none"
 msgstr "Kein Block"

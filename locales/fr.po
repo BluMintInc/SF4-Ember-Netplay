@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Enreg. mannequin"
 
 msgid "training.dummy_recording.detail"
-msgstr "Enregistrez les commandes de P1 sur P2. Réglez le mannequin du jeu sur Joueur / manette."
+msgstr "Enregistrez les commandes de P1 sur P2, puis rejouez-les. Aucun réglage du jeu n'est nécessaire : Ember confie le mannequin aux commandes de P2 pendant l'enregistrement ou la lecture."
 
 msgid "training.input_history"
 msgstr "Historique"
@@ -1472,6 +1472,9 @@ msgstr "Empl. de riposte"
 
 msgid "training.reply.slot.detail"
 msgstr "L'enregistrement du mannequin joué comme riposte tant que Coups de riposte est vide, à partir de sa première pression."
+
+msgid "training.reply.slot_empty"
+msgstr "L'emplacement {0} est vide : le mannequin n'a pas de riposte. Enregistrez-le ou choisissez un coup."
 
 msgid "training.reply.chance"
 msgstr "Chance de riposte"
@@ -1544,6 +1547,9 @@ msgstr "Saut"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humain"
 
 msgid "training.dummy.guard_none"
 msgstr "Pas de garde"

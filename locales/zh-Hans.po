@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "假想对手录制"
 
 msgid "training.dummy_recording.detail"
-msgstr "将 P1 的操作录制到 P2。请在游戏设置中将假想对手设为玩家／控制器控制。"
+msgstr "将 P1 的操作录制到 P2 并回放。无需更改游戏设置：录制或回放时，Ember 会让假想对手接受 P2 的输入。"
 
 msgid "training.input_history"
 msgstr "输入记录"
@@ -1472,6 +1472,9 @@ msgstr "反击槽位"
 
 msgid "training.reply.slot.detail"
 msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。"
+
+msgid "training.reply.slot_empty"
+msgstr "槽位 {0} 为空，假想对手无法反击。请先录制或选择一个招式。"
 
 msgid "training.reply.chance"
 msgstr "反击概率"
@@ -1544,6 +1547,9 @@ msgstr "跳跃"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "玩家操作"
 
 msgid "training.dummy.guard_none"
 msgstr "不防御"

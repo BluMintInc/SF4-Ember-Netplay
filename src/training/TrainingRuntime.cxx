@@ -109,18 +109,6 @@ bool PlaceFighters(Native* system, const float* x) {
     }
     return true;
 }
-// Back to the checkpoint; false when the engine did not come back whole,
-// after which the battle is left rather than played on.
-bool RestoreCheckpoint(Native* system) {
-    const bool restored = Battle::SaveState::Load(&checkpoint);
-    meter.Reset(); dummyWatch.Reset();
-    if (!restored) {
-        spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
-        *Native::GetReadyState(system) = Native::RS_ISLEAVING;
-    }
-    return restored;
-}
-}
 // The game's Training menu settings live in Training::Manager; the dummy
 // driver reads them every frame, so a write there is the whole change.
 using Manager = Dimps::Game::Battle::Training::Manager;
@@ -129,6 +117,59 @@ int* DummyOptions() {
     static bool warned = false;
     if (!manager && !warned) { warned = true; spdlog::warn("Training: the game's training options are not reachable; dummy settings stay as they are"); }
     return manager ? Manager::GetOptions(manager) : nullptr;
+}
+// Back to the checkpoint; false when the engine did not come back whole,
+// after which the battle is left rather than played on. The checkpoint puts
+// back the dummy action it was saved with, maybe the hold's: the player's
+// action stands, under the hold if Ember still plays Player 2.
+bool RestoreCheckpoint(Native* system) {
+    int* options = DummyOptions();
+    const int action = options ? dummyAction.Read(options[Manager::OPT_ACTION]) : -1;
+    const bool restored = Battle::SaveState::Load(&checkpoint);
+    if (options) dummyAction.Restored(options[Manager::OPT_ACTION], action);
+    meter.Reset(); dummyWatch.Reset();
+    if (!restored) {
+        spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
+        *Native::GetReadyState(system) = Native::RS_ISLEAVING;
+    }
+    return restored;
+}
+// What Ember plays on the fighters, as the log names it.
+struct Playing {
+    Mode mode = Mode::Idle; int slot = 0, side = 1; bool reply = false;
+    bool operator==(const Playing& other) const { return mode == other.mode && slot == other.slot && side == other.side && reply == other.reply; }
+};
+Playing playing;
+void LogPlaying(const Playing& what, const char* change) {
+    if (what.mode == Mode::Idle) return;
+    const char* kind = what.mode == Mode::Recording ? "recording" : what.reply ? "reply" : "playback";
+    if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
+    else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
+}
+void ReleaseDummy(int& action) {
+    if (!dummyAction.Held()) return;
+    dummyAction.Release(action);
+    spdlog::info("Training: dummy action {} put back", action);
+}
+// Before each update: the dummy's action is held on HUMAN while Ember plays
+// Player 2 and the player's is put back after, so the game reads Player 2's
+// input (ReadOverride) from the first frame Ember plays it. A different
+// action picked in the pause menu meanwhile stops what Ember plays rather
+// than being overwritten.
+void FollowDummy() {
+    const auto& view = session.GetView();
+    const Playing now{view.mode, view.selected, view.playbackSide, session.Replying()};
+    if (!(now == playing)) { LogPlaying(playing, "ended"); LogPlaying(now, "started"); playing = now; }
+    int* options = DummyOptions();
+    if (!options) return;
+    int& action = options[Manager::OPT_ACTION];
+    if (!DrivesDummy(view)) { ReleaseDummy(action); return; }
+    const bool held = dummyAction.Held();
+    if (!dummyAction.Hold(action)) {
+        spdlog::info("Training: dummy action set to {} in the pause menu; Ember stops playing Player 2", action);
+        session.Apply({Action::Stop, view.generation});
+    } else if (!held) spdlog::info("Training: dummy action {} held on HUMAN while Ember plays Player 2", dummyAction.Read(action));
+}
 }
 void WriteDummyState(const DummyState& state) {
     int* options = DummyOptions();
@@ -227,7 +268,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     std::deque<Command> pending;
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
     for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
-    if (!session.Replying()) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
+    FollowDummy();
     // The countdown follows the call that stands for this battle, before it
     // ticks, so a call that has ended can never take the battle away and a
     // go now taken for the call is never lost (TrainingSession.hxx).
@@ -386,15 +427,15 @@ void AfterUpdate(Native* system) {
             int* options = DummyOptions();
             // Hit again: a reply already begun is dropped, and this stretch decides anew.
             if (seen.held && seen.stretch != decidedStretch) session.StopReply();
-            if (!session.Replying() && options) dummyAction.EndReply(options[Manager::OPT_ACTION]);
             const bool typed = !dummyPlan.moves[0].empty();
             const auto& frames = typed ? dummyPlan.moves[session.GetView().x[1] < session.GetView().x[0] ? 0 : 1] : session.Slot(dummyPlan.slot);
             const int cause = seen.freed ? seen.freed : seen.held;
             if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames), dummyPlan.timing)) {
                 decidedStretch = seen.stretch;
-                if (DummyReplies(dummyPlan, cause, dummyRandom()) &&
-                    (typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && options) {
-                    dummyAction.BeginReply(options[Manager::OPT_ACTION]);
+                if (DummyReplies(dummyPlan, cause, dummyRandom())) {
+                    // Ember plays the reply from the next update, which holds the dummy for it (FollowDummy).
+                    if (!(typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && !typed && frames.empty())
+                        spdlog::info("Training: no reply, slot {} is empty", dummyPlan.slot + 1);
                 }
             }
             if (seen.freed && dummyPlan.varyStance && options) {
@@ -451,7 +492,8 @@ void CloseBattle() {
     gapResets = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-    if (session.GetView().available) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
+    if (session.GetView().available) if (int* options = DummyOptions()) ReleaseDummy(options[Manager::OPT_ACTION]);
+    playing = {};
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
     matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();

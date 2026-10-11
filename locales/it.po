@@ -1411,7 +1411,7 @@ msgid "training.dummy_recording"
 msgstr "Registra manichino"
 
 msgid "training.dummy_recording.detail"
-msgstr "Registra i comandi di G1 su G2. Imposta il manichino del gioco su controllo Giocatore/controller."
+msgstr "Registra i comandi di G1 su G2 e poi riproducili. Nessuna impostazione del gioco è necessaria: Ember affida il manichino ai comandi di G2 durante la registrazione o la riproduzione."
 
 msgid "training.input_history"
 msgstr "Sequenza comandi"
@@ -1472,6 +1472,9 @@ msgstr "Slot di risposta"
 
 msgid "training.reply.slot.detail"
 msgstr "La registrazione del manichino riprodotta come risposta finché Mosse di risposta è vuoto, dalla sua prima pressione."
+
+msgid "training.reply.slot_empty"
+msgstr "Lo slot {0} è vuoto, quindi il manichino non risponde. Registralo o scegli una mossa."
 
 msgid "training.reply.chance"
 msgstr "Probabilità di risposta"
@@ -1544,6 +1547,9 @@ msgstr "Salto"
 
 msgid "training.dummy.cpu"
 msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Umano"
 
 msgid "training.dummy.guard_none"
 msgstr "Nessuna parata"

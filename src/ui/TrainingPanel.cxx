@@ -123,8 +123,10 @@ const std::vector<int>& DummyChoices(int kind) {
     static const std::vector<int> choices[5]={{0,1,2,3},{0,1,2,3},{0,1,2},{0,1,2,3},{0,5,7,8}};
     return choices[kind];
 }
-// Empty until the game's own setting has been read.
+// Empty until the game's own setting has been read. The action's last three
+// are the pause menu's own and are named but never picked here.
 const char* DummyLabel(int kind,int value) {
+    if(kind==0&&value>=4&&value<=6) return loc::T(value==4?"training.dummy.human":value==5?"training.record":"training.play");
     static const char* const names[5][4]={
         {"training.dummy.stand","training.dummy.crouch","training.dummy.jump","training.dummy.cpu"},
         {"training.dummy.guard_none","training.dummy.guard_first","training.dummy.guard_all","training.dummy.guard_random"},
@@ -456,6 +458,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);
  Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
+ // A reply that plays an empty slot would do nothing; the page says so.
+ else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&v.lengths[lab.plan.slot]==0){status=loc::Tf("training.reply.slot_empty",lab.plan.slot+1);statusTone=Tone::Pending;}
  trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"?.58f:.5f;
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
