@@ -1443,6 +1443,9 @@ msgstr "Bekijk de invoer van beide spelers."
 msgid "training.match.checkpoint_disabled"
 msgstr "Gedeeld opslaan en herstellen van de positie is niet beschikbaar in rollback-wedstrijden."
 
+msgid "training.match.end_hint"
+msgstr "Start of F10 opent Ember, waar Oefenen stoppen deze partij beëindigt."
+
 msgid "training.invalid"
 msgstr "Niet geaccepteerd: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Onbesliste partij opgeven"
 
 msgid "room.abandon_result.detail"
 msgstr "Geen uitslag. Beide spelers blijven zitten en kunnen zich weer klaar melden."
+
+msgid "room.end_practice"
+msgstr "Oefenen stoppen"
+
+msgid "room.end_practice.detail"
+msgstr "Beëindigt deze oefenwedstrijd nu voor beide spelers. Geen uitslag. Beide spelers blijven zitten en kunnen zich weer klaar melden."
 
 msgid "room.leave_queue"
 msgstr "Wachtrij verlaten"

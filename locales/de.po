@@ -1443,6 +1443,9 @@ msgstr "Gehaltene Eingaben beider Spieler ansehen."
 msgid "training.match.checkpoint_disabled"
 msgstr "Gemeinsames Speichern und Zurücksetzen der Position ist in Rollback-Matches nicht verfügbar."
 
+msgid "training.match.end_hint"
+msgstr "Start oder F10 öffnet Ember, wo Übungskampf beenden dieses Spiel beendet."
+
 msgid "training.invalid"
 msgstr "Nicht angenommen: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Ungeklärtes Spiel verwerfen"
 
 msgid "room.abandon_result.detail"
 msgstr "Kein Ergebnis wird erfasst. Beide bleiben am Tisch und können wieder bereit werden."
+
+msgid "room.end_practice"
+msgstr "Übungskampf beenden"
+
+msgid "room.end_practice.detail"
+msgstr "Beendet diesen Übungskampf sofort für beide. Kein Ergebnis wird erfasst. Beide bleiben am Tisch und können wieder bereit werden."
 
 msgid "room.leave_queue"
 msgstr "Warteliste verlassen"

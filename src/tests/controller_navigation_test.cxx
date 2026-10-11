@@ -169,6 +169,14 @@ void NativeCapture() {
  // During an export the pad drives a menu F10 opened, but Start stays the game's pause.
  Check(!sf4e::input::ControllerOpensMenu(MenuContext::ReplayExport)&&
   sf4e::input::ControllerOpensMenu(MenuContext::MainMenu)&&!sf4e::input::ControllerOpensMenu(MenuContext::OfflineTraining),"Start opened Ember over an export");
+ // Over a Practice match this PC fights, Start opens Ember and the pad drives it;
+ // the fight keeps the menu away from every other context.
+ Check(ControllerMenuAvailable(MenuContext::PracticeMatch)&&sf4e::input::ControllerOpensMenu(MenuContext::PracticeMatch)&&
+  sf4e::input::MenuShownIn(MenuContext::PracticeMatch)&&!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Start could not open Ember over a Practice match");
+ for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,MenuContext::PracticeMatch}){
+  Check(sf4e::input::FightKeepsMenuAway(true,context)==(context!=MenuContext::PracticeMatch)&&!sf4e::input::FightKeepsMenuAway(false,context),
+   "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
+ }
  sf4e::input::MenuInputCapture capture;
  Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
  Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");

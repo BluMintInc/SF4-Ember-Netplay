@@ -1186,6 +1186,42 @@ int main() try {
     press(MenuInput::Right); press(MenuInput::Select);
     Check(actions.size() == beforeAbandon + 1 && actions.back().roomAction.kind == room::ActionKind::AbortMatch &&
         actions.back().roomAction.matchGeneration == 9, "Confirmed abandon did not submit a generation-scoped AbortMatch");
+    // A live game is never cut short by its own fighter, except a Practice
+    // match this PC fights in, which ends only when its round time runs out.
+    // Ember opened over that fight lands on the board at End practice, which
+    // ends the live game with the same generation-scoped AbortMatch.
+    view.room.tables[0].phase = room::TablePhase::Playing; view.session.match = netplay::MatchState::Playing;
+    ++view.room.tables[0].revision; ++view.room.revision;
+    shell.Navigation().Home(); shell.Navigation().Push("room"); for (int i = 0; i < 3; ++i) frame();
+    Check(!hasRow("end-practice"), "A live game that is no Practice match offered End practice");
+    shell.Background(view, view.room, [&](ShellAction action) { actions.push_back(std::move(action)); return true; });
+    view.practiceFight = true; shell.Navigation().Home();
+    for (int i = 0; i < 3; ++i) frame();
+    Check(shell.Navigation().Screen() == "room" && shell.Navigation().Focus() == "end-practice" &&
+        row("end-practice").enabled && row("end-practice").confirm,
+        "Ember opened over a Practice match did not land on End practice");
+    // Other submissions (a preference save) may ride along; only the aborts count.
+    const auto abortsSince = [&](std::size_t from) {
+        std::vector<room::Action> aborts;
+        for (std::size_t i = from; i < actions.size(); ++i)
+            if (actions[i].command.kind == netplay::CommandKind::RoomAction && actions[i].roomAction.kind == room::ActionKind::AbortMatch)
+                aborts.push_back(actions[i].roomAction);
+        return aborts;
+    };
+    const auto beforeEnd = actions.size(); press(MenuInput::Select);
+    Check(abortsSince(beforeEnd).empty(), "End practice did not ask first");
+    press(MenuInput::Right); press(MenuInput::Select);
+    const auto ended = abortsSince(beforeEnd);
+    Check(ended.size() == 1 && ended[0].table == 0 && ended[0].matchGeneration == 9,
+        "End practice did not submit a generation-scoped AbortMatch for the fighter's own table");
+    // Navigating within the shown menu keeps where the player went; only a new opening lands on End practice.
+    shell.Navigation().Home(); frame();
+    Check(shell.Navigation().Screen() != "room", "A drawn frame moved the player back to End practice");
+    view.practiceFight = false; view.session.match = netplay::MatchState::None;
+    shell.Navigation().Home(); shell.Navigation().Push("room"); for (int i = 0; i < 3; ++i) frame();
+    Check(!hasRow("end-practice"), "End practice outlived the Practice match's fight");
+    view.room.tables[0].phase = room::TablePhase::Paused; ++view.room.tables[0].revision; ++view.room.revision;
+    for (int i = 0; i < 3; ++i) frame();
     view.room.tables[0].p1 = 3; view.room.members[0].seat = -1; view.room.tables[0].spectators = {1};
     ++view.room.tables[0].revision; ++view.room.revision;
     for (int i = 0; i < 5; ++i) frame();

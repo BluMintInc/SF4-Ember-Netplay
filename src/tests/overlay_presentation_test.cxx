@@ -33,6 +33,7 @@ static void CheckHandoff() {
 }
 int main() {
     using sf4e::netplay::MatchState;
+    using sf4e::input::MenuContext;
     using sf4e::ui::OverlayPresentation;
     for (unsigned flags = 0; flags < 16; ++flags) {
         CHECK(sf4e::NativePauseMenuOpen(flags, -1) == false);
@@ -53,43 +54,66 @@ int main() {
     sf4e::SetNativePauseForTest(true);
     sf4e::battlePause.StartBattle(); CHECK(!sf4e::battlePause.Paused());
     OverlayPresentation menu;
-    menu.Update(false, MatchState::None, false, true);
+    menu.Update(MenuContext::Unavailable, MatchState::None, false, true);
     menu.Open(); CHECK(!menu.Visible());
-    menu.Update(true, MatchState::None, false, true); CHECK(menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(menu.Visible());
     menu.Toggle(); CHECK(!menu.Visible()); menu.Open(); CHECK(menu.Visible());
     // Alt-tab keeps the shell on screen, and an unfocused window cannot toggle it.
-    menu.Update(true, MatchState::None, false, false); CHECK(menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::None, false, false); CHECK(menu.Visible());
     menu.Toggle(); CHECK(menu.Visible());
     // The pad needs no focus: Start opens the shell and the shell closes itself.
     menu.Close(); CHECK(!menu.Visible());
-    menu.Update(true, MatchState::None, false, false); menu.Open(); CHECK(menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::None, false, false); menu.Open(); CHECK(menu.Visible());
     menu.Close(); CHECK(!menu.Visible()); menu.Open(); CHECK(menu.Visible());
-    menu.Update(true, MatchState::None, false, true); CHECK(menu.Visible());
-    menu.Update(true, MatchState::Preparing, false, true);
+    menu.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
     menu.Open(); menu.Toggle(); CHECK(!menu.Visible() && !menu.Available());
-    menu.Update(false, MatchState::Playing, false, true); CHECK(!menu.Visible());
-    menu.Update(false, MatchState::PostMatch, false, true); CHECK(!menu.Visible());
-    menu.Update(true, MatchState::PostMatch, false, true); CHECK(menu.Visible() && menu.Reopened());
+    menu.Update(MenuContext::Unavailable, MatchState::Playing, false, true); CHECK(!menu.Visible());
+    menu.Update(MenuContext::Unavailable, MatchState::PostMatch, false, true); CHECK(!menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(menu.Visible() && menu.Reopened());
     // A transient foreground drop after the fight must not hide the shell or
     // reopen it a second time; a sustained absence still hides it.
     for (unsigned i = 0; i + 1 < OverlayPresentation::AwayFrames; ++i) {
-        menu.Update(false, MatchState::PostMatch, false, true); CHECK(menu.Visible() && !menu.Reopened());
+        menu.Update(MenuContext::Unavailable, MatchState::PostMatch, false, true); CHECK(menu.Visible() && !menu.Reopened());
     }
-    menu.Update(true, MatchState::PostMatch, false, true); CHECK(menu.Visible() && !menu.Reopened());
-    for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) menu.Update(false, MatchState::PostMatch, false, true);
+    menu.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(menu.Visible() && !menu.Reopened());
+    for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) menu.Update(MenuContext::Unavailable, MatchState::PostMatch, false, true);
     CHECK(!menu.Visible() && !menu.Available());
-    menu.Update(true, MatchState::PostMatch, false, true); CHECK(menu.Visible() && !menu.Reopened());
-    menu.Close(); menu.Update(true, MatchState::PostMatch, false, true); CHECK(!menu.Visible() && !menu.Reopened());
-    menu.Update(true, MatchState::None, true, true); CHECK(!menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(menu.Visible() && !menu.Reopened());
+    menu.Close(); menu.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(!menu.Visible() && !menu.Reopened());
+    menu.Update(MenuContext::MainMenu, MatchState::None, true, true); CHECK(!menu.Visible());
     menu.Open(); CHECK(menu.Visible());
-    for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) menu.Update(false, MatchState::None, true, true);
+    for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) menu.Update(MenuContext::Unavailable, MatchState::None, true, true);
     CHECK(!menu.Visible());
-    menu.Update(true, MatchState::None, true, true); CHECK(menu.Visible());
+    menu.Update(MenuContext::MainMenu, MatchState::None, true, true); CHECK(menu.Visible());
     // A grant withdrawn before the fight (a late spectator link) goes straight
     // from Preparing to PostMatch, and the shell must come back all the same.
     OverlayPresentation late;
-    late.Update(true, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
-    late.Update(true, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
+    late.Update(MenuContext::MainMenu, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
+    late.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
+    // A Practice match this PC fights is a place for the menu: once its fight
+    // runs, Start or F10 opens it there. Any other fight, and the practice
+    // fight's own end, still hide it at once; the game's end brings the board
+    // back as after any game.
+    {
+        OverlayPresentation practice;
+        practice.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        practice.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
+        CHECK(!practice.Available() && !practice.Visible());
+        practice.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        practice.Open(); CHECK(!practice.Available() && !practice.Visible());
+        practice.Update(MenuContext::PracticeMatch, MatchState::Playing, false, true);
+        CHECK(practice.Available() && !practice.Visible());
+        practice.Open(); CHECK(practice.Visible());
+        practice.Toggle(); CHECK(!practice.Visible());
+        practice.Toggle(); CHECK(practice.Visible());
+        practice.Update(MenuContext::PracticeMatch, MatchState::Playing, false, false); CHECK(practice.Visible());
+        practice.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        CHECK(!practice.Visible() && !practice.Available());
+        practice.Open(); CHECK(!practice.Visible());
+        practice.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
+        CHECK(practice.Visible() && practice.Reopened());
+    }
     // Game-thread open requests wait for the drawing thread and coalesce, Play first.
     {
         using Kind = sf4e::ui::MenuPads::Kind;
@@ -106,7 +130,7 @@ int main() {
         // The menu's hold on the pads, as the overlay and the pad update use it.
         using sf4e::input::MenuContext;
         using sf4e::ui::MenuPads;
-        OverlayPresentation shell; shell.Update(true, MatchState::None, false, false); shell.Close();
+        OverlayPresentation shell; shell.Update(MenuContext::MainMenu, MatchState::None, false, false); shell.Close();
         // Start arrives after a frame took the opens and before that frame
         // publishes the menu still hidden: the request holds the pads until
         // the next frame has shown the menu.
@@ -125,7 +149,7 @@ int main() {
         CHECK(shell.Visible() && pads.Holds());
         // A request the menu cannot answer lets the pads go once answered.
         MenuPads refused; refused.Place(MenuContext::MainMenu, false);
-        OverlayPresentation fight; fight.Update(true, MatchState::Preparing, false, true);
+        OverlayPresentation fight; fight.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
         refused.Request(MenuPads::Kind::Controls);
         CHECK(refused.Holds());
         const auto none = refused.Take(); if (none.kind != MenuPads::Kind::None && fight.Available()) fight.Open();
@@ -151,6 +175,17 @@ int main() {
         // prepared; Start is the game's pause there, so only a shown menu takes them.
         pads.Place(MenuContext::ReplayExport, true); CHECK(!pads.Holds());
         pads.Place(MenuContext::ReplayExport, false); CHECK(pads.Holds() && !pads.StartOpens());
+        // Over a Practice match this PC fights, Start opens the menu and its
+        // request holds the pads at once, so neither the press nor anything
+        // after it reaches the fight while the menu is up; the fighter gives
+        // the game neutral input. The fight's end gives the pads back at once.
+        MenuPads practice; practice.Place(MenuContext::PracticeMatch, true);
+        CHECK(!practice.Holds() && practice.Takes() && practice.StartOpens());
+        practice.Request(MenuPads::Kind::Controls); CHECK(practice.Holds());
+        practice.Publish(true, practice.Take()); CHECK(practice.Holds());
+        practice.Place(MenuContext::PracticeMatch, true); CHECK(practice.Holds());
+        practice.Place(MenuContext::Unavailable, true); CHECK(!practice.Holds() && !practice.Takes() && !practice.StartOpens());
+        practice.Place(MenuContext::PracticeMatch, true); practice.Publish(false, practice.Take()); CHECK(!practice.Holds());
         // A display reset drops the opens waiting and what was shown, until a frame says again.
         MenuPads reset; reset.Place(MenuContext::MainMenu, false);
         reset.Request(MenuPads::Kind::Play); reset.Publish(true, MenuPads::Taken{});

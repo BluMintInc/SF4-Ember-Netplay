@@ -410,15 +410,18 @@ PostPublishState Publish() {
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
+    // A Practice match is this PC's to end only while it fights in it, under rollback.
+    const bool practiceFight = snapshot.practiceMatch && Game::Battle::System::ggpo && !LocalIsSpectator();
     snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
-        snapshot.replays.exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport : input::MenuContext::Unavailable;
+        snapshot.replays.exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
+        practiceFight ? input::MenuContext::PracticeMatch : input::MenuContext::Unavailable;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
-        snapshot.session.match != netplay::MatchState::Preparing && snapshot.session.match != netplay::MatchState::Playing) {
+        !input::FightKeepsMenuAway(netplay::Fighting(snapshot.session.match), snapshot.menuContext)) {
         auto& sample = snapshot.menuController;
         sample.deviceType = snapshot.inputDevice.type;
         sample.deviceIndex = snapshot.inputDevice.index;

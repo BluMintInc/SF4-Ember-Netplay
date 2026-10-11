@@ -1443,6 +1443,9 @@ msgstr "查看各玩家持续按住的输入。"
 msgid "training.match.checkpoint_disabled"
 msgstr "回滚对战中无法使用共享的位置保存和重置。"
 
+msgid "training.match.end_hint"
+msgstr "按 Start 或 F10 打开 Ember，选择“结束练习”即可结束本场对战。"
+
 msgid "training.invalid"
 msgstr "未接受：{0}"
 
@@ -2732,6 +2735,12 @@ msgstr "放弃结果未定的对战"
 
 msgid "room.abandon_result.detail"
 msgstr "不记录结果。双方仍留在席位，可重新准备。"
+
+msgid "room.end_practice"
+msgstr "结束练习"
+
+msgid "room.end_practice.detail"
+msgstr "立即为双方结束本场练习对战。不记录结果。双方仍留在席位，可重新准备。"
 
 msgid "room.leave_queue"
 msgstr "退出队列"

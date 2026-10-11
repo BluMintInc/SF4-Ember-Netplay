@@ -133,6 +133,9 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  // Join, with a pending status, instead of seeing a bare placeholder list.
  if(v.session.room==RoomState::Joined&&previousRoomState_!=RoomState::Joined&&nav.Screen().compare(0,4,"room")!=0){nav.Home();nav.Push("room");}
  previousRoomState_=v.session.room;
+ // Opened over a Practice match this PC fights: the board, at End practice.
+ if(hidden_&&v.practiceFight){nav.Home();nav.Push("room");nav.Prefer("end-practice");}
+ hidden_=false;
   if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;
   generation_=v.session.generation; nav.Cancel(); error_.clear();notice_.clear();
@@ -681,7 +684,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
- Conceal();
+ Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());

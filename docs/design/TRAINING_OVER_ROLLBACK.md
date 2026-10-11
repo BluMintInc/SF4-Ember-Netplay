@@ -109,8 +109,14 @@ version is unchanged.
 
 - **Reset.** There is no shared position save/reset (step 3 below).
 - **End.** Nobody is knocked out, so a game ends when the round time runs out
-  or a fighter leaves. The result of a timed-out game is reported and scored
-  as any game is. The rule's text tells the host to set a long round time.
+  (turning the rule on sets the longest, 9999) or a fighter ends it. The
+  result of a timed-out game is reported and scored as any game is. A
+  fighter ends it with End practice: Start or F10 opens Ember over the
+  fight (`input::MenuContext::PracticeMatch`, from the rule as fixed when
+  the battle was prepared), and the row sends the room's `AbortMatch` for
+  the live generation. The room ends the game with no result and both
+  members tear it down from its `MatchEnded`. Turning the rule off gives
+  back the round time it replaced (`Rules::timeBeforePractice`).
 - **Public rooms.** The room server is built from the same sources and needs
   rebuilding to keep the rule; until then it drops the unknown field and the
   table plays as a match.

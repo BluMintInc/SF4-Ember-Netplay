@@ -1444,6 +1444,9 @@ msgstr "Просмотр удерживаемых кнопок каждого и
 msgid "training.match.checkpoint_disabled"
 msgstr "Общее сохранение и возврат позиции недоступны в матчах с откатом."
 
+msgid "training.match.end_hint"
+msgstr "Start или F10 открывает Ember, где «Завершить тренировку» завершает эту игру."
+
 msgid "training.invalid"
 msgstr "Не принято: {0}"
 
@@ -2733,6 +2736,12 @@ msgstr "Отказаться от результата"
 
 msgid "room.abandon_result.detail"
 msgstr "Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
+
+msgid "room.end_practice"
+msgstr "Завершить тренировку"
+
+msgid "room.end_practice.detail"
+msgstr "Сразу завершает этот тренировочный матч для обоих бойцов. Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
 
 msgid "room.leave_queue"
 msgstr "Выйти из очереди"

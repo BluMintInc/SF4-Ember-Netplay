@@ -1443,6 +1443,9 @@ msgstr "각 플레이어가 누르고 있는 입력을 확인합니다."
 msgid "training.match.checkpoint_disabled"
 msgstr "롤백 매치에서는 공유 위치 저장 및 복원을 사용할 수 없습니다."
 
+msgid "training.match.end_hint"
+msgstr "Start 또는 F10으로 Ember를 열고 연습 종료를 선택하면 이 대전이 끝납니다."
+
 msgid "training.invalid"
 msgstr "받을 수 없습니다: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "미확정 대전 포기"
 
 msgid "room.abandon_result.detail"
 msgstr "결과는 기록되지 않습니다. 두 플레이어는 자리에 남아 다시 준비할 수 있습니다."
+
+msgid "room.end_practice"
+msgstr "연습 종료"
+
+msgid "room.end_practice.detail"
+msgstr "이 연습 대전을 두 플레이어 모두 지금 종료합니다. 결과는 기록되지 않습니다. 두 플레이어는 자리에 남아 다시 준비할 수 있습니다."
 
 msgid "room.leave_queue"
 msgstr "대기열 나가기"
