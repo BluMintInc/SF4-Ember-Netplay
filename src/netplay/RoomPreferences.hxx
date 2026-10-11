@@ -15,7 +15,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
         {"rotation", static_cast<int>(value.tableRules.rotation)},
         {"editionSelect", value.tableRules.editionSelect},
         {"roundCount", value.tableRules.roundCount}, {"roundTime", value.tableRules.roundTime},
-        {"training", value.tableRules.training},
+        {"training", value.tableRules.training}, {"timeBeforePractice", value.tableRules.timeBeforePractice},
         {"publicRules", {{"format", static_cast<int>(open.format)}, {"rotation", static_cast<int>(open.rotation)},
             {"editionSelect", open.editionSelect}, {"roundCount", open.roundCount}, {"roundTime", open.roundTime}}}};
 }
@@ -23,7 +23,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
 // One set of table rules from a roomDefaults object, over `rules`; false when
 // a value is the wrong type or out of range.
 inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
-    for (const char* key : {"format", "rotation", "roundCount", "roundTime"})
+    for (const char* key : {"format", "rotation", "roundCount", "roundTime", "timeBeforePractice"})
         if (object.contains(key) && !object[key].is_number_integer()) return false;
     for (const char* key : {"editionSelect", "training"})
         if (object.contains(key) && !object[key].is_boolean()) return false;
@@ -39,7 +39,11 @@ inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     rules.roundTime = static_cast<std::uint16_t>(time);
     rules.editionSelect = object.value("editionSelect", rules.editionSelect);
     rules.training = object.value("training", rules.training);
-    return true;
+    // Missing in defaults saved before it was kept: Practice turned off then gives the default time.
+    const auto before = object.value("timeBeforePractice", static_cast<std::int64_t>(rules.timeBeforePractice));
+    if (before < 0 || before > room::PracticeRoundTime) return false;
+    rules.timeBeforePractice = static_cast<std::uint16_t>(before);
+    return rules.PracticeTimeValid();
 }
 
 inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreferences& value) {

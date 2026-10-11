@@ -358,10 +358,9 @@ bool RoomAuthority::ValidRules(const Rules& rules) const {
 	const auto format = static_cast<std::uint8_t>(rules.format);
 	const bool validRounds = rules.roundCount == 1 || rules.roundCount == 3 || rules.roundCount == 5 ||
 		rules.roundCount == 7 || rules.roundCount == 15 || rules.roundCount == 99;
-	const bool validTime = rules.roundTime == 30 || rules.roundTime == 60 || rules.roundTime == 99 ||
-		rules.roundTime == 300 || rules.roundTime == 9999;
 	return ValidSetFormat(format) &&
-		static_cast<std::uint8_t>(rules.rotation) <= static_cast<std::uint8_t>(RotationMode::BothRotate) && validRounds && validTime;
+		static_cast<std::uint8_t>(rules.rotation) <= static_cast<std::uint8_t>(RotationMode::BothRotate) && validRounds &&
+		ValidRoundTime(rules.roundTime) && rules.PracticeTimeValid();
 }
 
 Result RoomAuthority::Reject(RejectReason reason) {

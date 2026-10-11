@@ -99,7 +99,7 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
 
-A game under the rule ends when the round time runs out or a fighter leaves the seat, so turning the rule on sets the round time to 9999; the Round time row points it out if the host shortens it again. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so turning the rule on sets the round time to 9999; the Round time row points it out if the host shortens it again. Turning the rule off gives back the round time the table had before it was turned on. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
 
 There is no dummy and no recording at such a table: the other player is the dummy. A Practice match always shows the frame meter, to both players and everyone watching, whether **Frame meter in matches** is on or off; a public room still never shows it.
 

@@ -464,6 +464,8 @@ int main() {
     defaults.roomName = "Friday room"; defaults.roomCapacity = 12; defaults.roomPublic = true;
     defaults.tableRules.format = sf4e::room::SetFormat::Ft10;
     defaults.tableRules.rotation = sf4e::room::RotationMode::BothRotate;
+    // A Practice match default keeps the round time it set aside.
+    defaults.tableRules.roundTime = 300; defaults.tableRules.SetPractice(true);
     defaults.publicTableRules.format = sf4e::room::SetFormat::Ft3;
     defaults.publicTableRules.rotation = sf4e::room::RotationMode::LoserStays;
     defaults.publicTableRules.roundCount = 5;
@@ -475,6 +477,7 @@ int main() {
     CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.roomPublic &&
         restored.tableRules.format == sf4e::room::SetFormat::Ft10 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     CHECK(restored.publicTableRules == defaults.publicTableRules && !(restored.publicTableRules == restored.tableRules));
+    CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.timeBeforePractice == 300);
     // Room defaults saved before public rules existed keep the public default.
     {
         auto older = result;
@@ -483,9 +486,17 @@ int main() {
         CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.publicTableRules == sf4e::room::PublicRoomRules() &&
             fromOlder.tableRules.format == sf4e::room::SetFormat::Ft10);
     }
+    // Defaults saved before the time was kept read without one.
+    {
+        auto older = result;
+        older["roomDefaults"].erase("timeBeforePractice");
+        sf4e::netplay::PlayerPreferences fromOlder;
+        CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules.training && !fromOlder.tableRules.timeBeforePractice);
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
-        Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}}}) {
+        Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},
+        Json{{"timeBeforePractice", 120}}, Json{{"timeBeforePractice", "300"}}, Json{{"training", false}, {"timeBeforePractice", 60}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }

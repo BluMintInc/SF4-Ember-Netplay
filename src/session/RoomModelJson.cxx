@@ -325,7 +325,8 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
 }
 
 void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}};
-    if (value.training) json["training"] = true; }
+    if (value.training) json["training"] = true;
+    if (value.timeBeforePractice) json["time_before_practice"] = value.timeBeforePractice; }
 void from_json(const nlohmann::json& json, Rules& value) {
 	const auto format = ReadInt(json, "format", 0, MaxSetLength);
 	value.format = static_cast<SetFormat>(format);
@@ -336,12 +337,15 @@ void from_json(const nlohmann::json& json, Rules& value) {
 	if (rounds != 1 && rounds != 3 && rounds != 5 && rounds != 7 && rounds != 15 && rounds != 99) throw std::invalid_argument("room round count");
 	value.roundCount = static_cast<std::uint8_t>(rounds);
 	const auto time = ReadInt(json, "round_time", 30, 9999);
-	if (time != 30 && time != 60 && time != 99 && time != 300 && time != 9999) throw std::invalid_argument("room round time");
+	if (!ValidRoundTime(time)) throw std::invalid_argument("room round time");
 	value.roundTime = static_cast<std::uint16_t>(time);
-	// Written only when set, so rules without it read as before.
+	// Written only when set, so rules without them read as before.
 	const auto training = json.find("training");
 	if (training != json.end() && !training->is_boolean()) throw std::invalid_argument("room training rule");
 	value.training = training != json.end() && training->get<bool>();
+	value.timeBeforePractice = json.contains("time_before_practice") ?
+		static_cast<std::uint16_t>(ReadInt(json, "time_before_practice", 30, 9999)) : 0;
+	if (!value.PracticeTimeValid()) throw std::invalid_argument("room time before practice");
 }
 void to_json(nlohmann::json& json, const ConnectionRef& value) { json = nlohmann::json{{"host", value.host}, {"user", value.user}}; }
 void from_json(const nlohmann::json& json, ConnectionRef& value) { value.host = ReadText(json, "host", 256); value.user = ReadText(json, "user", 256); }
