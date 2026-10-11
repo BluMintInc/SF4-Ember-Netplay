@@ -80,7 +80,7 @@ void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& roo
         if (line->own && line->text == pendingChat_->text) {
             if (pendingChat_->text == chat_) chat_[0] = 0;
             // A retry of what has arrived would only repeat it.
-            if (queuedChat_ == pendingChat_->text) queuedChat_.reset();
+            if (queuedChat_ && queuedChat_->text == pendingChat_->text) queuedChat_.reset();
             pendingChat_.reset();
             return;
         }
@@ -99,24 +99,28 @@ void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
 }
 
 // A message entered while the room could not take it waits here, and goes out once the room can. It is
-// let go, with the draft left in the box, if the room closes or is left first. Only a drawn frame has the
-// room to send into, so a message still waiting when Ember is hidden is let go too (Background).
+// let go, with the draft left in the box, if the room closes or is left first, or after
+// MaximumChatAttempts refused submissions. Only a drawn frame has the room to send into, so one still
+// waiting while Ember is hidden goes when it is shown again.
 void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
     if (!queuedChat_) return;
     const ChatGate gate = ChatGateOf(v);
     if (gate == ChatGate::NotJoined) { queuedChat_.reset(); return; }
-    if (gate != ChatGate::Writable) return;
-    const std::string text = *queuedChat_;
-    queuedChat_.reset();
+    const double now = ImGui::GetTime();
+    // A clock that went back (the device was reset) does not hold a retry for longer than its second.
+    if (gate != ChatGate::Writable || (now < queuedChat_->retryAt && queuedChat_->retryAt - now <= 1)) return;
     room::Action request;
     request.table = static_cast<std::uint8_t>(selectedTable_);
     request.kind = room::ActionKind::Chat;
-    request.text = text;
-    if (!SendRoom(std::move(request), v, submit)) {
-        if (error_.empty()) error_ = loc::T("room.action_rejected");
+    request.text = queuedChat_->text;
+    if (SendRoom(std::move(request), v, submit)) {
+        pendingChat_ = PendingChat{queuedChat_->text, transcript_.LastSequence(), now};
+        queuedChat_.reset();
         return;
     }
-    pendingChat_ = PendingChat{text, transcript_.LastSequence(), ImGui::GetTime()};
+    if (error_.empty()) error_ = loc::T("room.action_rejected");
+    queuedChat_->retryAt = now + 1;
+    if (++queuedChat_->attempts >= MaximumChatAttempts) queuedChat_.reset();
 }
 
 // A room under many updates can flip the fence every few frames, so a change is written at most once

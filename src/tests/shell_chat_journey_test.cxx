@@ -338,6 +338,32 @@ void ChatJourneys(){
  Check(row("compose").value.empty(),"The original's arrival did not take the draft while a retry waited");
  h.view.session.authorityWritable=true;h.Frame(0,4);
  Check(h.actions.size()==sent,"A held retry was sent after the original had arrived");
+ // Hiding Ember does not cancel a held message: it goes out once, unedited, when the room is back and Ember is shown.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ io.AddInputCharactersUTF8("Away A");h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Frame(0,2);
+ io.AddInputCharactersUTF8(" B");h.Frame(0,2);
+ Check(row("compose").value=="Away A B"&&!row("compose").enabled,"The away fixture did not hold A with B in the draft");
+ sent=h.actions.size();
+ hidden(3,1.f/60);h.view.session.authorityWritable=true;hidden(3,1.f/60);
+ Check(h.actions.size()==sent,"A held message was sent from a frame that could not see the room");
+ h.Frame(0,3);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A","A message held while Ember was hidden was lost, or the edited draft went instead");
+ h.Frame(0,5);Check(h.actions.size()==sent+1&&row("compose").value=="Away A B","A message held while Ember was hidden went out twice, or touched the draft");
+ say(1,"Away A");h.Frame(0,2);
+ // A submission the runtime refuses leaves the message held; it is tried again later and goes out once.
+ h.view.session.authorityWritable=false;h.Frame(0,2);
+ key(ImGuiKey_Enter);h.Frame(0,2);
+ io.AddInputCharactersUTF8("!");h.Frame(0,2);
+ Check(row("compose").value=="Away A B!"&&!row("compose").enabled,"The refusal fixture did not hold the message with an edited draft");
+ sent=h.actions.size();h.accept=false;h.view.session.authorityWritable=true;h.Frame();
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="Away A B"&&!row("compose").enabled,"A refused submission dropped the held message");
+ h.accept=true;h.Frame(0,5);
+ Check(h.actions.size()==sent+1,"A refused submission was tried again at once");
+ h.Wait(1.1f);h.Frame(0,2);
+ Check(h.actions.size()==sent+2&&h.actions.back().roomAction.text=="Away A B","A refused submission was not sent when tried again, or the edited draft went instead");
+ h.Frame(0,5);Check(h.actions.size()==sent+2&&row("compose").value=="Away A B!","The retried message went out twice, or touched the draft");
+ say(1,"Away A B");h.Frame(0,2);
  // After a long fence the hint holds through short writable gaps, as the status line does.
  std::vector<std::string> notes;
  SetMenuTextProbe([&](const char* id,float,float,float width,float available){
