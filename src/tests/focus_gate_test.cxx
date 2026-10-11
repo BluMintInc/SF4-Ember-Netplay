@@ -36,7 +36,7 @@ const std::uint32_t kImport = 0x009312AC, kEmber = 0x12345678;
 static bool Same(const Code& a, const Code& b) { return std::memcmp(&a, &b, sizeof(Code)) == 0; }
 
 struct Edits {
-    gate::Edit list[3];
+    sf4e::code_edit::Edit list[3];
     explicit Edits(Code& code) : list{ gate::Gate(code.update, gate::kUpdateSkip), gate::Gate(code.poll, gate::kPollSkip),
         gate::CallThrough(code.sound, kImport, kEmber) } {}
 };
@@ -60,7 +60,7 @@ static void CheckAllOrNone() {
     Code code;
     Edits edits(code);
     Pages pages;
-    CHECK(gate::ApplyAll(edits.list, pages) && pages.unlocks == 3 && pages.open == 0);
+    CHECK(sf4e::code_edit::ApplyAll(edits.list, pages) && pages.unlocks == 3 && pages.open == 0);
     const std::uint8_t update[] = { 0xEB, gate::kUpdateSkip, 0x74, 0x36 };
     const std::uint8_t poll[] = { 0xEB, gate::kPollSkip, 0x0F, 0x84 };
     const std::uint8_t sound[] = { 0xFF, 0x15, 0x78, 0x56, 0x34, 0x12, 0x8B, 0xD8 };
@@ -70,14 +70,14 @@ static void CheckAllOrNone() {
     // Already edited: not the game's bytes, so nothing is unlocked or written.
     const Code edited = code;
     Pages again;
-    CHECK(!gate::ApplyAll(edits.list, again) && again.unlocks == 0 && Same(code, edited));
+    CHECK(!sf4e::code_edit::ApplyAll(edits.list, again) && again.unlocks == 0 && Same(code, edited));
 
     // Any place that cannot be made writable: all stay native, none stays writable.
     for (int refuse = 0; refuse < 3; ++refuse) {
         Code refused;
         Edits refusedEdits(refused);
         Pages refusing; refusing.refuse = refuse;
-        CHECK(!gate::ApplyAll(refusedEdits.list, refusing) && Same(refused, native) && refusing.open == 0);
+        CHECK(!sf4e::code_edit::ApplyAll(refusedEdits.list, refusing) && Same(refused, native) && refusing.open == 0);
     }
 
     // Any place holding other bytes (another game build) leaves all of them alone.
@@ -88,7 +88,7 @@ static void CheckAllOrNone() {
         const Code before = other;
         Edits otherEdits(other);
         Pages untouched;
-        CHECK(!gate::ApplyAll(otherEdits.list, untouched) && untouched.unlocks == 0 && Same(other, before));
+        CHECK(!sf4e::code_edit::ApplyAll(otherEdits.list, untouched) && untouched.unlocks == 0 && Same(other, before));
     }
 }
 
