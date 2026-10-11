@@ -1386,17 +1386,20 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "Trainingssteuerung"
 
-msgid "training.open_chip"
-msgstr "F6 Trainingssteuerung"
-
 msgid "training.hide_hint"
-msgstr "F5 HUD ausblenden"
+msgstr "HUD ausblenden"
 
 msgid "training.controls_chip"
 msgstr "Trainingssteuerung"
 
 msgid "training.pad_hint"
 msgstr "Tippen: zurück, halten: sichern"
+
+msgid "training.hint.reset"
+msgstr "Zurücksetzen"
+
+msgid "training.hint.save"
+msgstr "Speichern"
 
 msgid "training.save_recording"
 msgstr "Aufnahme speichern als"

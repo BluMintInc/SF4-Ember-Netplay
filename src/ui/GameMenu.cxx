@@ -167,11 +167,6 @@ void NoteMenuDevice(unsigned padHeld){
     ApplyMenuGlyphs();
 }
 int MenuPromptDevice(){ return KeyboardPrompts()?input::PadKeyboard:menuDeviceType; }
-void PromptGlyph(const char* glyph,float size){
-    const auto icon=menuArt?menuArt->InputPrompt(PromptAsset(glyph)):SelectionImage{};
-    if(icon.texture) ImGui::Image(icon.texture,ImVec2(size,size),icon.uvMin,icon.uvMax);
-    else ImGui::TextUnformatted(glyph);
-}
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
 SelectionArt* MenuArt() { return menuArt; }
 void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }

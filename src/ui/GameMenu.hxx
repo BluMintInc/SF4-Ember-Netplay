@@ -54,9 +54,6 @@ bool KeyboardPrompts();
 void NoteMenuDevice(unsigned padHeld);
 // The device the prompts are drawn for: PadKeyboard, or the pad's type.
 int MenuPromptDevice();
-// A prompt glyph ("View", "Start") at the cursor, size high, as the legend
-// draws it; its name as text when the art is missing.
-void PromptGlyph(const char* glyph,float size);
 // An embedded screen (fighter select, the training flyout) hands its parent
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);

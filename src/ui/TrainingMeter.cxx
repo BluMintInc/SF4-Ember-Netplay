@@ -26,8 +26,6 @@ ImU32 PhaseColor(Phase phase) {
     default: return IM_COL32(220, 206, 166, 255);
     }
 }
-// The HUD's windows: dark enough to read over a bright stage, which still shows through.
-constexpr float HudBackground = .62f;
 ImU32 CellAlpha(ImU32 color, bool idle) {
     return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(idle ? 130 : 215) << IM_COL32_A_SHIFT);
 }
@@ -61,16 +59,19 @@ void Edged(ImDrawList* draw, float size, ImVec2 at, ImU32 colour, const char* te
 // to its right while a held meter is scrolled back.
 struct BarWindow { int cells; std::size_t back; };
 // Counting marks, the same in both styles: a thin dark gap parts every cell
-// (left by the cells themselves), every fifth boundary is a faint ivory line
-// and every tenth a brighter one with a tick under the bar. slant leans them
-// with angled cells. Quiet beside the cells' own colours.
+// (left by the cells themselves), every fifth boundary is an ivory line and
+// every tenth a thicker, brighter one with a tick under the bar. slant leans
+// them with angled cells. They grow with the HUD (height is 14 at scale 1)
+// and stay short of opaque, so a cell's colour still shows beside them.
 void CountMarks(ImDrawList* draw, ImVec2 origin, float cell, float height, float slant, int cells) {
+    const float unit = height / 14;
     for (int i = 5; i < cells; i += 5) {
         const bool tenth = i % 10 == 0;
-        const float x = origin.x + i * cell - .5f;
-        const ImU32 colour = tenth ? IM_COL32(243, 235, 221, 150) : IM_COL32(243, 235, 221, 70);
-        draw->AddLine(ImVec2(x + slant, origin.y), ImVec2(x, origin.y + height), colour);
-        draw->AddLine(ImVec2(x, origin.y + height), ImVec2(x, origin.y + height + (tenth ? 2.f : 1.f)), colour);
+        const float x = origin.x + i * cell;
+        const float thickness = (std::max)(1.f, (tenth ? 2.f : 1.5f) * unit);
+        const ImU32 colour = (palette::Ivory & ~IM_COL32_A_MASK) | (static_cast<ImU32>(tenth ? 220 : 150) << IM_COL32_A_SHIFT);
+        draw->AddLine(ImVec2(x + slant, origin.y), ImVec2(x, origin.y + height), colour, thickness);
+        draw->AddLine(ImVec2(x, origin.y + height), ImVec2(x, origin.y + height + (tenth ? 2.5f : 1.5f) * unit), colour, thickness);
     }
 }
 // Stable's flat bars: a cell's colour is its state group, so an attack is one
@@ -84,8 +85,9 @@ void FlatBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin, 
         const auto& shown = meter.frames[index].cells[side];
         draw->AddRectFilled(ImVec2(origin.x + i * cell, origin.y),
             ImVec2(origin.x + (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), origin.y + height), TrainingCellColor(shown, false));
+        // Opaque and thicker than a counting mark, so the two do not read alike.
         if (shown.newAction)
-            draw->AddLine(ImVec2(origin.x + i * cell, origin.y), ImVec2(origin.x + i * cell, origin.y + height), palette::Ivory, 2);
+            draw->AddLine(ImVec2(origin.x + i * cell, origin.y), ImVec2(origin.x + i * cell, origin.y + height), palette::Ivory, (std::max)(2.f, 2.5f * height / 14));
     }
     CountMarks(draw, origin, cell, height, 0, window.cells);
 }
@@ -108,6 +110,9 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
         if (extent.x + 2 > (to - from) * cell) return;
         Edged(draw, digits, ImVec2(origin.x + slant / 2 + (from + to) * cell / 2 - extent.x / 2, origin.y + (height - extent.y) / 2), palette::Ivory, text.c_str());
     };
+    // The run lengths are drawn last, over the counting marks.
+    struct Run { int from, to; MeterKind kind; };
+    std::vector<Run> runs;
     int runStart = -1; MeterKind runKind = MeterKind::Neutral;
     for (int i = 0; i < window.cells; ++i) {
         const int index = MeterFrameIndex(meter.frames.size(), static_cast<std::size_t>(i), static_cast<std::size_t>(window.cells), window.back);
@@ -120,10 +125,11 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
         const bool split = runStart >= 0 && shown.split;
         if (split && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(10, 10, 10, 255));
         if (runStart < 0) { runStart = i; runKind = kind; }
-        else if (kind != runKind || split) { label(runStart, i, runKind); runStart = i; runKind = kind; }
+        else if (kind != runKind || split) { runs.push_back({runStart, i, runKind}); runStart = i; runKind = kind; }
     }
-    if (runStart >= 0) label(runStart, window.cells, runKind);
+    if (runStart >= 0) runs.push_back({runStart, window.cells, runKind});
     CountMarks(draw, origin, cell, height, slant, window.cells);
+    for (const auto& run : runs) label(run.from, run.to, run.kind);
 }
 ImVec4 AdvantageColor(int frames) {
     return ImGui::ColorConvertU32ToFloat4(frames > 0 ? IM_COL32(118, 224, 160, 255) :
@@ -353,7 +359,7 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, vp->Pos.y + vp->Size.y * TrainingRoomStatusTop), ImGuiCond_Always, ImVec2(.5f, 0));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
+    ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     if (ImGui::Begin("Training room status", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
@@ -423,7 +429,7 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
     if (!strip && !options.numbers && !options.bars && !options.state) return hudTop;
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
+    ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * hudScale, 6 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
@@ -463,7 +469,7 @@ void DrawMatchPracticeNotice() {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
+    ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(4*hudScale,3*hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
     if(ImGui::Begin("Match practice keys",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
@@ -483,52 +489,7 @@ TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     // The game's super meters and their SUPER! banners start about 17% above
     // the bottom edge and scale with the height, so the meter sits just above them.
     const float hudBottom = vp->Pos.y + vp->Size.y * TrainingHudBottom;
-    const auto options = TrainingMeterOptions();
-    const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, options);
-    // The one input this HUD takes: a chip that opens the controls for a
-    // mouse, as F6 does from the keyboard. It captures the mouse only while
-    // the pointer is over it, so the passive meter below never does. After a
-    // pad press it names the pad's buttons instead: Back and Start open the
-    // controls, and Back alone resets or saves the position.
-    TrainingHudInput input;
-    // Under the call back from a room the controls cannot open, so the chip
-    // that opens them and its pad hints would be wrong; the call's banner
-    // says what can be pressed then.
-    bool failed = false;
-    const auto notice = TrainingNotice(failed);
-    // With the shortcuts off only what a position key just did is told.
-    if (called || (!options.shortcuts && notice.empty())) return input;
-    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
-    ImGui::SetNextWindowBgAlpha(HudBackground);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * hudScale, 3 * hudScale));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    if (ImGui::Begin("Training shortcuts", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) {
-        ImGui::SetWindowFontScale(.8f * hudScale / Scale());
-        const int device = MenuPromptDevice();
-        const bool pad = device == sf4e::input::PadXInput || device == sf4e::input::PadDirectInput, xbox = device == sf4e::input::PadXInput;
-        // An Xbox pad's buttons as its prompt art; a DirectInput pad's labels are unknown, so they are named.
-        const auto back = [&] { if (xbox) PromptGlyph("View", ImGui::GetTextLineHeight()); else ImGui::TextUnformatted("Select"); };
-        if (options.shortcuts) {
-            if (pad) {
-                back(); ImGui::SameLine(0, 2 * hudScale); ImGui::TextUnformatted("+"); ImGui::SameLine(0, 2 * hudScale);
-                if (xbox) PromptGlyph("Start", ImGui::GetTextLineHeight()); else ImGui::TextUnformatted("Start");
-                ImGui::SameLine(0, 4 * hudScale);
-                input.open = ImGui::SmallButton(loc::T("training.controls_chip"));
-            } else input.open = ImGui::SmallButton(loc::T("training.open_chip"));
-            ReportMenuCard("training-open", ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-            ImGui::SameLine();
-        }
-        if (pad && notice.empty()) { back(); ImGui::SameLine(0, 4 * hudScale); }
-        const auto hint = !notice.empty() ? FitLabel(notice, width - ImGui::GetCursorPosX() - 4 * hudScale) :
-            std::string(loc::T(pad ? "training.pad_hint" : "training.hide_hint"));
-        if (failed && !notice.empty()) ImGui::TextColored(AdvantageColor(-1), "%s", hint.c_str());
-        else ImGui::TextDisabled("%s", hint.c_str());
-        ImGui::SetWindowFontScale(1.f);
-        input.pointer = ImGui::IsWindowHovered();
-    }
-    ImGui::End();
-    ImGui::PopStyleVar(2);
-    return input;
+    const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, TrainingMeterOptions());
+    return DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
 }
 } }

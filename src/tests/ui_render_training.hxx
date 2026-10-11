@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <array>
 #include <map>
 #include <set>
@@ -43,9 +44,10 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
         SetMenuCardProbe({});SetMenuEntriesProbe({});view.controllerReady=true;
     }
 }
-template<class Size,class Draw>
+// retheme(dpi) applies the theme at that DPI and rebuilds the renderer's atlas.
+template<class Size,class Draw,class Retheme>
 void ShootTraining(sf4e::training::View& training,const std::array<sf4e::training::FighterSample,2>& fighters,
-    sf4e::training::Command& trainingCommand,bool& acceptTraining,int& mode,const Size& size,const Draw& draw,ImGuiIO& io) {
+    sf4e::training::Command& trainingCommand,bool& acceptTraining,int& mode,const Size& size,const Draw& draw,ImGuiIO& io,const Retheme& retheme) {
     using namespace sf4e;using namespace ui;
     // The keyboard's prompts until the pad's own shots below.
     SetMenuGlyphs(input::PadKeyboard,0,0);
@@ -392,6 +394,105 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     }
     io.AddKeyEvent(ImGuiKey_F5,true);draw(nullptr,0,1);NoteMenuDevice(0);io.AddKeyEvent(ImGuiKey_F5,false);draw(nullptr,0,1);
     Require(MenuPromptDevice()==input::PadKeyboard,"A function key did not turn the HUD's prompts to the keyboard");
-    SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
+    SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");
+    // While a slot plays F8 stops it, and the strip says so.
+    training.mode=training::Mode::Playback;training.cursor=40;draw("training-hud-playing");training.mode=training::Mode::Idle;training.cursor=0;
+    // A failed strip check names what the strip showed.
+    const auto strip=[](const char* what){
+        std::string told=std::string(what)+" (" +loc::Tag(loc::Active())+", "+std::to_string(LastTrainingStrip().textPixels)+" px):";
+        for(const auto& piece:LastTrainingStrip().pieces)told+=" ["+piece+"]";
+        return told;
+    };
+    // The strip says what each key does now: F7 and F8 read Stop while they
+    // record and play, the position keys are the player's and one set to Off
+    // is left out, and a pad keeps its own buttons with F7 and F8. Drawn in
+    // a 1080p window at the standard size, where every translation's line
+    // has room for all but Hide HUD, which is last and may be left out.
+    {
+        // English shows the whole line; a translation may leave out the
+        // hints after the first `least` pieces.
+        const bool english=std::string(loc::T("training.record"))=="Record";
+        const auto names=[&](std::vector<std::string> expected,std::size_t least,const char* what){
+            const auto& shown=LastTrainingStrip().pieces;
+            const bool prefix=shown.size()<=expected.size()&&std::equal(shown.begin(),shown.end(),expected.begin());
+            Require(prefix&&shown.size()>=(english?expected.size():least),strip(what).c_str());
+            Require(LastTrainingStrip().width<=LastTrainingStrip().room+.5f,"The training strip is wider than the meter");
+        };
+        const std::string chip=loc::T("training.controls_chip"),record=loc::T("training.record"),play=loc::T("training.play"),stop=loc::T("training.stop"),
+            reset=loc::T("training.hint.reset"),save=loc::T("training.hint.save"),hide=loc::T("training.hide_hint");
+        io.DisplaySize=ImVec2(1920,1080);SetTrainingMeterOptions({});
+        SetTrainingPositionKeys(1,10);draw();
+        names({"F6",chip,"F7",record,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"The strip did not name the keyboard's keys at rest");
+        training.mode=training::Mode::Recording;draw();
+        names({"F6",chip,"F7",stop,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"F7 did not read Stop while recording");
+        training.mode=training::Mode::Playback;draw();
+        names({"F6",chip,"F7",record,"F8",stop,"F2",reset,"F11",save,"F5",hide},8,"F8 did not read Stop while playing");
+        training.mode=training::Mode::Idle;
+        SetTrainingPositionKeys(3,-1);draw();
+        names({"F6",chip,"F7",record,"F8",play,"F4",reset,"F5",hide},8,"The strip did not follow a picked reset key and an Off save key");
+        SetTrainingPositionKeys(-1,8);draw();
+        names({"F6",chip,"F7",record,"F8",play,"F9",save,"F5",hide},8,"The strip did not follow an Off reset key and a picked save key");
+        SetTrainingPositionKeys(1,10);
+        for(const int device:{input::PadXInput,input::PadDirectInput}) {
+            SetMenuGlyphs(device,device==input::PadXInput?input::xinput::A:0,device==input::PadXInput?input::xinput::B:0);
+            NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
+            const std::string back=device==input::PadXInput?"Back":"Select";
+            training.mode=training::Mode::Recording;draw();
+            names({back,"+","Start",chip,back,loc::T("training.pad_hint"),"F7",stop,"F8",play},8,"The pad's strip lost its buttons or F7");
+            training.mode=training::Mode::Playback;draw();
+            names({back,"+","Start",chip,back,loc::T("training.pad_hint"),"F7",record,"F8",stop},8,"The pad's strip lost its buttons or F7");
+            training.mode=training::Mode::Idle;
+        }
+        io.AddKeyEvent(ImGuiKey_F5,true);draw(nullptr,0,1);NoteMenuDevice(0);io.AddKeyEvent(ImGuiKey_F5,false);draw(nullptr,0,1);
+        SetMenuGlyphs(0,0,0);
+        io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));draw();
+    }
+    // The strip's text is never under 15 pixels, and its whole line stays
+    // within the meter, in the smallest window at the smallest size with
+    // the theme at 300%, for the keyboard and both pads. In Latin American
+    // Spanish too, whose chip and pad hint are among the longest.
+    if(size.w==1280&&size.dpi==1) {
+        const bool english=std::string(loc::T("training.record"))=="Record";
+        for(int pass=0;pass<(english?2:1);++pass) {
+            if(pass==1)loc::SetActive(loc::Locale::Es419);
+            retheme(3.f);
+            training::MeterOptions smallest;smallest.size=0;SetTrainingMeterOptions(smallest);
+            io.DisplaySize=ImVec2(640,480);
+            for(const int device:{input::PadKeyboard,input::PadXInput,input::PadDirectInput}) {
+                SetMenuGlyphs(device,device==input::PadXInput?input::xinput::A:0,device==input::PadXInput?input::xinput::B:0);
+                if(device!=input::PadKeyboard){NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);}
+                else{io.AddKeyEvent(ImGuiKey_F5,true);draw(nullptr,0,1);NoteMenuDevice(0);io.AddKeyEvent(ImGuiKey_F5,false);draw(nullptr,0,1);}
+                draw();
+                const auto* meter=FindWindow("Training frame meter");const auto* shortcuts=FindWindow("Training shortcuts");
+                const auto& shown=LastTrainingStrip();
+                Require(!shown.pieces.empty()&&std::fabs(shown.textPixels-15)<.05f,strip("The training strip's text is not held at 15 pixels").c_str());
+                Require(shown.width<=shown.room+.5f&&shortcuts->Pos.x>=meter->Pos.x-1&&shortcuts->Pos.x+shortcuts->Size.x<=meter->Pos.x+meter->Size.x+1,
+                    strip("The training strip runs past the meter in a small window at 300%").c_str());
+            }
+            if(pass==1)loc::SetActive(loc::Locale::En);
+        }
+        SetMenuGlyphs(0,0,0);SetTrainingMeterOptions({});retheme(size.dpi);
+        io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));draw();
+    }
+    // With the shortcuts off, a position key's notice is all the strip shows.
+    {
+        training::MeterOptions quiet;quiet.shortcuts=false;SetTrainingMeterOptions(quiet);
+        draw();Require(LastTrainingStrip().pieces.empty(),strip("The strip drew with the shortcuts off and nothing to tell").c_str());
+        input::TrainingPadEvent press;press.kind=input::TrainingPadEvent::Kind::Reset;press.generation=training.generation;
+        TrainingPadPosition(training,[](training::Command){return false;},press);
+        draw();
+        // Whole, or shortened to the meter's width.
+        const auto& told=LastTrainingStrip().pieces;const std::string rejected=loc::T("training.command_rejected");
+        const bool shortened=told.size()==1&&told[0].size()>3&&told[0].compare(told[0].size()-3,3,"...")==0&&rejected.compare(0,told[0].size()-3,told[0],0,told[0].size()-3)==0;
+        Require(told.size()==1&&(told[0]==rejected||shortened),strip("The notice did not stand alone with the shortcuts off").c_str());
+        // The notice lasts three seconds.
+        draw(nullptr,0,200);
+        Require(LastTrainingStrip().pieces.empty(),strip("The notice outlived its three seconds").c_str());
+        // A position command the game takes clears the notice, so the next
+        // size's new clock does not bring it back.
+        TrainingPadPosition(training,[](training::Command){return true;},press);
+        SetTrainingMeterOptions({});draw();
+    }
+    SetMenuGlyphs(3,0x40000,0x20000);
 }
 }
