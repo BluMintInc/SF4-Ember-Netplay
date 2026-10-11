@@ -9,8 +9,15 @@
 
 namespace sf4e {
 	namespace Overlay {
+        // Ember takes the game's input: the pads while its menu is shown, with
+        // the window in front or not, and while the training controls are open.
         bool CapturesMenuInput();
+        // The game window has the focus: the keyboard, the mouse and the
+        // training controls need it; Ember's menu does not.
         bool HasInputFocus();
+        // Whether Ember's menu takes the pads (input::MenuTakesPads), as the
+        // last frame drew it: they are then polled behind another window.
+        bool MenuTakesPads();
         void RequestMainControls();
         // Game thread: what the pad's Back and Start ask for in offline
         // Training, in order (TrainingPad.hxx). An event posted under an epoch

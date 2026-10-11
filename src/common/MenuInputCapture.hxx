@@ -12,6 +12,12 @@ enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport };
 // menu F10 opened over an export. Start opens Ember at the main menu only.
 inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable; }
 inline bool ControllerOpensMenu(MenuContext context) { return context == MenuContext::MainMenu; }
+// Ember's menu takes the pads while it is shown, and where Start would open
+// it, with the game window in front or behind another: the pads still reach
+// a window behind, so the menu never loses them (BackgroundPlay::PolicyFor).
+inline bool MenuTakesPads(bool shown, bool available, MenuContext context) {
+    return shown || (available && ControllerOpensMenu(context));
+}
 // Native Pad::System publishes five adjacent uint32 input caches per player.
 // Keep assignment metadata and provider input untouched for overlay polling.
 inline unsigned NativeMenuHeld(const void* system) {

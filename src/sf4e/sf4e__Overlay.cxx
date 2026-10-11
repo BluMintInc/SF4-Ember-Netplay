@@ -3,6 +3,7 @@
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__Pad.hxx"
 #include "sf4e.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
@@ -41,7 +42,12 @@ static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
 static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
+// The menu takes the keys and the mouse: shown, with the focus.
 static std::atomic<bool> capture{false};
+// The menu takes the pads: shown, with the focus or not, since the pads reach
+// a window behind another (BackgroundPlay). Published by the drawing thread,
+// as is whether the menu takes them where Start opens it, for the pad update.
+static std::atomic<bool> s_menuShown{false}, s_menuTakesPads{false};
 // The pointer is over the training HUD's chip: the mouse (only) is Ember's.
 static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
@@ -72,12 +78,22 @@ static sf4e::ui::OverlayLifecycle s_lifecycle;
 static std::atomic<bool> s_menuAvailable{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
-// Ember takes the game's input while its menu is shown with the focus or the
-// training controls are open (TrainingPad.hxx: CapturesInput).
+// The window's keys and mouse are Ember's while its menu is shown with the
+// focus or the training controls are open (TrainingPad.hxx: CapturesInput);
+// the game's pads while the menu is shown, focus or not, or those controls are open.
 static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
-bool Overlay::CapturesMenuInput() { return CapturesInput(); }
+bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(capture.load() || s_menuShown.load(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
-void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
+bool Overlay::MenuTakesPads() { return s_menuTakesPads.load(); }
+// Start at the main menu, in front or behind another window. The press is
+// Ember's at once, so it never reaches the native menu; the keys and the
+// mouse only with the focus.
+void Overlay::RequestMainControls() {
+    if (!focused && !s_menuTakesPads) return;
+    if (focused) capture = true;
+    s_menuShown = true;
+    s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls);
+}
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
     s_trainingControls.Post(event);
@@ -449,8 +465,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             sf4e::ui::Win32InputBridge::MaxQueuedEvents);
         notedOverflows = overflows;
     }
+    // The pad drives the menu behind another window too (s_menuShown).
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || s_trainingControls.Open(), focused && !assigning);
+        presentation.Visible() || s_trainingControls.Open(), !assigning);
     // Start opens Ember at the main menu only; in Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
     ImGui::NewFrame();
@@ -616,7 +633,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     }
     const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
     if (hud.open && !called) s_trainingControls.Open(focus);
-    // Shown survives alt-tab; taking the cursor and keys needs focus.
+    // Shown survives alt-tab and so do the pads; the cursor and keys are
+    // taken only with the focus.
     const bool shown = presentation.Visible() || s_trainingControls.Open();
     const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), s_trainingControls.Open(), nativePaused);
     const bool visible = focused && shown;
@@ -625,13 +643,17 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
     capture = focused && presentation.Visible();
+    s_menuShown = presentation.Visible();
+    s_menuTakesPads = sf4e::input::MenuTakesPads(presentation.Visible(), presentation.Available(), snapshot.menuContext);
     static bool wasCapturing = false;
     const bool capturing = CapturesInput();
     if (wasCapturing && !capturing) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
     wasCapturing = capturing;
-    // The native menu stays parked under a shown shell, focused or not, so a
-    // pad press while alt-tabbed cannot drive it.
-    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
+    // The native menu stays parked under a shown shell, focused or not, and
+    // while the pad update hides the pads from it (behind another window, or
+    // a press held from the shell), so a pad press while alt-tabbed cannot drive it.
+    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
+        ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
     if (layers.matchActive && focused && passive && !status.spectator && sf4e::training::MatchPracticeActive())
         sf4e::ui::DrawMatchPracticeNotice();
@@ -653,6 +675,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
 }
 void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
+    s_menuShown = false; s_menuTakesPads = false;
     trainingAvailable = false; replayPlayback = false;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");

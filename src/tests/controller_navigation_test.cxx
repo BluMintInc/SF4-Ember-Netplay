@@ -183,6 +183,23 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
+ // Ember's menu keeps the pads behind another window while it is shown and
+ // where Start opens it; never over an export or in Training with it hidden.
+ using sf4e::input::MenuTakesPads;
+ Check(MenuTakesPads(true,true,MenuContext::ReplayExport)&&MenuTakesPads(true,true,MenuContext::MainMenu)&&
+  MenuTakesPads(false,true,MenuContext::MainMenu),"The menu lost the pads behind another window");
+ Check(!MenuTakesPads(false,true,MenuContext::ReplayExport)&&!MenuTakesPads(false,false,MenuContext::MainMenu)&&
+  !MenuTakesPads(false,true,MenuContext::OfflineTraining),"The menu took the pads where they are the game's");
+ // The overlay enables the adapter whatever the window's focus (only a device
+ // being assigned stops it): behind another window Start opens the hidden
+ // menu and the shown menu takes presses, with no refocus between.
+ ControllerNavigation behind;ControllerSample pad{0,0,true,0};
+ behind.Update(pad,true,false,true);behind.Update(pad,true,false,true);
+ pad.buttons=ControllerSample::Menu;behind.Update(pad,true,false,true);
+ Check(behind.OpenRequested(),"Start did not open the menu behind another window");
+ pad.buttons=0;behind.Update(pad,true,true,true);
+ pad.buttons=ControllerSample::Down;behind.Update(pad,true,true,true);
+ Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
 }
 // The pad in offline Training: Back tapped resets, held saves, and Start
 // pressed while Back is held opens the controls or closes them. None of the

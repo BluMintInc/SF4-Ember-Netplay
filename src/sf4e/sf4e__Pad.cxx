@@ -26,7 +26,12 @@ using fSystem = fPad::System;
 
 fSystem::Inputs fSystem::playbackData[PLAYBACK_MAX][2];
 int fSystem::playbackFrame = -1;
-namespace { std::atomic<bool> inputBlocked{false}; }
+namespace {
+std::atomic<bool> inputBlocked{false};
+// This update's pads were polled behind another window for Ember's menu
+// alone (BackgroundPlay::PolicyFor): the game is given none of them.
+std::atomic<bool> menuOnlyInput{false};
+}
 bool fPad::MenuInputBlocked() { return inputBlocked.load(); }
 
 void fPad::Install() {
@@ -50,10 +55,12 @@ void fSystem::UpdateInputs() {
     const auto sharedSnapshot=sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const auto& snapshot=*sharedSnapshot;
     // A replay exported as a video, and a room's match this PC only watches,
-    // run on behind another window whatever the player's setting says.
+    // run on behind another window whatever the player's setting says. Ember's
+    // menu reads the pads there too, while it is shown and where Start opens it.
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
-    sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
-        sf4e::replaystore::Exporting(),watching));
+    const bool menuOnly=sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
+        sf4e::replaystore::Exporting(),watching,sf4e::Overlay::MenuTakesPads()));
+    menuOnlyInput=menuOnly;
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
     // This is the native input publication boundary (00512180). Both
@@ -64,9 +71,11 @@ void fSystem::UpdateInputs() {
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
     constexpr unsigned PhysicalStart=sf4e::input::NativeStart;
     const bool focused=focus.focused;
+    // Start opens Ember at the main menu with the window in front or behind:
+    // the pads are polled there for it.
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
-    if(!focused||!connected||!snapshot.atMainMenu||snapshot.inputCapture!=sf4e::input::Capture::Idle||
+    if(!connected||!snapshot.atMainMenu||snapshot.inputCapture!=sf4e::input::Capture::Idle||
         ownerType!=device.type||ownerIndex!=device.index) mainArmed=false;
     else if(!physical)mainArmed=true;
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
@@ -118,10 +127,11 @@ void fSystem::UpdateInputs() {
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput(),held);
+    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||menuOnly,held);
     inputBlocked=blocked;
     // Native Start is untouched while Ember is closed; an open overlay,
-    // including the training controls, captures all inputs until release.
+    // including the training controls, captures all inputs until release,
+    // and so do pads polled behind another window for Ember's menu alone.
     if(blocked)sf4e::input::ClearNativeMenuInputs(this);
     else if(ownedByGesture&sf4e::input::PhysicalStart)sf4e::input::ClearNativeMenuInputs(this,~sf4e::input::NativeStart);
 }
@@ -141,7 +151,7 @@ unsigned int fSystem::ReadButtons(int pindex, bool raw) {
     static unsigned int held[2][2]{};
     if (pindex < 0 || pindex >= 2) return buttons;
     unsigned int& captured = held[raw ? 1 : 0][pindex];
-    if (sf4e::Overlay::CapturesMenuInput()) { captured = buttons; return 0; }
+    if (sf4e::Overlay::CapturesMenuInput() || menuOnlyInput.load()) { captured = buttons; return 0; }
     // Release each captured button before returning it to the native menu.
     captured &= buttons;
     return buttons & ~captured;

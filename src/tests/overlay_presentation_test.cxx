@@ -31,6 +31,10 @@ int main() {
     // Alt-tab keeps the shell on screen, and an unfocused window cannot toggle it.
     menu.Update(true, MatchState::None, false, false); CHECK(menu.Visible());
     menu.Toggle(); CHECK(menu.Visible());
+    // The pad needs no focus: Start opens the shell and the shell closes itself.
+    menu.Close(); CHECK(!menu.Visible());
+    menu.Update(true, MatchState::None, false, false); menu.Open(); CHECK(menu.Visible());
+    menu.Close(); CHECK(!menu.Visible()); menu.Open(); CHECK(menu.Visible());
     menu.Update(true, MatchState::None, false, true); CHECK(menu.Visible());
     menu.Update(true, MatchState::Preparing, false, true);
     menu.Open(); menu.Toggle(); CHECK(!menu.Visible() && !menu.Available());

@@ -108,6 +108,20 @@ static void CheckPolicy() {
     const auto watchingWithSetting = PolicyFor(true, false, true);
     CHECK(watchingWithSetting.backgroundInput && watchingWithSetting.keepSound && watchingWithSetting.keepRunning &&
         !watchingWithSetting.keepSoundMinimized);
+    CHECK(!none.menuOnly && !setting.menuOnly && !exporting.menuOnly && !watching.menuOnly);
+    // Ember's menu taking the pads polls them behind another window, for the
+    // menu alone unless the setting gives them to the game too. The sound and
+    // the running stay as they were.
+    const auto menu = PolicyFor(false, false, false, true);
+    CHECK(menu.backgroundInput && menu.menuOnly && !menu.keepSound && !menu.keepRunning && !menu.keepSoundMinimized);
+    const auto menuWithSetting = PolicyFor(true, false, false, true);
+    CHECK(menuWithSetting.backgroundInput && !menuWithSetting.menuOnly && menuWithSetting.keepSound &&
+        !menuWithSetting.keepRunning && !menuWithSetting.keepSoundMinimized);
+    const auto menuExporting = PolicyFor(false, true, false, true);
+    CHECK(menuExporting.backgroundInput && menuExporting.menuOnly && menuExporting.keepSound &&
+        menuExporting.keepRunning && menuExporting.keepSoundMinimized);
+    const auto menuWatching = PolicyFor(false, false, true, true);
+    CHECK(menuWatching.menuOnly && !menuWatching.keepSound && menuWatching.keepRunning);
 }
 
 int main() {
