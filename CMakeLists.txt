@@ -603,7 +603,7 @@ if(BUILD_TESTING)
             set_tests_properties(IrohAuthorizedTerminalRecovery IrohAuthorizedTerminalRelayRecovery PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE)
         endif()
     endif()
-    sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" STD 17 LIBS sf4e_iroh_room)
     sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
         LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server)

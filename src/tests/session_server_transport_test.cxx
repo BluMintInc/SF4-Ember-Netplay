@@ -1,4 +1,5 @@
 #include "../session/sf4e__SessionServer.hxx"
+#include "../session/RoomRecoveryRuntime.hxx"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -11,6 +12,7 @@
 
 #include "test_support.hxx"
 #include "server_transport_support.hxx"
+#include "fake_helper_pipe.hxx"
 
 using namespace sf4e;
 namespace protocol = sf4e::SessionProtocol;
@@ -1985,26 +1987,82 @@ static void TestParticipantDepartureCheckpoint(SetupStage stage, bool disconnect
 	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
 }
 
+// The rejoined member's own game applies `commits` (revisions 1, 2, ...) the
+// way production does: the scripted helper hands them over through IrohRoom's
+// event handling (transfer, commit marker, decode, staging), and
+// RoomRecoveryRuntime imports, rebinds and activates them against a replica
+// server. Returns the revision it applied up to.
+static std::uint64_t ApplyAsRejoinedMember(const ParticipantRoom& fixture, const std::vector<json>& commits,
+	session::Connection self) {
+	FakeHelperPipe pipe;
+	platform::HelperClient helper;
+	pipe.Connect(helper);
+	session::IrohRoom room(helper);
+	CHECK(room.Join("invitation", "build"));
+	const std::array<std::uint8_t, 16> id{{9}};
+	const std::string leader(64, 'a');
+	std::map<std::string, std::uint64_t> incarnations;
+	for (const auto& row : commits.front().at("members"))
+		if (!row.value("frozen", false))
+			incarnations[row.at("data").at("authenticatedEndpoint").get<std::string>()] = row.at("incarnation").get<std::uint64_t>();
+	pipe.Send({{"type", "status"}, {"request_id", 1}, {"endpoint", ParticipantRoom::IdentityOf(self)}, {"fixed_port", 0}});
+	pipe.Send({{"type", "coordination_state"}, {"epoch", 1}, {"room", id}, {"term", 1}, {"revision", commits.size()},
+		{"incarnation", ParticipantRoom::IncarnationOf(self)}, {"leader", leader}, {"writable", true}, {"leader_local", false}});
+	pipe.Send({{"type", "control_rebound"}, {"epoch", 1}, {"room", id}, {"leader", leader},
+		{"member_incarnations", incarnations}, {"members", json::array()}});
+	for (std::uint64_t revision = 1; revision <= commits.size(); ++revision) {
+		session::SessionProposal proposal;
+		proposal.request = revision; proposal.term = 1; proposal.baseRevision = revision - 1;
+		proposal.checkpoint = commits[revision - 1]; proposal.effectsDigest = session::EffectsDigest({});
+		const auto bytes = json(proposal).dump();
+		const json transfer{{"epoch", 1}, {"room", id}, {"transfer", revision}, {"term", 1},
+			{"base_revision", revision - 1}, {"revision", revision}};
+		auto message = [&](const char* type) { auto value = transfer; value["type"] = type; return value; };
+		auto begin = message("checkpoint_begin"); begin["length"] = bytes.size(); begin["digest"] = coordination::Sha256(bytes);
+		pipe.Send(begin);
+		for (std::size_t offset = 0; offset < bytes.size(); offset += coordination::CheckpointChunk) {
+			auto chunk = message("checkpoint_chunk");
+			chunk["offset"] = offset; chunk["data"] = coordination::Encode(bytes.substr(offset, coordination::CheckpointChunk));
+			pipe.Send(chunk);
+		}
+		auto end = begin; end["type"] = "checkpoint_end"; pipe.Send(end);
+		auto committed = begin; committed["type"] = "checkpoint_committed"; pipe.Send(committed);
+	}
+	const auto replica = fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	for (int tick = 0; tick < 5000 && recovery.AppliedRevision() < commits.size(); ++tick) {
+		CHECK(recovery.Tick(*replica, room));
+		pipe.Drain();
+		Sleep(1);
+	}
+	CHECK(recovery.Error().empty() && !room.CheckpointPending());
+	return recovery.AppliedRevision();
+}
+
 // The spectator leaves before the start and rejoins, again and again, while
 // that generation still names its endpoint. Each rejoin is a new member and
-// incarnation. The endpoint never has more than one frozen row, each rejoined
-// commit has the one active row activation binds to, and every commit imports
-// in order on one replica, the generation's cleanup commit included.
+// incarnation. The endpoint never has more than one frozen row, and every
+// commit imports in order on one replica, the generation's cleanup commit
+// included. The rejoined member's own game then activates the rejoin commit
+// even as a room host from before this change sent it, with the old frozen
+// row beside the new active one, and applies the cleanup commit behind it.
 static void TestRejoinAfterPreStartDeparture() {
 	ParticipantRoom fixture(SetupStage::FightersPrepared);
 	auto& server = fixture.server;
 	const auto replica = fixture.Replica();
 	const auto endpoint = ParticipantRoom::IdentityOf(4);
 	session::Connection spectator = 4;
+	json frozenRow, rejoined;
 	for (int cycle = 0; cycle < 6; ++cycle) {
 		fixture.Depart(spectator, cycle % 2 == 0);
 		const auto departed = server.RecoveryCheckpoint();
 		CHECK(server.roomFrozenMembers.size() == 1 && ParticipantRoom::FrozenRows(departed) == 1);
 		CHECK(ParticipantRoom::Imports(*replica, departed));
+		for (const auto& row : departed.at("members")) if (row.value("frozen", false)) frozenRow = row;
 		spectator += 16;
 		fixture.Join(spectator);
 		// The live row restores the endpoint's participations; the frozen one goes.
-		const auto rejoined = server.RecoveryCheckpoint();
+		rejoined = server.RecoveryCheckpoint();
 		CHECK(server.roomFrozenMembers.empty() && ParticipantRoom::FrozenRows(rejoined) == 0);
 		session::RosterRow active;
 		CHECK(session::ActiveRosterRow(rejoined.at("members"), endpoint, active) &&
@@ -2018,6 +2076,10 @@ static void TestRejoinAfterPreStartDeparture() {
 	session::RosterRow active;
 	CHECK(session::ActiveRosterRow(cleanup.at("members"), endpoint, active) && active.incarnation == spectator);
 	CHECK(ParticipantRoom::Imports(*replica, cleanup));
+	auto withFrozen = rejoined;
+	withFrozen.at("members").push_back(frozenRow);
+	CHECK(ParticipantRoom::FrozenRows(withFrozen) == 1);
+	CHECK(ApplyAsRejoinedMember(fixture, {withFrozen, cleanup}, spectator) == 2);
 }
 
 int main() {
