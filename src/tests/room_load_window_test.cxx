@@ -39,7 +39,7 @@ static void TestMinuteKeepsTheWorstReport() {
 	for (std::uint64_t now = 11000; now < 61000; now += 5000) CHECK(!window.Add(Load(127, 1), now, Room(3, 20, 18)));
 	const auto line = window.Add(Load(128, 0), 61000, Room(3, 25, 25));
 	CHECK(line && line->seconds == 60 && line->commits == 15 && line->applied == 15);
-	CHECK(line->eventQueueFreeMin == 12 && line->controlQueuePeak == std::uint64_t(47) && line->room.liveMembers == 3);
+	CHECK(line->eventQueueFreeMin == 12 && line->controlQueuePeak == std::uint64_t(47) && line->room.liveMembers == std::size_t(3));
 	// The next minute starts over.
 	const auto next = window.Add(Load(120, 2), 121000, Room(3, 25, 25));
 	CHECK(next && next->commits == 0 && next->eventQueueFreeMin == 120 && next->controlQueuePeak == std::uint64_t(2));
@@ -53,6 +53,18 @@ static void TestStalledRoom() {
 	stalled.staged = 4; stalled.markerParked = true;
 	const auto line = window.Add(Load(128, 0), 60000, stalled);
 	CHECK(line && line->commits == 6 && line->applied == 0 && line->room.staged == 4 && line->room.markerParked);
+}
+
+// A member that joined and whose first commit never applied has no roster yet.
+// That is the stall, so it is reported, with the member count unknown.
+static void TestFirstCommitNeverApplies() {
+	RoomLoadWindow window;
+	RoomLoadWindow::Room joining;
+	joining.revision = 40;
+	window.Add(Load(128, 0), 0, joining);
+	joining.revision = 46; joining.staged = 4; joining.markerParked = true;
+	const auto line = window.Add(Load(128, 0), 60000, joining);
+	CHECK(line && !line->room.liveMembers && line->commits == 6 && line->applied == 0 && line->room.staged == 4);
 }
 
 // A room host with nobody in its room logs nothing, and an older helper's
@@ -72,6 +84,7 @@ int main() {
 	TestReadsOlderAndNewerHelpers();
 	TestMinuteKeepsTheWorstReport();
 	TestStalledRoom();
+	TestFirstCommitNeverApplies();
 	TestQuietCases();
 	return 0;
 }

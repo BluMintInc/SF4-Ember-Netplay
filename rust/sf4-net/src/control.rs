@@ -186,13 +186,11 @@ impl ControlWorker {
             .map_or(0, |outgoing| outgoing.max_capacity() - outgoing.capacity())
     }
 
-    /// The most frames the send queue held since the last call, which starts
-    /// the count over from what it holds now: frames still waiting stay in the
-    /// next count.
+    /// The most frames the send queue held since the last call. The next
+    /// count starts from what it holds now, so frames still waiting are in it.
     pub fn take_queue_peak(&self) -> usize {
-        self.queue_peak
-            .swap(0, Ordering::Relaxed)
-            .max(self.queued())
+        let queued = self.queued();
+        self.queue_peak.swap(queued, Ordering::Relaxed).max(queued)
     }
 
     /// Stop accepting frames. The writer delivers what is already queued and

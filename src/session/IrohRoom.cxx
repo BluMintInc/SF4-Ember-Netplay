@@ -641,15 +641,20 @@ bool IrohRoom::Queue(std::deque<Message>& destination, Message message) {
 	return true;
 }
 
-// Once a minute in a room with members: commits made and applied here, commits
-// waiting to apply, and how full a room control's send queue got (queue_full
-// at its capacity drops room messages).
+// Once a minute unless the applied roster is empty: commits made and applied
+// here, commits waiting to apply, and how full a room control's send queue got
+// (queue_full at its capacity drops room messages).
 void IrohRoom::LogLoad(const RoomLoadWindow::Report& report) {
-	const auto line = loadWindow_.Add(report, GetTickCount64(), {committedLiveMembers_,
-		committedCheckpoints_.size() + decoding_.size(), coordination_.revision, effectsRevision_, !pendingCommittedMarker_.is_null()});
+	RoomLoadWindow::Room room;
+	if (haveCommittedMembers_) room.liveMembers = committedLiveMembers_;
+	room.staged = committedCheckpoints_.size() + decoding_.size();
+	room.revision = coordination_.revision; room.applied = effectsRevision_;
+	room.markerParked = !pendingCommittedMarker_.is_null();
+	const auto line = loadWindow_.Add(report, GetTickCount64(), room);
 	if (!line) return;
 	spdlog::info("Room: load over {} s members={} revision={} commits={} applied={} staged={} marker_parked={} "
-		"control_queue_peak={} event_queue_free_min={}", line->seconds, line->room.liveMembers, line->room.revision,
+		"control_queue_peak={} event_queue_free_min={}", line->seconds,
+		line->room.liveMembers ? std::to_string(*line->room.liveMembers) : std::string("-"), line->room.revision,
 		line->commits, line->applied, line->room.staged, line->room.markerParked,
 		line->controlQueuePeak ? std::to_string(*line->controlQueuePeak) : std::string("-"), line->eventQueueFreeMin);
 }

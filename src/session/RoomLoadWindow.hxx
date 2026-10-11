@@ -28,8 +28,11 @@ public:
 		return report;
 	}
 	// The room as this process has applied it when a report arrives.
+	// liveMembers is empty until a commit has applied here: a member whose
+	// first commit never applies has no roster, but is the stall to report.
 	struct Room {
-		std::size_t liveMembers = 0, staged = 0;
+		std::optional<std::size_t> liveMembers;
+		std::size_t staged = 0;
 		std::uint64_t revision = 0, applied = 0;
 		bool markerParked = false;
 	};
@@ -41,8 +44,8 @@ public:
 		std::optional<std::uint64_t> controlQueuePeak;
 	};
 	// Folds a report in. Once a minute has passed since the window began, the
-	// window starts over and its line is returned, unless the room has no live
-	// member to report on.
+	// window starts over and its line is returned, unless the applied roster
+	// shows a room with no live member.
 	std::optional<Line> Add(const Report& report, std::uint64_t nowMs, const Room& room) {
 		if (!started_) Restart(nowMs, room);
 		if (report.controlQueuePeak) controlQueuePeak_ = (std::max)(controlQueuePeak_.value_or(0), *report.controlQueuePeak);
@@ -56,7 +59,7 @@ public:
 		line.controlQueuePeak = controlQueuePeak_;
 		line.room = room;
 		Restart(nowMs, room);
-		if (!room.liveMembers) return std::nullopt;
+		if (room.liveMembers == std::size_t(0)) return std::nullopt;
 		return line;
 	}
 	void Reset() { *this = RoomLoadWindow(); }

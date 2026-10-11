@@ -264,6 +264,19 @@ async fn control_workers_bound_both_directions_and_backpressure_the_consumer() {
         // frames still waiting behind the blocked writer are in the next count.
         assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
         assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
+        // The writer drains the queue with nothing more sent: the window that
+        // began full still reads full, and the one after it reads empty.
+        let mut expected = 2;
+        while expected < CONTROL_QUEUE_CAPACITY as u64 + 2 {
+            if let Some(frame) = receiver.try_receive() {
+                assert_eq!(frame.message_id, expected);
+                expected += 1;
+            } else {
+                tokio::task::yield_now().await;
+            }
+        }
+        assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
+        assert_eq!(sender.take_queue_peak(), 0);
         assert_eq!(
             sender.try_send(ControlFrame {
                 message_id: 1000,
@@ -286,7 +299,6 @@ async fn control_workers_bound_both_directions_and_backpressure_the_consumer() {
             tokio::task::yield_now().await;
         }
         assert!(!receiver.is_closed());
-        let mut expected = 2;
         while expected < end {
             if let Some(frame) = receiver.try_receive() {
                 assert_eq!(frame.message_id, expected);
