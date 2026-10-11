@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 
@@ -257,7 +259,7 @@ inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); exchangeAt_ = 0; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -381,15 +383,24 @@ public:
         // with no attack under way; contact puts them in the bars' place, so the
         // new exchange shows from its first move. An attack waiting for its
         // contact (ObserveAdvantage's armed exchange), a projectile in flight
-        // among them, keeps them through idle frames until it lands or is given up.
+        // among them, keeps them through idle frames until it lands or is given
+        // up: one held while the bars run goes on from the bars into the frames
+        // kept aside when they are held, from the frame it began.
         const MeterFrame latest{fighters, cells, frame};
+        const bool attacking = (armed_[0] || armed_[1]) && !view_.advantage.valid;
+        if (!view_.frozen && hadActivity_ && idleFrames_ >= 30) {
+            view_.frozen = true;
+            if (attacking) {
+                const auto since = (std::min)(view_.frames.size(), static_cast<std::size_t>(now - exchangeAt_));
+                aside_.assign(view_.frames.end() - static_cast<std::ptrdiff_t>(since), view_.frames.end());
+                if (!aside_.empty()) for (auto& cell : aside_.front().cells) cell.newAction = cell.split = false;
+            }
+        }
         if (view_.frozen) {
-            const bool attacking = (armed_[0] || armed_[1]) && !view_.advantage.valid;
             if (neutral && !attacking) aside_.clear();
             else if (!neutral || !aside_.empty()) Append(aside_, latest);
             if (contact) { view_.frames.swap(aside_); aside_.clear(); view_.frozen = false; }
-        } else if (hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
-        else Append(view_.frames, latest);
+        } else Append(view_.frames, latest);
     }
 private:
     static void Append(std::deque<MeterFrame>& bars, MeterFrame added) {
@@ -417,7 +428,7 @@ private:
                 (previous.status != ActorStatus::Skill || previous.action != sample.action || sample.actionFrame < previous.actionFrame);
             if (attackStarted) {
                 if (!armed_[side] || view_.advantage.valid) {
-                    clear(MeasurementUnavailable::NoContact); armed_ = {}; armed_[side] = true;
+                    clear(MeasurementUnavailable::NoContact); armed_ = {}; armed_[side] = true; exchangeAt_ = frame;
                 }
                 // Target combos, special cancels and internal action changes
                 // continue the exchange. The new action has not recovered yet.
@@ -486,6 +497,8 @@ private:
     std::array<MeterCell, 2> lastCells_{};
     // What a held meter has seen since both fighters were last idle (Observe).
     std::deque<MeterFrame> aside_;
+    // When the armed exchange began, on the clock of accepted observations.
+    std::int64_t exchangeAt_ = 0;
     // On the clock of accepted observations; -1 none.
     std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};

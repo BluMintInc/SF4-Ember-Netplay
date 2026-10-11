@@ -352,12 +352,10 @@ public:
         case Action::Clear:
             if (view_.mode != Mode::Idle) return false;
             slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0; return true;
-        // A recording or a playback goes on across a save and a reset; a
-        // reply ends at a reset, which undid the stun it was timed to.
         case Action::Save: return true;
         case Action::Restore:
             if (!view_.checkpoint) return false;
-            StopReply(); ClearHistory(); return true;
+            Rewind(); return true;
         default: return false;
         }
     }
@@ -450,6 +448,18 @@ private:
     }
     void ClearHistory() {
         for (auto& rows : view_.history) rows.clear();
+    }
+    // Back to a checkpoint. What the session saw of the fight (a hit, a free
+    // fighter, a wait's progress) belongs to the timeline the reset undid, and
+    // so does a playback's place in its slot, whose waits that timeline cued:
+    // a playback starts again from its first frame, in step with the restored
+    // positions, and a reply ends, its stun gone. A recording goes on: it only
+    // takes the player's input.
+    void Rewind() {
+        StopReply();
+        if (view_.mode == Mode::Playback) view_.cursor = 0;
+        actionable_ = hit_ = false; untilActionable_ = -1; waited_ = waitedPast_ = 0; lastRaw_ = 0;
+        ClearHistory();
     }
 };
 } }

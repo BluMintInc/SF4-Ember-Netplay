@@ -121,7 +121,7 @@ Open the training controls (F6) and select **Position** for the position rows an
 
 **Save position** keeps both fighters' place, health, meters and dummy state for this battle. **Reset position** restores the saved state. On a pad, a tap of Back (View on an Xbox pad, Select on a DirectInput pad) resets and a hold of half a second saves; Back held while Start is pressed opens or closes the controls instead and does neither.
 
-The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) show the game's own Training menu settings and change them at once. The action row offers Stand, Crouch, Jump and CPU; Human, Record and Playback set in the pause menu are shown by name. Save position and Reset position leave a recording or playback running; a reset ends a reply, whose timing belonged to the stun the reset undid.
+The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) show the game's own Training menu settings and change them at once. The action row offers Stand, Crouch, Jump and CPU; Human, Record and Playback set in the pause menu are shown by name. Save position leaves a recording, a playback or a reply running. Reset position leaves a recording running, starts a playback again from its first frame, in step with the restored positions and with its waits cued by the restored fight, and ends a reply, whose timing belonged to the stun the reset undid.
 
 ### Dummy reply
 

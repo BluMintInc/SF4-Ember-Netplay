@@ -394,7 +394,8 @@ int main() {
         for (int i = 6; i < 50; ++i) meter.Observe(i, fighters);
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
         // A whiff, a walk and a jump leave the held bars as they are; contact
-        // replaces them with what came since the whiff began the exchange it ends.
+        // replaces them with the exchange it ends, which the cancel at frame 5
+        // began and which no reading ever closed.
         fighters[0].status = 16; fighters[0].action = 102; meter.Observe(50, fighters);
         fighters[0].status = 10; fighters[0].action = 5; meter.Observe(51, fighters);
         fighters[0].status = 0; fighters[0].action = 0; meter.Observe(52, fighters);
@@ -402,7 +403,7 @@ int main() {
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "A whiff, a walk or a jump replaced the held exchange");
         fighters[0].status = 16; fighters[0].action = 103; meter.Observe(54, fighters);
         fighters[1].status = 22; fighters[1].action = 201; meter.Observe(55, fighters);
-        Require(!meter.View().frozen && meter.View().frames.size() == 6 && meter.View().frames.front().frame == 50 &&
+        Require(!meter.View().frozen && meter.View().frames.size() == 51 && meter.View().frames.front().frame == 5 &&
             meter.View().frames.back().frame == 55, "Contact did not put its own exchange in the held one's place");
         for (int i = 56; i < 156 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
         Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
@@ -609,6 +610,34 @@ int main() {
                 Require(!thrown.View().frozen && thrown.View().frames.front().frame == thrownAt && thrown.View().frames.size() == 27 &&
                     thrown.View().frames.front().cells[0].phase == Phase::Attack, "The projectile's startup and recovery were lost before it landed");
             }
+            // One thrown while the bars run, whose flight outlasts the half
+            // second that holds them: from a fresh meter, and soon after an
+            // exchange that was measured.
+            for (const bool after : {false, true}) {
+                FrameMeter live; std::array<FighterSample, 2> fireball; int at = 0;
+                const auto frameOf = [&](unsigned own, unsigned other) {
+                    for (int side = 0; side < 2; ++side) {
+                        auto& fighter = fireball[side]; fighter = FighterSample{};
+                        fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false;
+                        fighter.status = side ? other : own; fighter.action = fighter.status ? 100 + side : 0; fighter.actionFrame = static_cast<float>(at);
+                    }
+                    live.Observe(at++, fireball);
+                };
+                frameOf(0, 0); frameOf(0, 0);
+                if (after) {
+                    frameOf(16, 0); frameOf(16, 0); frameOf(16, 22); frameOf(0, 22); frameOf(0, 0);
+                    Require(live.View().advantage.valid, "The exchange before the projectile was not measured");
+                    for (int idle = 0; idle < 5; ++idle) frameOf(0, 0);
+                }
+                Require(!live.View().frozen, "The bars were held before the projectile");
+                const int thrownAt = at;
+                for (int move = 0; move < 6; ++move) frameOf(16, 0);
+                for (int travel = 0; travel < 35; ++travel) frameOf(0, 0);
+                Require(live.View().frozen, "Idle frames during the flight did not hold the bars");
+                frameOf(0, 21);
+                Require(!live.View().frozen && live.View().frames.front().frame == thrownAt && live.View().frames.size() == 42 &&
+                    live.View().frames.front().cells[0].phase == Phase::Attack, "A projectile thrown while the bars ran lost its frames when they were held");
+            }
             attack.lastActiveFrame = -1;
             Require(at(5) == MeterKind::Attack, "An attack with no boundary was split");
             attack.status = 22;
@@ -686,6 +715,34 @@ int main() {
             Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle, "A reset left a reply playing");
             Require(send(Action::Record) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Recording,
                 "A save or a reset stopped a recording");
+        }
+        {
+            // A reset starts a playback again from its first frame, and a wait
+            // in it needs its cue from the restored timeline: neither a hit the
+            // reset undid nor part of a wait's offset after one survives it.
+            Session rewind; rewind.Enter(); rewind.SetReady(true); rewind.SetCheckpoint(true);
+            const auto send = [&](Action action) { Command command; command.action = action; command.generation = rewind.GetView().generation; return rewind.Apply(command); };
+            Command load; load.action = Action::Load; load.generation = rewind.GetView().generation; load.side = 1;
+            load.frames = {Input{2, 2, 0}, Input{8, 8, WaitHit, 2}, Input{0x18, 0x18, 0}};
+            Require(rewind.Apply(load) && send(Action::Play), "The waiting playback did not start");
+            const auto step = [&](bool hit) { rewind.Observe(false, hit); rewind.Commit(rewind.Prepare(Frame{})); };
+            const auto waits = [&] { for (int frame = 0; frame < 3; ++frame) step(false); return rewind.GetView().cursor == 1; };
+            const auto cued = [&] { step(true); step(false); step(false); return rewind.GetView().cursor == 2; };
+            // A hit before the wait, then a reset to before it.
+            step(true);
+            Require(rewind.GetView().cursor == 1, "The playback did not reach its wait");
+            Require(send(Action::Restore) && rewind.GetView().mode == Mode::Playback && rewind.GetView().cursor == 0, "A reset did not start the playback again");
+            step(false);
+            Require(waits(), "A hit the reset undid answered the wait");
+            Require(cued(), "A hit after the reset did not answer the wait");
+            // A reset during the wait's offset after its hit.
+            Require(send(Action::Stop) && send(Action::Play), "The waiting playback did not start again");
+            step(false); step(true); step(false);
+            Require(rewind.GetView().cursor == 1, "The wait's offset ended early");
+            Require(send(Action::Restore) && rewind.GetView().cursor == 0, "A reset did not start the playback again");
+            step(false);
+            Require(waits(), "Part of an offset the reset undid carried over");
+            Require(cued(), "The wait after the reset did not take its own cue and offset");
         }
         {
             // The dummy's action under the hold: HUMAN in the game, the

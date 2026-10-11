@@ -75,6 +75,9 @@ std::minstd_rand dummyRandom{std::random_device{}()};
 // The stretch of stun a reply was last decided for, so each gets one roll.
 unsigned decidedStretch = 0;
 DummyAction dummyAction;
+// Both fighters as the last update left them, which a playback's waits read
+// a hit against (AfterUpdate); a reset reseeds them from the restored state.
+std::array<FighterSample, 2> playbackSeen;
 // Normal shutdown owns this worker. Never join a thread from a DLL destructor
 // while Windows holds the loader lock.
 TrainingCapture* capture = nullptr;
@@ -223,6 +226,7 @@ bool ReadOverride(int side, Input& result) {
 // Applies one command from the panel or the hotkeys; whether it took effect.
 // The session checks every command once, for its battle and whether it can
 // apply now; only then is the game touched.
+std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 static bool Dispatch(Native* system, const Command& command) {
     if (!session.Apply(command)) {
         // A position that was asked for and not saved or put back is the
@@ -251,6 +255,7 @@ static bool Dispatch(Native* system, const Command& command) {
     }
     case Action::Restore: {
         const bool restored = RestoreCheckpoint(system);
+        playbackSeen = ReadFighters(system, false);
         spdlog::info("Training: position {}", restored ? "reset to the saved one" : "not reset");
         return restored;
     }
@@ -410,17 +415,16 @@ void AfterUpdate(Native* system) {
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
-            static std::array<FighterSample, 2> previous;
             const int side = session.GetView().playbackSide;
-            const auto& own = fighters[side], & other = fighters[1 - side];
-            const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(previous[1 - side].status) != Phase::Hit) ||
-                other.comboDamage > previous[1 - side].comboDamage);
+            const auto& own = fighters[side], & other = fighters[1 - side], & before = playbackSeen[1 - side];
+            const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(before.status) != Phase::Hit) ||
+                other.comboDamage > before.comboDamage);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
-            previous = fighters;
+            playbackSeen = fighters;
         }
         if (commitInput) session.Commit(output);
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
@@ -501,7 +505,7 @@ void CloseBattle() {
     if (session.GetView().available) if (int* options = DummyOptions()) ReleaseDummy(options[Manager::OPT_ACTION]);
     playing = {};
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{};
+    matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{}; playbackSeen = {};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }
