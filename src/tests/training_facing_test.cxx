@@ -2,6 +2,7 @@
 // a slot, a loaded file and a typed reply are held for a fighter facing right
 // and played for the way the fighter faces on each frame, a recording is held
 // that way whichever side it was made on, and Mirror turns a slot by hand.
+#include "../training/FighterPlacement.hxx"
 #include "../training/MoveInputs.hxx"
 #include <algorithm>
 #include <cstdio>

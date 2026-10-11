@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include "TrainingCapture.hxx"
+#include "FighterPlacement.hxx"
 #include "BacFile.hxx"
 #include "GameFiles.hxx"
 #include "ConfirmedSamples.hxx"
