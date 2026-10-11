@@ -42,43 +42,38 @@ enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, Clea
 // super, revenge: the gauge settings as the menu stores them, 0 normal, 5
 // max at round start, 7 infinite, 8 refill.
 struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -1, stun = -1, super = -1, revenge = -1; };
-// The action that gives the dummy Player 2's pad input, which Ember overrides.
-constexpr int DummyHuman = 4;
-// The dummy's Training-menu action, held on HUMAN while Ember drives Player 2
-// (DrivesDummy), so the player never sets it. The player's own action is kept
-// and put back when the hold ends; edits during the hold change what is put
-// back. Ember owns the game's value only while it is still HUMAN: any other
-// value found there was set from outside (the pause menu), which ends the
-// hold, and that value stands. Hold, Release and Reconcile each look for that
-// first and return true when they found it. Only the game thread owns this.
-class DummyAction {
+// When the dummy plays from Player 2's pad input, which Ember overrides while
+// it drives Player 2 (DrivesDummy). The game plays the dummy by its own logic,
+// which follows the Training menu's Action and Guard, and plays a side from
+// its pad only when the side's control says so; Ember gives Player 2 that
+// control for exactly the updates that act on Ember's input and the game's
+// own back after, so the menu's settings, blocking among them, hold
+// everywhere else and the player never sets anything. An input reaches the
+// fighters lag updates after the one it is read in (0, or 1 as the game
+// has it offline), so the pad control starts and ends that much later.
+// The Action the pad control began under stays the player's: a different one
+// found there was picked in the pause menu, which ends the pad control
+// (Taken) so that choice stands. Ember changes it only through Set. Only the
+// game thread owns this.
+class DummyControl {
 public:
-    int Read(int native) const { return Owns(native) ? player_ : native; }
-    void Set(int& native, int value) { if (Owns(native)) player_ = value; else native = value; }
-    bool Held() const { return held_; }
-    bool Reconcile(int native) {
-        if (!held_ || native == DummyHuman) return false;
-        held_ = false; return true;
+    enum class Step { None, Begin, Keep, End, Taken };
+    // Before each update. drives: Ember plays Player 2's input in it.
+    // action: the Training menu's Action now.
+    Step Follow(bool drives, int lag, int action) {
+        const bool pad = lag > 0 ? drove_ : drives;
+        drove_ = drives;
+        if (pad_ && action != action_) { pad_ = drove_ = false; return Step::Taken; }
+        if (pad == pad_) return pad ? Step::Keep : Step::None;
+        pad_ = pad; action_ = action;
+        return pad ? Step::Begin : Step::End;
     }
-    // Each frame Ember drives Player 2.
-    bool Hold(int& native) {
-        if (Reconcile(native)) return true;
-        if (!held_) { player_ = native; held_ = true; native = DummyHuman; }
-        return false;
-    }
-    bool Release(int& native) {
-        const bool taken = Reconcile(native);
-        if (held_) native = player_;
-        held_ = false; return taken;
-    }
-    // A checkpoint was put back with the action it was saved with: player,
-    // what Read gave after Reconcile and before the load, under the hold if
-    // there still is one.
-    void Restored(int& native, int player) const { native = held_ ? DummyHuman : player; }
+    void Set(int& native, int value) { native = value; action_ = value; }
+    // The battle closes: whether the pad control was on.
+    bool Release() { const bool was = pad_; pad_ = drove_ = false; return was; }
 private:
-    bool Owns(int native) const { return held_ && native == DummyHuman; }
-    int player_ = -1;
-    bool held_ = false;
+    bool pad_ = false, drove_ = false;
+    int action_ = -1;
 };
 constexpr int GaugeValues[] = {0, 5, 7, 8};
 inline bool operator==(const DummyState& a, const DummyState& b) {
@@ -169,7 +164,8 @@ inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
     return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
 // Whether a reply should start after this frame's observation: its first
-// attack button, lead frames in, then meets the free frame (plus timing).
+// attack button, acted on lead frames in (its ReplyLead and the input lag),
+// then meets the free frame (plus timing).
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
 }
@@ -282,7 +278,7 @@ struct View {
 };
 
 // Whether Ember plays Player 2 this frame: a recording, or a playback (a
-// reply among them) on its side. The dummy's action is held on HUMAN then.
+// reply among them) on its side. The dummy plays from the pad then (DummyControl).
 inline bool DrivesDummy(const View& view) {
     return view.mode == Mode::Recording || (view.mode == Mode::Playback && view.playbackSide == 1);
 }

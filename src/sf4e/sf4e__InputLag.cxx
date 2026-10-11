@@ -78,6 +78,10 @@ void fInputLag::CloseBattle() {
 		spdlog::warn("Input lag: the battle's input store could not be put back; matches that need it native will not start");
 }
 
+bool fInputLag::BattleInputLowered() {
+	return sf4e::code_edit::Reads(Store(), true);
+}
+
 void fInputLag::BeforePadUpdate(bool setting) {
 	// The game's own pass, through the hook's trampoline. It still waits for
 	// the pad update's request (+0x10), so the keyboard stays frozen while the

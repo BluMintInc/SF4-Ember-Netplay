@@ -26,6 +26,9 @@ namespace sf4e {
 		void BeforeBattleFrame(bool setting);
 		// The battle closed: the game's own bytes come back.
 		void CloseBattle();
+		// Whether this battle's fighters act on an input in the frame it is
+		// read, rather than the frame after as the game does.
+		bool BattleInputLowered();
 		// Before the native pad update, with the keyboard row's setting.
 		void BeforePadUpdate(bool setting);
 	}

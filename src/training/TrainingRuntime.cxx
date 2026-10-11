@@ -14,6 +14,7 @@
 #include "../Dimps/Dimps__Sound.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../sf4e/sf4e__InputDevices.hxx"
+#include "../sf4e/sf4e__InputLag.hxx"
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__Pad.hxx"
 #include <mutex>
@@ -74,7 +75,7 @@ DummyWatch dummyWatch;
 std::minstd_rand dummyRandom{std::random_device{}()};
 // The stretch of stun a reply was last decided for, so each gets one roll.
 unsigned decidedStretch = 0;
-DummyAction dummyAction;
+DummyControl dummyControl;
 // Both fighters as the last update left them, which a playback's waits read
 // a hit against (AfterUpdate); a reset reseeds them from the restored state.
 std::array<FighterSample, 2> playbackSeen;
@@ -121,23 +122,15 @@ int* DummyOptions() {
     if (!manager && !warned) { warned = true; spdlog::warn("Training: the game's training options are not reachable; dummy settings stay as they are"); }
     return manager ? Manager::GetOptions(manager) : nullptr;
 }
-// The pause menu set the dummy's action over the hold (DummyAction): that
-// action stands, and what Ember plays on Player 2 stops, so it is not held again.
-void DummyTaken(int action) {
-    spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
-    session.Apply({Action::Stop, session.GetView().generation});
-}
 // Back to the checkpoint; false when the engine did not come back whole,
 // after which the battle is left rather than played on. The checkpoint puts
-// back the dummy action it was saved with, maybe the hold's: the action
-// found before it stands, under the hold if Ember still plays Player 2.
+// back the dummy action it was saved with, and the dummy's control is not in
+// it: the action found before it stands, so the two still agree.
 bool RestoreCheckpoint(Native* system) {
     int* options = DummyOptions();
-    const bool taken = options && dummyAction.Reconcile(options[Manager::OPT_ACTION]);
-    const int action = options ? dummyAction.Read(options[Manager::OPT_ACTION]) : -1;
+    const int action = options ? options[Manager::OPT_ACTION] : -1;
     const bool restored = Battle::SaveState::Load(&checkpoint);
-    if (options) dummyAction.Restored(options[Manager::OPT_ACTION], action);
-    if (taken) DummyTaken(action);
+    if (options) options[Manager::OPT_ACTION] = action;
     meter.Reset(); dummyWatch.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
@@ -157,33 +150,51 @@ void LogPlaying(const Playing& what, const char* change) {
     if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
     else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
 }
-void ReleaseDummy(int& action) {
-    if (!dummyAction.Held()) return;
-    if (dummyAction.Release(action)) spdlog::info("Training: dummy action set to {} in the pause menu stands", action);
-    else spdlog::info("Training: dummy action {} put back", action);
+// Updates from the one an input is read in to the one the fighters act on it.
+int InputLag() { return sf4e::InputLag::BattleInputLowered() ? 0 : 1; }
+// Player 2's control back to the one the Training menu set, as the game puts
+// it when the pause menu closes.
+void ReturnDummyControl(Native* system) {
+    int* control = Native::GetPlayerControl(system, 1);
+    if (!control) return;
+    const int was = *control;
+    *control = *Native::GetMenuPlayerControl(system, 1);
+    spdlog::info("Training: Player 2's control back to {} from {}", *control, was);
 }
-// Before each update: the dummy's action is held on HUMAN while Ember plays
-// Player 2 and the player's is put back after, so the game reads Player 2's
-// input (ReadOverride) from the first frame Ember plays it. A different
-// action picked in the pause menu meanwhile stops what Ember plays rather
-// than being overwritten.
-void FollowDummy() {
+// Before each update: Player 2 plays from the pad while the fighters act on
+// what Ember plays there (DummyControl), from its first input to its last,
+// and the dummy's own control is put back after. A different action picked
+// in the pause menu meanwhile stops what Ember plays.
+void FollowDummy(Native* system) {
     const auto& view = session.GetView();
     const Playing now{view.mode, view.selected, view.playbackSide, session.Replying()};
     if (!(now == playing)) { LogPlaying(playing, "ended"); LogPlaying(now, "started"); playing = now; }
     int* options = DummyOptions();
-    if (!options) return;
-    int& action = options[Manager::OPT_ACTION];
-    if (!DrivesDummy(view)) { ReleaseDummy(action); return; }
-    const bool held = dummyAction.Held();
-    if (dummyAction.Hold(action)) DummyTaken(action);
-    else if (!held) spdlog::info("Training: dummy action {} held on HUMAN while Ember plays Player 2", dummyAction.Read(action));
+    int* control = Native::GetPlayerControl(system, 1);
+    if (!options || !control) return;
+    const int action = options[Manager::OPT_ACTION], lag = InputLag();
+    switch (dummyControl.Follow(DrivesDummy(view), lag, action)) {
+    case DummyControl::Step::Begin:
+        spdlog::info("Training: Player 2 plays from the pad (control {} to {}, action {}, input lag {})",
+            *control, static_cast<int>(Native::PC_PAD), action, lag);
+        *control = Native::PC_PAD;
+        break;
+    // The pause menu closing puts the menu's control back over it.
+    case DummyControl::Step::Keep: *control = Native::PC_PAD; break;
+    case DummyControl::Step::End: ReturnDummyControl(system); break;
+    case DummyControl::Step::Taken:
+        spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
+        ReturnDummyControl(system);
+        session.Apply({Action::Stop, view.generation});
+        break;
+    case DummyControl::Step::None: break;
+    }
 }
 }
 void WriteDummyState(const DummyState& state) {
     int* options = DummyOptions();
     if (!options) return;
-    if (state.action >= 0) dummyAction.Set(options[Manager::OPT_ACTION], state.action);
+    if (state.action >= 0) dummyControl.Set(options[Manager::OPT_ACTION], state.action);
     if (state.guard >= 0) options[Manager::OPT_GUARD] = state.guard;
     if (state.quickStand >= 0) options[Manager::OPT_QUICK_STAND] = state.quickStand;
     if (state.counterHit >= 0) options[Manager::OPT_COUNTER_HIT] = state.counterHit;
@@ -195,7 +206,7 @@ DummyState ReadDummyState(const DummyState& fallback) {
     const int* options = DummyOptions();
     if (!options) return fallback;
     DummyState state;
-    state.action = dummyAction.Read(options[Manager::OPT_ACTION]); state.guard = options[Manager::OPT_GUARD];
+    state.action = options[Manager::OPT_ACTION]; state.guard = options[Manager::OPT_GUARD];
     state.quickStand = options[Manager::OPT_QUICK_STAND]; state.counterHit = options[Manager::OPT_COUNTER_HIT];
     state.stun = options[Manager::OPT_STUN];
     state.super = options[Manager::OPT_SC_GAUGE]; state.revenge = options[Manager::OPT_REVENGE_GAUGE];
@@ -279,7 +290,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     std::deque<Command> pending;
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
     for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
-    FollowDummy();
+    FollowDummy(system);
     // The countdown follows the call that stands for this battle, before it
     // ticks, so a call that has ended can never take the battle away and a
     // go now taken for the call is never lost (TrainingSession.hxx).
@@ -440,17 +451,17 @@ void AfterUpdate(Native* system) {
             const bool typed = !dummyPlan.moves[0].empty();
             const auto& frames = typed ? dummyPlan.moves[session.GetView().x[1] < session.GetView().x[0] ? 0 : 1] : session.Slot(dummyPlan.slot);
             const int cause = seen.freed ? seen.freed : seen.held;
-            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames), dummyPlan.timing)) {
+            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames) + InputLag(), dummyPlan.timing)) {
                 decidedStretch = seen.stretch;
                 if (DummyReplies(dummyPlan, cause, dummyRandom())) {
-                    // Ember plays the reply from the next update, which holds the dummy for it (FollowDummy).
+                    // Ember plays the reply from the next update, and the dummy from the pad (FollowDummy).
                     if (!(typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && !typed && frames.empty())
                         spdlog::info("Training: no reply, slot {} is empty", dummyPlan.slot + 1);
                 }
             }
             if (seen.freed && dummyPlan.varyStance && options) {
-                const int action = dummyAction.Read(options[Manager::OPT_ACTION]);
-                if (action == 0 || action == 1) dummyAction.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
+                const int action = options[Manager::OPT_ACTION];
+                if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
             }
         }
         if (!capture) capture = new TrainingCapture();
@@ -502,10 +513,10 @@ void CloseBattle() {
     gapResets = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-    if (session.GetView().available) if (int* options = DummyOptions()) ReleaseDummy(options[Manager::OPT_ACTION]);
+    if (dummyControl.Release()) if (Native* system = Native::staticMethods.GetSingleton()) ReturnDummyControl(system);
     playing = {};
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{}; playbackSeen = {};
+    matchPractice = false; dummyWatch.Reset(); playbackSeen = {};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

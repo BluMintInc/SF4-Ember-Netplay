@@ -84,6 +84,15 @@ Request** System::GetRequest(System* s) {
     return (Request**)((unsigned int)s + 0x98);
 }
 
+int* System::GetPlayerControl(System* s, int side) {
+    BYTE* players = *(BYTE**)((unsigned int)s + 0x9c);
+    return players ? (int*)(players + side * 0x2b8 + 0x1c) : nullptr;
+}
+
+int* System::GetMenuPlayerControl(System* s, int side) {
+    return (int*)((unsigned int)s + 0x6d8 + side * 0x2b8 + 0x1c);
+}
+
 DWORD* System::GetSkipRelatedFlags_0xd8c(System* s) {
     return (DWORD*)((unsigned int)s + 0xd8c);
 }

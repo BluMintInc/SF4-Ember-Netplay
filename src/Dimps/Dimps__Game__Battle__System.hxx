@@ -115,6 +115,19 @@ namespace Dimps {
                     RS_HALTED = 0x7,
                 };
 
+                // Who plays a side (GetPlayerControl). Everything that picks a
+                // fighter's next action tests for PC_DUMMY: 0x599520 and
+                // 0x59A6A0 send it to the dummy's own logic, which follows the
+                // Training menu's Action and Guard (0x598A00) and allows no
+                // move of its own unless the Action is CPU (0x5996F0); any
+                // other value plays the side from its pad input.
+                enum PlayerControl {
+                    PC_PAD = 0,
+                    PC_DUMMY = 2,
+                    // The pause menu's own Record and Playback.
+                    PC_MENU_RECORDER = 3,
+                };
+
                 typedef struct __staticVars {
                     DWORD* CurrentBattleFlow;
                     DWORD* PreviousBattleFlow;
@@ -191,6 +204,19 @@ namespace Dimps {
                 static int* GetReadyState(System* s);
                 static Eva::EmRandom* GetRandom(System* s);
                 static Request** GetRequest(System* s);
+                // A side's PlayerControl as the battle plays it, null outside a
+                // battle. The battle keeps two copies of its players, 0x2B8
+                // bytes a side with the control at +0x1C: the one it plays
+                // (+0xA0, read through the pointer at +0x9C, 0x5D9770) and the
+                // one the Training menu sets (+0x6D8). The Action is turned
+                // into the menu's copy only when the pause menu closes or the
+                // battle starts (0x5D8D90: 4 is PC_PAD, 5 and 6 are
+                // PC_MENU_RECORDER, any other PC_DUMMY), and 0x5D8AB0 then
+                // copies it over the played one, so writing the Action alone
+                // changes no control. Neither copy is in the battle's memento.
+                static int* GetPlayerControl(System* s, int side);
+                // The same side's control in the menu's copy.
+                static int* GetMenuPlayerControl(System* s, int side);
                 static DWORD* GetSkipRelatedFlags_0xd8c(System* s);
                 static DWORD* GetSimulationFlags(System* s);
                 static int* GetPausingPlayer(System* s);

@@ -34,12 +34,18 @@ namespace Dimps {
 					// The pause menu's TRAINING OPTIONS, in menu order: 14 ints at
 					// +0x8 that the virtual getter (vtable +0x10) and setter (+0x14)
 					// index directly. The dummy driver and the hit code read them
-					// through Battle::System every frame, so a write applies at
-					// once. Values are the menu's choice indices, except the
-					// gauges (0 normal, 5 max, 7 infinite, 8 refill).
+					// through Battle::System every frame (vtable +0x15C, 0x5D6CB0),
+					// so a write applies at once, apart from what the Action
+					// decides when the pause menu closes (OPT_ACTION). Values are
+					// the menu's choice indices, except the gauges (0 normal, 5
+					// max, 7 infinite, 8 refill).
 					enum Option {
 						// stand, crouch, jump, cpu, human (the dummy takes Player 2's
 						// pad input), then the menu's own record (5) and playback (6).
+						// Stand to CPU are read live; human, record and playback are
+						// the side's control, which the battle derives from this
+						// only when the pause menu closes
+						// (System::GetPlayerControl).
 						OPT_ACTION = 0,
 						// no block, after first hit, all, random
 						OPT_GUARD = 1,

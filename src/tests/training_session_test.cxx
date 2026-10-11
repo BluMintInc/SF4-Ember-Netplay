@@ -745,44 +745,39 @@ int main() {
             Require(cued(), "The wait after the reset did not take its own cue and offset");
         }
         {
-            // The dummy's action under the hold: HUMAN in the game, the
-            // player's own kept and put back, edits during the hold kept for then.
-            DummyAction action; int native = 1;
-            Require(!action.Hold(native) && native == DummyHuman && action.Held() && action.Read(native) == 1, "The hold did not set HUMAN or lost the player's action");
-            action.Set(native, 2);
-            Require(!action.Hold(native) && native == DummyHuman && action.Read(native) == 2, "An edit during the hold reached the game or was lost");
-            Require(!action.Release(native) && !action.Release(native), "Putting the action back was taken for a pause-menu change");
-            Require(native == 2 && !action.Held() && action.Read(native) == 2, "The hold did not put the edited action back");
-            action.Set(native, 0);
-            Require(native == 0 && action.Read(native) == 0, "An idle edit did not reach the game");
-            // A checkpoint saved under the hold puts back HUMAN: the action
-            // found before it stands outside the hold, and the hold's inside it.
-            native = DummyHuman; action.Restored(native, 0);
-            Require(native == 0, "A reset left the dummy on the hold's HUMAN");
-            action.Hold(native); native = 3; action.Restored(native, 0);
-            Require(native == DummyHuman && !action.Hold(native) && action.Read(native) == 0, "A reset under the hold ended it or lost the player's action");
-            // An action picked in the pause menu over the hold (CPU over the
-            // player's Crouch) ends it and stands, whichever change of hands
-            // comes next: the next frame, a stop, the battle's end or a reset.
-            const auto taken = [&] { DummyAction held; native = 1; held.Hold(native); native = 3; return held; };
-            {
-                auto held = taken();
-                Require(held.Hold(native) && native == 3 && !held.Held() && held.Read(native) == 3, "The hold overwrote the pause menu's choice");
-            }
-            {
-                // A stop or the battle's end puts nothing back over it.
-                auto held = taken();
-                Require(held.Read(native) == 3, "The pause menu's choice read as the player's old one");
-                Require(held.Release(native) && native == 3 && !held.Held(), "Putting the action back overwrote the pause menu's choice");
-                Require(!held.Release(native) && native == 3, "A second release changed the action");
-            }
-            {
-                // A reset: Reconcile, Read and the load, then Restored.
-                auto held = taken();
-                const bool found = held.Reconcile(native); const int before = held.Read(native);
-                native = DummyHuman; held.Restored(native, before);
-                Require(found && before == 3 && native == 3 && !held.Held(), "A reset put the hold or the player's old action over the pause menu's choice");
-            }
+            // The dummy plays from the pad for the updates that act on Ember's
+            // input: from the first one Ember drives, input lag later, to the
+            // last one, as late again, and its own control stands around them.
+            using Step = DummyControl::Step;
+            const auto steps = [](int lag, std::vector<bool> drives) {
+                DummyControl control; std::vector<Step> seen;
+                for (const bool drive : drives) seen.push_back(control.Follow(drive, lag, 0));
+                return seen;
+            };
+            Require(steps(0, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::Begin, Step::Keep, Step::End, Step::None},
+                "With no input lag the pad did not cover exactly the driven updates");
+            Require(steps(1, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::None, Step::Begin, Step::Keep, Step::End},
+                "With a frame of input lag the pad did not start and end a frame later");
+            Require(steps(1, {true, false, true, false}) == std::vector<Step>{Step::None, Step::Begin, Step::End, Step::Begin},
+                "A one-update gap between two drives did not give the dummy its own control for that update");
+            // Ember's own changes to the action keep the pad; one from the
+            // pause menu ends it and stands, and nothing begins again from the
+            // update before it.
+            DummyControl control; int native = 0;
+            Require(control.Follow(true, 0, native) == Step::Begin, "The pad did not begin");
+            control.Set(native, 1);
+            Require(native == 1 && control.Follow(true, 0, native) == Step::Keep, "Ember's own change to the action ended the pad");
+            native = 3;
+            Require(control.Follow(true, 0, native) == Step::Taken && native == 3, "A pause-menu action did not end the pad");
+            DummyControl lagged; native = 0;
+            lagged.Follow(true, 1, native);
+            Require(lagged.Follow(true, 1, native) == Step::Begin && lagged.Follow(true, 1, 3) == Step::Taken,
+                "A pause-menu action under input lag did not end the pad");
+            Require(lagged.Follow(false, 1, 3) == Step::None, "The pad began again after a pause-menu action");
+            // The battle closes with the pad on, and with it off.
+            DummyControl closing;
+            closing.Follow(true, 0, 0);
+            Require(closing.Release() && !closing.Release() && closing.Follow(false, 0, 0) == Step::None, "Closing the battle misreported the pad");
         }
         {
             // The dummy's own reply: what it came out of, how long it stays there, and what it plays.
