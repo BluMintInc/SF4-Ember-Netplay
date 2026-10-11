@@ -18,7 +18,7 @@ namespace sf4e {
         bool HasInputFocus();
         // The menu's opens and its hold on the pads (OverlayPresentation.hxx):
         // the pad update says where the game is, first in each update, and
-        // polls the pads behind another window while the menu holds them.
+        // polls the pads behind another window while the menu takes them.
         ui::MenuPads& MenuPads();
         void RequestMainControls();
         // Game thread: what the pad's Back and Start ask for in offline

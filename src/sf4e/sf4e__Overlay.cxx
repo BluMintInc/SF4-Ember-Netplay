@@ -76,19 +76,19 @@ static std::atomic<bool> s_menuAvailable{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 // The window's keys and mouse are Ember's while its menu is shown with the
-// focus or the training controls are open (TrainingPad.hxx: CapturesInput);
-// the game's pads while the menu holds them, focus or not, or those controls are open.
+// focus or the training controls are open (TrainingPad.hxx: CapturesInput).
+// The game's pads have two owners and no other: the menu's (MenuPads), focus
+// or not, and the training controls'.
 static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
-bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(capture.load() || s_menuPads.Holds(), s_trainingControls); }
+bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads.Holds(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
-// Start at the main menu, in front or behind another window. The request
-// holds the pads at once, until the frame that takes it has shown the menu
-// (MenuPads), so the press never reaches the native menu; the keys and the
-// mouse are taken only with the focus.
+// Start at the main menu. The request holds the pads at once, until the
+// frame that takes it has shown the menu (MenuPads), so the press never
+// reaches the native menu. Behind another window it counts only where a pad
+// update has placed the game at the main menu.
 void Overlay::RequestMainControls() {
-    if (focused) capture = true;
-    s_menuPads.Request(sf4e::ui::MenuPads::Kind::Controls);
+    if (focused || s_menuPads.StartOpens()) s_menuPads.Request(sf4e::ui::MenuPads::Kind::Controls);
 }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
@@ -673,6 +673,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
 }
 void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
+    s_menuPads.Reset();
     trainingAvailable = false; replayPlayback = false;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");

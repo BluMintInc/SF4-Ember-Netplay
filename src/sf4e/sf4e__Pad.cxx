@@ -28,9 +28,10 @@ fSystem::Inputs fSystem::playbackData[PLAYBACK_MAX][2];
 int fSystem::playbackFrame = -1;
 namespace {
 std::atomic<bool> inputBlocked{false};
-// This update's pads were polled behind another window for Ember's menu
-// alone (BackgroundPlay::PolicyFor): the game is given none of them.
-std::atomic<bool> menuOnlyInput{false};
+// The last update's input was read behind another window for Ember alone
+// (BackgroundPlay::HidesInput), decided once where it was published: the
+// caches are cleared and the getters give the game nothing.
+std::atomic<bool> hiddenInput{false};
 }
 bool fPad::MenuInputBlocked() { return inputBlocked.load(); }
 
@@ -69,15 +70,18 @@ void fSystem::UpdateInputs() {
     // it, and so does go now while a call back from Training offers it.
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
-    const bool menuOnly=sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
-        sf4e::replaystore::Exporting(),watching,
-        sf4e::input::MenuTakesPads(menuPads.Holds(),snapshot.menuContext,fighting)||callOffered));
-    menuOnlyInput=menuOnly;
+    const auto policy=sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
+        sf4e::replaystore::Exporting(),watching,menuPads.Takes()||callOffered);
+    sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
     // This is the native input publication boundary (00512180). Both
     // players' held/rising/falling/repeat caches are complete before any
     // event, including native pause, reads them. The provider stays intact.
+    // Whether the game is given this input is decided here, with the window
+    // as it stands now, and holds for the caches and the getters alike.
+    const bool hidden=sf4e::BackgroundPlay::HidesFromGame(policy);
+    hiddenInput=hidden;
     const auto& device=snapshot.inputDevice;
     unsigned mapped=0,physical=0;
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
@@ -143,7 +147,7 @@ void fSystem::UpdateInputs() {
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||menuOnly,held);
+    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
     inputBlocked=blocked;
     // Native Start is untouched while Ember is closed; an open overlay,
     // including the training controls, captures all inputs until release,
@@ -167,7 +171,7 @@ unsigned int fSystem::ReadButtons(int pindex, bool raw) {
     static unsigned int held[2][2]{};
     if (pindex < 0 || pindex >= 2) return buttons;
     unsigned int& captured = held[raw ? 1 : 0][pindex];
-    if (sf4e::Overlay::CapturesMenuInput() || menuOnlyInput.load()) { captured = buttons; return 0; }
+    if (sf4e::Overlay::CapturesMenuInput() || hiddenInput.load()) { captured = buttons; return 0; }
     // Release each captured button before returning it to the native menu.
     captured &= buttons;
     return buttons & ~captured;

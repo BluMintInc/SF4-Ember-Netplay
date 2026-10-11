@@ -32,7 +32,7 @@ namespace sf4e {
 		};
 		// The policy for the setting, a replay being exported as a video, a
 		// room's match this PC only watches, and Ember taking the pads: its menu
-		// (input::MenuTakesPads) or go now on a call back from Training. An
+		// (ui::MenuPads::Takes) or go now on a call back from Training. An
 		// export is heard wherever the window is; a
 		// watched match runs on but stays muted behind as before. The menu
 		// changes only what is polled, never the sound or the running.
@@ -52,10 +52,16 @@ namespace sf4e {
 		void Activate();
 		// Game thread, before the native pad update: records the policy and
 		// does what the update's focus gate did, minus the pads when they are
-		// polled behind another window. True when they were polled there for
-		// the menu alone: the caller then hides this update's input from the
-		// game, as the menu's capture does.
-		bool BeforePadUpdate(Dimps::Pad::System* system, const Policy& policy);
+		// polled behind another window.
+		void BeforePadUpdate(Dimps::Pad::System* system, const Policy& policy);
+		// Whether the game is given none of an update's input: the pads were
+		// polled behind another window for Ember alone. Asked where the update
+		// publishes its input, with the window as it stands there, so a window
+		// that went behind after the gate before the update still keeps from
+		// the game what was read for Ember.
+		inline bool HidesInput(const Policy& policy, bool windowInFront) { return policy.menuOnly && !windowInFront; }
+		// Game thread, after the native pad update: HidesInput for the window now.
+		bool HidesFromGame(const Policy& policy);
 		// The game's window, as the last pad update found it; null before.
 		HWND__* GameWindow();
 	}

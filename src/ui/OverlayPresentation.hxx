@@ -1,6 +1,6 @@
 #pragma once
-#include <atomic>
 #include <cstdint>
+#include <mutex>
 #include "../common/BattlePause.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../common/MenuInputCapture.hxx"
@@ -51,68 +51,73 @@ private:
     netplay::MatchState previousMatch_ = netplay::MatchState::None;
 };
 
-// The game thread asks the drawing thread to open the shell: the native
-// Network item wants the Play page, the pad's Start only the shell. Only the
-// drawing thread touches the presentation and the shell's navigation, so a
-// request waits for its next frame. Requests arriving before then coalesce,
-// and Play outranks Controls.
-class OpenRequests {
+// The game's pads and Ember's menu: one owner, under one lock, for what both
+// threads touch. The menu holds the pads while it is shown or an open waits
+// for a frame's answer, and only where the game thread last placed it.
+//
+// The game thread asks for opens (the pad's Start wants the shell, the native
+// Network item its Play page; opens before the next frame coalesce, and Play
+// outranks Controls) and says, first in each pad update, where the game is.
+// The menu may hold the pads only where the presentation is available: never
+// while a match is prepared or played, nor after it until the game is back
+// at the main menu or over an export, and elsewhere only for AwayFrames,
+// which ride out the native menu's brief drops. So what the drawing thread
+// last published never holds the pads once the menu has gone, even with no
+// frame drawn to say it hid.
+//
+// The drawing thread takes the opens, then publishes the menu shown or not
+// together with the opens it answered, in one step. An open therefore holds
+// the pads from the moment it is asked until the frame that took it has
+// shown the menu, with no moment between where a reader sees neither.
+class MenuPads {
 public:
     enum class Kind : int { None = 0, Controls = 1, Play = 2 };
-    void Post(Kind kind) {
-        int current = value_.load();
-        while (current < static_cast<int>(kind) && !value_.compare_exchange_weak(current, static_cast<int>(kind))) {}
+    struct Taken { Kind kind = Kind::None; std::uint32_t through = 0; };
+    // Game thread.
+    void Request(Kind kind) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (kind > kind_) kind_ = kind;
+        ++posted_;
     }
-    Kind Take() { return static_cast<Kind>(value_.exchange(static_cast<int>(Kind::None))); }
-private:
-    std::atomic<int> value_{0};
-};
-
-// Where Ember's menu may hold the game's pads, decided on the game thread
-// from the context each pad update sees, as the presentation decides where
-// the menu is available: never while a match is prepared or played, nor
-// after it until the game is back where the menu can be shown (the main
-// menu, or over an export), and away from there only for the presentation's
-// AwayFrames, which ride out the native menu's brief drops.
-class ShellPadPlace {
-public:
-    bool Update(input::MenuContext context, bool fighting) {
+    void Place(input::MenuContext context, bool fighting) {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (fighting) away_ = OverlayPresentation::AwayFrames;
         else if (context == input::MenuContext::MainMenu || context == input::MenuContext::ReplayExport) away_ = 0;
         else if (away_ < OverlayPresentation::AwayFrames) ++away_;
-        return away_ < OverlayPresentation::AwayFrames;
+        startOpens_ = !fighting && input::ControllerOpensMenu(context);
     }
+    // Start opens the menu where the game was last placed.
+    bool StartOpens() const { std::lock_guard<std::mutex> lock(mutex_); return startOpens_; }
+    // Drawing thread.
+    Taken Take() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const Taken taken{kind_, posted_};
+        kind_ = Kind::None;
+        return taken;
+    }
+    void Publish(bool shown, const Taken& taken) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        shown_ = shown; answered_ = taken.through;
+    }
+    // The overlay is gone (a display reset): the opens waiting are dropped and
+    // nothing is shown until a frame says so again.
+    void Reset() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        kind_ = Kind::None; answered_ = posted_; shown_ = false;
+    }
+    // Any thread: the menu holds the pads, and it takes them, which it also
+    // does where Start opens it; they are then polled behind another window.
+    bool Holds() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked(); }
+    bool Takes() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked() || startOpens_; }
 private:
-    // Away until the first update where the menu can be shown.
-    unsigned away_ = OverlayPresentation::AwayFrames;
-};
-
-// The game's pads and Ember's menu: one owner for what both threads touch.
-// The game thread asks for opens and says, first in each pad update, where
-// the game is; the drawing thread takes the opens and publishes the menu
-// shown or not. The menu holds the pads while it is shown or an open waits
-// for its frame's answer, and only where it may hold them (ShellPadPlace).
-// So what the drawing thread last published never holds the pads once the
-// menu has gone, even with no frame drawn to say it hid; and the press that
-// asked for an open never reaches the game, even when it comes after a
-// frame took the requests and before that frame published the menu hidden.
-class MenuPads {
-public:
-    using Kind = OpenRequests::Kind;
-    struct Taken { Kind kind = Kind::None; std::uint32_t through = 0; };
-    // Game thread.
-    void Request(Kind kind) { requests_.Post(kind); posted_.fetch_add(1); }
-    void Place(input::MenuContext context, bool fighting) { mayHold_ = place_.Update(context, fighting); }
-    // Drawing thread: the open this frame answers, then, once it has decided,
-    // the menu shown or not and those opens answered, in that order.
-    Taken Take() { Taken taken; taken.through = posted_.load(); taken.kind = requests_.Take(); return taken; }
-    void Publish(bool shown, const Taken& taken) { shown_ = shown; answered_ = taken.through; }
-    // Any thread.
-    bool Holds() const { return mayHold_.load() && (shown_.load() || posted_.load() != answered_.load()); }
-private:
-    OpenRequests requests_;
-    ShellPadPlace place_;
-    std::atomic<std::uint32_t> posted_{0}, answered_{0};
-    std::atomic<bool> shown_{false}, mayHold_{false};
+    bool HoldsLocked() const { return away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_); }
+    mutable std::mutex mutex_;
+    Kind kind_ = Kind::None;
+    std::uint32_t posted_ = 0, answered_ = 0;
+    bool shown_ = false, startOpens_ = false;
+    // Updates away from where the menu can be shown. Until the first pad
+    // update nothing reads the pads, and an open asked for then holds them as
+    // at the main menu.
+    unsigned away_ = 0;
 };
 } }

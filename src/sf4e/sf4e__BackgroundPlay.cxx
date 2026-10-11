@@ -145,7 +145,7 @@ void sf4e::BackgroundPlay::Activate() {
 
 HWND sf4e::BackgroundPlay::GameWindow() { return gameWindow.load(); }
 
-bool sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& policy) {
+void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& policy) {
     const rMain::Win32_WindowData* const data = WindowData();
     gameWindow.store(data ? data->hWnd : nullptr);
     keepSound.store(policy.keepSound);
@@ -158,15 +158,18 @@ bool sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& p
         if (unavailable) spdlog::warn("Background play: unavailable, {}", unavailable);
         else spdlog::info("Background play: available");
     }
-    if (!ready.load() || !*rPad::System::GetUpdating(system) || WindowInFront()) return false;
+    if (!ready.load() || !*rPad::System::GetUpdating(system) || WindowInFront()) return;
     if (!policy.backgroundInput) {
         (system->*rPad::System::publicMethods.ClearInputs)(0, 0, 0, 0, 1);
-        return false;
+        return;
     }
     // Key releases do not reach a window behind another, so a key held at
     // alt-tab would stay down. The pads stay live: the native gate's clear
     // would empty the devices Ember's menu reads them from too.
     if (auto* keyboards = rPad::System_RawInput::staticMethods.GetSingleton())
         (keyboards->*rPad::System_RawInput::publicMethods.ClearKeys)();
-    return policy.menuOnly;
+}
+
+bool sf4e::BackgroundPlay::HidesFromGame(const Policy& policy) {
+    return ready.load() && HidesInput(policy, WindowInFront());
 }

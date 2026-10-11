@@ -183,14 +183,6 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
- // Ember's menu keeps the pads behind another window while it holds them and
- // where Start opens it; never over an export or in Training with it hidden,
- // nor at the main menu while a match is being prepared.
- using sf4e::input::MenuTakesPads;
- Check(MenuTakesPads(true,MenuContext::ReplayExport,false)&&MenuTakesPads(true,MenuContext::MainMenu,false)&&
-  MenuTakesPads(false,MenuContext::MainMenu,false),"The menu lost the pads behind another window");
- Check(!MenuTakesPads(false,MenuContext::ReplayExport,false)&&!MenuTakesPads(false,MenuContext::MainMenu,true)&&
-  !MenuTakesPads(false,MenuContext::OfflineTraining,false),"The menu took the pads where they are the game's");
  // The overlay enables the adapter whatever the window's focus (only a device
  // being assigned stops it): behind another window Start opens the hidden
  // menu and the shown menu takes presses, with no refocus between.

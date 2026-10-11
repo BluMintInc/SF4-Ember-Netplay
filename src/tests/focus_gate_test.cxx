@@ -122,6 +122,16 @@ static void CheckPolicy() {
         menuExporting.keepRunning && menuExporting.keepSoundMinimized);
     const auto menuWatching = PolicyFor(false, false, true, true);
     CHECK(menuWatching.menuOnly && !menuWatching.keepSound && menuWatching.keepRunning);
+    // What the game is given is decided where the update publishes, with the
+    // window as it stands there. At the main menu with Ember hidden and the
+    // setting off, the window is in front at the gate before the update, so
+    // nothing is cleared there; it goes behind before the update publishes,
+    // and the game is given none of what was read for Ember.
+    using sf4e::BackgroundPlay::HidesInput;
+    const bool frontAtTheGate = true, frontAtPublication = false;
+    CHECK(!HidesInput(menu, frontAtTheGate) && HidesInput(menu, frontAtPublication));
+    // In front, or with the setting, the game is given its input as before.
+    CHECK(!HidesInput(menuWithSetting, false) && !HidesInput(none, false) && !HidesInput(setting, false));
 }
 
 int main() {

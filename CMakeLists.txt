@@ -731,6 +731,7 @@ target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME OverlayPresentation SOURCES src/tests/overlay_presentation_test.cxx STD 17)
     sf4e_add_unit_test(NAME OverlayReset SOURCES src/tests/overlay_reset_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 30 LOCKS ember_runtime)
+    sf4e_add_unit_test(NAME OverlayPadCapture SOURCES src/tests/overlay_pad_capture_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 30 LOCKS ember_runtime)
     sf4e_add_unit_test(NAME OverlayLifecycle SOURCES src/tests/overlay_lifecycle_test.cxx STD 17 TIMEOUT 30)
     # Its stress test keeps three threads busy throughout.
     set_tests_properties(OverlayLifecycle PROPERTIES PROCESSORS 3)
