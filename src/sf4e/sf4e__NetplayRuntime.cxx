@@ -52,7 +52,7 @@ void CloseRoom() {
     const bool abandon=runtime->replacementPending || (runtime->room && runtime->room->Coordination().active &&
         !runtime->room->Coordination().writable);
     runtime->recovery=session::RoomRecoveryRuntime{};
-    runtime->recoveryError.clear();
+    runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
     runtime->publicJoin=false;
@@ -428,17 +428,22 @@ static void ObserveCoordination() {
                 runtime->room->GetState()==session::IrohRoom::State::Ready && !runtime->attached) AttachRoom();
             bool recovered=true;
             if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_RECOVERY_TICK); recovered=runtime->recovery.Tick(*UserApp::server,*runtime->room); }
-            if (!recovered) {
+            if (!recovered)
                 runtime->error=loc::T("runtime.recovery_state_failed");
-                if (runtime->recoveryError!=runtime->recovery.Error()) {
-                    runtime->recoveryError=runtime->recovery.Error();
-                    spdlog::warn("Room: recovery failed: {} (room revision {}, applied {}, {} more staged)",
-                        runtime->recoveryError,authority.revision,runtime->recovery.AppliedRevision(),
-                        runtime->room->CommittedCheckpointsBehindHead());
-                }
-            } else if (!runtime->recoveryError.empty()) {
+            const auto& recoveryError=runtime->recovery.Error();
+            switch (runtime->recoveryProgress.Observe(!recovered,recoveryError,runtime->recovery.AppliedRevision())) {
+            case session::RecoveryProgress::Change::Failed:
+                spdlog::warn("Room: recovery failed: {} (room revision {}, applied {}, {} more staged)",recoveryError,
+                    authority.revision,runtime->recovery.AppliedRevision(),runtime->room->CommittedCheckpointsBehindHead());
+                break;
+            case session::RecoveryProgress::Change::Waiting:
+                spdlog::info("Room: recovery import accepted at applied revision {}; waiting: {}",
+                    runtime->recovery.AppliedRevision(),recoveryError);
+                break;
+            case session::RecoveryProgress::Change::Resumed:
                 spdlog::info("Room: recovery applies commits again at revision {}",runtime->recovery.AppliedRevision());
-                runtime->recoveryError.clear();
+                break;
+            case session::RecoveryProgress::Change::None: break;
             }
             const auto appliedAuthority=runtime->room->Coordination();
             const bool connected=appliedAuthority.writable && appliedAuthority.rebound;
