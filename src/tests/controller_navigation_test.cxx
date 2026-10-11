@@ -10,6 +10,7 @@
 #include "../common/TrainingCallInput.hxx"
 #include "../training/TrainingSession.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
+#include "../netplay/PublishCadence.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
 #include <imgui.h>
@@ -201,6 +202,36 @@ void NativeCapture() {
  pad.buttons=0;behind.Update(pad,true,true,true);
  pad.buttons=ControllerSample::Down;behind.Update(pad,true,true,true);
  Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
+}
+// The menu reads the pad from the runtime's published snapshot, published as
+// netplay::PublishCadence says. Over a Practice fight the pad drives Ember's
+// menu, so every tick is published: a Select or a Back pressed and released
+// between two otherwise scheduled publications reaches the menu, once each,
+// for no longer than it was held. A fight without menu navigation stays
+// throttled, its fingerprint unchanged.
+void PracticeFightPresses(){
+ using sf4e::input::MenuContext;
+ // The first two ticks find the pad and arm the menu. Each press lasts one
+ // tick and none falls on a backstop tick (0, 6, 12).
+ const std::uint32_t ticks[]={0,0,Button::Confirm,0,Button::Back,0,0,0,Button::Confirm,0,Button::Back,0,0};
+ constexpr unsigned count=sizeof(ticks)/sizeof(ticks[0]);
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::Unavailable}){
+  const bool navigable=sf4e::input::ControllerMenuAvailable(context);
+  sf4e::netplay::PublishCadence cadence;ControllerNavigation nav;
+  ControllerSample published;published.deviceType=sf4e::input::PadXInput;published.deviceIndex=0;published.connected=true;
+  unsigned publications=0,selects=0,selectTicks=0,backs=0;std::uint32_t previous=0;
+  for(const auto buttons:ticks){
+   if(cadence.Due(navigable,[]{return std::uint64_t{7};})){++publications;published.buttons=buttons;}
+   nav.Update(published,navigable,true,true);
+   const auto out=nav.Buttons();
+   if(out&Button::Confirm){++selectTicks;if(!(previous&Button::Confirm))++selects;}
+   if(nav.BackRequested())++backs;
+   previous=out;
+  }
+  if(navigable)Check(publications==count&&selects==2&&selectTicks==2&&backs==2,
+   "A press between scheduled publications was lost or held over a Practice fight");
+  else Check(publications==3,"A fight without menu navigation was no longer throttled");
+ }
 }
 // The pad in offline Training: Back tapped resets, held saves, and Start
 // pressed while Back is held opens the controls or closes them. None of the
@@ -794,5 +825,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
