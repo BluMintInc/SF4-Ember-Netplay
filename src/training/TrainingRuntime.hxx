@@ -27,8 +27,9 @@ void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastC
 // SetMatchPractice: whether the battle being prepared uses a table's
 // Training rule. Game thread.
 void SetMatchPractice(bool enabled);
-// Any thread: whether such a match is on, for the HUD's notice that shared
-// save and reset are not available there.
+// Any thread: whether such a match is on, until its battle closes. The
+// runtime snapshot carries it (RuntimeSnapshot::practiceMatch) for the HUD's
+// notice, the match frame meter and Ember's menu over the fight.
 bool MatchPracticeActive();
 // Two bits of the pad's raw word that once carried a Training table's shared
 // save and reset. The feature is retired; the bits stay reserved and are

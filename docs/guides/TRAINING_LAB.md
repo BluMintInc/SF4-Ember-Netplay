@@ -101,7 +101,7 @@ A room's host can turn **Training** on in a table's rules (Table options, with t
 
 A game under the rule ends when the round time runs out or a fighter leaves the seat, so turning the rule on sets the round time to 9999; the Round time row points it out if the host shortens it again. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
 
-There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
+There is no dummy and no recording at such a table: the other player is the dummy. A Practice match always shows the frame meter, to both players and everyone watching, whether **Frame meter in matches** is on or off; a public room still never shows it.
 
 ### Opt-in frame-meter capture
 

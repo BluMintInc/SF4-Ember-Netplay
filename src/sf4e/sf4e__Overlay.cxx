@@ -493,8 +493,11 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Before the HUD, the match meter and the hotkeys, which read the lab's settings.
     static bool trainingDirectorySet=false;
     if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
-    // The meter in a match is the player's choice, in private rooms only; the runtime reads nothing for it otherwise.
-    sf4e::training::WatchMatches(sf4e::match_frame_meter::Watched(snapshot.preferences.matchFrameMeter, snapshot.room.serverOwned, snapshot.replays.meterShown));
+    // The meter in a match is the player's choice, and a Practice match's own,
+    // in private rooms only; the runtime reads nothing for it otherwise.
+    namespace meter = sf4e::match_frame_meter;
+    sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch),
+        snapshot.room.serverOwned, snapshot.replays.meterShown));
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
@@ -654,7 +657,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
         ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
-    if (layers.matchActive && focused && passive && !status.spectator && sf4e::training::MatchPracticeActive())
+    if (layers.matchActive && focused && passive && !status.spectator && snapshot.practiceMatch)
         sf4e::ui::DrawMatchPracticeNotice();
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;

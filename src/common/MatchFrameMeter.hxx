@@ -7,10 +7,14 @@ namespace sf4e { namespace match_frame_meter {
 // private rooms they play in.
 inline bool Allowed(bool publicRoom) { return !publicRoom; }
 
-// Whether the runtime watches matches for the meter: the player's choice where
-// it is allowed, or a replay that asks for it (a replay is not in a room).
-inline bool Watched(bool preference, bool publicRoom, bool replayMeter) {
-    return (preference && Allowed(publicRoom)) || replayMeter;
+// Whether a match wants the meter: the player's choice, or a game under its
+// table's Practice match rule, which shows it whatever that choice is.
+inline bool Wanted(bool preference, bool practiceMatch) { return preference || practiceMatch; }
+
+// Whether the runtime watches matches for the meter: where a match wants it
+// and it is allowed, or a replay that asks for it (a replay is not in a room).
+inline bool Watched(bool wanted, bool publicRoom, bool replayMeter) {
+    return (wanted && Allowed(publicRoom)) || replayMeter;
 }
 
 } }

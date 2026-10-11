@@ -392,6 +392,7 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
+	snapshot.practiceMatch = training::MatchPracticeActive();
 	const replaystore::Status& replays = replaystore::GetStatus();
 	snapshot.replays.ready = snapshot.atMainMenu && replays.step == replaystore::Step::Idle && replaystore::Ready();
 	snapshot.replays.notice = replays.notice; snapshot.replays.noticeError = replays.noticeError;
