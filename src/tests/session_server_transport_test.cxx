@@ -1728,6 +1728,8 @@ static void TestCustomRoomDepartures() {
 	for (const char* key : {"room", "members", "cids", "room_members", "peer_identities", "match_authorities"}) {
 		auto damaged = checkpoint; damaged[key] = nullptr;
 		CHECK(!recovery.RestoreCheckpoint(damaged));
+		// The refusal names the part it stopped at, for the field log.
+		CHECK(recovery.RestoreRefusal() == key);
 		CHECK(recovery.Checkpoint() == checkpoint);
 	}
 	// Duplicate native preparation acknowledgments after recovery cannot

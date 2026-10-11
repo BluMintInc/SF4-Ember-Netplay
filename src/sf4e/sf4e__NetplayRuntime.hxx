@@ -196,6 +196,8 @@ struct Runtime {
     // once the creator is in it as host (TickCreatedRules).
     netplay::CreatedRules createdRules;
     session::RoomRecoveryRuntime recovery;
+    // The recovery failure last logged, so a failure that persists is logged once.
+    std::string recoveryError;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
 	// persisted and native/helper teardown has reached Idle. MatchEnded itself

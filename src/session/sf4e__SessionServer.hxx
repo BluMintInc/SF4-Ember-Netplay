@@ -158,6 +158,8 @@ namespace sf4e {
 		// which is what bounds its encoded size.
 		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp& authority);
+		// Which part of the checkpoint the last refused restore stopped at.
+		const std::string& RestoreRefusal() const { return _restoreRefusal; }
 
 		// Root/helper authority bridge. A proposal is made only after the owner
 		// has privately applied a poll/timer command and journaled its effects.
@@ -241,6 +243,8 @@ namespace sf4e {
 		std::uint64_t _incarnation = 1;
 		session::SessionRecoveryGate _recovery;
 		mutable std::uint64_t _recoveryCheckpointBuilds = 0;
+		std::string _restoreRefusal;
+		bool RefuseRestore(std::string part) { _restoreRefusal = std::move(part); return false; }
 		bool _recoveryCandidateReady = false;
 		bool _recoveryFlushing = false;
 		nlohmann::json _recoveryBaseline;
