@@ -333,19 +333,15 @@ void from_json(const nlohmann::json& json, Rules& value) {
 	value.rotation = static_cast<RotationMode>(ReadInt(json, "rotation", 0, 2));
 	if (!json.at("edition_select").is_boolean()) throw std::invalid_argument("room edition field");
 	value.editionSelect = json.at("edition_select").get<bool>();
-	const auto rounds = ReadInt(json, "round_count", 1, 99);
-	if (rounds != 1 && rounds != 3 && rounds != 5 && rounds != 7 && rounds != 15 && rounds != 99) throw std::invalid_argument("room round count");
-	value.roundCount = static_cast<std::uint8_t>(rounds);
-	const auto time = ReadInt(json, "round_time", 30, 9999);
-	if (!ValidRoundTime(time)) throw std::invalid_argument("room round time");
-	value.roundTime = static_cast<std::uint16_t>(time);
+	value.roundCount = static_cast<std::uint8_t>(ReadInt(json, "round_count", 1, 99));
+	value.roundTime = static_cast<std::uint16_t>(ReadInt(json, "round_time", 30, 9999));
 	// Written only when set, so rules without them read as before.
 	const auto training = json.find("training");
 	if (training != json.end() && !training->is_boolean()) throw std::invalid_argument("room training rule");
 	value.training = training != json.end() && training->get<bool>();
 	value.timeBeforePractice = json.contains("time_before_practice") ?
 		static_cast<std::uint16_t>(ReadInt(json, "time_before_practice", 30, 9999)) : 0;
-	if (!value.PracticeTimeValid()) throw std::invalid_argument("room time before practice");
+	if (!value.Valid()) throw std::invalid_argument("room rules");
 }
 void to_json(nlohmann::json& json, const ConnectionRef& value) { json = nlohmann::json{{"host", value.host}, {"user", value.user}}; }
 void from_json(const nlohmann::json& json, ConnectionRef& value) { value.host = ReadText(json, "host", 256); value.user = ReadText(json, "user", 256); }

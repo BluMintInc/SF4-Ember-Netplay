@@ -469,6 +469,8 @@ int main() {
     defaults.publicTableRules.format = sf4e::room::SetFormat::Ft3;
     defaults.publicTableRules.rotation = sf4e::room::RotationMode::LoserStays;
     defaults.publicTableRules.roundCount = 5;
+    // So does a public room's, kept apart.
+    defaults.publicTableRules.roundTime = 60; defaults.publicTableRules.SetPractice(true);
     CHECK(asyncStore.SaveLauncher({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, error));
     CHECK(asyncStore.SaveLauncher({{"inputDelay", 4}}, error));
     CHECK(asyncStore.LoadLauncher(result, error));
@@ -478,6 +480,13 @@ int main() {
         restored.tableRules.format == sf4e::room::SetFormat::Ft10 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     CHECK(restored.publicTableRules == defaults.publicTableRules && !(restored.publicTableRules == restored.tableRules));
     CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.timeBeforePractice == 300);
+    CHECK(restored.publicTableRules.training && restored.publicTableRules.timeBeforePractice == 60);
+    // Turned off after the reload, each gives back the time it replaced.
+    {
+        auto privateRules = restored.tableRules, publicRules = restored.publicTableRules;
+        privateRules.SetPractice(false); publicRules.SetPractice(false);
+        CHECK(privateRules.roundTime == 300 && publicRules.roundTime == 60);
+    }
     // Room defaults saved before public rules existed keep the public default.
     {
         auto older = result;
@@ -500,6 +509,22 @@ int main() {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }
+    // A time before Practice kept with Practice off, or one no table offers,
+    // fails the settings' own test, which the writer applies; the reader
+    // refuses the same rules written out and keeps what it had.
+    for (int open = 0; open < 2; ++open) {
+        for (const auto& bad : {std::make_pair(false, 60), std::make_pair(true, 120)}) {
+            auto invalid = restored;
+            auto& rules = open ? invalid.publicTableRules : invalid.tableRules;
+            rules.training = bad.first; rules.timeBeforePractice = static_cast<std::uint16_t>(bad.second);
+            CHECK(!invalid.Valid());
+            const auto kept = restored;
+            CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", sf4e::netplay::RoomPreferences(invalid)}}, restored));
+            CHECK(restored.tableRules == kept.tableRules && restored.publicTableRules == kept.publicTableRules &&
+                restored.roomName == kept.roomName && restored.roomCapacity == kept.roomCapacity);
+        }
+    }
+    CHECK(restored.Valid());
     InputDelayMigrations(root);
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);

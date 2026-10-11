@@ -21,6 +21,12 @@ inline bool ValidRoundTime(long long time) {
     for (const auto offered : RoundTimes) if (time == offered) return true;
     return false;
 }
+// The round counts a table offers; 99 plays on with no end.
+constexpr std::uint8_t RoundCounts[] = {1, 3, 5, 7, 15, 99};
+inline bool ValidRoundCount(long long count) {
+    for (const auto offered : RoundCounts) if (count == offered) return true;
+    return false;
+}
 struct Rules {
     SetFormat format = SetFormat::Unlimited;
     RotationMode rotation = RotationMode::WinnerStays;
@@ -43,9 +49,13 @@ struct Rules {
         else { roundTime = timeBeforePractice ? timeBeforePractice : DefaultRoundTime; timeBeforePractice = 0; }
         training = on;
     }
-    // A kept time is an offered one, and only Practice keeps one.
-    bool PracticeTimeValid() const {
-        return timeBeforePractice == 0 || (training && ValidRoundTime(timeBeforePractice));
+    // The one test of a set of rules, for the room that applies them, the
+    // wire and saved room defaults that read them, and the settings that
+    // write them. A kept time is an offered one, and only Practice keeps one.
+    bool Valid() const {
+        return ValidSetFormat(static_cast<int>(format)) && rotation <= RotationMode::BothRotate &&
+            ValidRoundCount(roundCount) && ValidRoundTime(roundTime) &&
+            (timeBeforePractice == 0 || (training && ValidRoundTime(timeBeforePractice)));
     }
     bool operator==(const Rules& rhs) const {
         return format == rhs.format && rotation == rhs.rotation && editionSelect == rhs.editionSelect &&

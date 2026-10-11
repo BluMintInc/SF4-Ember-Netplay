@@ -15,9 +15,7 @@ struct LobbySettings {
         return editionSelect == other.editionSelect && roundCount == other.roundCount && roundTime == other.roundTime;
     }
     bool Valid() const {
-        const bool rounds = roundCount == 1 || roundCount == 3 || roundCount == 5 || roundCount == 7 || roundCount == 15 || roundCount == 99;
-        const bool time = roundTime == 30 || roundTime == 60 || roundTime == 99 || roundTime == 300 || roundTime == 9999;
-        return rounds && time;
+        return room::ValidRoundCount(roundCount) && room::ValidRoundTime(roundTime);
     }
 };
 
@@ -82,23 +80,13 @@ struct PlayerPreferences {
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.
     room::Rules publicTableRules = room::PublicRoomRules();
-    static bool ValidRules(const room::Rules& rules) {
-        const auto format = static_cast<int>(rules.format);
-        if (!room::ValidSetFormat(format) ||
-            static_cast<int>(rules.rotation) > static_cast<int>(room::RotationMode::BothRotate)) return false;
-        LobbySettings battle;
-        battle.editionSelect = rules.editionSelect;
-        battle.roundCount = rules.roundCount;
-        battle.roundTime = rules.roundTime;
-        return battle.Valid();
-    }
     bool Valid() const {
         if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return ValidRules(tableRules) && ValidRules(publicTableRules);
+        return tableRules.Valid() && publicTableRules.Valid();
     }
 };
 
