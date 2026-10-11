@@ -2,6 +2,7 @@
 #include "../common/BattlePause.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__InputLag.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
 
@@ -442,6 +443,7 @@ void fSystem::BattleUpdate() {
     static fPadSystem::Inputs randomInputs = { 0, 0 };
 
     diag::ScopedTimer _updateTimer(diag::OP_DETOURED_BATTLE_UPDATE);
+    sf4e::InputLag::BeforeBattleFrame(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.lowerInputLag);
 
     if (!MayAdvanceDeterministicFrame()) {
         if (ggpo && diag::Enabled()) {
@@ -638,6 +640,7 @@ void fSystem::CloseBattle() {
     sf4e::battlePause.CloseBattle();
     sf4e::training::CloseBattle();
     sf4e::replayplayback::CloseBattle();
+    sf4e::InputLag::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::crash::NoteMatchBoundary("battle_close");

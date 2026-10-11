@@ -4,6 +4,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__InputLag.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__ReplayStore.hxx"
@@ -53,6 +54,7 @@ void fSystem::UpdateInputs() {
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
     sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
         sf4e::replaystore::Exporting(),watching));
+    sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
     // This is the native input publication boundary (00512180). Both
     // players' held/rising/falling/repeat caches are complete before any

@@ -385,6 +385,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__InputLag.hxx"
+    "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"
@@ -605,6 +607,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
         LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME LowerInputLag SOURCES "src/tests/lower_input_lag_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" LIBS sf4e_session_server)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
     add_executable(RoomHostBench "src/tests/room_host_bench.cxx")

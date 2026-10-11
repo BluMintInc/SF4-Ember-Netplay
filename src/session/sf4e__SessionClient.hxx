@@ -91,6 +91,7 @@ namespace sf4e {
 			bool superseded=false; };
         bool TakeActionReply(ActionReply& reply);
         void SetSelectedDelay(unsigned delay) { if (delay<=static_cast<unsigned>(MaximumInputDelay)) _selectedDelay=static_cast<std::uint8_t>(delay); }
+        void SetSelectedLowerLag(bool on) { _selectedLowerLag=on; }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
 		// Set before the hello/join exchange; profile editing is offline-only.
 		void SetProfileMain(int fighter) { _profile.mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
@@ -202,6 +203,7 @@ namespace sf4e {
 			std::uint8_t table = 0;
 			std::uint64_t generation = 0;
 			std::uint8_t inputDelay = 0;
+			bool lowerLag = false;
 			// The seat a Queue asked for (-1: any); a resend asks for it again.
 			std::int8_t seat = -1;
 			// The id the caller was given. A stale-table resend goes out under a
@@ -228,6 +230,7 @@ namespace sf4e {
 		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat = -1) const;
 		void LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason);
         std::uint8_t _selectedDelay=2;
+        bool _selectedLowerLag=false;
 		bool _customRoomsRequired = false;
 		room::MemberProfile _profile;
 		bool _customRoomsSeen = false;

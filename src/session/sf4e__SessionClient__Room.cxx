@@ -245,7 +245,7 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 		if (sent.actionId == action.actionId) return;
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
-		action.inputDelay, action.seat, action.actionId});
+		action.inputDelay, action.lowerLag, action.seat, action.actionId});
 	if (action.kind == room::ActionKind::Ready)
 		if (const auto* opponent = room::SeatOpponent(_roomSnapshot, action.table, _roomSnapshot.localMember)) {
 			_sentRoomActions.back().opponent = opponent->id;
@@ -450,14 +450,16 @@ bool SessionClient::HandleRoomResult(json& msg) {
 			(sent->opponentFighter >= 0 && opponentNow->fighter != sent->opponentFighter));
 	if (resendable && !matchupChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
-		// Resend the same request (kind, table, input delay, seat) from the
-		// fresher snapshot. Copy first: sending may evict `sent`.
+		// Resend the same request (kind, table, input delay, Lower input lag,
+		// seat) from the fresher snapshot. Copy first: sending may evict `sent`.
 		const auto kind = sent->kind;
 		const auto callerId = sent->callerId;
 		const auto opponent = sent->opponent;
 		const auto opponentFighter = sent->opponentFighter;
 		const std::uint8_t attempt = sent->staleRetries + 1;
-		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay, sent->seat));
+		auto again = TableAction(kind, sent->table, sent->inputDelay, sent->seat);
+		again.lowerLag = sent->lowerLag;
+		const auto resent = SendRoomAction(again);
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.
 			_sentRoomActions.back().callerId = callerId;

@@ -13,6 +13,7 @@
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__InputLag.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
@@ -238,12 +239,14 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	GameEvents::Install();
 	Pad::Install();
 	BackgroundPlay::Install();
+	InputLag::Install();
 	Platform::Install();
 	UserApp::Install();
 }
 
 void sf4e::HooksCommitted() {
 	BackgroundPlay::Activate();
+	InputLag::Activate();
 }
 
 void fIEmSpriteAction::RecordToAdditionalMemento(rIEmSpriteAction* a, AdditionalMemento& m) {

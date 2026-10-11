@@ -25,6 +25,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__InputLag.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
@@ -171,11 +172,17 @@ static bool StartRuntimeGgpo() {
     netplay->spectating = endpoints.localSlot >= 2;
     netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;
+    bool lowerLagSeats[2] = {false, false};
     for (const auto& member : room.members)
         if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount)) {
             netplay->startScoreKnown = true;
-            for (int side = 0; side < 2; ++side) netplay->startScore[side] = room.tables[member.table].score[side];
+            for (int side = 0; side < 2; ++side) {
+                netplay->startScore[side] = room.tables[member.table].score[side];
+                lowerLagSeats[side] = room.tables[member.table].lowerLag[side];
+            }
         }
+    // Fighters and spectators alike play the match's own choice, from its first frame.
+    sf4e::InputLag::StartMatch(netplay->client._matchData.lowerInputLag, lowerLagSeats);
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return false;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();

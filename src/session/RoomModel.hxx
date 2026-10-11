@@ -229,6 +229,8 @@ struct Table {
 	bool ready[2] = { false, false };
 	// Immutable per-fighter values captured at the Ready quorum boundary.
 	std::uint8_t inputDelay[2] = { 2, 2 };
+	// Each fighter's Lower input lag at Ready; off until they ready with it.
+	bool lowerLag[2] = { false, false };
 	std::uint32_t score[2] = { 0, 0 };
 	// First-to-N tables: the last finished set, and how many sets in a row
 	// streakHolder has won here. The streak ends when its holder loses a set
@@ -356,6 +358,9 @@ inline int MatchDelay(int first, int second) { return first > second ? first : s
 inline std::uint8_t MatchDelay(const Table& table) {
 	return static_cast<std::uint8_t>(MatchDelay(table.inputDelay[0], table.inputDelay[1]));
 }
+// Lower input lag changes how the battle plays, so every PC that plays or
+// watches a match must agree on it: it is on only when both fighters chose it.
+inline bool MatchLowerLag(const Table& table) { return table.lowerLag[0] && table.lowerLag[1]; }
 // A connection check names the seated pair at the table revision this PC's
 // room view shows. The helper reserves it only against its committed copy of
 // the room, so the check waits until that copy seats the same pair at the same
@@ -474,6 +479,8 @@ struct Action {
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;
+	// Ready: the fighter has Lower input lag on. Written only when set.
+	bool lowerLag = false;
 	std::string text;
 	// PermitReady: the permit's start window in milliseconds (its start_by
 	// less its issued_at, both on the bridge's clock).

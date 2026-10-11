@@ -94,6 +94,8 @@ namespace sf4e {
 			int64_t stageID;
 			DWORD rngSeed;
 			std::array<std::uint8_t, 2> inputDelay = {{ 2, 2 }};
+			// A room's match plays with Lower input lag (room::MatchLowerLag).
+			bool lowerInputLag = false;
 		};
 
 		// What the game could not take in a room's match: its round count or
@@ -397,7 +399,7 @@ namespace sf4e {
 		// added (e.g. trainingMode) deserializes with that field's default
 		// instead of throwing on the missing key.
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbyData, id, editionSelect, roundCount, roundTime, trainingMode, members);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay, lowerInputLag);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloMsg, type, cid, authenticatedEndpoint, incarnation, admission);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
