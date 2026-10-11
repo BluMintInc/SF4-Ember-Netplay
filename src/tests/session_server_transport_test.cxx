@@ -1887,7 +1887,73 @@ static void TestServerOwnedRoom() {
 	CHECK(server._connectionAccounts.empty());
 }
 
+// A member that leaves while its table's match authority still names it keeps
+// a frozen row: a spectator that left before the start stays a departed
+// participant until the generation ends. Without the row no replica could
+// import the room's checkpoints, and every member's room stalled behind it.
+enum class SetupStage { Preparing, P1Prepared, FightersPrepared, AllPrepared, Started };
+
+static void TestParticipantDepartureCheckpoint(SetupStage stage, bool disconnect) {
+	auto* transport = new MockTransport();
+	SessionServer server("custom-room", "build", true, 3, {0, 99},
+		std::unique_ptr<session::ServerTransport>(transport));
+	std::array<std::uint8_t, 16> room = {};
+	room[0] = 1;
+	const auto identityOf = [](session::Connection connection) {
+		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15]; return identity;
+	};
+	server.EnableMatchAuthorization(room, identityOf);
+	server.EnableCustomRooms("Departed participant", 16, 9);
+	CHECK(server.Listen(0) == 0);
+	auto step = [&]() { CHECK(server.Step() == 0); };
+	for (session::Connection connection = 1; connection <= 4; ++connection) {
+		transport->Push(connection, json(protocol::SessionHelloMsg())); step();
+		protocol::SessionJoinRequest request;
+		request.username = "Member" + std::to_string(connection); request.sidecarHash = "build"; request.port = 30000;
+		request.customRooms = true; request.roomProtocol = room::ProtocolVersion;
+		transport->Push(connection, json(request)); step();
+	}
+	std::uint64_t actionId = 0;
+	auto action = [&](session::Connection connection, room::ActionKind kind) {
+		const auto* snapshot = server.RoomSnapshot();
+		protocol::RoomActionMessage message;
+		message.action.kind = kind; message.action.roomEpoch = snapshot->roomEpoch; message.action.revision = snapshot->revision;
+		message.action.table = 0; message.action.tableRevision = snapshot->tables[0].revision; message.action.actionId = ++actionId;
+		transport->Push(connection, json(message)); step();
+	};
+	auto acknowledge = [&](session::Connection connection, const char* type, std::uint64_t generation, json extra = json::object()) {
+		extra["type"] = type; extra["generation"] = generation; transport->Push(connection, extra); step();
+	};
+	auto replicaImports = [&]() {
+		SessionServer replica("custom-room", "build", true, 3, {0, 99},
+			std::unique_ptr<session::ServerTransport>(new MockTransport()));
+		replica.EnableMatchAuthorization(room, identityOf);
+		return replica.RestoreRecoveryCheckpoint(server.RecoveryCheckpoint());
+	};
+	action(2, room::ActionKind::Queue); action(3, room::ActionKind::Queue); action(4, room::ActionKind::Watch);
+	action(2, room::ActionKind::Ready); action(3, room::ActionKind::Ready);
+	const auto generation = server.RoomSnapshot()->tables[0].matchGeneration;
+	if (stage >= SetupStage::P1Prepared) acknowledge(2, "game_prepared", generation, {{"spectators_optional", true}});
+	if (stage >= SetupStage::FightersPrepared) acknowledge(3, "game_prepared", generation);
+	if (stage >= SetupStage::AllPrepared) acknowledge(4, "game_prepared", generation);
+	if (stage >= SetupStage::Started) { acknowledge(2, "game_ready", generation); acknowledge(3, "game_ready", generation); }
+	const auto spectator = server.roomMembers.at(4);
+	if (disconnect) { transport->disconnected.push_back(4); step(); }
+	else action(4, room::ActionKind::Leave);
+	CHECK(server.roomMembers.count(4) == 0);
+	CHECK(server.roomFrozenMembers.count(spectator) == 1 && server.roomFrozenMembers.at(spectator).incarnation != 0);
+	CHECK(replicaImports());
+	if (stage == SetupStage::Started) return;
+	// A fighter leaving ends the generation before the start, and the row with it.
+	transport->disconnected.push_back(3); step();
+	CHECK(server.roomFrozenMembers.empty());
+	CHECK(replicaImports());
+}
+
 int main() {
+	for (const auto stage : {SetupStage::Preparing, SetupStage::P1Prepared, SetupStage::FightersPrepared,
+		SetupStage::AllPrepared, SetupStage::Started})
+		for (const bool disconnect : {true, false}) TestParticipantDepartureCheckpoint(stage, disconnect);
 	TestServerOwnedRoom();
 	auto* transport = new MockTransport();
 	SessionServer server("room", "build", true, 3, {0, 99},

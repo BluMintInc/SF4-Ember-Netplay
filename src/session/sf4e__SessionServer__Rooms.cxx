@@ -245,7 +245,7 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	events.insert(events.end(), started.begin(), started.end());
 	if (!events.empty()) BroadcastRoomState(events);
 	// Timer-driven table transitions can end an authority without a control
-	// action.  Drop frozen spectator records only after every authority has
+	// action.  Drop frozen member records only after every authority has
 	// released the native slot, so a rematch on another table remains able to
 	// rebind the departed endpoint.
 	PruneFrozenMembers();
