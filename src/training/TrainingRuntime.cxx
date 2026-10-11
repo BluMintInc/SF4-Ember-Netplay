@@ -91,7 +91,10 @@ Frame output;
 thread_local bool overriding = false;
 bool sampling = false;
 bool commitInput = false;
+// The battle's frame before this update, once the update's commands ran; set
+// when the update is Training's (following).
 int beforeFrame = 0;
+bool following = false;
 Acks acks;
 // Updates that advanced more than one frame, each of which resets the frame
 // meter. Logged per battle: a large count explains a missing frame-advantage
@@ -122,15 +125,28 @@ int* DummyOptions() {
     if (!manager && !warned) { warned = true; spdlog::warn("Training: the game's training options are not reachable; dummy settings stay as they are"); }
     return manager ? Manager::GetOptions(manager) : nullptr;
 }
+// Player 2's control back to the one the Training menu set, as the game puts
+// it when the pause menu closes.
+void ReturnDummyControl(Native* system) {
+    int* control = Native::GetPlayerControl(system, 1);
+    if (!control) return;
+    const int was = *control;
+    *control = *Native::GetMenuPlayerControl(system, 1);
+    spdlog::info("Training: Player 2's control back to {} from {}", *control, was);
+}
 // Back to the checkpoint; false when the engine did not come back whole,
 // after which the battle is left rather than played on. The checkpoint puts
 // back the dummy action it was saved with, and the dummy's control is not in
-// it: the action found before it stands, so the two still agree.
+// it: the action found before it stands, so the two still agree. The input
+// the game holds for the next frame is the checkpoint's, so Player 2 takes
+// its own control back and plays from the pad again only from what Ember
+// plays after the reset (FollowDummy).
 bool RestoreCheckpoint(Native* system) {
     int* options = DummyOptions();
     const int action = options ? options[Manager::OPT_ACTION] : -1;
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
+    if (dummyControl.Release()) ReturnDummyControl(system);
     meter.Reset(); dummyWatch.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
@@ -152,20 +168,12 @@ void LogPlaying(const Playing& what, const char* change) {
 }
 // Updates from the one an input is read in to the one the fighters act on it.
 int InputLag() { return sf4e::InputLag::BattleInputLowered() ? 0 : 1; }
-// Player 2's control back to the one the Training menu set, as the game puts
-// it when the pause menu closes.
-void ReturnDummyControl(Native* system) {
-    int* control = Native::GetPlayerControl(system, 1);
-    if (!control) return;
-    const int was = *control;
-    *control = *Native::GetMenuPlayerControl(system, 1);
-    spdlog::info("Training: Player 2's control back to {} from {}", *control, was);
-}
-// Before each update: Player 2 plays from the pad while the fighters act on
-// what Ember plays there (DummyControl), from its first input to its last,
-// and the dummy's own control is put back after. A different action picked
-// in the pause menu meanwhile stops what Ember plays.
-void FollowDummy(Native* system) {
+// Each update, once its input is planned: Player 2 plays from the pad while
+// the fighters act on what Ember plays there (DummyControl), from its first
+// input to its last, and the dummy's own control is put back after.
+// supplies: InputPlan::suppliesDummy. A different action picked in the
+// pause menu meanwhile stops what Ember plays, from this update on.
+void FollowDummy(Native* system, bool supplies) {
     const auto& view = session.GetView();
     const Playing now{view.mode, view.selected, view.playbackSide, session.Replying()};
     if (!(now == playing)) { LogPlaying(playing, "ended"); LogPlaying(now, "started"); playing = now; }
@@ -173,7 +181,7 @@ void FollowDummy(Native* system) {
     int* control = Native::GetPlayerControl(system, 1);
     if (!options || !control) return;
     const int action = options[Manager::OPT_ACTION], lag = InputLag();
-    switch (dummyControl.Follow(DrivesDummy(view), lag, action)) {
+    switch (dummyControl.Follow(supplies, lag, action)) {
     case DummyControl::Step::Begin:
         spdlog::info("Training: Player 2 plays from the pad (control {} to {}, action {}, input lag {})",
             *control, static_cast<int>(Native::PC_PAD), action, lag);
@@ -189,6 +197,7 @@ void FollowDummy(Native* system) {
         spdlog::info("Training: dummy action set to {} in the pause menu; it stands and Ember stops playing Player 2", action);
         ReturnDummyControl(system);
         session.Apply({Action::Stop, view.generation});
+        overriding = false; commitInput = false;
         break;
     case DummyControl::Step::None: break;
     }
@@ -279,7 +288,7 @@ static bool Dispatch(Native* system, const Command& command) {
     }
 }
 void BeforeUpdate(Native* system, bool networkOwned) {
-    overriding = false; sampling = false; commitInput = false;
+    overriding = false; sampling = false; commitInput = false; following = false;
     const bool available = !networkOwned &&
         (system->*Native::publicMethods.GetGameMode)() == Dimps::Game::Battle::GAMEMODE_TRAINING &&
         !(system->*Native::publicMethods.IsLeavingBattle)();
@@ -293,7 +302,6 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     std::deque<Command> pending;
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
     for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
-    FollowDummy(system);
     // The countdown follows the call that stands for this battle, before it
     // ticks, so a call that has ended can never take the battle away and a
     // go now taken for the call is never lost (TrainingSession.hxx).
@@ -312,28 +320,29 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
         spdlog::info("Training: battle told to leave for the main menu");
     }
+    beforeFrame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
+    following = true;
     // Opening either overlay suspends recording; native pause frames are
     // also excluded by the before/after simulation counter check.
-    if (!session.GetView().ready) return;
-    beforeFrame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
-    sampling = true;
-    // Playback needs no pad, so it goes on under the open controls, where it
-    // can be watched; recording waits for the pad to be free.
-    const bool menu = sf4e::Overlay::CapturesMenuInput() || sf4e::Pad::MenuInputBlocked();
-    if (menu && session.GetView().mode != Mode::Playback) return;
-    Pad* pad = Pad::staticMethods.GetSingleton();
-    Frame physical;
-    for (int side = 0; side < 2 && !menu; ++side) {
-        physical[side].mapped = (pad->*Pad::publicMethods.GetButtons_MappedOn)(side);
-        physical[side].raw = (pad->*Pad::publicMethods.GetButtons_RawOn)(side);
+    const bool menu = session.GetView().ready && (sf4e::Overlay::CapturesMenuInput() || sf4e::Pad::MenuInputBlocked());
+    const InputPlan plan = PlanInput(session.GetView(), menu);
+    sampling = plan.sample;
+    if (plan.read) {
+        Pad* pad = Pad::staticMethods.GetSingleton();
+        Frame physical;
+        for (int side = 0; side < 2 && !menu; ++side) {
+            physical[side].mapped = (pad->*Pad::publicMethods.GetButtons_MappedOn)(side);
+            physical[side].raw = (pad->*Pad::publicMethods.GetButtons_RawOn)(side);
+        }
+        // A second side the game holds no assignment for reads every device, so
+        // its presses are Player 1's: after a match as Player 2 it still names the
+        // pad given back to Player 1. Two players on one keyboard are both assigned.
+        if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
+        output = session.Prepare(physical);
+        commitInput = true;
     }
-    // A second side the game holds no assignment for reads every device, so
-    // its presses are Player 1's: after a match as Player 2 it still names the
-    // pad given back to Player 1. Two players on one keyboard are both assigned.
-    if (!menu && !sf4e::input::SideAssigned(1)) physical[1] = Input{};
-    output = session.Prepare(physical);
-    commitInput = true;
-    overriding = session.GetView().mode != Mode::Idle;
+    overriding = plan.override;
+    FollowDummy(system, plan.suppliesDummy);
 }
 // The fighter a player brought into this battle; -1 when the request holds
 // no fighter the catalog knows.
@@ -413,8 +422,10 @@ void AfterUpdate(Native* system) {
     overriding = false;
     // The native integral field wraps at 16 bits. Count only one accepted
     // step; native resets/time jumps must not become recorded input frames.
-    const int afterFrame = sampling ? Native::GetNumFramesSimulated_FixedPoint(system)->integral : beforeFrame;
+    const int afterFrame = following ? Native::GetNumFramesSimulated_FixedPoint(system)->integral : beforeFrame;
     const auto delta = static_cast<std::uint16_t>(afterFrame - beforeFrame);
+    // The input this update read is the next simulated frame's.
+    if (delta != 0) dummyControl.Simulated();
     if (sampling && delta == 1) {
         using Actor = Dimps::Game::Battle::Chara::Actor;
         using Unit = Dimps::Game::Battle::Chara::Unit;
@@ -473,7 +484,7 @@ void AfterUpdate(Native* system) {
         meter.Reset(); dummyWatch.Reset();
         ++gapResets;
     }
-    sampling = false;
+    sampling = false; following = false;
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;

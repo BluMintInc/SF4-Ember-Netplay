@@ -746,38 +746,108 @@ int main() {
         }
         {
             // The dummy plays from the pad for the updates that act on Ember's
-            // input: from the first one Ember drives, input lag later, to the
+            // input: from the first one Ember supplies, input lag later, to the
             // last one, as late again, and its own control stands around them.
             using Step = DummyControl::Step;
-            const auto steps = [](int lag, std::vector<bool> drives) {
+            // One update: whether Ember supplies Player 2's input in it, then
+            // whether the battle simulated it.
+            const auto step = [](DummyControl& control, bool supplies, int lag, int action = 0, bool simulated = true) {
+                const Step seen = control.Follow(supplies, lag, action);
+                if (simulated) control.Simulated();
+                return seen;
+            };
+            const auto steps = [&](int lag, std::vector<bool> supplies) {
                 DummyControl control; std::vector<Step> seen;
-                for (const bool drive : drives) seen.push_back(control.Follow(drive, lag, 0));
+                for (const bool supply : supplies) seen.push_back(step(control, supply, lag));
                 return seen;
             };
             Require(steps(0, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::Begin, Step::Keep, Step::End, Step::None},
-                "With no input lag the pad did not cover exactly the driven updates");
+                "With no input lag the pad did not cover exactly the supplied updates");
             Require(steps(1, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::None, Step::Begin, Step::Keep, Step::End},
                 "With a frame of input lag the pad did not start and end a frame later");
             Require(steps(1, {true, false, true, false}) == std::vector<Step>{Step::None, Step::Begin, Step::End, Step::Begin},
                 "A one-update gap between two drives did not give the dummy its own control for that update");
+            {
+                // Updates the battle does not simulate move nothing on: the
+                // pad waits with them for the frame that acts on the last input.
+                DummyControl held;
+                step(held, true, 1);
+                Require(step(held, false, 1, 0, false) == Step::Begin && step(held, false, 1, 0, false) == Step::Keep &&
+                    step(held, false, 1) == Step::Keep && step(held, false, 1) == Step::End,
+                    "An update the battle did not simulate moved the input lag on");
+            }
             // Ember's own changes to the action keep the pad; one from the
             // pause menu ends it and stands, and nothing begins again from the
             // update before it.
             DummyControl control; int native = 0;
-            Require(control.Follow(true, 0, native) == Step::Begin, "The pad did not begin");
+            Require(step(control, true, 0, native) == Step::Begin, "The pad did not begin");
             control.Set(native, 1);
-            Require(native == 1 && control.Follow(true, 0, native) == Step::Keep, "Ember's own change to the action ended the pad");
+            Require(native == 1 && step(control, true, 0, native) == Step::Keep, "Ember's own change to the action ended the pad");
             native = 3;
-            Require(control.Follow(true, 0, native) == Step::Taken && native == 3, "A pause-menu action did not end the pad");
-            DummyControl lagged; native = 0;
-            lagged.Follow(true, 1, native);
-            Require(lagged.Follow(true, 1, native) == Step::Begin && lagged.Follow(true, 1, 3) == Step::Taken,
+            Require(step(control, true, 0, native) == Step::Taken && native == 3, "A pause-menu action did not end the pad");
+            DummyControl lagged;
+            step(lagged, true, 1);
+            Require(step(lagged, true, 1) == Step::Begin && step(lagged, true, 1, 3) == Step::Taken,
                 "A pause-menu action under input lag did not end the pad");
-            Require(lagged.Follow(false, 1, 3) == Step::None, "The pad began again after a pause-menu action");
+            Require(step(lagged, false, 1, 3) == Step::None, "The pad began again after a pause-menu action");
             // The battle closes with the pad on, and with it off.
             DummyControl closing;
-            closing.Follow(true, 0, 0);
-            Require(closing.Release() && !closing.Release() && closing.Follow(false, 0, 0) == Step::None, "Closing the battle misreported the pad");
+            step(closing, true, 0);
+            Require(closing.Release() && !closing.Release() && step(closing, false, 0) == Step::None, "Closing the battle misreported the pad");
+        }
+        {
+            // The input plan and the dummy's control together, update by
+            // update as the runtime runs them: a recording held under the open
+            // controls and resumed, a reset in a reply's first lag frame and
+            // later in it, and a playback a reset starts again.
+            struct Bench {
+                Session session; DummyControl control; int lag;
+                explicit Bench(int lag) : lag(lag) { session.Enter(); session.SetReady(true); session.SetCheckpoint(true); }
+                bool Send(Action action) {
+                    Command command; command.action = action; command.generation = session.GetView().generation; return session.Apply(command);
+                }
+                // One simulated update; menu: the controls hold the pad. Whether
+                // Player 2 plays from the pad in it.
+                bool Update(bool menu = false) {
+                    const InputPlan plan = PlanInput(session.GetView(), menu);
+                    const auto step = control.Follow(plan.suppliesDummy, lag, 0);
+                    if (plan.read) session.Commit(session.Prepare(Frame{}));
+                    control.Simulated();
+                    return step == DummyControl::Step::Begin || step == DummyControl::Step::Keep;
+                }
+                std::vector<bool> Run(std::vector<bool> menus) {
+                    std::vector<bool> pads;
+                    for (const bool menu : menus) pads.push_back(Update(menu));
+                    return pads;
+                }
+                // The runtime's reset: the session's, and the control's break (RestoreCheckpoint).
+                bool Reset() { const bool reset = Send(Action::Restore); control.Release(); return reset; }
+            };
+            const std::vector<Input> moves(8, Input{0x10, 0x10, 0, 0});
+            for (const int lag : {0, 1}) {
+                Bench recording(lag);
+                Require(recording.Send(Action::Record), "The recording did not start");
+                const auto pads = recording.Run({false, false, true, true, false, false});
+                Require(pads == (lag ? std::vector<bool>{false, true, true, false, false, true} : std::vector<bool>{true, true, false, false, true, true}),
+                    "A recording held under the open controls kept the dummy on the pad, or did not take it back on resuming");
+                Require(recording.session.GetView().mode == Mode::Recording && recording.session.GetView().cursor == 4,
+                    "The held recording stopped or recorded the held updates");
+
+                Bench reply(lag);
+                Require(reply.session.Reply(moves) && reply.Update() == (lag == 0), "The reply's first update was wrong");
+                Require(reply.Reset() && !reply.Update() && !reply.Update(), "A reset in the reply's first lag frame left the dummy on the pad");
+                Require(reply.session.Reply(moves) && reply.Run({false, false, false}) == std::vector<bool>{lag == 0, true, true}, "The reply did not play from the pad");
+                Require(reply.Reset() && !reply.Update(), "A reset during the reply left the dummy on the pad for the old timeline");
+
+                Bench playback(lag);
+                Command load; load.action = Action::Load; load.generation = playback.session.GetView().generation; load.frames = moves; load.side = 1;
+                Require(playback.session.Apply(load) && playback.Send(Action::Play), "The playback did not start");
+                Require(playback.Run({false, false, false}) == std::vector<bool>{lag == 0, true, true}, "The playback did not play from the pad");
+                Require(playback.Reset() && playback.session.GetView().mode == Mode::Playback && playback.session.GetView().cursor == 0,
+                    "The reset did not start the playback again");
+                Require(playback.Run({false, false}) == std::vector<bool>{lag == 0, true},
+                    "The restarted playback put the dummy on the pad for the old timeline's input, or not for its own");
+            }
         }
         {
             // The dummy's own reply: what it came out of, how long it stays there, and what it plays.

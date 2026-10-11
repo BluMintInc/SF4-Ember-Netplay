@@ -49,8 +49,9 @@ struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -
 // control for exactly the updates that act on Ember's input and the game's
 // own back after, so the menu's settings, blocking among them, hold
 // everywhere else and the player never sets anything. An input reaches the
-// fighters lag updates after the one it is read in (0, or 1 as the game
-// has it offline), so the pad control starts and ends that much later.
+// fighters lag simulated frames after the update it is read in (0, or 1 as
+// the game has it offline), so the pad control starts and ends that much
+// later; an update the battle does not simulate moves nothing on.
 // The Action the pad control began under stays the player's: a different one
 // found there was picked in the pause menu, which ends the pad control
 // (Taken) so that choice stands. Ember changes it only through Set. Only the
@@ -58,21 +59,25 @@ struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -
 class DummyControl {
 public:
     enum class Step { None, Begin, Keep, End, Taken };
-    // Before each update. drives: Ember plays Player 2's input in it.
-    // action: the Training menu's Action now.
-    Step Follow(bool drives, int lag, int action) {
-        const bool pad = lag > 0 ? drove_ : drives;
-        drove_ = drives;
-        if (pad_ && action != action_) { pad_ = drove_ = false; return Step::Taken; }
+    // Before each update. supplies: Ember plays Player 2's input in it
+    // (InputPlan). action: the Training menu's Action now.
+    Step Follow(bool supplies, int lag, int action) {
+        supplies_ = supplies;
+        const bool pad = lag > 0 ? supplied_ : supplies;
+        if (pad_ && action != action_) { pad_ = supplied_ = supplies_ = false; return Step::Taken; }
         if (pad == pad_) return pad ? Step::Keep : Step::None;
         pad_ = pad; action_ = action;
         return pad ? Step::Begin : Step::End;
     }
+    // After an update the battle simulated: its input is the next one's to act on.
+    void Simulated() { supplied_ = supplies_; }
     void Set(int& native, int value) { native = value; action_ = value; }
-    // The battle closes: whether the pad control was on.
-    bool Release() { const bool was = pad_; pad_ = drove_ = false; return was; }
+    // A break in the input's history: the battle closes, or a checkpoint puts
+    // back a timeline whose delayed input was never Ember's. Whether the pad
+    // control was on.
+    bool Release() { const bool was = pad_; pad_ = supplied_ = supplies_ = false; return was; }
 private:
-    bool pad_ = false, drove_ = false;
+    bool pad_ = false, supplied_ = false, supplies_ = false;
     int action_ = -1;
 };
 constexpr int GaugeValues[] = {0, 5, 7, 8};
@@ -281,6 +286,24 @@ struct View {
 // reply among them) on its side. The dummy plays from the pad then (DummyControl).
 inline bool DrivesDummy(const View& view) {
     return view.mode == Mode::Recording || (view.mode == Mode::Playback && view.playbackSide == 1);
+}
+// What one update does with the fighters' input, decided once for it.
+// sample: the fight runs, so the update may be a recorded frame. read: Ember
+// prepares the input and commits it after. override: the fighters read
+// Ember's input. suppliesDummy: Player 2's is Ember's (DummyControl).
+struct InputPlan { bool sample = false, read = false, override = false, suppliesDummy = false; };
+// menu: Ember's controls or the game hold the pad. Playback needs no pad, so
+// it goes on under the open controls, where it can be watched; recording
+// waits for the pad to be free.
+inline InputPlan PlanInput(const View& view, bool menu) {
+    InputPlan plan;
+    if (!view.ready) return plan;
+    plan.sample = true;
+    if (menu && view.mode != Mode::Playback) return plan;
+    plan.read = true;
+    plan.override = view.mode != Mode::Idle;
+    plan.suppliesDummy = plan.override && DrivesDummy(view);
+    return plan;
 }
 
 // Owns only practice input data. The game adapter owns native save states.
