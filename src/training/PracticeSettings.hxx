@@ -108,7 +108,8 @@ inline bool BuildReplyPlan(const std::string& text, const DummyPlan& settings, D
     if (!combo::ParseSteps(text, steps, error)) return false;
     if (!combo::Clean(text).empty() && steps.empty()) { error = "a reply needs a move"; return false; }
     DummyPlan plan = settings;
-    for (int side = 0; side < 2; ++side) plan.moves[side] = steps.empty() ? std::vector<Input>{} : combo::Synthesize(steps, side == 0);
+    // Made for the dummy facing right, as a slot holds it; it is played for the way it faces.
+    plan.moves = steps.empty() ? std::vector<Input>{} : combo::Synthesize(steps, true);
     result = std::move(plan);
     return true;
 }

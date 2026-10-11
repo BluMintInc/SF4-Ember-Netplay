@@ -1413,6 +1413,12 @@ msgstr "녹화 불러오기"
 msgid "training.load_recording.detail"
 msgstr "좌우로 저장한 녹화를 고르고, 선택하면 선택한 슬롯에 불러옵니다."
 
+msgid "training.mirror"
+msgstr "선택한 녹화 좌우 반전"
+
+msgid "training.mirror.detail"
+msgstr "이 슬롯의 좌우를 바꿉니다. 저장한 녹화가 반대로 재생될 때 씁니다."
+
 msgid "training.recording_saved"
 msgstr "녹화를 {0}(으)로 저장했습니다."
 
@@ -1507,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "반격 기술"
 
 msgid "training.reply.moves.detail"
-msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. 비워 두면 반격 슬롯을 씁니다."
+msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. 비워 두면 반격 슬롯을 씁니다."
 
 msgid "training.reply.move"
 msgstr "반격 프리셋"
@@ -1639,7 +1645,10 @@ msgid "training.play"
 msgstr "재생"
 
 msgid "training.play.detail"
-msgstr "선택한 슬롯을 재생하고 연습으로 돌아갑니다. 방향은 좌우 반전 없이 절대 방향으로 적용됩니다."
+msgstr "선택한 슬롯을 재생하고 연습으로 돌아갑니다. 녹화는 더미가 보는 방향에 맞춰 재생됩니다. 좌우로 반복 여부를 고릅니다."
+
+msgid "training.play.once"
+msgstr "한 번"
 
 msgid "training.slot_empty"
 msgstr "빈 슬롯입니다."
@@ -1652,9 +1661,6 @@ msgstr "녹화 또는 재생을 중지합니다."
 
 msgid "training.loop"
 msgstr "반복 재생"
-
-msgid "training.loop.detail"
-msgstr "선택한 녹화를 반복합니다."
 
 msgid "training.clear_recording"
 msgstr "선택한 녹화 삭제"

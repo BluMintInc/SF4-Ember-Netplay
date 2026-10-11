@@ -10,7 +10,7 @@
 // to act again (plus the link gap), a cancelled move for the hit to land.
 // The game decides what comes out.
 namespace sf4e { namespace combo {
-constexpr unsigned Up = 1, Down = 2, Left = 4, Right = 8;
+constexpr unsigned Up = 1, Down = 2, Left = training::LeftBit, Right = training::RightBit;
 constexpr int FollowDelay = 10;
 // Frames a charge is held. The fighters' command files ask 42 (M. Bison), 50
 // (Guile's and Dee Jay's Sonic Boom), 55 (most charge moves and every charge

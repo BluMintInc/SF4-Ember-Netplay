@@ -1413,6 +1413,12 @@ msgstr "载入录制"
 msgid "training.load_recording.detail"
 msgstr "左右选择已保存的录制；选择后载入到所选槽位。"
 
+msgid "training.mirror"
+msgstr "镜像所选录制"
+
+msgid "training.mirror.detail"
+msgstr "交换此槽位中的左右方向，用于播放方向相反的已保存录制。"
+
 msgid "training.recording_saved"
 msgstr "录制已保存为 {0}。"
 
@@ -1507,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "反击招式"
 
 msgid "training.reply.moves.detail"
-msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。留空则使用反击槽位。"
+msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。也可使用 qcf、qcb、dp、rdp、hcf、hcb 等缩写，例如 qcfP 或 dp+HP。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。留空则使用反击槽位。"
 
 msgid "training.reply.move"
 msgstr "预设反击"
@@ -1639,7 +1645,10 @@ msgid "training.play"
 msgstr "播放"
 
 msgid "training.play.detail"
-msgstr "播放所选槽位并返回练习。方向为绝对方向，不会镜像。"
+msgstr "播放所选槽位并返回练习。录制会按木桩面对的方向播放。左右选择是否循环。"
+
+msgid "training.play.once"
+msgstr "单次"
 
 msgid "training.slot_empty"
 msgstr "此槽位为空。"
@@ -1652,9 +1661,6 @@ msgstr "停止录制或播放。"
 
 msgid "training.loop"
 msgstr "循环播放"
-
-msgid "training.loop.detail"
-msgstr "重复播放所选录制。"
 
 msgid "training.clear_recording"
 msgstr "清除所选录制"

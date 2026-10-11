@@ -1413,6 +1413,12 @@ msgstr "Wczytaj nagranie"
 msgid "training.load_recording.detail"
 msgstr "Lewo i Prawo wybierają zapisane nagranie; Wybór wczytuje je do wybranego slotu."
 
+msgid "training.mirror"
+msgstr "Odbij wybrane nagranie"
+
+msgid "training.mirror.detail"
+msgstr "Zamienia lewo i prawo w tym slocie, dla zapisanego nagrania, które gra odwrotnie."
+
 msgid "training.recording_saved"
 msgstr "Nagranie zapisane jako {0}."
 
@@ -1507,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "Ciosy odpowiedzi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. Puste pole używa slotu odpowiedzi."
+msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. Puste pole używa slotu odpowiedzi."
 
 msgid "training.reply.move"
 msgstr "Gotowa odpowiedź"
@@ -1639,7 +1645,10 @@ msgid "training.play"
 msgstr "Odtwórz"
 
 msgid "training.play.detail"
-msgstr "Odtwórz wybrany slot i wróć do treningu. Kierunki są stałe, bez odbicia lustrzanego."
+msgstr "Odtwórz wybrany slot i wróć do treningu. Nagrania podążają za stroną, w którą patrzy manekin. Lewo i Prawo wybierają, czy się powtarza."
+
+msgid "training.play.once"
+msgstr "Raz"
 
 msgid "training.slot_empty"
 msgstr "Ten slot jest pusty."
@@ -1652,9 +1661,6 @@ msgstr "Zatrzymaj nagranie lub odtwarzanie."
 
 msgid "training.loop"
 msgstr "Odtwarzaj w pętli"
-
-msgid "training.loop.detail"
-msgstr "Powtarzaj wybrane nagranie."
 
 msgid "training.clear_recording"
 msgstr "Wyczyść wybrane nagranie"

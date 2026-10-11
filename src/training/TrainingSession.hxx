@@ -24,6 +24,16 @@ constexpr unsigned AttackButtons = 0xcf0;
 // negative offset is before it; a hit is pressed on the frame after it is seen.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
 constexpr int MinOffset = -120, MaxOffset = 120;
+// A slot holds its frames as played by a fighter facing right, so a move
+// recorded on one side comes out the same on the other: Left and Right are
+// swapped for a fighter facing left, in both words, per played frame.
+constexpr unsigned LeftBit = 4, RightBit = 8;
+inline unsigned MirrorDirections(unsigned bits) {
+    return (bits & ~(LeftBit | RightBit)) | (bits & LeftBit ? RightBit : 0) | (bits & RightBit ? LeftBit : 0);
+}
+inline Input Mirror(Input input) { input.mapped = MirrorDirections(input.mapped); input.raw = MirrorDirections(input.raw); return input; }
+// Between the slot's facing and a fighter's: the same swap both ways.
+inline Input ForFacing(const Input& input, bool facingRight) { return facingRight ? input : Mirror(input); }
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -32,7 +42,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
@@ -105,17 +115,17 @@ inline bool ValidDummyState(const DummyState& s) {
 }
 // What the dummy does by itself once it is free again. when: 0 nothing, 1
 // after being hit, 2 after blocking, 3 on getting up, 4 any
-// of them. moves: the reply as made-up input, for the dummy facing right [0]
-// and left [1]; when empty it replies with the recording in slot. chance:
+// of them. moves: the reply as made-up input, held as a slot holds it (for
+// the dummy facing right) and played for the way it faces on each frame; when
+// empty it replies with the recording in slot. chance:
 // percent of the times it replies. timing: frames the reply's first attack
 // button lands after the dummy's first free frame. varyStance: it stands or
 // crouches at random each time.
-struct DummyPlan { int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves[2]; };
+struct DummyPlan { int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves; };
 constexpr int MaxReplyTiming = 5;
 inline bool ValidDummyPlan(const DummyPlan& plan) {
     return plan.when >= 0 && plan.when <= 4 && plan.slot >= 0 && plan.slot < SlotCount && plan.chance >= 0 && plan.chance <= 100 &&
-        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && plan.moves[0].size() <= std::size_t(MaxFrames) &&
-        plan.moves[0].size() == plan.moves[1].size();
+        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && plan.moves.size() <= std::size_t(MaxFrames);
 }
 // A reply starts on its first pressed frame; -1 when it presses nothing.
 inline int ReplyStart(const std::vector<Input>& frames) {
@@ -248,11 +258,12 @@ struct Command {
     int slot = 0;
     // Loop: whether playback starts again at its end.
     bool loop = false;
-    // Load: made-up input for the selected slot, and the side (0 or 1) that plays it back.
+    // Load: made-up input for the selected slot, as a slot holds it (for a
+    // fighter facing right), and the side (0 or 1) that plays it back.
     std::vector<Input> frames; int side = 1;
     // DummyState: the settings to change.
     DummyState dummy;
-    // Place: where to put Player 1 and Player 2 (x).
+    // Place: where to put Player 1 and Player 2 (x), moved by the runtime (FighterPlacement.hxx).
     float place[2] = {0, 0};
     // DummyPlan: the whole plan, replacing the one before.
     DummyPlan plan;
@@ -384,7 +395,7 @@ public:
         const auto next = view_.generation + 1;
         view_ = View{}; view_.generation = next;
         for (auto& slot : slots_) slot.clear();
-        once_ = {}; actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resume_ = -1;
+        actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resume_ = -1; firstOnLeft_ = true;
     }
     void SetReady(bool ready) { view_.ready = ready; }
     // What the fight showed this frame, for the waiting frames of a playback:
@@ -394,7 +405,19 @@ public:
         actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
-    void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
+    // The fighters face each other, by where they stood after the last
+    // update, or where a Place moved them (FighterPlacement.hxx); level, they keep
+    // the sides they had. A slot plays, and is
+    // recorded, for the facing the update's input was prepared with, so the
+    // runtime sets the new positions after Commit.
+    // Limitation: the game turns a fighter a few frames after the two pass
+    // (after a jump lands), and this turns it at once.
+    void SetPositions(float x0, float x1) {
+        view_.x[0] = x0; view_.x[1] = x1;
+        if (x0 != x1) firstOnLeft_ = x0 < x1;
+    }
+    // The fighter on the left faces right.
+    bool FacingRight(int side) const { return (side == 0) == firstOnLeft_; }
     // Every command passes here first, and only here is its battle checked.
     // Place, DummyPlan and ExportSlot change nothing in the
     // session; accepted, the runtime carries them out.
@@ -425,12 +448,12 @@ public:
         switch (command.action) {
         case Action::Record:
             Stop(); slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0;
-            view_.mode = Mode::Recording; view_.playbackSide = 1; once_[view_.selected] = false; return true;
+            view_.mode = Mode::Recording; view_.playbackSide = 1; return true;
         case Action::Load:
             if (view_.mode != Mode::Idle || command.frames.empty() || (command.side != 0 && command.side != 1)) return false;
             slots_[view_.selected].assign(command.frames.begin(), command.frames.begin() + (std::min)(command.frames.size(), std::size_t(MaxFrames)));
             view_.lengths[view_.selected] = static_cast<int>(slots_[view_.selected].size());
-            view_.playbackSide = command.side; once_[view_.selected] = true; return true;
+            view_.playbackSide = command.side; return true;
         case Action::Play:
             Stop();
             if (slots_[view_.selected].empty()) return false;
@@ -438,6 +461,11 @@ public:
         case Action::Clear:
             if (view_.mode != Mode::Idle) return false;
             slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0; return true;
+        // A loaded file that comes out the wrong way round: its Left and Right swapped.
+        case Action::Mirror:
+            if (view_.mode != Mode::Idle || slots_[view_.selected].empty()) return false;
+            for (auto& frame : slots_[view_.selected]) frame = Mirror(frame);
+            return true;
         case Action::Save: return true;
         case Action::Restore:
             if (!view_.checkpoint) return false;
@@ -473,7 +501,7 @@ public:
         if (view_.mode == Mode::Recording) {
             physical[1] = physical[0]; physical[0] = Input{};
         } else if (view_.mode == Mode::Playback) {
-            physical[view_.playbackSide] = slots_[view_.selected][view_.cursor];
+            physical[view_.playbackSide] = ForFacing(slots_[view_.selected][view_.cursor], FacingRight(view_.playbackSide));
         }
         return physical;
     }
@@ -491,7 +519,8 @@ public:
         }
         if (view_.mode == Mode::Recording) {
             auto& slot = slots_[view_.selected];
-            slot.push_back(output[1]);
+            // The history above keeps the pad's own directions; the slot, the dummy's.
+            slot.push_back(ForFacing(output[1], FacingRight(1)));
             view_.lengths[view_.selected] = static_cast<int>(slot.size());
             view_.cursor = static_cast<int>(slot.size());
             if (slot.size() == MaxFrames) Stop();
@@ -514,7 +543,7 @@ public:
             if ((frame.raw & AttackButtons) && !(lastRaw_ & AttackButtons)) hit_ = false;
             lastRaw_ = frame.raw;
             if (++view_.cursor == view_.lengths[view_.selected]) {
-                if (view_.loop && !once_[view_.selected] && resume_ < 0) view_.cursor = 0;
+                if (view_.loop && resume_ < 0) view_.cursor = 0;
                 else Stop();
             }
         }
@@ -522,8 +551,6 @@ public:
 private:
     View view_;
     std::array<std::vector<Input>, SlotCount + 1> slots_;
-    // Loaded input plays once, whatever the loop setting.
-    std::array<bool, SlotCount + 1> once_{};
     bool actionable_ = false, hit_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0;
@@ -531,6 +558,8 @@ private:
     // The selection a reply borrowed, -1 when none plays.
     int resume_ = -1, resumeSide_ = 1;
     std::uint64_t replies_ = 0;
+    // Player 1 stands on the left (SetPositions), as a battle starts.
+    bool firstOnLeft_ = true;
     void Stop() {
         view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
         if (resume_ >= 0) { view_.selected = resume_; view_.playbackSide = resumeSide_; resume_ = -1; }

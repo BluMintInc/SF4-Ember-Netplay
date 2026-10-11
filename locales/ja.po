@@ -1413,6 +1413,12 @@ msgstr "録画を読み込む"
 msgid "training.load_recording.detail"
 msgstr "左右で保存した録画を選び、決定で選択中のスロットに読み込みます。"
 
+msgid "training.mirror"
+msgstr "選択中の記録を左右反転"
+
+msgid "training.mirror.detail"
+msgstr "このスロットの左右を入れ替えます。保存した録画が反対向きに再生されるときに使います。"
+
 msgid "training.recording_saved"
 msgstr "録画を{0}として保存しました。"
 
@@ -1507,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
-msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。空なら反撃スロットを使います。"
+msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。空なら反撃スロットを使います。"
 
 msgid "training.reply.move"
 msgstr "反撃のプリセット"
@@ -1639,7 +1645,10 @@ msgid "training.play"
 msgstr "再生"
 
 msgid "training.play.detail"
-msgstr "選択中のスロットを再生して練習に戻ります。方向は左右反転されません。"
+msgstr "選択中のスロットを再生して練習に戻ります。記録はダミーの向きに合わせて再生されます。左右で繰り返すかを選びます。"
+
+msgid "training.play.once"
+msgstr "1回"
 
 msgid "training.slot_empty"
 msgstr "このスロットは空です。"
@@ -1652,9 +1661,6 @@ msgstr "記録または再生を停止します。"
 
 msgid "training.loop"
 msgstr "ループ再生"
-
-msgid "training.loop.detail"
-msgstr "選択中の記録を繰り返し再生します。"
 
 msgid "training.clear_recording"
 msgstr "選択中の記録を消去"

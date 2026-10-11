@@ -167,5 +167,49 @@ int main() {
         std::vector<sf4e::training::Input> earlyFrames{{2, 2, sf4e::training::WaitHit, -3}};
         CHECK(sf4e::training::ImportRecording(sf4e::training::ExportRecording(earlyFrames), back, reason) && back.size() == 1 && back[0].offset == -3);
     }
+    // Motions named in words, any case, read as their digits, the button
+    // straight after, after a space or after "+".
+    {
+        const char* const words[][2] = {{"qcf", "236"}, {"qcb", "214"}, {"dp", "623"}, {"rdp", "421"}, {"hcf", "41236"}, {"hcb", "63214"}};
+        for (const auto& word : words) {
+            const std::string name = word[0], digits = word[1];
+            for (const std::string& spelled : {name + "LP", name + " LP", name + "+LP", name + " + lp", Fold(name, std::toupper) + "lp"}) {
+                CHECK(ParseStep(spelled, step, error) && step.motion == digits && step.buttons == LP && step.need == 1);
+                CHECK(Canonical(step) == digits + "LP");
+            }
+        }
+        CHECK(Steps("qcfP") == Steps("236P") && Steps("qcbP") == Steps("214P") && Steps("dpP") == Steps("623P") && Steps("hcbP") == Steps("63214P"));
+        CHECK(Steps("2MK xx qcf+HP > dp HP") == Steps("2MK xx 236HP > 623HP"));
+        CHECK(ParseStep("j.qcbKK", step, error) && step.air && step.motion == "214" && step.buttons == Kicks && step.need == 2);
+        CHECK(ParseStep("qcf[HP]", step, error) && step.motion == "236" && step.edge == Edge::Hold);
+        CHECK(ParseStep("dp", step, error) && step.motion == "623" && !step.buttons);
+        CHECK(!ParseStep("qcz P", step, error) && !ParseStep("qcfqcf", step, error) && !ParseStep("dp++LP", step, error));
+    }
+    // A recording file holds its frames for a fighter facing right (version
+    // 2) and reads back as written; a version 1 file held the pad's own
+    // directions on the dummy, facing left, so its Left and Right are swapped
+    // on reading. A version not known yet is refused.
+    {
+        using sf4e::training::Input;
+        const std::vector<Input> frames{{4, 4, 0, 0}, {10, 10, sf4e::training::WaitActionable, -2}, {0x412, 0x416, 0, 0}};
+        std::vector<Input> back;
+        std::string reason;
+        const auto file = sf4e::training::ExportRecording(frames);
+        CHECK(file.find("\"version\":2") != std::string::npos);
+        CHECK(sf4e::training::ImportRecording(file, back, reason) && back.size() == 3);
+        for (std::size_t i = 0; i < back.size(); ++i)
+            CHECK(back[i].mapped == frames[i].mapped && back[i].raw == frames[i].raw && back[i].wait == frames[i].wait && back[i].offset == frames[i].offset);
+        const std::string first = R"({"format":"sf4e-recording","version":1,"frames":[[4,4,0,0],[6,10,1,-2],[1040,1046,0,0]]})";
+        CHECK(sf4e::training::ImportRecording(first, back, reason) && back.size() == 3);
+        CHECK(back[0].raw == 8 && back[0].mapped == 8 && back[1].mapped == 10 && back[1].raw == 6 && back[1].wait == 1 && back[1].offset == -2);
+        CHECK(back[2].mapped == 0x410 && back[2].raw == (0x410 | 2 | 8));
+        // A file written before versions were read counts as version 1.
+        CHECK(sf4e::training::ImportRecording(R"({"format":"sf4e-recording","frames":[[8,8,0,0]]})", back, reason) && back.size() == 1 && back[0].raw == 4);
+        for (const char* version : {"3", "0", "-1", "\"2\"", "1.5", "null"}) {
+            back = frames; reason.clear();
+            CHECK(!sf4e::training::ImportRecording(std::string(R"({"format":"sf4e-recording","version":)") + version + R"(,"frames":[[0,0,0,0]]})", back, reason));
+            CHECK(back.empty() && !reason.empty());
+        }
+    }
     return 0;
 }

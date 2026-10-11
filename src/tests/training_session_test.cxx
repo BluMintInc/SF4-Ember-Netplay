@@ -183,10 +183,10 @@ int main() {
             Require(frame[0].raw == 0x410, "Loaded input did not advance");
             Command empty; empty.action = Action::Load; empty.generation = load.generation;
             Require(!session.Apply(empty), "Empty load accepted while playing");
-            // Loaded input plays one pass even with looping on.
+            // Loaded input follows the loop choice as a recording does.
             Require(session.GetView().loop, "Loop is not the default");
             session.Commit(frame);
-            Require(session.GetView().mode == Mode::Idle, "Loaded input looped");
+            Require(session.GetView().mode == Mode::Playback && session.GetView().cursor == 0, "Loaded input did not loop");
             apply(Action::Stop);
             // A waiting frame repeats, buttons held, until the fight shows its
             // cue, then its offset's frames more; it gives up after a while.
@@ -898,7 +898,7 @@ int main() {
             reply.Commit(reply.Prepare(Frame{}));
             Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5, "The reply looped or kept the selection");
             // The typed reply has a slot of its own; hit again, it is dropped.
-            Require(reply.Reply(dragon) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 8, "The typed reply did not start");
+            Require(reply.Reply(dragon) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
             reply.StopReply();
             Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
             command.action = Action::Select; command.slot = ReplySlot;

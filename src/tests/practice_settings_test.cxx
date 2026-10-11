@@ -58,14 +58,13 @@ int main() {
         CHECK(MigrateReplyMoves(migrated) == migrated);
         DummyPlan plan;
         CHECK(BuildReplyPlan(migrated, settings, plan, error));
-        CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves[0].empty());
-        for (int side = 0; side < 2; ++side) {
-            const auto expected = sf4e::combo::Synthesize({notation[i]}, side == 0);
-            CHECK(plan.moves[side].size() == expected.size());
-            for (std::size_t frame = 0; frame < expected.size(); ++frame) {
-                const auto& got = plan.moves[side][frame]; const auto& want = expected[frame];
-                CHECK(got.raw == want.raw && got.mapped == want.mapped && got.wait == want.wait && got.offset == want.offset);
-            }
+        CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves.empty());
+        // Made once, for the dummy facing right, as a slot holds it.
+        const auto expected = sf4e::combo::Synthesize({notation[i]}, true);
+        CHECK(plan.moves.size() == expected.size());
+        for (std::size_t frame = 0; frame < expected.size() && frame < plan.moves.size(); ++frame) {
+            const auto& got = plan.moves[frame]; const auto& want = expected[frame];
+            CHECK(got.raw == want.raw && got.mapped == want.mapped && got.wait == want.wait && got.offset == want.offset);
         }
     }
     CHECK(MigrateReplyMoves(" Dash > back dash > THROW > Focus > jump ") == "66 > 44 > 5LP+LK > 5MP+MK > 8");
@@ -74,13 +73,13 @@ int main() {
     CHECK(MigrateReplyMoves("dash > Hadoken") == "dash > Hadoken");
     // Invalid saved text (including a nonempty separator-only line) cannot
     // erase a typed reply and silently switch the command to its slot.
-    DummyPlan result; result.moves[0] = result.moves[1] = {{0x10, 0x10, 0, 0}};
+    DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
     for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP"}) {
         error.clear();
         CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
-        CHECK(result.moves[0].size() == 1 && result.moves[0][0].raw == 0x10 && result.moves[1][0].raw == 0x10);
+        CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);
     }
-    CHECK(BuildReplyPlan("", settings, result, error) && result.moves[0].empty() && result.moves[1].empty() && result.slot == 3);
+    CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.slot == 3);
 
     // Every reply preset, 214K and 236P included, is notation the parser and
     // the plan builder take as typed text, and reads back as itself however
@@ -88,7 +87,7 @@ int main() {
     CHECK(ReplyPresetCount == 9);
     for (int i = 0; i < ReplyPresetCount; ++i) {
         DummyPlan plan; error.clear();
-        CHECK(BuildReplyPlan(ReplyPresets[i], settings, plan, error) && !plan.moves[0].empty() && !plan.moves[1].empty());
+        CHECK(BuildReplyPlan(ReplyPresets[i], settings, plan, error) && !plan.moves.empty());
         CHECK(ReplyPresetIndex(ReplyPresets[i]) == i);
         std::string lower;
         for (const char* c = ReplyPresets[i]; *c; ++c) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
