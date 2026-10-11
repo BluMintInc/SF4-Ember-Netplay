@@ -4,17 +4,19 @@
 // together through a held recording, resets and a restarted playback.
 #include "../training/TrainingSession.hxx"
 #include "../training/MoveInputs.hxx"
+#include <algorithm>
 #include <cstdio>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 int main() {
     try {
         {
-            // The dummy plays from the pad for the updates that act on Ember's
-            // input: from the first one Ember supplies, input lag later, to the
-            // last one, as late again, and its own control stands around them.
+            // The dummy plays from the pad for the updates that read Ember's
+            // input and act on it: from the first one Ember supplies to the one
+            // input lag after the last, and its own control stands around them.
             using Step = DummyControl::Step;
             // One update: whether Ember supplies Player 2's input in it, then
             // whether the battle simulated it.
@@ -30,16 +32,17 @@ int main() {
             };
             Require(steps(0, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::Begin, Step::Keep, Step::End, Step::None},
                 "With no input lag the pad did not cover exactly the supplied updates");
-            Require(steps(1, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::None, Step::Begin, Step::Keep, Step::End},
-                "With a frame of input lag the pad did not start and end a frame later");
-            Require(steps(1, {true, false, true, false}) == std::vector<Step>{Step::None, Step::Begin, Step::End, Step::Begin},
+            Require(steps(1, {false, true, true, false, false}) == std::vector<Step>{Step::None, Step::Begin, Step::Keep, Step::Keep, Step::End},
+                "With a frame of input lag the pad did not run from the update reading the first input to the one acting on the last");
+            Require(steps(0, {true, false, true, false}) == std::vector<Step>{Step::Begin, Step::End, Step::Begin, Step::End},
                 "A one-update gap between two drives did not give the dummy its own control for that update");
+            Require(steps(1, {true, false, true, false, false}) == std::vector<Step>{Step::Begin, Step::Keep, Step::Keep, Step::Keep, Step::End},
+                "With input lag, the update acting on the first drive's last input left the pad");
             {
                 // Updates the battle does not simulate move nothing on: the
                 // pad waits with them for the frame that acts on the last input.
                 DummyControl held;
-                step(held, true, 1);
-                Require(step(held, false, 1, 0, false) == Step::Begin && step(held, false, 1, 0, false) == Step::Keep &&
+                Require(step(held, true, 1) == Step::Begin && step(held, false, 1, 0, false) == Step::Keep && step(held, false, 1, 0, false) == Step::Keep &&
                     step(held, false, 1) == Step::Keep && step(held, false, 1) == Step::End,
                     "An update the battle did not simulate moved the input lag on");
             }
@@ -54,10 +57,11 @@ int main() {
             native = 3;
             Require(control.Reconcile(native) && native == 3 && step(control, false, 0, native) == Step::None,
                 "A pause-menu action did not end the pad");
-            // In the input lag's first frame, before the pad, Ember already drives.
+            // With input lag, a pause-menu action in a drive's first update ends
+            // it, and the input that update read is not acted on from the pad.
             DummyControl lagged;
-            Require(step(lagged, true, 1) == Step::None && lagged.Reconcile(3) && step(lagged, false, 1, 3) == Step::None,
-                "A pause-menu action in the input lag's first frame did not end the drive, or the pad began after it");
+            Require(step(lagged, true, 1) == Step::Begin && lagged.Reconcile(3) && step(lagged, false, 1, 3) == Step::None,
+                "A pause-menu action in a drive's first update did not end the drive, or the pad went on after it");
             // A reset breaks the input's history, not whose action it is.
             DummyControl rewound;
             step(rewound, true, 0);
@@ -113,30 +117,29 @@ int main() {
                 Bench recording(lag);
                 Require(recording.Send(Action::Record), "The recording did not start");
                 const auto pads = recording.Run({false, false, true, true, false, false});
-                Require(pads == (lag ? std::vector<bool>{false, true, true, false, false, true} : std::vector<bool>{true, true, false, false, true, true}),
+                Require(pads == (lag ? std::vector<bool>{true, true, true, false, true, true} : std::vector<bool>{true, true, false, false, true, true}),
                     "A recording held under the open controls kept the dummy on the pad, or did not take it back on resuming");
                 Require(recording.session.GetView().mode == Mode::Recording && recording.session.GetView().cursor == 4,
                     "The held recording stopped or recorded the held updates");
 
                 Bench reply(lag);
-                Require(reply.session.Reply(moves) && reply.Update() == (lag == 0), "The reply's first update was wrong");
-                Require(reply.Reset() && !reply.Finish() && !reply.Update(), "A reset in the reply's first lag frame left the dummy on the pad");
-                Require(reply.session.Reply(moves) && reply.Run({false, false, false}) == std::vector<bool>{lag == 0, true, true}, "The reply did not play from the pad");
+                Require(reply.session.Reply(moves) && reply.Update(), "The reply's first input was not read from the pad");
+                Require(reply.Reset() && !reply.Finish() && !reply.Update(), "A reset after the reply's first update left the dummy on the pad");
+                Require(reply.session.Reply(moves) && reply.Run({false, false, false}) == std::vector<bool>{true, true, true}, "The reply did not play from the pad");
                 Require(reply.Reset() && !reply.Finish(), "A reset during the reply left the dummy on the pad for the old timeline");
 
                 Bench playback(lag);
                 Command load; load.action = Action::Load; load.generation = playback.session.GetView().generation; load.frames = moves; load.side = 1;
                 Require(playback.session.Apply(load) && playback.Send(Action::Play), "The playback did not start");
-                Require(playback.Run({false, false, false}) == std::vector<bool>{lag == 0, true, true}, "The playback did not play from the pad");
+                Require(playback.Run({false, false, false}) == std::vector<bool>{true, true, true}, "The playback did not play from the pad");
                 Require(playback.Reset() && playback.session.GetView().mode == Mode::Playback && playback.session.GetView().cursor == 0,
                     "The reset did not start the playback again");
-                Require(playback.Finish() == (lag == 0) && playback.Update(),
-                    "The restarted playback put the dummy on the pad for the old timeline's input, or not for its own");
+                Require(playback.Finish() && playback.Update(), "The restarted playback's input was not read from the pad");
 
                 // The pause menu changed the action, and the first update to
                 // see it resets the battle: the choice stands and Ember stops.
                 Bench recordingTaken(lag);
-                Require(recordingTaken.Send(Action::Record) && recordingTaken.Run({false, false}) == std::vector<bool>{lag == 0, true},
+                Require(recordingTaken.Send(Action::Record) && recordingTaken.Run({false, false}) == std::vector<bool>{true, true},
                     "The recording did not play from the pad");
                 recordingTaken.action = 3;
                 Require(recordingTaken.Reset() && recordingTaken.session.GetView().mode == Mode::Idle && !recordingTaken.Finish() && !recordingTaken.Update(),
@@ -144,35 +147,75 @@ int main() {
                 Bench playbackTaken(lag);
                 load.generation = playbackTaken.session.GetView().generation;
                 Require(playbackTaken.session.Apply(load) && playbackTaken.Send(Action::Play) &&
-                    playbackTaken.Run({false, false}) == std::vector<bool>{lag == 0, true}, "The playback did not play from the pad");
+                    playbackTaken.Run({false, false}) == std::vector<bool>{true, true}, "The playback did not play from the pad");
                 playbackTaken.action = 3;
                 Require(playbackTaken.Reset() && playbackTaken.session.GetView().mode == Mode::Idle && !playbackTaken.Finish() && !playbackTaken.Update(),
                     "A reset with a pause-menu action started the playback again under it");
             }
         }
         {
-            // A typed charge reply, frame by frame as the runtime decides and
-            // plays it (TrainingRuntime.cxx, AfterUpdate): the dummy is watched
-            // after each update, a new stun drops a reply begun, and a reply
-            // due starts in the next update. The hold is the longest charge any
-            // fighter needs, and the button lands on the free frame (plus
-            // timing) when the stun is long enough to charge in, else as soon
-            // as the charge allows. Guard stance after the stun, the dummy
-            // holding back while an attack is near, leaves the reply playing.
-            struct Run { int button = -1, free = -1; bool dropped = false; };
-            // statuses: the dummy's, one per frame; it is free from the first
-            // one after the stun that holds it in none.
-            const auto play = [](DummyWatch& watch, Session& session, const std::vector<Input>& frames, int lag, int timing,
-                                 const std::vector<unsigned>& statuses) {
+            // Typed replies, update by update as the runtime decides and plays
+            // them (TrainingRuntime.cxx, BeforeUpdate and AfterUpdate), with
+            // Lower input lag off and on, against the game's side as IDA and
+            // the game's own traces show it. The game reads Player 2's pad only
+            // under the pad control (0x599410), and the dummy acts on it the
+            // next update, either way (DummyInputLag), again only under the pad
+            // control (0x5996F0). A press starts its move from the dummy's
+            // first free frame on, a button only as a new press of all its bits
+            // on that frame (0x598F60). A charge is the frames in a row its
+            // direction reached the fighter (0x598590): the dummy's own guard
+            // reads nothing, so it charges nothing. A new stun drops a reply
+            // begun; guard stance after the stun, the dummy holding back while
+            // an attack is near, does not.
+            struct Game {
+                std::vector<unsigned> read;
+                unsigned last = 0;
+                int run = 0, chargedAt = -1000;
+                // One update: the pad control, Ember's input for Player 2, the
+                // dummy's free frame (-1 before it is known), the move's
+                // buttons and the direction it charges (0 none). Whether the move starts.
+                bool Update(int frame, bool pad, unsigned input, int free, unsigned buttons, unsigned charge) {
+                    read.push_back(pad ? input : 0u);
+                    const unsigned acted = frame >= 1 ? read[frame - 1] : 0u, pressed = acted & ~last;
+                    last = acted;
+                    if (!(acted & charge)) run = 0;
+                    else if (++run >= 55) chargedAt = frame;
+                    const bool charged = !charge || frame - chargedAt <= 10;
+                    return pad && free >= 0 && frame >= free && (pressed & buttons) == buttons && charged;
+                }
+            };
+            // button: the update the reply's first attack button was read in;
+            // free: the dummy's first free frame; move: the frame its move starts.
+            struct Run { int button = -1, free = -1, move = -1; bool dropped = false; };
+            // lowered: Lower input lag. statuses: the dummy's, one per frame; it
+            // is free from the first one after the stun that holds it in none.
+            const auto play = [](DummyWatch& watch, Session& session, const std::vector<Input>& frames, bool lowered, int timing,
+                                 const std::vector<unsigned>& statuses, unsigned charge) {
                 Run run; unsigned decided = ~0u; bool held = false;
-                const int lead = ReplyLead(frames) + lag;
+                DummyControl control; Game game;
+                const auto sample = [&](int frame) {
+                    FighterSample dummy; dummy.valid = true; dummy.status = statuses[frame]; dummy.action = static_cast<int>(statuses[frame]) * 10;
+                    return dummy;
+                };
+                int free = -1;
+                for (int frame = 0, stunned = 0; frame < static_cast<int>(statuses.size()) && free < 0; ++frame) {
+                    if (DummyHold(sample(frame)) > 0) stunned = 1;
+                    else if (stunned) free = frame;
+                }
+                const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& input) { return (input.raw & AttackButtons) != 0; });
+                const unsigned buttons = press == frames.end() ? 0u : press->raw & AttackButtons;
+                const int lag = DummyInputLag(lowered), lead = ReplyLead(frames) + lag;
                 for (int frame = 0; frame < static_cast<int>(statuses.size()); ++frame) {
                     const bool replying = session.Replying();
+                    const auto step = control.Follow(PlanInput(session.GetView(), false).suppliesDummy, lag, 0);
                     const Frame output = session.Prepare(Frame{});
+                    if (game.Update(frame, step == DummyControl::Step::Begin || step == DummyControl::Step::Keep, output[1].raw, free, buttons, charge) &&
+                        run.move < 0)
+                        run.move = frame;
+                    control.Simulated();
                     session.Commit(output);
                     if (replying && run.button < 0 && (output[1].raw & AttackButtons)) run.button = frame;
-                    FighterSample dummy; dummy.valid = true; dummy.status = statuses[frame]; dummy.action = static_cast<int>(statuses[frame]) * 10;
-                    const DummySeen seen = watch.Observe(dummy, 100);
+                    const DummySeen seen = watch.Observe(sample(frame), 100);
                     if (seen.held) held = true;
                     else if (held && run.free < 0) run.free = frame;
                     if (seen.held && seen.stretch != decided && session.Replying()) { session.StopReply(); run.dropped = true; }
@@ -187,7 +230,30 @@ int main() {
                 out.insert(out.end(), frames, stun); out.insert(out.end(), afterFrames, after); out.insert(out.end(), 120, 0u);
                 return out;
             };
+            // A dummy that faces right, as a slot holds its frames, so a charge's back is Left.
+            const auto ready = [](Session& session) { session.Enter(); session.SetReady(true); session.SetPositions(1, 0); };
             using namespace sf4e::combo;
+            // A button, two or three pressed together: all on one frame, with
+            // none the frame before, so each is a new press of them all.
+            const std::pair<const char*, unsigned> presses[] = {{"5MK", MK}, {"LP+LK", LP | LK}, {"MP+MK", MP | MK}, {"PPP", Punches}, {"KKK", Kicks}};
+            for (const auto& pressed : presses) {
+                const auto frames = Synthesize({pressed.first}, true);
+                const int start = ReplyStart(frames);
+                Require(start >= 0 && frames[start].raw == pressed.second && ReplyLead(frames) == 0, "A press was not all its buttons on the reply's first frame");
+                for (const bool lowered : {false, true}) for (const int timing : {0, 1}) {
+                    // Blockstun, seen first: replied to as it ends. Seen again:
+                    // at timing 0 the press is a reversal, its move starting on
+                    // the dummy's free frame.
+                    DummyWatch watch; Session session; ready(session);
+                    const auto block = statuses(ActorStatus::DamageGuard, 18, 0u, 0);
+                    const Run first = play(watch, session, frames, lowered, timing, block, 0);
+                    Require(first.free == 23 && first.button == first.free + 1 && first.move == first.button + 1 && !first.dropped,
+                        "A press after a blockstun not seen before did not come out as the reply began");
+                    const Run timed = play(watch, session, frames, lowered, timing, block, 0);
+                    Require(timed.button + 1 == timed.free + timing && timed.move == timed.free + timing && !timed.dropped,
+                        "A press after a timed blockstun did not start its move on the free frame, plus timing");
+                }
+            }
             for (const char* move : {"[4]6P", "[2]8K"}) {
                 const auto frames = Synthesize({move}, true);
                 const unsigned back = move[1] == '4' ? Left : Down;
@@ -195,25 +261,33 @@ int main() {
                 while (hold < static_cast<int>(frames.size()) && frames[hold].raw == back) ++hold;
                 Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && ReplyLead(frames) == ChargeFrames + 3,
                     "A charge was held too briefly for some fighter, or its lead misread");
-                for (const int lag : {0, 1}) for (const int timing : {-1, 0, 2}) {
-                    // Getting up, long enough to charge in: the first time it is
-                    // replied to as it ends; timed, the button lands on the free frame.
-                    DummyWatch watch; Session session; session.Enter(); session.SetReady(true);
-                    const auto wake = statuses(ActorStatus::Rise, 100, 0u, 0);
-                    const Run first = play(watch, session, frames, lag, timing, wake);
-                    Require(first.free == 105 && first.button == first.free + 1 + ChargeFrames + 3 && !first.dropped, "An untimed stun was not replied to as it ended");
-                    const Run timed = play(watch, session, frames, lag, timing, wake);
-                    Require(timed.button >= 0 && timed.button + lag == timed.free + timing && !timed.dropped,
-                        "A charge reply's button did not land on the free frame plus timing");
+                for (const bool lowered : {false, true}) for (const int timing : {-1, 0, 2}) {
+                    // Getting up, and a blockstun with the charge held back
+                    // through it, each long enough to charge in: the first time
+                    // replied to as it ends; timed, the button lands on the free
+                    // frame, plus timing, charged.
+                    const std::pair<unsigned, int> stuns[] = {{static_cast<unsigned>(ActorStatus::Rise), 100}, {static_cast<unsigned>(ActorStatus::DamageGuard), 90}};
+                    for (const auto& stun : stuns) {
+                        const int length = stun.second;
+                        DummyWatch watch; Session session; ready(session);
+                        const auto held = statuses(stun.first, length, 0u, 0);
+                        const Run first = play(watch, session, frames, lowered, timing, held, back);
+                        Require(first.free == 5 + length && first.button == first.free + 1 + ChargeFrames + 3 && first.move == first.button + 1 &&
+                            !first.dropped, "A charge reply to a stun not seen before was not played as it ended");
+                        const Run timed = play(watch, session, frames, lowered, timing, held, back);
+                        Require(timed.button + 1 == timed.free + timing && !timed.dropped,
+                            "A charge reply's button did not land on the free frame, plus timing");
+                        Require(timing < 0 || timed.move == timed.button + 1, "A charge held through the stun did not come out on its button");
+                    }
                     // Blockstun too short to charge in, then guard stance standing or crouching:
-                    // the reply begins on the stun's first frame and is not dropped.
+                    // the reply begins on the stun's first frame, is not dropped, and comes out charged.
                     for (const unsigned guard : {static_cast<unsigned>(ActorStatus::GuardStand), static_cast<unsigned>(ActorStatus::GuardCrouch)}) {
-                        DummyWatch blockWatch; Session blockSession; blockSession.Enter(); blockSession.SetReady(true);
+                        DummyWatch blockWatch; Session blockSession; ready(blockSession);
                         const auto block = statuses(ActorStatus::DamageGuard, 18, guard, 80);
-                        play(blockWatch, blockSession, frames, lag, timing, block);
-                        const Run blocked = play(blockWatch, blockSession, frames, lag, timing, block);
-                        Require(blocked.free == 23 && blocked.button == 5 + 1 + ChargeFrames + 3 && !blocked.dropped,
-                            "A charge reply over a short blockstun was dropped in guard stance, or started late");
+                        play(blockWatch, blockSession, frames, lowered, timing, block, back);
+                        const Run blocked = play(blockWatch, blockSession, frames, lowered, timing, block, back);
+                        Require(blocked.free == 23 && blocked.button == 5 + 1 + ChargeFrames + 3 && blocked.move == blocked.button + 1 && !blocked.dropped,
+                            "A charge reply over a short blockstun was dropped in guard stance, started late or came out uncharged");
                     }
                 }
             }

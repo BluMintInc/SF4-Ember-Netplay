@@ -56,12 +56,15 @@ struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -
 // it drives Player 2 (DrivesDummy). The game plays the dummy by its own logic,
 // which follows the Training menu's Action and Guard, and plays a side from
 // its pad only when the side's control says so; Ember gives Player 2 that
-// control for exactly the updates that act on Ember's input and the game's
-// own back after, so the menu's settings, blocking among them, hold
-// everywhere else and the player never sets anything. An input reaches the
-// fighters lag simulated frames after the update it is read in (0, or 1 as
-// the game has it offline), so the pad control starts and ends that much
-// later; an update the battle does not simulate moves nothing on.
+// control for exactly the updates that read or act on Ember's input and
+// the game's own back after, so the menu's settings, blocking among them,
+// hold everywhere else and the player never sets anything. The game reads a
+// side's pad only while its control says so (0x599410, any other control
+// reads nothing), and the input reaches the fighter lag simulated frames
+// later (DummyInputLag), where the fighter plays from it only while the
+// control still says so (0x5996F0, 0x59A6A0). So the pad control starts
+// with the first update Ember supplies and ends lag updates after the last
+// one; an update the battle does not simulate moves nothing on.
 // The Action found when Ember began to drive Player 2 stays the player's
 // while Ember drives it or the pad control lasts: a different one found there
 // was picked in the pause menu, which ends both (Reconcile) so that choice
@@ -82,7 +85,7 @@ public:
     // input in it (InputPlan). action: the Training menu's Action now.
     Step Follow(bool supplies, int lag, int action) {
         supplies_ = supplies;
-        const bool pad = lag > 0 ? supplied_ : supplies;
+        const bool pad = supplies || (lag > 0 && supplied_);
         if (!owned_) action_ = action;
         owned_ = supplies || pad;
         if (pad == pad_) return pad ? Step::Keep : Step::None;
@@ -204,8 +207,16 @@ private:
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
     return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
+// Updates from the one Ember's input for the dummy is read in to the one the
+// dummy acts on it, whether Lower input lag (InputLagEdit.hxx) is on or not.
+// Measured in the game, not derived: a reply's button read in one update
+// started the dummy's move in the next with the setting off, and in the next
+// as well with it on, though the edit at 0x5CFBB6 stores both sides' input
+// under the frame being read. Should a trace ever show the move in the
+// update the button was read in with the setting on, return 0 for it.
+inline int DummyInputLag(bool /*lowered*/) { return 1; }
 // Whether a reply should start after this frame's observation: its first
-// attack button, acted on lead frames in (its ReplyLead and the input lag),
+// attack button, acted on lead frames in (its ReplyLead and DummyInputLag),
 // then meets the free frame (plus timing).
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);

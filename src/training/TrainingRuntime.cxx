@@ -169,8 +169,8 @@ void LogPlaying(const Playing& what, const char* change) {
     if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
     else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
 }
-// Updates from the one an input is read in to the one the fighters act on it.
-int InputLag() { return sf4e::InputLag::BattleInputLowered() ? 0 : 1; }
+// Updates from the one Ember's input for the dummy is read in to the one it acts on it.
+int DummyLag() { return DummyInputLag(sf4e::InputLag::BattleInputLowered()); }
 // At the start of each update, before its commands can reset the battle: a
 // different action picked in the pause menu while Ember plays Player 2
 // stands, and what Ember plays stops.
@@ -182,8 +182,9 @@ void ReconcileDummy(Native* system) {
     session.Apply({Action::Stop, session.GetView().generation});
 }
 // Each update, once its input is planned: Player 2 plays from the pad while
-// the fighters act on what Ember plays there (DummyControl), from its first
-// input to its last, and the dummy's own control is put back after.
+// the game reads what Ember plays there and the fighters act on it
+// (DummyControl), from the update that reads its first input to the one that
+// acts on its last, and the dummy's own control is put back after.
 // supplies: InputPlan::suppliesDummy.
 void FollowDummy(Native* system, bool supplies) {
     const auto& view = session.GetView();
@@ -192,7 +193,7 @@ void FollowDummy(Native* system, bool supplies) {
     int* options = DummyOptions();
     int* control = Native::GetPlayerControl(system, 1);
     if (!options || !control) return;
-    const int action = options[Manager::OPT_ACTION], lag = InputLag();
+    const int action = options[Manager::OPT_ACTION], lag = DummyLag();
     switch (dummyControl.Follow(supplies, lag, action)) {
     case DummyControl::Step::Begin:
         spdlog::info("Training: Player 2 plays from the pad (control {} to {}, action {}, input lag {})",
@@ -468,7 +469,7 @@ void AfterUpdate(Native* system) {
             const bool typed = !dummyPlan.moves.empty();
             const auto& frames = typed ? dummyPlan.moves : session.Slot(dummyPlan.slot);
             const int cause = seen.freed ? seen.freed : seen.held;
-            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames) + InputLag(), dummyPlan.timing)) {
+            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames) + DummyLag(), dummyPlan.timing)) {
                 decidedStretch = seen.stretch;
                 if (DummyReplies(dummyPlan, cause, dummyRandom())) {
                     // Ember plays the reply from the next update, and the dummy from the pad (FollowDummy).
@@ -480,12 +481,16 @@ void AfterUpdate(Native* system) {
                 const int action = options[Manager::OPT_ACTION];
                 if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
             }
-            // Where the reply's button met the dummy, once per reply, to check timing 0 in the game.
+            // Where the reply's button met the dummy, once per reply, to check timing 0 in the game:
+            // a reversal's move starts on the free frame, the update its button is acted on
+            // (sent + DummyInputLag), so both differences are timing.
             ReplyTiming timing;
             const bool pressed = playing.reply && commitInput && (output[1].raw & AttackButtons);
             if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
-                spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; input lag {}, timing {}",
-                    timing.sent, timing.freed, timing.move, InputLag(), dummyPlan.timing);
+                spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; "
+                    "input lag {} (Lower input lag {}), timing {}; move {} after free, {} after the button was acted on",
+                    timing.sent, timing.freed, timing.move, DummyLag(), sf4e::InputLag::BattleInputLowered() ? "on" : "off", dummyPlan.timing,
+                    timing.move - timing.freed, timing.move - timing.sent - DummyLag());
         }
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
