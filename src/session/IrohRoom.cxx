@@ -69,6 +69,7 @@ bool IrohRoom::Begin(bool host) {
 	pendingCheckpointAck_=nullptr;
     pendingCommittedMarker_=nullptr;
     appliedEffects_.clear(); deliveredEffects_.clear(); effectRecipients_.clear(); effectsRevision_=0; receivedRevision_=0;
+    loadWindow_={};
     pendingPublicEffects_.clear();
     pendingTerminalReplayEffects_.clear(); terminalReplayInFlight_.clear();
     deliveredTerminalReplays_.clear();
@@ -640,6 +641,22 @@ bool IrohRoom::Queue(std::deque<Message>& destination, Message message) {
 	return true;
 }
 
+// The helper reports its load every few seconds while in a room. Once a minute
+// that says how the room is doing: commits made and applied here, commits
+// waiting to apply, and how full a member's control queue got (queue_full at
+// its capacity drops room messages).
+void IrohRoom::LogLoad(std::uint64_t nowMs) {
+	loadWindow_.controlQueuePeak = (std::max)(loadWindow_.controlQueuePeak, helperLoad_.controlQueuePeak);
+	if (loadWindow_.startedMs && nowMs - loadWindow_.startedMs < 60000) return;
+	if (loadWindow_.startedMs)
+		spdlog::info("Room: load over {} s members={} revision={} commits={} applied={} staged={} marker_parked={} "
+			"control_queue_peak={} event_queue_free_min={}", (nowMs - loadWindow_.startedMs) / 1000, committedMembers_.size(),
+			coordination_.revision, coordination_.revision - loadWindow_.revision, effectsRevision_ - loadWindow_.applied,
+			committedCheckpoints_.size() + decoding_.size(), !pendingCommittedMarker_.is_null(), loadWindow_.controlQueuePeak,
+			helperLoad_.eventQueueFreeMin);
+	loadWindow_ = {nowMs, coordination_.revision, effectsRevision_, 0};
+}
+
 // The three long Poll branches. Each returns false when Poll must stop for
 // this tick (a failure, or the leader-loss freeze) and true to take the next
 // helper event. They run inside Poll's json::exception guard.
@@ -799,6 +816,8 @@ void IrohRoom::Poll() {
 				helperLoad_.actorTickLagMaxUs = event.at("actor_tick_lag_max_us").get<std::uint64_t>();
 				helperLoad_.actorTickBodyMaxUs = event.at("actor_tick_body_max_us").get<std::uint64_t>();
 				helperLoad_.eventQueueFreeMin = event.at("event_queue_free_min").get<std::uint64_t>();
+				helperLoad_.controlQueuePeak = event.at("control_queue_peak").get<std::uint64_t>();
+				LogLoad(GetTickCount64());
 				continue;
 			}
 			// Gameplay is independent of room health. Its lifecycle and counters

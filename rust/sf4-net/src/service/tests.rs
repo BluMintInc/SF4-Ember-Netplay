@@ -329,6 +329,7 @@ async fn the_tick_slows_only_when_nothing_is_left_for_it() {
                 actor_tick_lag_max_us: 0,
                 actor_tick_body_max_us: 0,
                 event_queue_free_min: 0,
+                control_queue_peak: 0,
             })
             .unwrap();
     }

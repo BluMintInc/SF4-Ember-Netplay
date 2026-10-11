@@ -54,6 +54,8 @@ public:
     // the first report arrives.
     struct HelperLoadSnapshot {
         std::uint64_t samples=0, actorTickLagMaxUs=0, actorTickBodyMaxUs=0, eventQueueFreeMin=0;
+        // The most frames one room control's send queue held in the report's window.
+        std::uint64_t controlQueuePeak=0;
         // The last helper event of any kind, to tell a silent helper from a
         // lost reply (F-008).
         std::uint64_t lastEventMs=0;
@@ -403,6 +405,10 @@ private:
     void StageCommittedCheckpoint(const coordination::TransferIdentity& identity,
         CheckpointDecodeWorker::Result&& decoded);
     HelperLoadSnapshot helperLoad_;
+    // The room's load line, once a minute while in a room: the window's start
+    // and its revisions then, and the window's control queue peak so far.
+    struct LoadWindow { std::uint64_t startedMs=0, revision=0, applied=0, controlQueuePeak=0; } loadWindow_;
+    void LogLoad(std::uint64_t nowMs);
     std::deque<PendingDecode> decoding_;
     std::uint64_t nextDecodeTicket_=1;
     // SF4E_ROOM_WORKER=0 decodes inline on the game thread instead.

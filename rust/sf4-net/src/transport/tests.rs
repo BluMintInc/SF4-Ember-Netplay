@@ -260,6 +260,9 @@ async fn control_workers_bound_both_directions_and_backpressure_the_consumer() {
             }),
             Err(QueueError::Full)
         );
+        // The full queue is the peak, and reading it starts the count over.
+        assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
+        assert_eq!(sender.take_queue_peak(), 0);
         assert_eq!(
             sender.try_send(ControlFrame {
                 message_id: 1000,
