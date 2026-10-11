@@ -129,9 +129,18 @@ ImVec4 AdvantageColor(int frames) {
     return ImGui::ColorConvertU32ToFloat4(frames > 0 ? IM_COL32(118, 224, 160, 255) :
         frames < 0 ? IM_COL32(255, 121, 129, 255) : palette::Ivory);
 }
-void Advantage(const FrameAdvantage& advantage, int side) {
-    if (advantage.valid) ImGui::TextColored(AdvantageColor(advantage.frames[side]), "%+d f", advantage.frames[side]);
-    else ImGui::TextDisabled("--");
+// The last reading stays until the next one replaces it, dimmed while that
+// one is being measured.
+void Advantage(const MeterView& meter, int side) {
+    const auto& shown = ShownAdvantage(meter);
+    if (!shown.valid) { ImGui::TextDisabled("--"); return; }
+    auto colour = AdvantageColor(shown.frames[side]);
+    if (!meter.advantage.valid && meter.advantage.pending) colour.w = .45f;
+    ImGui::TextColored(colour, "%+d f", shown.frames[side]);
+}
+// Why the advantage shown is missing or dimmed; nothing while a reading stands.
+bool AdvantageExplained(const MeterView& meter) {
+    return !meter.advantage.valid && (!ShownAdvantage(meter).valid || meter.advantage.pending);
 }
 std::string Unavailable(const char* label, MeasurementUnavailable reason) {
     const char* reasonId = "training.unavailable.invalid";
@@ -174,7 +183,7 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
         const float rowStart = ImGui::GetCursorPosX();
         if (options.numbers) {
             ImGui::TextDisabled("P%d", side + 1);
-            ImGui::SameLine(0,gap); Advantage(meter.advantage, side);
+            ImGui::SameLine(0,gap); Advantage(meter, side);
             ImGui::SameLine(0,gap);
             if (meter.startupFrames[side] >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", meter.startupFrames[side]).c_str());
             else {
@@ -202,7 +211,7 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
 // The first measurement that is unavailable, and why, for the HUD's reason
 // line: the pad and keys cannot hover the tooltips that say the same.
 std::string MeasurementReason(const MeterView& meter) {
-    if(!meter.advantage.valid)return Unavailable(loc::T("training.advantage"),meter.advantage.unavailable);
+    if(AdvantageExplained(meter))return Unavailable(loc::T("training.advantage"),meter.advantage.unavailable);
     for(int side=0;side<2;++side)if(meter.startupFrames[side]<0)
         return "P"+std::to_string(side+1)+" "+Unavailable(loc::T("training.startup"),meter.startupUnavailable[side]);
     return {};
@@ -215,8 +224,9 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
         {loc::T("training.startup"), number(meter.startupFrames[side])},
         {loc::T("training.meter.active"), number(move.seen ? move.active : 0)},
         {loc::T("training.meter.recovery"), number(move.seen && !move.live ? move.recovery : 0)}};
-    // What the move met, and the frames it left its user ahead or behind.
-    const auto& advantage = meter.advantage;
+    // What the move met, and the frames it left its user ahead or behind,
+    // from the last reading until the next one is measured.
+    const auto& advantage = ShownAdvantage(meter);
     const char* met = advantage.attacker == side ? (advantage.blocked ? "training.meter.block" : "training.meter.hit") :
         advantage.attacker < 0 && !advantage.pending && move.seen && !move.live ? "training.meter.whiff" : nullptr;
     char frames[16] = "--";
@@ -418,7 +428,7 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
             // The HUD is a NoInputs window, so IsItemHovered is always false here;
             // test the pointer against the item rectangle instead. The tooltip is
             // its own window and does not make the HUD capture input.
-            if (!meter.advantage.valid && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
+            if (AdvantageExplained(meter) && ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
                 ImGui::SetTooltip("%s", Unavailable(loc::T("training.advantage"), meter.advantage.unavailable).c_str());
             // Why a reading is missing, on the same line, so the HUD does not jump as measurements come and go.
             const auto reason=MeasurementReason(meter);

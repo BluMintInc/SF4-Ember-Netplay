@@ -382,6 +382,7 @@ int main() {
         FrameMeter meter;
         std::array<FighterSample, 2> fighters;
         fighters[0].valid = fighters[1].valid = true;
+        fighters[0].posture = fighters[1].posture = 0;
         fighters[0].status = 16; fighters[1].status = 22;
         fighters[0].action = 100; fighters[1].action = 200;
         for (int i = 0; i < 5; ++i) meter.Observe(i, fighters);
@@ -392,9 +393,18 @@ int main() {
         fighters[0].status = fighters[1].status = 0;
         for (int i = 6; i < 50; ++i) meter.Observe(i, fighters);
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
-        fighters[0].status = 16; meter.Observe(50, fighters);
-        Require(!meter.View().frozen && meter.View().frames.size() == 1, "Next exchange did not resume");
-        for (int i = 51; i < 151 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
+        // A whiff, a walk and a jump leave the held bars as they are; contact
+        // replaces them with what came since both fighters were last idle.
+        fighters[0].status = 16; fighters[0].action = 102; meter.Observe(50, fighters);
+        fighters[0].status = 10; fighters[0].action = 5; meter.Observe(51, fighters);
+        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(52, fighters);
+        fighters[0].status = 2; fighters[0].action = 6; meter.Observe(53, fighters);
+        Require(meter.View().frozen && meter.View().frames.back().frame == 34, "A whiff, a walk or a jump replaced the held exchange");
+        fighters[0].status = 16; fighters[0].action = 103; meter.Observe(54, fighters);
+        fighters[1].status = 22; fighters[1].action = 201; meter.Observe(55, fighters);
+        Require(!meter.View().frozen && meter.View().frames.size() == 3 && meter.View().frames.front().frame == 53 &&
+            meter.View().frames.back().frame == 55, "Contact did not put its own exchange in the held one's place");
+        for (int i = 56; i < 156 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
         Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
         meter.Observe(10, fighters);
         Require(meter.View().frames.size() == 1 && meter.View().stateFrames[0] == 1, "Timeline crossed reset");
@@ -468,6 +478,28 @@ int main() {
         Require(!meter.View().advantage.valid, "Advantage crossed a simulation gap");
         exchange(0, 22, 10, 15); meter.Reset();
         Require(!meter.View().advantage.valid, "Practice reset retained advantage");
+        // The last reading is shown through a whiff and a walk, still shown
+        // while the next exchange is measured, and replaced by its reading.
+        exchange(0, 22, 10, 15);
+        fighters[0].status = 16; fighters[0].action = 100; meter.Observe(16, fighters);
+        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(17, fighters);
+        fighters[1].status = 10; fighters[1].action = 5; meter.Observe(18, fighters);
+        Require(!meter.View().advantage.valid && ShownAdvantage(meter.View()).valid && ShownAdvantage(meter.View()).frames[0] == 5,
+            "A whiff or a walk took the last reading away");
+        fighters[1].status = 16; fighters[1].action = 201; meter.Observe(19, fighters);
+        fighters[0].status = 21; fighters[0].action = 101; meter.Observe(20, fighters);
+        Require(meter.View().advantage.pending && ShownAdvantage(meter.View()).frames[0] == 5 && ShownAdvantage(meter.View()).attacker == 0,
+            "A new exchange did not show the last reading while it was measured");
+        fighters[1].status = 0; fighters[1].action = 0; meter.Observe(21, fighters);
+        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(22, fighters);
+        Require(meter.View().lastAdvantage.valid && ShownAdvantage(meter.View()).frames[0] == -1 && ShownAdvantage(meter.View()).attacker == 1,
+            "The next reading did not replace the last one");
+        // A reset (the reset key's checkpoint, Clear history, the battle's end)
+        // and a gap in the frames clear the last reading and the bars.
+        meter.Reset();
+        Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.empty(), "A reset kept the last reading or its bars");
+        exchange(0, 22, 10, 15); meter.Observe(18, fighters);
+        Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.size() == 1, "The last reading crossed a simulation gap");
         // Dummy settings: a request within the menu's choices shows in the
         // view until the adapter's read-back; -1 leaves a setting alone.
         {
@@ -541,10 +573,16 @@ int main() {
             Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
             step(tick++, 0, 0, 22);
             Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().moves[1].seen, "A finished move lost its frames");
-            // After a pause the next move starts the bars from their left edge.
+            // After a pause the next move's frames start counting at once, while
+            // the bars keep the blocked move until the new one makes contact,
+            // and then start from their left edge with it.
             for (int idle = 0; idle < 40; ++idle) step(tick++, 0, 0, 0);
+            const auto held = counted.View().frames.size();
             step(tick++, 16, 1, 0);
-            Require(counted.View().frames.size() == 1 && counted.View().moves[0].active == 0 && counted.View().advantage.attacker == -1, "A new move after a pause kept the old bars or frames");
+            Require(counted.View().frozen && counted.View().frames.size() == held && counted.View().moves[0].active == 0 && counted.View().advantage.attacker == -1,
+                "A new move after a pause took the old bars or kept the old frames");
+            step(tick++, 16, 2, 22);
+            Require(!counted.View().frozen && counted.View().frames.size() == 2, "The new move's contact did not start the bars from it");
             attack.lastActiveFrame = -1;
             Require(at(5) == MeterKind::Attack, "An attack with no boundary was split");
             attack.status = 22;

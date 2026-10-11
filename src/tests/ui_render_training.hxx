@@ -359,6 +359,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         runs.advantage.valid=true;runs.advantage.frames={{3,-3}};runs.advantage.attacker=0;
         training.meter=runs;SetTrainingMeterOptions({false,true,60});draw("training-hud-markers");
         SetTrainingMeterOptions({false,true,120});draw("training-hud-runs");
+        // The next exchange is being measured: the last reading stays, dimmed,
+        // and Frame data still gives it.
+        runs.lastAdvantage=runs.advantage;runs.advantage=training::FrameAdvantage{};runs.advantage.pending=true;runs.advantage.attacker=1;
+        runs.advantage.unavailable=training::MeasurementUnavailable::MeasuringRecovery;
+        training.meter=runs;SetTrainingMeterOptions({false,true,120});draw("training-hud-measuring");
+        Require(TrainingFrameData(runs,0).find(std::string(loc::T("training.meter.hit"))+" +3")!=std::string::npos,"Frame data dropped the last reading while the next was measured");
         SetTrainingMeterOptions({});training.meter=savedMeter;
     }
     mode=6;training.watching=true;draw();

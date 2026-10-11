@@ -44,7 +44,7 @@ Each bar holds the last 120 simulated frames for one fighter, the upper one Play
 
 **Flat** is Stable's bars: rectangular cells, a cell's colour the fighter's state group (the second table), so an attack is one colour from start to end and its numbers are in Frame data. A bright line marks the cell where the native action ID changed, so a cancel or a follow-up starts a stretch of its own.
 
-The colour key on the Frame data page lists the colours of the style chosen. The bars fill from the left and start again there once both fighters have been idle for half a second. The line below them gives the meter's state and says what a pending reading is waiting for. The controls hold Dummy recording, Input history, Frame data, HUD, Dummy, Dummy reply, Position, and Close training controls. Position save/reset and their configurable keys are available in offline Training.
+The colour key on the Frame data page lists the colours of the style chosen. The bars fill from the left. Once both fighters have been idle for half a second they hold that exchange: a whiff, a walk or a jump leaves them as they are, and the next hit, block or throw starts them again from the left with everything since both fighters were last idle. The frame advantage beside them stays until the next reading replaces it, dimmed while that one is measured; the Frame data page shows the same reading. Reset position, Clear input history and the battle's end clear both. The line below them gives the meter's state and says what a pending reading is waiting for. The controls hold Dummy recording, Input history, Frame data, HUD, Dummy, Dummy reply, Position, and Close training controls. Position save/reset and their configurable keys are available in offline Training.
 
 Angled:
 

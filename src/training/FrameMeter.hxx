@@ -243,12 +243,21 @@ struct MeterView {
     // frames to act in.
     std::array<int, 2> meatyFrames{};
     std::array<bool, 2> meatyValid{};
+    // The bars hold the last exchange (FrameMeter::Observe).
     bool frozen = false;
+    // The last reading measured, kept through whiffs, walks and the next
+    // exchange until that one's reading replaces it; only a reset clears it.
+    FrameAdvantage lastAdvantage;
 };
+// The reading the HUD and Frame data show: the exchange's own once it is
+// measured, until then the last one.
+inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
+    return meter.advantage.valid || !meter.lastAdvantage.valid ? meter.advantage : meter.lastAdvantage;
+}
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -269,7 +278,7 @@ public:
         for (int side = 0; side < 2; ++side)
             fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
         const std::int64_t now = observedFrames_++;
-        ObserveAdvantage(now, fighters);
+        const bool contact = ObserveAdvantage(now, fighters);
         bool neutral = true;
         std::array<MeterCell, 2> cells;
         for (int side = 0; side < 2; ++side) {
@@ -360,20 +369,33 @@ public:
         }
         if (neutral) ++idleFrames_;
         else {
-            // After a pause the bars start again from their left edge.
-            if (view_.frozen || idleFrames_ >= 30) view_.frames.clear();
-            view_.frozen = false; idleFrames_ = 0; hadActivity_ = true;
+            // Idle frames from before anything happened are not kept either.
+            if (!hadActivity_ && idleFrames_ >= 30) view_.frames.clear();
+            idleFrames_ = 0; hadActivity_ = true;
         }
-        if (hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
-        if (!view_.frozen) {
-            // The first cell of the bars has nothing before it to part from.
-            if (view_.frames.empty()) for (auto& cell : cells) cell.newAction = cell.split = false;
-            view_.frames.push_back({fighters, cells, frame});
-            if (view_.frames.size() > MeterHistory) view_.frames.pop_front();
-        }
+        // Half a second of both fighters idle holds the bars. They stay as
+        // they are until a fighter is hit or blocks (or is thrown), so a whiff,
+        // a walk or a jump never takes the last exchange away, and the bars and
+        // the advantage beside them always tell of the same one. Meanwhile the
+        // frames since both were last idle are kept aside; contact puts them in
+        // the bars' place, so the new exchange shows from its first move.
+        const MeterFrame latest{fighters, cells, frame};
+        if (view_.frozen) {
+            if (neutral) aside_.clear();
+            else Append(aside_, latest);
+            if (contact) { view_.frames.swap(aside_); aside_.clear(); view_.frozen = false; }
+        } else if (hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
+        else Append(view_.frames, latest);
     }
 private:
-    void ObserveAdvantage(std::int64_t frame, const std::array<FighterSample, 2>& fighters) {
+    static void Append(std::deque<MeterFrame>& bars, MeterFrame added) {
+        // The first cell of the bars has nothing before it to part from.
+        if (bars.empty()) for (auto& cell : added.cells) cell.newAction = cell.split = false;
+        bars.push_back(added);
+        if (bars.size() > MeterHistory) bars.pop_front();
+    }
+    // Whether a fighter was hit, blocked or thrown this frame.
+    bool ObserveAdvantage(std::int64_t frame, const std::array<FighterSample, 2>& fighters) {
         auto clear = [&](MeasurementUnavailable reason) {
             view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}};
         };
@@ -381,7 +403,7 @@ private:
             if (!sample.valid || sample.action < 0 || sample.status > ActorStatus::Sequence ||
                 sample.timeScale < 0 ||
                 sample.posture < 0) {
-                clear(MeasurementUnavailable::InvalidSample); armed_ = {}; return;
+                clear(MeasurementUnavailable::InvalidSample); armed_ = {}; return false;
             }
         }
         for (int side = 0; side < 2; ++side) {
@@ -409,9 +431,10 @@ private:
             // A throw connects as its sequence takes both; only the thrown fighter is hit by it.
             if (sample.status == ActorStatus::Sequence && previous.valid && previous.status != ActorStatus::Sequence && armed_[1 - defender]) contacts[defender] = true;
         }
+        const bool contact = contacts[0] || contacts[1];
         // A trade/interruption cannot inherit the earlier attack's recovery.
         if ((contacts[0] && contacts[1]) || (contacts[0] && armed_[0]) || (contacts[1] && armed_[1])) {
-            clear(MeasurementUnavailable::Interrupted); armed_ = {}; return;
+            clear(MeasurementUnavailable::Interrupted); armed_ = {}; return contact;
         }
         for (int defender = 0; defender < 2; ++defender) {
             if (contacts[defender] && armed_[1 - defender]) {
@@ -427,7 +450,7 @@ private:
         }
         if (frame - contactFrame_ > 600) {
             if (!view_.advantage.valid) clear(MeasurementUnavailable::Interrupted);
-            armed_ = {}; return;
+            armed_ = {}; return contact;
         }
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
@@ -444,7 +467,9 @@ private:
             view_.advantage.frames[1] = -view_.advantage.frames[0];
             view_.advantage.valid = true; view_.advantage.pending = false;
             view_.advantage.unavailable = MeasurementUnavailable::None;
+            view_.lastAdvantage = view_.advantage;
         }
+        return contact;
     }
     void Meaty(int attacker) {
         const auto active = firstActiveAt_[attacker], wake = wakeAt_[1 - attacker];
@@ -455,6 +480,8 @@ private:
     std::array<bool, 2> thrower_{};
     // The last cell each side was given (ResolveMeterCell).
     std::array<MeterCell, 2> lastCells_{};
+    // What a held meter has seen since both fighters were last idle (Observe).
+    std::deque<MeterFrame> aside_;
     // On the clock of accepted observations; -1 none.
     std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};
