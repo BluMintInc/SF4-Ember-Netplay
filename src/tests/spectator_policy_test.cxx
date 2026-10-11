@@ -4,6 +4,7 @@
 
 #include "test_support.hxx"
 using sf4e::SpectatorPolicy;
+using sf4e::SpectatorStreamWatch;
 
 int main() {
 	{
@@ -183,6 +184,35 @@ int main() {
 		CHECK(SpectatorPolicy::EntryGate(false, true, SpectatorPolicy::SyncDeadlineMs) == Step::SitOut);
 		CHECK(SpectatorPolicy::EntryGate(false, false, 0) == Step::Wait);
 		CHECK(SpectatorPolicy::EntryGate(false, false, SpectatorPolicy::SyncDeadlineMs * 10) == Step::Wait);
+	}
+	{
+		// A spectator client's own link: the stream ends once, exactly
+		// StreamSyncTimeoutMs after its session started, as a lost stream.
+		using Step = SpectatorStreamWatch::Step;
+		const auto timeout = SpectatorPolicy::StreamSyncTimeoutMs;
+		CHECK(timeout == 30000);
+		SpectatorStreamWatch watch;
+		CHECK(watch.Poll(timeout * 2, false) == Step::Wait); // no session yet
+		watch.Start(1000, true);
+		CHECK(watch.Poll(1000 + timeout - 1, false) == Step::Wait);
+		CHECK(watch.Poll(1000 + timeout, false) == Step::EndLost);
+		CHECK(watch.Poll(1000 + timeout + 1, false) == Step::Wait); // only once
+		// A fresh session after that carries none of its time.
+		watch.Start(50000, true);
+		CHECK(watch.Poll(50000 + timeout - 1, false) == Step::Wait);
+		CHECK(watch.Poll(50000 + timeout, false) == Step::EndLost);
+		// RUNNING before the deadline ends the watch for the session.
+		watch.Start(100000, true);
+		watch.OnRunning();
+		CHECK(watch.Poll(100000 + timeout * 10, false) == Step::Wait);
+		// A known match result ends the stream without a notice.
+		watch.Start(200000, true);
+		CHECK(watch.Poll(200000 + timeout, true) == Step::EndQuietly);
+		// A fighter's session is never watched, and starting one forgets a
+		// spectator session that was still waiting.
+		watch.Start(300000, true);
+		watch.Start(300500, false);
+		CHECK(watch.Poll(300000 + timeout * 10, false) == Step::Wait);
 	}
 	std::printf("Spectator policy passed\n");
 	return 0;

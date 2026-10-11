@@ -90,8 +90,7 @@ struct GgpoCallbackScope : sf4e::gate::AbortLatch::Scope {
 };
 
 static sf4e::SpectatorPolicy s_spectatorPolicy;
-// When this client's spectator session started (StreamSyncTimeoutMs).
-static uint64_t s_spectatingSinceMs = 0;
+static sf4e::SpectatorStreamWatch s_streamWatch;
 
 std::size_t fSystem::SpectatorStreamCount() {
     // players[0] is the local handle only on P1, which is the only client that
@@ -102,10 +101,13 @@ std::size_t fSystem::SpectatorStreamCount() {
 
 void fSystem::PollSpectators() {
     const auto now = GetTickCount64();
-    if (ggpo && localPlayerHandle == GGPO_INVALID_HANDLE && simGate.phase == sf4e::gate::PHASE_WAITING_FOR_RUNNING &&
-        now - s_spectatingSinceMs >= sf4e::SpectatorPolicy::StreamSyncTimeoutMs) {
-        spdlog::error("GGPO: spectator stream lost: not synchronized {} ms after it started", now - s_spectatingSinceMs);
-        AbortGgpoMatch(MatchResultKnown() ? "" : sf4e::loc::T("runtime.spectator_stream_lost"));
+    using StreamStep = sf4e::SpectatorStreamWatch::Step;
+    const auto streamStep = ggpo ? s_streamWatch.Poll(now, MatchResultKnown()) : StreamStep::Wait;
+    if (streamStep != StreamStep::Wait) {
+        const bool lost = streamStep == StreamStep::EndLost;
+        spdlog::log(lost ? spdlog::level::err : spdlog::level::info, "GGPO: spectator stream not synchronized within {} ms ({})",
+            sf4e::SpectatorPolicy::StreamSyncTimeoutMs, lost ? "stream lost" : "the match result was already recorded");
+        AbortGgpoMatch(lost ? sf4e::loc::T("runtime.spectator_stream_lost") : "");
         return;
     }
     if (!SpectatorStreamCount()) return;
@@ -371,6 +373,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
     }
     simGate.OnSessionStarted();
+    s_streamWatch.Start(GetTickCount64(), false);
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
@@ -477,7 +480,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
     sf4e::memento::DiscardPendingAbort();
-    s_spectatingSinceMs = GetTickCount64();
+    s_streamWatch.Start(GetTickCount64(), true);
     // No fighter handles on a spectator client; stale ones from an earlier
     // match must not classify the host stream's events.
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
@@ -838,6 +841,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         break;
     case GGPO_EVENTCODE_RUNNING:
         s_spectatorPolicy.OnRunning(GetTickCount64());
+        s_streamWatch.OnRunning();
         simGate.OnRunning();
         spdlog::info("GGPO: Running");
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);

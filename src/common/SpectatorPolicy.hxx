@@ -132,4 +132,26 @@ private:
 	std::uint64_t fightersSyncedMs_ = 0, runningMs_ = 0, lastSampleMs_ = 0;
 };
 
+// A spectator client's watch over its own link to P1: the stream ends once,
+// StreamSyncTimeoutMs after the session started, unless GGPO reached RUNNING
+// first. Every session start resets it, and a fighter's session is never
+// watched. fSystem ends the stream through AbortGgpoMatch.
+class SpectatorStreamWatch {
+public:
+	enum class Step { Wait, EndQuietly, EndLost };
+	void Start(std::uint64_t nowMs, bool spectator) { startedMs_ = nowMs; watching_ = spectator; }
+	void OnRunning() { watching_ = false; }
+	// Once the room has recorded the match's result, nothing is lost but the
+	// tail of a finished match, so the stream ends without a notice.
+	Step Poll(std::uint64_t nowMs, bool resultKnown) {
+		if (!watching_ || nowMs < startedMs_ + SpectatorPolicy::StreamSyncTimeoutMs) return Step::Wait;
+		watching_ = false;
+		return resultKnown ? Step::EndQuietly : Step::EndLost;
+	}
+
+private:
+	std::uint64_t startedMs_ = 0;
+	bool watching_ = false;
+};
+
 }
