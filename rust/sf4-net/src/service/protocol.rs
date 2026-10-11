@@ -374,6 +374,8 @@ pub enum Event {
         actor_tick_body_max_us: u64,
         // Fewest free slots seen in the IPC event queue (capacity 128).
         event_queue_free_min: u64,
+        // Most frames any room control's send queue held (capacity 64).
+        control_queue_peak: u64,
     },
     // An actor step ran past stall::STALL_REPORT. Sent while it is still
     // stuck and again when it ends; not tied to a room epoch.

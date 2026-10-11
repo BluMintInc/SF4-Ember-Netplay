@@ -158,6 +158,8 @@ namespace sf4e {
 		// which is what bounds its encoded size.
 		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp& authority);
+		// Which part of the checkpoint the last refused restore stopped at.
+		const std::string& RestoreRefusal() const { return _restoreRefusal; }
 
 		// Root/helper authority bridge. A proposal is made only after the owner
 		// has privately applied a poll/timer command and journaled its effects.
@@ -218,10 +220,12 @@ namespace sf4e {
 		// is tracked separately so UI/native projections remain CID-compatible.
 		std::map<room::MemberId, std::string> roomPeerIdentities;
 		std::map<room::MemberId, std::uint64_t> roomIncarnations;
-		// A spectator can leave after native Started while its frozen slot and
-		// departed endpoint remain in MatchAuthority. Keep that stable tombstone
-		// outside the public RoomModel roster so portable recovery can restore the
-		// authority without treating the departed peer as a live room member.
+		// A member can leave while a match authority still names it: a Started
+		// spectator keeps its frozen slot, and one that left before the start stays
+		// a departed participant until the generation ends. Keep that stable
+		// tombstone outside the public RoomModel roster so portable recovery can
+		// restore the authority without treating the departed peer as a live room
+		// member.
 		struct FrozenMember {
 			room::ConnectionRef endpoint;
 			SessionProtocol::MemberData data;
@@ -239,6 +243,8 @@ namespace sf4e {
 		std::uint64_t _incarnation = 1;
 		session::SessionRecoveryGate _recovery;
 		mutable std::uint64_t _recoveryCheckpointBuilds = 0;
+		std::string _restoreRefusal;
+		bool RefuseRestore(std::string part) { _restoreRefusal = std::move(part); return false; }
 		bool _recoveryCandidateReady = false;
 		bool _recoveryFlushing = false;
 		nlohmann::json _recoveryBaseline;
@@ -303,6 +309,8 @@ namespace sf4e {
 		bool RestoreRecoveryState(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp* authority);
 		void CaptureFrozenMember(room::MemberId member, const room::Snapshot& prior);
+		// Whether any match authority still names this endpoint as a participant.
+		bool MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const;
 		// Drops a member the room removed: its connection, identity and slots.
 		void ForgetRoomMember(room::MemberId member);
 		void PruneFrozenMembers();

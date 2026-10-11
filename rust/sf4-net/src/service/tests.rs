@@ -329,6 +329,7 @@ async fn the_tick_slows_only_when_nothing_is_left_for_it() {
                 actor_tick_lag_max_us: 0,
                 actor_tick_body_max_us: 0,
                 event_queue_free_min: 0,
+                control_queue_peak: 0,
             })
             .unwrap();
     }
@@ -655,9 +656,16 @@ async fn completed_receiver_accepts_exact_retry_before_delayed_commit_marker() {
         source.outgoing_transfer.as_mut().unwrap().started =
             tokio::time::Instant::now() - CHECKPOINT_TRANSFER_TIMEOUT - Duration::from_millis(1);
         source.expire_checkpoint_transfers();
+        // Every chunk was acknowledged; only the final marker is missing.
+        let progress = format!(
+            "revision={} begun=true acked={len}/{len} in_flight=0",
+            transfer.revision,
+            len = transfer.bytes.len()
+        );
         assert!(matches!(
             source_rx.recv().await,
-            Some(Event::Error { code, .. }) if code == "checkpoint_send_timeout"
+            Some(Event::Error { code, reason, .. })
+                if code == "checkpoint_send_timeout" && reason.as_deref() == Some(progress.as_str())
         ));
 
         target

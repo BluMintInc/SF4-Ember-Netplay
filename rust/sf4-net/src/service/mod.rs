@@ -1506,6 +1506,8 @@ impl Actor {
                     let _step = busy.enter("tick");
                     let started = Instant::now();
                     load.tick(started.saturating_duration_since(tick.deadline()), self.events.capacity());
+                    // Before poll_controls, which drops departed controls.
+                    load.control_queue(self.controls.values().map(ControlWorker::take_queue_peak).max().unwrap_or(0));
                     self.events.flush()?;
                     self.expire_departure_grace();
                     self.start_next_admission_operation();

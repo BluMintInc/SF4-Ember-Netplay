@@ -26,6 +26,7 @@
 #include "../session/IrohRoom.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
+#include "../session/RecoveryProgress.hxx"
 #include "../session/ReadyChime.hxx"
 #include "../session/TrainingCall.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
@@ -196,6 +197,7 @@ struct Runtime {
     // once the creator is in it as host (TickCreatedRules).
     netplay::CreatedRules createdRules;
     session::RoomRecoveryRuntime recovery;
+    session::RecoveryProgress recoveryProgress;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
 	// persisted and native/helper teardown has reached Idle. MatchEnded itself

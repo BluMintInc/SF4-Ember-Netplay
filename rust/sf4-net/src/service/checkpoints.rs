@@ -381,15 +381,11 @@ impl Actor {
                 reason: None,
             });
         }
-        if self.outgoing_transfer.as_ref().is_some_and(|transfer| {
-            now.duration_since(transfer.started) > CHECKPOINT_TRANSFER_TIMEOUT
-        }) {
-            let revision = self
-                .outgoing_transfer
-                .as_ref()
-                .map(|transfer| transfer.transfer.revision)
-                .unwrap_or_default();
-            self.outgoing_transfer = None;
+        if let Some(expired) = self
+            .outgoing_transfer
+            .take_if(|transfer| now.duration_since(transfer.started) > CHECKPOINT_TRANSFER_TIMEOUT)
+        {
+            let revision = expired.transfer.revision;
             // A timed-out transfer must be replayed from the applied commit;
             // do not let a previously observed revision suppress retry.
             if revision != 0 && self.last_exported_revision >= revision {
@@ -401,7 +397,15 @@ impl Actor {
                 epoch: self.epoch,
                 peer: None,
                 code: "checkpoint_send_timeout".into(),
-                reason: None,
+                // How far the native side took it: nothing acknowledged after
+                // a sent begin means it is not accepting this transfer.
+                reason: Some(format!(
+                    "revision={revision} begun={} acked={}/{} in_flight={}",
+                    expired.begin_sent,
+                    expired.acked_offset,
+                    expired.transfer.bytes.len(),
+                    expired.in_flight.len()
+                )),
             });
         }
     }

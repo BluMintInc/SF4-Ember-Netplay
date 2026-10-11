@@ -429,4 +429,30 @@ inline bool CheckpointOmitsSession(const nlohmann::json& checkpoint, const std::
 	return true;
 }
 
+// This endpoint's row in a commit's active roster, which activation binds
+// local terminal replays to. Frozen rows are history here too: a member that
+// left a match and rejoined the room may have an old frozen row beside its
+// new active one. False when a row is malformed or the endpoint is active
+// twice; true with `local.member` 0 when it is not active at all.
+struct RosterRow {
+	room::MemberId member = 0;
+	room::ConnectionRef endpoint;
+	std::uint64_t incarnation = 0;
+};
+inline bool ActiveRosterRow(const nlohmann::json& members, const std::string& localIdentity, RosterRow& local) {
+	local = RosterRow();
+	if (!members.is_array()) return false;
+	for (const auto& row : members) {
+		if (!row.is_object() || !row.contains("member") || !row.contains("endpoint") || !row.contains("data")) return false;
+		const auto& data = row.at("data");
+		RosterRow value{row.at("member").get<room::MemberId>(), row.at("endpoint").get<room::ConnectionRef>(),
+			row.value("incarnation", data.value("incarnation", std::uint64_t(0)))};
+		if (!value.member || value.endpoint.host.empty() || value.endpoint.user.empty() || !value.incarnation) return false;
+		if (row.value("frozen", false) || data.value("authenticatedEndpoint", std::string()) != localIdentity) continue;
+		if (local.member) return false;
+		local = std::move(value);
+	}
+	return true;
+}
+
 } }

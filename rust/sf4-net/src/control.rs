@@ -2,7 +2,7 @@
 //! A slow peer cannot grow process memory or block other peers/gameplay.
 use std::sync::{
     Arc,
-    atomic::{AtomicU64, Ordering},
+    atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
 use ember_protocol::EmberId;
@@ -60,6 +60,8 @@ pub struct ControlWorker {
     incoming: mpsc::Receiver<ControlFrame>,
     tasks: [JoinHandle<()>; 2],
     rejected: Arc<AtomicU64>,
+    /// The most frames the send queue has held since `take_queue_peak`.
+    queue_peak: AtomicUsize,
     session: Session,
     account: Option<EmberId>,
 }
@@ -120,6 +122,7 @@ impl ControlWorker {
             incoming,
             tasks,
             rejected,
+            queue_peak: AtomicUsize::new(0),
             session: Session::Unbound,
             account,
         }
@@ -159,13 +162,35 @@ impl ControlWorker {
         let Some(outgoing) = self.outgoing.as_ref() else {
             return Err(QueueError::Closed);
         };
-        outgoing.try_send(frame).map_err(|error| {
+        let sent = outgoing.try_send(frame).map_err(|error| {
             self.rejected.fetch_add(1, Ordering::Relaxed);
             match error {
                 mpsc::error::TrySendError::Full(_) => QueueError::Full,
                 mpsc::error::TrySendError::Closed(_) => QueueError::Closed,
             }
-        })
+        });
+        // A refused frame met a full queue, whatever the writer has taken since.
+        let queued = if sent == Err(QueueError::Full) {
+            CONTROL_QUEUE_CAPACITY
+        } else {
+            self.queued()
+        };
+        self.queue_peak.fetch_max(queued, Ordering::Relaxed);
+        sent
+    }
+
+    /// Frames waiting in the send queue now.
+    fn queued(&self) -> usize {
+        self.outgoing
+            .as_ref()
+            .map_or(0, |outgoing| outgoing.max_capacity() - outgoing.capacity())
+    }
+
+    /// The most frames the send queue held since the last call. The next
+    /// count starts from what it holds now, so frames still waiting are in it.
+    pub fn take_queue_peak(&self) -> usize {
+        let queued = self.queued();
+        self.queue_peak.swap(queued, Ordering::Relaxed).max(queued)
     }
 
     /// Stop accepting frames. The writer delivers what is already queued and
