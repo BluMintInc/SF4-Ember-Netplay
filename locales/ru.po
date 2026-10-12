@@ -358,12 +358,6 @@ msgstr "Раундов"
 msgid "rules.round_time"
 msgstr "Время раунда"
 
-msgid "rules.training"
-msgstr "Тренировочный матч"
-
-msgid "rules.training.detail"
-msgstr "Здоровье и шкалы пополняются, нокаутов нет. Игра заканчивается, когда истекает время раунда, поэтому включение ставит время раунда 9999."
-
 msgid "screen.home"
 msgstr "Главная"
 
@@ -2168,6 +2162,9 @@ msgstr "Возвращение в лобби."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Бой за этим столом отменён. Вернитесь в лобби, чтобы снова нажать «Готов»."
+
+msgid "runtime.practice_ended"
+msgstr "Тренировка завершена. Вернитесь в лобби, чтобы снова нажать «Готов»."
 
 msgid "runtime.result_not_recorded"
 msgstr "Не удалось записать результат: стол изменился до подтверждения."
@@ -4234,6 +4231,18 @@ msgstr "Тренировочный матч"
 msgid "room.rules_summary_practice"
 msgstr "Тренировочный матч, раундов: {0}, {1} с, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Тренировочное лобби"
+
+msgid "room.practice.detail"
+msgstr "Каждая игра в лобби является тренировочным матчем: здоровье и шкалы пополняются, нокаутов нет, а время раунда {0}. Так будет, пока лобби открыто. Чтобы играть обычные матчи, закройте лобби и создайте новое."
+
+msgid "room.practice_status"
+msgstr "Тренировочное лобби / вход по приглашению"
+
+msgid "room.practice_locked_status"
+msgstr "Тренировочное лобби закрыто / вход по приглашению"
+
 msgid "inputs.presses_value"
 msgstr "Нажатий: {0}"
 
@@ -4389,9 +4398,6 @@ msgstr "Вызов {0} из тренировки"
 
 msgid "training.go_now"
 msgstr "Перейти сейчас"
-
-msgid "rules.round_time.practice"
-msgstr "Тренировочный матч заканчивается, когда истекает время раунда. Самое долгое время: {0}."
 
 msgid "reports.setting"
 msgstr "Отправлять отчёты о проблемах"

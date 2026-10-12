@@ -358,12 +358,6 @@ msgstr "Rondas"
 msgid "rules.round_time"
 msgstr "Tiempo ronda"
 
-msgid "rules.training"
-msgstr "Partida de práctica"
-
-msgid "rules.training.detail"
-msgstr "La salud y las barras se rellenan y nadie queda fuera de combate. La partida acaba al agotarse el tiempo del asalto, así que al activarlo el tiempo pasa a 9999."
-
 msgid "screen.home"
 msgstr "Inicio"
 
@@ -2167,6 +2161,9 @@ msgstr "Volviendo a la sala."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Se canceló la partida de esta mesa. Vuelve a la sala y marca Listo otra vez."
+
+msgid "runtime.practice_ended"
+msgstr "Práctica terminada. Vuelve a la sala y marca Listo otra vez."
 
 msgid "runtime.result_not_recorded"
 msgstr "No se pudo registrar el resultado: la mesa cambió antes de confirmarlo."
@@ -4233,6 +4230,18 @@ msgstr "Partida de práctica"
 msgid "room.rules_summary_practice"
 msgstr "Partida de práctica, {0} asaltos, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Sala de práctica"
+
+msgid "room.practice.detail"
+msgstr "Cada partida de la sala es una partida de práctica: la salud y las barras se rellenan, nadie queda fuera de combate y el tiempo del asalto es {0}. Esto se mantiene mientras la sala esté abierta. Para jugar partidas normales, cierra la sala y crea una nueva."
+
+msgid "room.practice_status"
+msgstr "Sala de práctica / solo con invitación"
+
+msgid "room.practice_locked_status"
+msgstr "Sala de práctica bloqueada / solo con invitación"
+
 msgid "inputs.presses_value"
 msgstr "{0} pulsaciones"
 
@@ -4388,9 +4397,6 @@ msgstr "Llamando a {0} desde el entrenamiento"
 
 msgid "training.go_now"
 msgstr "Ir ya"
-
-msgid "rules.round_time.practice"
-msgstr "Una partida de práctica acaba al agotarse el tiempo del asalto. El más largo es {0}."
 
 msgid "reports.setting"
 msgstr "Enviar informes de problemas"

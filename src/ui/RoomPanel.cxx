@@ -258,13 +258,13 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    if(!host||boundTable){
-    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf(t.rules.training?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(room::MatchRoundTime(s,t)),
      loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
    }
-   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"));
+   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
    if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
   };
   if(seated){
@@ -589,8 +589,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
   const auto watching=t.spectators.size()+t.watchingNext.size();
-  const std::string footer=(t.rules.training?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
-   ?loc::Tf("room.table_footer",t.rules.roundCount,t.rules.roundTime,t.queue.size(),watching)
+  const std::string footer=(v.room.practice?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
+   ?loc::Tf("room.table_footer",t.rules.roundCount,room::MatchRoundTime(v.room,t),t.queue.size(),watching)
    :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
   if(!choosing&&!ownPlace)text(ImVec2(p.x+12*s,p.y+h-22*s),width-24*s,footer,14*s,palette::Muted);
   if(choosing){

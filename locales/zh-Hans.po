@@ -358,12 +358,6 @@ msgstr "回合数"
 msgid "rules.round_time"
 msgstr "回合时间"
 
-msgid "rules.training"
-msgstr "练习对战"
-
-msgid "rules.training.detail"
-msgstr "体力和能量槽会恢复，双方都不会被击倒。回合时间结束时对战才结束，因此开启后回合时间会设为 9999。"
-
 msgid "screen.home"
 msgstr "主页"
 
@@ -2167,6 +2161,9 @@ msgstr "正在返回房间。"
 
 msgid "runtime.table_game_cancelled"
 msgstr "此对战席的对战已取消。请返回房间重新准备。"
+
+msgid "runtime.practice_ended"
+msgstr "练习已结束。请返回房间重新准备。"
 
 msgid "runtime.result_not_recorded"
 msgstr "无法记录结果：确认前对战席已变化。"
@@ -4233,6 +4230,18 @@ msgstr "练习对战"
 msgid "room.rules_summary_practice"
 msgstr "练习对战，{0} 回合，{1} 秒，Edition Select {2}"
 
+msgid "room.practice"
+msgstr "练习房间"
+
+msgid "room.practice.detail"
+msgstr "房间内的每场对战都是练习对战：体力和能量槽会恢复，双方都不会被击倒，回合时间为 {0}。房间开启期间不会改变。要进行普通对战，请关闭房间并重新创建。"
+
+msgid "room.practice_status"
+msgstr "练习房间／仅限邀请"
+
+msgid "room.practice_locked_status"
+msgstr "练习房间已锁定／仅限邀请"
+
 msgid "inputs.presses_value"
 msgstr "{0} 次按键"
 
@@ -4388,9 +4397,6 @@ msgstr "正在将 {0} 从训练中召回"
 
 msgid "training.go_now"
 msgstr "立即前往"
-
-msgid "rules.round_time.practice"
-msgstr "练习对战在回合时间结束时结束。最长为 {0}。"
 
 msgid "reports.setting"
 msgstr "发送问题报告"

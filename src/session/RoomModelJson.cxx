@@ -324,9 +324,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
     } catch (const std::exception&) { return false; }
 }
 
-void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}};
-    if (value.training) json["training"] = true;
-    if (value.timeBeforePractice) json["time_before_practice"] = value.timeBeforePractice; }
+void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}}; }
 void from_json(const nlohmann::json& json, Rules& value) {
 	const auto format = ReadInt(json, "format", 0, MaxSetLength);
 	value.format = static_cast<SetFormat>(format);
@@ -335,12 +333,8 @@ void from_json(const nlohmann::json& json, Rules& value) {
 	value.editionSelect = json.at("edition_select").get<bool>();
 	value.roundCount = static_cast<std::uint8_t>(ReadInt(json, "round_count", 1, 99));
 	value.roundTime = static_cast<std::uint16_t>(ReadInt(json, "round_time", 30, 9999));
-	// Written only when set, so rules without them read as before.
-	const auto training = json.find("training");
-	if (training != json.end() && !training->is_boolean()) throw std::invalid_argument("room training rule");
-	value.training = training != json.end() && training->get<bool>();
-	value.timeBeforePractice = json.contains("time_before_practice") ?
-		static_cast<std::uint16_t>(ReadInt(json, "time_before_practice", 30, 9999)) : 0;
+	// "training" and "time_before_practice", from the per-table Practice match
+	// the room's own flag replaced, are not read.
 	if (!value.Valid()) throw std::invalid_argument("room rules");
 }
 void to_json(nlohmann::json& json, const ConnectionRef& value) { json = nlohmann::json{{"host", value.host}, {"user", value.user}}; }

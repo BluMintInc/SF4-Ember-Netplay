@@ -101,7 +101,7 @@ const TrainingStripShown& LastTrainingStrip();
 constexpr const char* FrameMeterWindow = "Training frame meter";
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
-// In a match under a table's Training rule: says that shared save and reset
+// In a Practice room's match: says that shared save and reset
 // are not available there, and that Start or F10 opens End practice.
 void DrawMatchPracticeNotice();
 } }

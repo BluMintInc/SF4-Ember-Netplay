@@ -66,7 +66,7 @@ int scriptFighter[2] = {-1, -1};
 std::atomic<bool> watching{false};
 bool matchShown = false;
 ConfirmedSamples confirmed;
-// A match under a table's Training rule. It has no shared checkpoint: the
+// A Practice room's match. It has no shared checkpoint: the
 // offline checkpoint is not part of the rollback state.
 std::atomic<bool> matchPractice{false};
 // The dummy's own behaviour. The plan is the player's and outlives a battle;

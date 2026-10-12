@@ -6,6 +6,7 @@ void AppearanceGalleries();
 void ChatJourneys();
 void TrainingSettingsAndHome();
 void TrainingFromRoom();
+void PracticeRoomCreate();
 void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();

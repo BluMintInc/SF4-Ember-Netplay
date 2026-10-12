@@ -1,5 +1,6 @@
 // A member's word that they are in the game's Training mode: who may say it,
-// what it changes, how it travels, and when it ends.
+// what it changes, how it travels, and when it ends. And a Practice room,
+// whose every game is a Practice match: fixed when the room is created.
 #include "../session/RoomModel.hxx"
 
 #include <algorithm>
@@ -131,88 +132,6 @@ int main() {
 		CHECK(again && !room.member(again).training);
 	}
 	{
-		// The table rule: the host sets it with the other rules, every member's view carries it,
-		// it is written only when set, and rules written before it existed read as before.
-		Room room;
-		CHECK(!room.authority.SnapshotView().tables[0].rules.training);
-		nlohmann::json plain = room.authority.SnapshotFor(room.p2);
-		CHECK(!plain.at("tables").at(0).at("rules").contains("training"));
-		auto set = room.Make(room.host, ActionKind::SetRules);
-		set.rules = room.authority.SnapshotView().tables[0].rules;
-		set.rules.training = true; set.rules.roundTime = 9999;
-		CHECK(!room.authority.Apply(room.p1, set).accepted);
-		set = room.Make(room.host, ActionKind::SetRules);
-		set.rules = room.authority.SnapshotView().tables[0].rules;
-		set.rules.training = true; set.rules.roundTime = 9999;
-		CHECK(room.authority.Apply(room.host, set).accepted);
-		CHECK(room.authority.SnapshotView().tables[0].rules.training && !room.authority.SnapshotView().tables[1].rules.training);
-		nlohmann::json marked = room.authority.SnapshotFor(room.p2);
-		CHECK(marked.at("tables").at(0).at("rules").at("training").get<bool>());
-		const Snapshot read = marked.get<Snapshot>();
-		CHECK(read.tables[0].rules.training && read.tables[0].rules.roundTime == 9999 && !read.tables[1].rules.training);
-		CHECK(!plain.get<Snapshot>().tables[0].rules.training);
-		// The action carries it over the wire, and a value that is no boolean is refused.
-		const Action back = nlohmann::json(set).get<Action>();
-		CHECK(back.rules.training && back.rules == set.rules);
-		Rules other = set.rules; other.training = false;
-		CHECK(!(other == set.rules));
-		nlohmann::json bad = nlohmann::json(set.rules);
-		bad["training"] = 1;
-		bool refused = false;
-		try { (void)bad.get<Rules>(); } catch (const std::exception&) { refused = true; }
-		CHECK(refused);
-		// It still plays as a table: both ready and the game begins under the rule.
-		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
-		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
-		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted && room.authority.SnapshotView().tables[0].rules.training);
-	}
-	{
-		// Practice match keeps the round time it replaced, through the room and back, so
-		// turning it off gives that time back to every member's view.
-		Room room;
-		const auto setRules = [&](const Rules& rules) {
-			auto set = room.Make(room.host, ActionKind::SetRules);
-			set.rules = rules;
-			return room.authority.Apply(room.host, set);
-		};
-		Rules rules = room.authority.SnapshotView().tables[0].rules;
-		rules.roundTime = 60;
-		CHECK(setRules(rules).accepted);
-		rules.SetPractice(true);
-		CHECK(rules.roundTime == 9999 && rules.timeBeforePractice == 60);
-		CHECK(setRules(rules).accepted);
-		nlohmann::json practice = room.authority.SnapshotFor(room.p2);
-		CHECK(practice.at("tables").at(0).at("rules").value("time_before_practice", 0) == 60);
-		// A member takes the table's rules from the room, and turns Practice off from them.
-		Rules seen = practice.get<Snapshot>().tables[0].rules;
-		CHECK(seen == rules);
-		seen.SetPractice(false);
-		CHECK(!seen.training && seen.roundTime == 60 && !seen.timeBeforePractice);
-		CHECK(setRules(seen).accepted);
-		const auto off = room.authority.SnapshotView().tables[0].rules;
-		CHECK(!off.training && off.roundTime == 60);
-		CHECK(!nlohmann::json(room.authority.SnapshotFor(room.p2)).at("tables").at(0).at("rules").contains("time_before_practice"));
-		// Rules written before the time was kept read without one; turned off, they take the default.
-		nlohmann::json older = practice.at("tables").at(0).at("rules");
-		older.erase("time_before_practice");
-		Rules fromOlder = older.get<Rules>();
-		CHECK(fromOlder.training && !fromOlder.timeBeforePractice);
-		fromOlder.SetPractice(false);
-		CHECK(fromOlder.roundTime == DefaultRoundTime);
-		// A time no table offers, or one kept with Practice off, is refused on the wire and by the room.
-		for (const auto& bad : {std::make_pair(true, 120), std::make_pair(false, 60)}) {
-			nlohmann::json wire = practice.at("tables").at(0).at("rules");
-			wire["training"] = bad.first; wire["time_before_practice"] = bad.second;
-			bool refused = false;
-			try { (void)wire.get<Rules>(); } catch (const std::exception&) { refused = true; }
-			CHECK(refused);
-			Rules invalid = rules;
-			invalid.training = bad.first; invalid.timeBeforePractice = static_cast<std::uint16_t>(bad.second);
-			const auto result = setRules(invalid);
-			CHECK(!result.accepted && result.reason == RejectReason::InvalidRules);
-		}
-	}
-	{
 		// A Practice room: chosen when it is created, in every member's view, and kept
 		// through a checkpoint. A room created without it says nothing on the wire.
 		Room plain;
@@ -240,6 +159,22 @@ int main() {
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
 		CHECK(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().practice);
 		CHECK(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().practice);
+	}
+	{
+		// Practice match is no table rule: the "training" an older build's rules
+		// still carry is not read, so its SetRules makes no table, and no room,
+		// a Practice one, and the room's rules never write it.
+		Room room;
+		auto set = room.Make(room.host, ActionKind::SetRules);
+		set.rules = room.authority.SnapshotView().tables[0].rules;
+		set.rules.roundTime = 9999;
+		nlohmann::json older = set;
+		older["rules"]["training"] = true;
+		older["rules"]["time_before_practice"] = 60;
+		CHECK(room.authority.Apply(room.host, older.get<Action>()).accepted);
+		CHECK(room.authority.SnapshotView().tables[0].rules == set.rules && !room.authority.SnapshotView().practice);
+		const nlohmann::json view = room.authority.SnapshotFor(room.p2);
+		CHECK(!view.at("tables").at(0).at("rules").contains("training") && !view.contains("practice"));
 	}
 	if (failures) { std::printf("%d failures\n", failures); return 1; }
 	std::printf("Room training flag rules passed.\n");

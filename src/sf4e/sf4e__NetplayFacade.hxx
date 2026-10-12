@@ -126,8 +126,8 @@ namespace sf4e {
 			std::vector<ui::RoomNotice> roomNotices;
 			bool helperReady = false;
 			bool atMainMenu = false;
-			// The battle being played or watched is a room game under its table's
-			// Practice match rule, as fixed when the battle was prepared
+			// The battle being played or watched is a Practice room's game, as
+			// fixed when the battle was prepared
 			// (training::MatchPracticeActive).
 			bool practiceMatch = false;
 			// A started match is waiting for the player to return to the main menu.

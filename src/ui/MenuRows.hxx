@@ -53,29 +53,28 @@ inline std::string SetSummaryText(const room::Rules& rules) {
     if(rules.format==room::SetFormat::Unlimited) return SetLengthText(rules.format);
     return loc::Tf("rules.set_summary",SetLengthText(rules.format),RotationText(rules.rotation));
 }
-inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason) {
+// A Practice room's games always take the longest round time
+// (room::MatchRoundTime), so its rules have no round time row.
+inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason,bool practice) {
     rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
     rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
-    // A Practice match ends only when its round time runs out, so a shorter
-    // time than the longest is pointed out where it is set.
-    std::string timeDetail=reason;
-    if(enabled&&rules.training&&rules.roundTime!=room::PracticeRoundTime)
-        timeDetail=loc::Tf("rules.round_time.practice",room::PracticeRoundTime)+(*reason?"\n"+timeDetail:std::string());
-    rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),timeDetail,enabled));
+    if(!practice) rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
     rows.push_back(Value("set-length",loc::T("rules.set_length"),SetLengthText(rules.format),enabled?loc::T("rules.set_length.detail"):reason,enabled));
     // Only a set that ends can hand a seat over.
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
     rows.push_back(Value("rotation",loc::T("rules.rotation"),RotationText(rules.rotation),
         !rotates?loc::T("rules.rotation.needs_set"):enabled?RotationDetail(rules.rotation):reason,enabled&&rotates));
-    rows.push_back(Value("training",loc::T("rules.training"),rules.training?loc::T("common.on"):loc::T("common.off"),enabled?loc::T("rules.training.detail"):reason,enabled));
+}
+// Create's choice of a Practice room, fixed for the room's life (room::Snapshot::practice).
+inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
+    return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
+        loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
 }
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;
     else if(a.id=="rounds") Step(rules.roundCount,{1,3,5,7,15,99},a.delta);
     else if(a.id=="time") Step(rules.roundTime,std::vector<int>(std::begin(room::RoundTimes),std::end(room::RoundTimes)),a.delta);
-    // In view on the Round time row: on sets the longest time, off gives back the one from before.
-    else if(a.id=="training") rules.SetPractice(a.delta>0);
     else if(a.id=="set-length") {
         std::vector<int> lengths;
         for(int n=0;n<=room::MaxSetLength;++n) lengths.push_back(n);

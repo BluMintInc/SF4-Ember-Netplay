@@ -358,12 +358,6 @@ msgstr "Runden"
 msgid "rules.round_time"
 msgstr "Rundenzeit"
 
-msgid "rules.training"
-msgstr "Übungskampf"
-
-msgid "rules.training.detail"
-msgstr "Gesundheit und Leisten werden aufgefüllt und niemand wird K. o. geschlagen. Ein Spiel endet mit Ablauf der Rundenzeit, daher setzt das Einschalten die Rundenzeit auf 9999."
-
 msgid "screen.home"
 msgstr "Startseite"
 
@@ -2167,6 +2161,9 @@ msgstr "Zurück zum Raum."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Das Spiel an diesem Tisch wurde abgebrochen. Zurück zum Raum und erneut Bereit drücken."
+
+msgid "runtime.practice_ended"
+msgstr "Übung beendet. Zurück zum Raum und erneut Bereit drücken."
 
 msgid "runtime.result_not_recorded"
 msgstr "Ergebnis konnte nicht erfasst werden: Der Tisch änderte sich vor der Bestätigung."
@@ -4233,6 +4230,18 @@ msgstr "Übungskampf"
 msgid "room.rules_summary_practice"
 msgstr "Übungskampf, {0} Runden, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Übungsraum"
+
+msgid "room.practice.detail"
+msgstr "Jedes Spiel im Raum ist ein Übungskampf: Gesundheit und Leisten werden aufgefüllt, niemand wird K. o. geschlagen und die Rundenzeit ist {0}. Das bleibt so, solange der Raum offen ist. Für normale Kämpfe den Raum schließen und einen neuen erstellen."
+
+msgid "room.practice_status"
+msgstr "Übungsraum / nur mit Einladung"
+
+msgid "room.practice_locked_status"
+msgstr "Übungsraum gesperrt / nur mit Einladung"
+
 msgid "inputs.presses_value"
 msgstr "{0} Tastendrücke"
 
@@ -4388,9 +4397,6 @@ msgstr "{0} wird aus dem Training zurückgerufen"
 
 msgid "training.go_now"
 msgstr "Jetzt los"
-
-msgid "rules.round_time.practice"
-msgstr "Ein Übungskampf endet mit Ablauf der Rundenzeit. Die längste ist {0}."
 
 msgid "reports.setting"
 msgstr "Problemberichte senden"

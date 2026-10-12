@@ -126,8 +126,7 @@ namespace sf4e {
 		session::SendResult Lobby_SetSettings(
 			bool editionSelect,
 			int roundCount,
-			Dimps::Math::FixedPoint roundTime,
-			bool trainingMode
+			Dimps::Math::FixedPoint roundTime
 		);
 
 		session::SendResult PreBattle_SetEnv(uint32_t rngSeed);

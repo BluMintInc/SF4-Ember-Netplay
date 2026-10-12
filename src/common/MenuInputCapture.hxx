@@ -7,7 +7,7 @@ namespace sf4e { namespace input {
 // menu can be opened there with F10 to follow or cancel it, and the pad then
 // drives it; Start stays the game's, whose pause it opens, so it does not
 // open Ember's menu there.
-// PracticeMatch: a room game under its table's Practice match rule, which
+// PracticeMatch: a Practice room's game (room::Snapshot::practice) that
 // this PC fights in. Such a game ends only when its round time runs out, so
 // Start or F10 opens Ember's menu over the fight, where a fighter ends it
 // (End practice). The game has no pause under rollback for Start to open.

@@ -7,8 +7,8 @@ namespace sf4e { namespace match_frame_meter {
 // private rooms they play in.
 inline bool Allowed(bool publicRoom) { return !publicRoom; }
 
-// Whether a match wants the meter: the player's choice, or a game under its
-// table's Practice match rule, which shows it whatever that choice is.
+// Whether a match wants the meter: the player's choice, or a Practice room's
+// game, which shows it whatever that choice is.
 inline bool Wanted(bool preference, bool practiceMatch) { return preference || practiceMatch; }
 
 // Whether the runtime watches matches for the meter: where a match wants it

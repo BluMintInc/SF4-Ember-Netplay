@@ -418,6 +418,12 @@ struct Snapshot {
 	TournamentBinding tournament;
 };
 
+// The round time a table's games are played at: its rules', or in a Practice
+// room the longest, since its games end only when the time runs out.
+inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {
+	return room.practice ? PracticeRoundTime : table.rules.roundTime;
+}
+
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	const auto found = std::find_if(snapshot.members.begin(), snapshot.members.end(),
 		[id](const Member& member) { return member.id == id; });

@@ -358,12 +358,6 @@ msgstr "라운드"
 msgid "rules.round_time"
 msgstr "라운드 시간"
 
-msgid "rules.training"
-msgstr "연습 대전"
-
-msgid "rules.training.detail"
-msgstr "체력과 게이지가 다시 차며 누구도 KO되지 않습니다. 라운드 시간이 끝나면 게임이 종료되므로 켜면 라운드 시간이 9999로 설정됩니다."
-
 msgid "screen.home"
 msgstr "홈"
 
@@ -2167,6 +2161,9 @@ msgstr "방으로 돌아가는 중입니다."
 
 msgid "runtime.table_game_cancelled"
 msgstr "이 테이블의 대전이 취소되었습니다. 방으로 돌아가 다시 준비하세요."
+
+msgid "runtime.practice_ended"
+msgstr "연습이 종료되었습니다. 방으로 돌아가 다시 준비하세요."
 
 msgid "runtime.result_not_recorded"
 msgstr "확정 전에 테이블이 변경되어 결과를 기록하지 못했습니다."
@@ -4233,6 +4230,18 @@ msgstr "연습 대전"
 msgid "room.rules_summary_practice"
 msgstr "연습 대전, {0}라운드, {1}초, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "연습 방"
+
+msgid "room.practice.detail"
+msgstr "방의 모든 게임이 연습 대전입니다. 체력과 게이지가 다시 차고 누구도 KO되지 않으며 라운드 시간은 {0}입니다. 방이 열려 있는 동안 바뀌지 않습니다. 일반 대전을 하려면 방을 닫고 새로 만드세요."
+
+msgid "room.practice_status"
+msgstr "연습 방 / 초대 전용"
+
+msgid "room.practice_locked_status"
+msgstr "잠긴 연습 방 / 초대 전용"
+
 msgid "inputs.presses_value"
 msgstr "버튼 입력 {0}회"
 
@@ -4388,9 +4397,6 @@ msgstr "{0} 님을 트레이닝에서 부르는 중"
 
 msgid "training.go_now"
 msgstr "지금 가기"
-
-msgid "rules.round_time.practice"
-msgstr "연습 대전은 라운드 시간이 끝나면 종료됩니다. 가장 긴 시간은 {0}입니다."
 
 msgid "reports.setting"
 msgstr "문제 보고서 보내기"

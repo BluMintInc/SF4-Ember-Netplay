@@ -171,6 +171,8 @@ struct ShellAction {
     // With the JoinInvite of a public room just created: the table rules chosen
     // on Create, which the runtime sets once the creator is in it as host.
     std::optional<room::Rules> createdRules;
+    // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
+    bool practiceRoom = false;
     // What the Replays screen asks of the game: an archived replay (its
     // file, as its row names it) to add or to watch, the game's own list, or
     // no to a replay link. Nothing is sent to the room.
@@ -273,6 +275,8 @@ private:
         const auto kind=publicRooms_.OpeningKind();
         return kind?*kind==PublicRoomsPanel::OpenKind::Create:view.session.isHost;
     }
+    // The Create screen, with Practice room off (createPractice_).
+    void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
     void OpenPublicCreate();
     // A public room still named with the default is named for its host.
@@ -357,6 +361,9 @@ private:
     bool roomUpdateVisible_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
+    // Create's Practice room choice for the private room it opens. Never saved:
+    // every visit to Create starts with it off.
+    bool createPractice_ = false;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

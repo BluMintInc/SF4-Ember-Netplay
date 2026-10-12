@@ -334,7 +334,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::SetLobbySettings: {
 		const auto& settings = command.preferences.lobby;
 		if (UserApp::netplay->client.Lobby_SetSettings(settings.editionSelect, settings.roundCount,
-			{0, static_cast<short>(settings.roundTime)}, false) == session::SendResult::Queued) {
+			{0, static_cast<short>(settings.roundTime)}) == session::SendResult::Queued) {
 			runtime->pendingLobbySettings.reset(new netplay::LobbySettings(settings));
 			runtime->lobbySettingsDeadline = GetTickCount64() + 15000;
 		} else runtime->error = loc::T("runtime.lobby_settings_send_failed");
