@@ -47,6 +47,10 @@ public:
 	// Test seam: port reservations fail, as a socket error would.
 	void FailPortReservationForTest(bool fail) { failPortReservation_ = fail; }
 	std::size_t LocalSlot() const { return slot_; }
+	// The peer identity a fighter's match is played against, from the grant
+	// that started it. It outlives the link, which closes when the match ends.
+	// Empty for a spectator, and until a grant is taken.
+	const std::string& OpponentPeer() const { return opponentPeer_; }
 	const std::vector<SessionProtocol::ConnectionID>& Roster() const { return roster_; }
 	const std::string& Error() const { return error_; }
 	// The last failure of the current generation. Unlike Error() it survives
@@ -100,7 +104,7 @@ private:
 	std::size_t slot_ = 0;
 	std::vector<SessionProtocol::ConnectionID> roster_;
 	std::vector<Link> links_;
-	std::string error_, lastFailure_;
+	std::string error_, lastFailure_, opponentPeer_;
 	nlohmann::json pendingGrant_;
 	std::uint64_t pendingGrantTerm_ = 0;
 	bool waitingForProjection_ = false;
