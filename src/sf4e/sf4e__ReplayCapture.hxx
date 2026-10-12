@@ -36,8 +36,8 @@ bool Cancel();
 void Clear();
 State GetState();
 
-// The thread that renders (the game thread, with the game's render thread
-// off as Ember runs it). Frame: once per rendered frame, once the layers an export
+// The thread that renders (the game thread with Faster display on, else
+// possibly the game's render thread). Frame: once per rendered frame, once the layers an export
 // takes from Ember's overlay are drawn and before the rest of it
 // (sf4e__Overlay.hxx: DrawOverlay). Release: before the device resets or
 // goes, lets go of the grab's surfaces and disables grabs; it waits for a

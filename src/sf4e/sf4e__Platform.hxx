@@ -19,6 +19,7 @@ namespace sf4e {
 			DWORD Reset();
 			void RunScene_Render(void* sceneCommandList);
 			int LimitFrame(float frameDelta);
+			int LimitPacedFrame(float frameDelta);
 			void BuildPresentParameters();
 
 			// Rift pacing hand-off with the game tick. The limiter runs after

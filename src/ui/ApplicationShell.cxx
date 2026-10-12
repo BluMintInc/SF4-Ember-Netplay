@@ -354,6 +354,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("background-play",loc::T("player.background_play"),preferences_.backgroundPlay?loc::T("common.on"):loc::T("common.off"),loc::T("player.background_play_detail"),v.canEditPreferences),
    Value("lower-input-lag",loc::T("player.lower_input_lag"),preferences_.lowerInputLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_input_lag_detail"),v.canEditPreferences),
    Value("lower-keyboard-lag",loc::T("player.lower_keyboard_lag"),preferences_.lowerKeyboardLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_keyboard_lag_detail"),v.canEditPreferences),
+   Value("faster-display",loc::T("player.faster_display"),preferences_.fasterDisplay?loc::T("common.on"):loc::T("common.off"),loc::T("player.faster_display_detail"),v.canEditPreferences),
    Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
  }else if(screen=="interface"){
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
@@ -616,6 +617,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
   else if(a.id=="lower-input-lag")preferences_.lowerInputLag=a.delta>0;
   else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
+  else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));

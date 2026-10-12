@@ -1002,6 +1002,12 @@ msgstr "キーボードの遅延を減らす（実験的）"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "実験的な機能です。ゲームはキーボードをコントローラーより1フレーム遅れて読み取ります。これはその1フレームをなくします。キーボードだけに、このPCだけに影響します。相手がオンにする必要はありません。"
 
+msgid "player.faster_display"
+msgstr "表示の高速化（遅延1フレーム減）"
+
+msgid "player.faster_display_detail"
+msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
+
 msgid "player.native_menus"
 msgstr "ゲーム本体のメニューを開く"
 

@@ -178,6 +178,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SpectatorPolicy SOURCES "src/tests/spectator_policy_test.cxx")
     sf4e_add_unit_test(NAME SpectatorSync SOURCES "src/tests/spectator_sync_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 15)
     sf4e_add_unit_test(NAME GameDisplayConfig SOURCES "src/tests/game_display_config_test.cxx" STD 17)
+    sf4e_add_unit_test(NAME FrameRateWindow SOURCES "src/tests/frame_rate_window_test.cxx" STD 17)
 endif()
 
 if(BUILD_TESTING)

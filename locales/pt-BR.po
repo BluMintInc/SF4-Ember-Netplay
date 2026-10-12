@@ -1002,6 +1002,12 @@ msgstr "Menos atraso no teclado (experimental)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Experimental. O jogo lê o teclado um quadro depois de um controle; isto remove esse quadro. Afeta só o teclado, e só neste PC: o outro jogador não precisa ativar."
 
+msgid "player.faster_display"
+msgstr "Imagem mais rápida (1 quadro a menos)"
+
+msgid "player.faster_display_detail"
+msgstr "O jogo mostra cada quadro assim que fica pronto, em vez de um quadro depois. Desative se o jogo cair abaixo de 60 fps neste PC. Afeta só este PC: o outro jogador não precisa ativar. As mudanças valem na próxima vez que o jogo iniciar."
+
 msgid "player.native_menus"
 msgstr "Abrir menus nativos"
 

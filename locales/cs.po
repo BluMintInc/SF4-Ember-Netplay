@@ -1002,6 +1002,12 @@ msgstr "Rychlejší klávesnice (experimentální)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Experimentální. Hra čte klávesnici o jeden snímek později než ovladač; toto ten snímek odebere. Týká se jen klávesnice a jen tohoto počítače: druhý hráč to zapínat nemusí."
 
+msgid "player.faster_display"
+msgstr "Rychlejší obraz (o 1 snímek dříve)"
+
+msgid "player.faster_display_detail"
+msgstr "Hra zobrazí každý snímek, jakmile je hotový, ne o snímek později. Pokud hra na tomto počítači klesne pod 60 snímků za sekundu, vypněte to. Týká se jen tohoto počítače: druhý hráč to zapínat nemusí. Změna se projeví při příštím spuštění hry."
+
 msgid "player.native_menus"
 msgstr "Otevřít nabídky hry"
 

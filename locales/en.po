@@ -1002,6 +1002,12 @@ msgstr "Less keyboard lag (experimental)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Experimental. The game reads the keyboard a frame later than a controller; this removes that frame. It only affects the keyboard, and only on this PC: the other player does not need it on."
 
+msgid "player.faster_display"
+msgstr "Faster display (1 frame less)"
+
+msgid "player.faster_display_detail"
+msgstr "The game shows each frame as soon as it is ready instead of a frame later. Turn it off if the game drops below 60 fps on this PC. It only affects this PC: the other player does not need it on. Changes apply the next time the game starts."
+
 msgid "player.native_menus"
 msgstr "Open native menus"
 

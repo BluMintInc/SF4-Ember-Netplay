@@ -1002,6 +1002,12 @@ msgstr "Riduci il ritardo tastiera (sperimentale)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Sperimentale. Il gioco legge la tastiera un frame dopo un controller; questo rimuove quel frame. Riguarda solo la tastiera, e solo su questo PC: l'altro giocatore non deve attivarlo."
 
+msgid "player.faster_display"
+msgstr "Immagine più rapida (1 frame in meno)"
+
+msgid "player.faster_display_detail"
+msgstr "Il gioco mostra ogni frame appena è pronto, invece di un frame dopo. Disattivalo se il gioco scende sotto i 60 fps su questo PC. Riguarda solo questo PC: l'altro giocatore non deve attivarlo. Le modifiche valgono dal prossimo avvio del gioco."
+
 msgid "player.native_menus"
 msgstr "Apri menu del gioco"
 

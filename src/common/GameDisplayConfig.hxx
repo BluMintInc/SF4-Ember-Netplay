@@ -1,15 +1,14 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
-#include <optional>
 #include <string>
 #include <string_view>
 
 namespace sf4e { namespace gameconfig {
 
 // The settings of the game's own config.ini that rollback depends on and the
-// player must change. VSync and RenderingThread are not here: the mod forces
-// both off (RenderingThreadOverride below).
+// player must change. VSync is not here: the mod forces it off. Nor is
+// RenderingThread, which Faster display turns off (RenderingThreadOverride).
 // An empty value means the key was absent; it is not reported as a mismatch.
 struct DisplaySettings {
     std::string frameRate, msaa;
@@ -44,27 +43,41 @@ inline DisplaySettings ParseDisplaySettings(std::string_view ini) {
 
 // SYSTEM/RenderingThread. ON draws each frame on a second thread while the
 // game thread simulates the next one, so the picture reaches the screen a
-// frame later. Ember keeps the game's live flag off, as it does VSync, and
-// leaves the player's file as it was: the game writes the flag back into
-// config.ini (on exit and from its display options), and that write is given
-// the player's own value (sf4e__Platform.cxx).
+// frame later. With the player's Faster display on, Ember turns the game's
+// live flag off; with it off, the game keeps what config.ini says. The
+// player's file is left as it was either way: the game writes the flag back
+// into config.ini (on exit and from its display options), and that write is
+// given the player's own value (sf4e__Platform.cxx). The game reads the flag
+// once, to start its render thread, so the choice holds for the session.
 class RenderingThreadOverride {
 public:
-    // The flag as config.ini set it: remembered, then turned off.
-    void Enforce(int& live) { requested_ = live; live = 0; }
+    // The flag as config.ini set it: remembered, and turned off when
+    // fasterDisplay is on.
+    void Apply(bool fasterDisplay, int& live) {
+        requested_ = live; applied_ = true; enforced_ = fasterDisplay;
+        if (enforced_) live = 0;
+    }
     // Runs the game's config write with the player's value in the flag and
-    // puts the enforced one back after. Before Enforce the flag is the game's.
+    // puts the enforced one back after. Unenforced, the flag is the game's.
     template <typename Write> void WriteRequested(int& live, Write&& write) const {
-        if (!requested_) { write(); return; }
+        if (!enforced_) { write(); return; }
         const int enforced = live;
-        live = *requested_;
+        live = requested_;
         write();
         live = enforced;
     }
-    // What config.ini asked for; empty before Enforce.
-    std::optional<int> Requested() const { return requested_; }
+    bool Applied() const { return applied_; }
+    // Whether the game draws on its own thread this session.
+    bool RenderThread() const { return requested_ != 0 && !enforced_; }
+    // The startup log line after "Display: ".
+    std::string Describe() const {
+        const char* asked = requested_ ? "ON" : "OFF";
+        return enforced_ ? std::string("rendering thread forced off (Faster display on; game setting asked for ") + asked + ")"
+            : std::string("rendering thread left to the game (Faster display off; RenderingThread=") + asked + ")";
+    }
 private:
-    std::optional<int> requested_;
+    int requested_ = 0;
+    bool applied_ = false, enforced_ = false;
 };
 
 } }

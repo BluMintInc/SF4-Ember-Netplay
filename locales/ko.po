@@ -1002,6 +1002,12 @@ msgstr "키보드 지연 줄이기 (실험적)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "실험적 기능입니다. 게임은 키보드를 컨트롤러보다 1프레임 늦게 읽습니다. 이 설정은 그 프레임을 없앱니다. 키보드에만, 이 PC에서만 영향을 줍니다. 상대 플레이어는 켤 필요가 없습니다."
 
+msgid "player.faster_display"
+msgstr "더 빠른 화면 표시 (1프레임 지연 감소)"
+
+msgid "player.faster_display_detail"
+msgstr "게임이 각 프레임을 1프레임 늦게 표시하지 않고 준비되는 즉시 표시합니다. 이 PC에서 게임이 60fps 아래로 떨어지면 끄세요. 이 PC에서만 영향을 줍니다. 상대 플레이어는 켤 필요가 없습니다. 변경 사항은 다음에 게임을 시작할 때 적용됩니다."
+
 msgid "player.native_menus"
 msgstr "게임 메뉴 열기"
 

@@ -1002,6 +1002,12 @@ msgstr "Szybsza klawiatura (eksperymentalne)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Eksperymentalne. Gra odczytuje klawiaturę jedną klatkę później niż kontroler; to usuwa tę klatkę. Dotyczy tylko klawiatury i tylko tego komputera: drugi gracz nie musi tego włączać."
 
+msgid "player.faster_display"
+msgstr "Szybszy obraz (1 klatka mniej)"
+
+msgid "player.faster_display_detail"
+msgstr "Gra pokazuje każdą klatkę, gdy tylko jest gotowa, zamiast klatkę później. Wyłącz to, jeśli gra na tym komputerze spada poniżej 60 kl./s. Dotyczy tylko tego komputera: drugi gracz nie musi tego włączać. Zmiana zadziała przy następnym uruchomieniu gry."
+
 msgid "player.native_menus"
 msgstr "Otwórz menu gry"
 
