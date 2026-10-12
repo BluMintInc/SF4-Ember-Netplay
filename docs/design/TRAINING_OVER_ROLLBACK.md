@@ -82,10 +82,14 @@ refuses a value outside the parameter's range. It sits beside
 ### What was built
 
 - `Request::SetPlayerParam` is bound, with the parameter and value names.
-- `fVsBattle::bNextMatchTraining`, set where the match's seed is taken
-  (`UserApp`, after `StartGGPO` or `StartSpectating`) and applied where the
-  seed is applied (`PrepareBattleRequest`): health, recoverable health, Super
-  and Ultra to 8 for both players. Stun is left as in a match.
+- `battle::NextRequest` (`fVsBattle::nextRequest`) holds the match's seed and
+  the rule together. `StartMatchFromLobby` arms it from the frozen room
+  projection when it enters the match, beside the round count and time, and
+  `PrepareBattleRequest` takes it once: health, recoverable health, Super and
+  Ultra to 8 for both players. Stun is left as in a match. The game prepares
+  the request before the battle registers the tasks that start GGPO, so
+  anything set at GGPO start reaches only the following battle; an earlier
+  build did that and played the rule and the seed one match late.
 - `room::Rules::training`. On the wire `"training": true`, written only when
   set and read as off when absent, as the member flag is.
 - It reaches the match the way the round count does: the table's rules into

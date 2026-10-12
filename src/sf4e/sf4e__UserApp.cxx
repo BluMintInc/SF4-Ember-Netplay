@@ -87,6 +87,8 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
+    // Only an entered match arms the next battle; any other answer leaves it empty.
+    fVsBattle::nextRequest = {};
 
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
@@ -120,6 +122,11 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
     BattleTypeSettings->rounds = client->_lobbyData.roundCount;
     BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
+    // The seed and Training rules join the battle request beside the
+    // settings above, for the fighters and for whoever watches them. The
+    // game prepares that request before the battle registers its tasks,
+    // where GGPO starts, so they cannot wait for GGPO.
+    fVsBattle::nextRequest = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
     // A Versus battle saves its own replay when this is set (0x63CA40), and
     // Sidecar copies each one out of the game's slots as it is saved
     // (platform/ReplayFiles.hxx). A match this PC only
@@ -128,9 +135,10 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     const bool watching = sf4e::NetplayFacade::GetRuntimeMatchEndpoints(seats) && seats.localSlot >= 2;
     BattleTypeSettings->recordReplay = !watching || sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.recordWatched;
     spdlog::info(
-        "Netplay: starting match with rounds={} time={}",
+        "Netplay: starting match with rounds={} time={} training={}",
         client->_lobbyData.roundCount,
-        client->_lobbyData.roundTime.integral
+        client->_lobbyData.roundTime.integral,
+        client->_lobbyData.trainingMode
     );
     fVsPreBattle::bSkipToVersus = true;
     fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
@@ -197,7 +205,7 @@ static bool StartRuntimeGgpo() {
         if (!endpoints.remotePorts[0]) return false;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         char loopback[] = "127.0.0.1";
-        fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0], netplay->client._matchData.rngSeed);
+        fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0]);
     } else {
         GGPOPlayer players[sf4e::room::MaxMatchParticipants] = {};
         const auto slots = endpoints.localSlot == 0 ? endpoints.participantCount : 2;
@@ -228,7 +236,7 @@ static bool StartRuntimeGgpo() {
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);
-        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
+        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay);
     }
     if (fSystem::ggpo != nullptr) {
         auto* const root = App::GetRootEvent();
@@ -238,9 +246,6 @@ static bool StartRuntimeGgpo() {
             netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
             recordingEnabled);
     }
-    // The table's Training rule goes into the battle request beside the seed,
-    // for the fighters and for whoever watches them.
-    fVsBattle::bNextMatchTraining = fSystem::ggpo != nullptr && netplay->client._lobbyData.trainingMode;
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();
     return fSystem::ggpo != nullptr;
@@ -331,6 +336,8 @@ void fUserApp::Install() {
 
 void fUserApp::ShutdownNetplay(bool closeGgpo) {
     s_pendingMatchStart = false;
+    // A match entered but not yet prepared has no room left to play it for.
+    fVsBattle::nextRequest = {};
     sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
 }
 
