@@ -382,6 +382,9 @@ static bool PlayGgpoFrame(rSystem* system) {
             diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
             (system->*rSystem::publicMethods.BattleUpdate)();
         }
+        // Sampled with the inputs it played before the advance below, which
+        // may poll and roll back over this very frame.
+        fSystem::CaptureSimulatedFrame(system, ggpoInputs);
         // Playback mode must be off before ggpo_advance_frame: the
         // save callback and any nested GGPO work must not read the
         // stale playback inputs. The guard also restores on every
@@ -412,7 +415,6 @@ static bool PlayGgpoFrame(rSystem* system) {
         fSoundPlayerManager::SyncState();
     }
     fSystem::CaptureSnapshot(system);
-    fSystem::CaptureHashCheckpoint(system, ggpoInputs);
     fSystem::CaptureMeterSample(system, true);
     PublishConfirmedNativeMatchResult();
     return true;

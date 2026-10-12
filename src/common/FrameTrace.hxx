@@ -4,7 +4,8 @@
 // report can show where two PCs parted between two checkpoints (30 frames
 // apart). A rollback re-simulates frames; each pass replaces the frame's row
 // and is counted, so the row a confirmed frame keeps is the timeline both PCs
-// agreed on and `passes` says whether it was ever re-simulated.
+// agreed on and `passes` says whether it was ever re-simulated. The trace is
+// logged once a battle, for the first mismatch: later ones follow from it.
 
 #include <array>
 
@@ -36,11 +37,22 @@ public:
         return entry.stateFrame == stateFrame ? &entry : nullptr;
     }
 
-    void Clear() { entries_ = {}; }
+    // True the first time a battle asks to log the trace, false after.
+    bool TakeDump() {
+        if (dumped_) return false;
+        dumped_ = true;
+        return true;
+    }
+
+    void Clear() {
+        entries_ = {};
+        dumped_ = false;
+    }
 
 private:
     static int Slot(int stateFrame) { return (stateFrame % Size + Size) % Size; }
     std::array<Entry, Size> entries_ = {};
+    bool dumped_ = false;
 };
 
 } }

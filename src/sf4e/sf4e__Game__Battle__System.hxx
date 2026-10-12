@@ -246,11 +246,16 @@ namespace sf4e {
 				static const int HASH_CHECKPOINT_INTERVAL = sf4e::statehash::CheckpointInterval;
 				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
+				// The same hashes from both fighters' values already read.
+				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src, const CharaSemantics chara[2]);
 				static CharaSemantics CaptureCharaSemantics(Dimps::Game::Battle::System* src, int side);
-				// After every simulated and re-simulated frame: the frame's
-				// trace row (inputs: what the frame played) and, on cadence
-				// frames, its hash checkpoint.
-				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2]);
+				// After every simulated and re-simulated frame, before
+				// ggpo_advance_frame saves it: GGPO may poll there and roll
+				// back, and the frames it re-simulates replace this sample.
+				// One read of the fighters gives the frame's trace row
+				// (inputs: what the frame played) and, on cadence frames, its
+				// hash checkpoint, both under the state frame it reaches.
+				static void CaptureSimulatedFrame(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2]);
 				// The traced frames from the checkpoint before frameIdx up to
 				// it, logged on the battle's first v2 mismatch only.
 				static void LogFrameTrace(int frameIdx);
@@ -260,6 +265,9 @@ namespace sf4e {
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
+				// The GGPO frame of the state the engine holds: set by each
+				// save, and by a rollback's load until its first re-simulated
+				// frame saves again.
 				static int lastGgpoSaveFrame;
 				static PlayerConnectionInfo players[room::MaxMatchParticipants];
 				static GGPOSession* ggpo;

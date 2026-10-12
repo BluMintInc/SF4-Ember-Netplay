@@ -35,9 +35,6 @@ Trace& FramesTraced() {
     return trace;
 }
 
-// Logged once a battle: later mismatches follow from the first.
-bool s_logged = false;
-
 int UnitLeader(const CharaUnit* unit) {
     for (int side = 0; side < 2; side++) {
         if (unit->actors_0x10[0] && unit->actors_0x10[0] == unit->playerActors[side]) return side;
@@ -53,28 +50,23 @@ std::string Words(const fSystem::CharaSemantics& chara) {
 
 }
 
-void TraceFrame(rSystem* system, int stateFrame, const fPadSystem::Inputs inputs[2]) {
-    if (stateFrame <= 0) return;
-    CharaUnit* unit = (system->*rSystem::publicMethods.GetCharaUnit)();
-    if (!unit || !unit->playerActors[0] || !unit->playerActors[1]) return;
+void TraceFrame(rSystem* system, int stateFrame, const fPadSystem::Inputs inputs[2], const fSystem::CharaSemantics chara[2]) {
     TraceRow& row = FramesTraced().Begin(stateFrame).row;
     row.engineFrame = rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
     row.inputs[0] = inputs[0];
     row.inputs[1] = inputs[1];
     row.firstChara = *rSystem::GetFirstCharaToSimulate(system);
-    row.unitLeader = UnitLeader(unit);
-    row.chara[0] = fSystem::CaptureCharaSemantics(system, 0);
-    row.chara[1] = fSystem::CaptureCharaSemantics(system, 1);
+    row.unitLeader = UnitLeader((system->*rSystem::publicMethods.GetCharaUnit)());
+    row.chara[0] = chara[0];
+    row.chara[1] = chara[1];
 }
 
 void ClearFrameTrace() {
     FramesTraced().Clear();
-    s_logged = false;
 }
 
 void fSystem::LogFrameTrace(int frameIdx) {
-    if (s_logged) return;
-    s_logged = true;
+    if (!FramesTraced().TakeDump()) return;
     std::string names;
     for (const char* name : CharaSemantics::kFieldNames) names += fmt::format(" {}", name);
     spdlog::error("Desync v2: frames up to {}, as this PC played them; per fighter:{}", frameIdx, names);

@@ -643,6 +643,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
         (system->*rSystem::publicMethods.BattleUpdate)();
     }
+    CaptureSimulatedFrame(system, inputs);
 
     result = ggpo_advance_frame(ggpo);
     if (diag::Enabled()) {
@@ -656,7 +657,6 @@ bool fSystem::ggpo_advance_frame_callback(int)
         ++s_window.resimFrames;
         s_window.maxDepth = (std::max)(s_window.maxDepth, ++s_window.depth);
         CaptureSnapshot(system);
-        CaptureHashCheckpoint(system, inputs);
         CaptureMeterSample(system, false);
     }
 
@@ -679,6 +679,9 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
         AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
         return false;
     }
+    // The re-simulated frames are named from the state they start from
+    // (CaptureSimulatedFrame).
+    lastGgpoSaveFrame = state->ggpoFrame;
     return true;
 }
 
