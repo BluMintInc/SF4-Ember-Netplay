@@ -1,5 +1,6 @@
 // Bridge events: CloudEvents 1.0 with an `emberseq` cursor (spec 20.2).
 import { parseStrict, type Json } from "./canonical.ts";
+import { counter, prefixedId } from "./signed.ts";
 
 export const EVENT_TYPES = [
   "identity.link.pending",
@@ -67,6 +68,18 @@ export class EventError extends Error {}
 
 const FIELDS = ["specversion", "id", "source", "type", "subject", "time", "datacontenttype", "dataschema", "emberseq", "data"];
 
+// Matches ember_protocol::encoding::check_origin with AllowLoopbackHttp.
+function eventOrigin(value: string): boolean {
+  let authority: string;
+  if (value.startsWith("https://")) authority = value.slice(8);
+  else if (value.startsWith("http://")) {
+    authority = value.slice(7);
+    const host = authority.replace(/:[0-9]+$/, "");
+    if (!["127.0.0.1", "[::1]", "localhost"].includes(host)) return false;
+  } else return false;
+  return authority.length > 0 && authority.length <= 259 && /^[A-Za-z0-9.:[\]-]+$/.test(authority);
+}
+
 /**
  * Parses a verified webhook body or one event from the replay API. Unknown
  * event types parse too, so a receiver can skip ones it does not handle.
@@ -77,18 +90,17 @@ export function parseEvent(payload: string | Uint8Array | Json): BridgeEvent {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new EventError("an event is an object");
   const keys = Object.keys(value);
   if (keys.length !== FIELDS.length || !FIELDS.every((field) => keys.includes(field))) throw new EventError("unexpected event fields");
-  const event = value as unknown as BridgeEvent;
-  const valid =
-    event.specversion === "1.0" &&
-    /^evt_[0-9a-f-]{36}$/.test(event.id) &&
-    /^io\.ember\.[a-z_]+(\.[a-z_]+)+\.v1$/.test(event.type) &&
-    /^(0|[1-9][0-9]{0,19})$/.test(event.emberseq) &&
-    event.datacontenttype === "application/json" &&
-    typeof event.data === "object" &&
-    event.data !== null &&
-    !Array.isArray(event.data);
-  if (!valid) throw new EventError("invalid event envelope");
-  return event;
+  const { specversion, id, source, type, subject, time, datacontenttype, dataschema, emberseq, data } = value;
+  if (specversion !== "1.0" || typeof id !== "string" || !prefixedId(id, "evt") ||
+      typeof source !== "string" || !eventOrigin(source) ||
+      typeof type !== "string" || type.length > 160 || !/^io\.ember\.[a-z_]+(\.[a-z_]+)+\.v1$/.test(type) ||
+      typeof subject !== "string" || subject.length === 0 || Buffer.byteLength(subject, "utf8") > 256 ||
+      typeof time !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/.test(time) ||
+      datacontenttype !== "application/json" || typeof dataschema !== "string" ||
+      Buffer.byteLength(dataschema, "utf8") > 512 || !/^(https:\/\/|urn:)/.test(dataschema) ||
+      typeof emberseq !== "string" || (counter(emberseq) ?? 0n) === 0n ||
+      data === null || typeof data !== "object" || Array.isArray(data)) throw new EventError("invalid event envelope");
+  return { specversion, id, source, type, subject, time, datacontenttype, dataschema, emberseq, data };
 }
 
 /** One open room, as the room routes list it. */

@@ -33,6 +33,14 @@ const examples = new URL("../../../docs/design/identity-bridge/examples/", impor
 const text = (name: string) => readFileSync(new URL(name, examples), "utf8");
 const load = <T>(name: string) => parseStrict(text(name)) as T;
 
+test("shared event envelope acceptance vectors", () => {
+  const vectors = load<{ name: string; valid: boolean; event: Json }[]>("event-envelope-vectors.json");
+  for (const vector of vectors) {
+    if (vector.valid) assert.doesNotThrow(() => parseEvent(vector.event), vector.name);
+    else assert.throws(() => parseEvent(vector.event), undefined, vector.name);
+  }
+});
+
 const vectors = load<{
   identities: { seed_hex: string; public_key_base64url: string; ember_id: string }[];
   challenge: { command: Json; canonical_utf8: string; signing_bytes_hex: string; signature_base64url: string };
