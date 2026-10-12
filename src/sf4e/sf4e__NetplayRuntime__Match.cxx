@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -89,9 +90,8 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	}
 	ReportMatchAbort();
 	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-	CancelDeferredGgpoClose();
-	runtime->match->Abort();
-	runtime->recoveringMatch = true;
+	// The battle already closed its session, so there is nothing to abort but the match.
+	internal::AbortLocalMatch("");
 }
 
 // The room's match is one the game cannot take, and nothing of it was
@@ -261,10 +261,35 @@ namespace internal {
 // Retire this client from the current game. The room-facing half of leaving a
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
-void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+void CancelLocalMatch(GgpoEnd end) {
+	// A game this PC left before its battle was prepared gives that battle,
+	// or any later one, nothing of the match.
+	sf4e::GameEvents::VsBattle::nextRequest = {};
 	CancelDeferredGgpoClose();
-	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason, severity);
-	runtime->match->Abort(); runtime->recoveringMatch = true;
+	if (end.retire) Game::Battle::System::RetireGgpoSession(end.text);
+	else if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(end.text, end.severity);
+	if (runtime->match) runtime->match->Abort();
+}
+
+void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+	CancelLocalMatch(GgpoEnd::Abort(reason, severity));
+	runtime->recoveringMatch = true;
+}
+
+// The room ended the game this PC is in with no result (Abort or Cancel). The
+// notice follows from that outcome, not from the session: whatever is left of
+// the session is retired first, quietly, and the notice is published after,
+// also when no session was left (its setup never reached GGPO, or the battle
+// already closed it). A PC that had already left the game said why then.
+void EndUnscoredMatch(room::MatchResult result) {
+	const bool alreadyLeft = runtime->recoveringMatch;
+	AbortLocalMatch("");
+	if (alreadyLeft) return;
+	// A Practice room's game has no result to lose: a fighter ending it (End
+	// practice), or losing the link, only ends the practice.
+	if (result == room::MatchResult::Abort && UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice)
+		PushAlert(loc::T("runtime.practice_ended"), NoticeSeverity::Info);
+	else PushAlert(loc::T("runtime.table_game_cancelled"), NoticeSeverity::Error);
 }
 
 // The counterpart for a game that is already over: end it, and any spectator
@@ -450,15 +475,13 @@ void TickMatch() {
 					ReportMatchAbort();
 				}
 				runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-				CancelDeferredGgpoClose();
-				if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(runtime->error.c_str());
-				runtime->match->Abort();
 				if (teardownTimedOut) {
+					CancelLocalMatch(GgpoEnd::Abort(runtime->error.c_str()));
 					runtime->error = loc::T("runtime.teardown_timeout");
                     runtime->controller.Execute({netplay::CommandKind::LeaveRoom,
                         runtime->controller.GetSnapshot().generation, {}});
                     CloseRoom();
-				} else runtime->recoveringMatch = true;
+				} else AbortLocalMatch(runtime->error.c_str());
 			} else {
 				const auto matchState = runtime->controller.GetSnapshot().match;
 				Apply(matchState == netplay::MatchState::Playing || matchState == netplay::MatchState::Preparing ?

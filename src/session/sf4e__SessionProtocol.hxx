@@ -77,6 +77,7 @@ namespace sf4e {
 			bool editionSelect = true;
 			int roundCount = 3;
 			FixedPoint roundTime = { 0, 99 };
+			// A room table's games are Practice matches (room::Snapshot::practice).
 			bool trainingMode = false;
 			std::vector<MemberData> members;
 
@@ -266,7 +267,6 @@ namespace sf4e {
 			bool editionSelect = true;
 			int32_t roundCount = 3;
 			FixedPoint roundTime = { 0, 99 };
-			bool trainingMode = false;
 		};
 
 		struct PreBattleSetEnv {
@@ -411,7 +411,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReportResults, type, loserSide);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReset, type);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbySetSettings, type, editionSelect, roundCount, roundTime, trainingMode);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbySetSettings, type, editionSelect, roundCount, roundTime);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetChara, type, chara);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetEnv, type, rngSeed);

@@ -813,8 +813,8 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
-            // The host turns Practice match on (ui_render_training_room.hxx).
-            CheckPracticeMatchRules(shell,draw);
+            // The same table in a Practice room (ui_render_training_room.hxx).
+            CheckPracticeRoomRules(view,draw);
             // The opponent's new fighter: a line on the table card, with no modal.
             view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
             const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
@@ -824,7 +824,7 @@ int main(int argc, char** argv) {
             // The opponent waits in Training and is being called back.
             // A fighter's own Practice match: Ember over the fight offers End practice on the board.
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;view.practiceFight=true;
-            page("room");draw("room-practice-fight");
+            view.room.practice=true;page("room");draw("room-practice-fight");view.room.practice=false;
             view.practiceFight=false;view.session.match=netplay::MatchState::None;view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence

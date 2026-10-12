@@ -362,6 +362,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.tournament = std::move(action.tournament);
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
+        request.practiceRoom = action.practiceRoom;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;

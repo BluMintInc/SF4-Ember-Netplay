@@ -358,12 +358,6 @@ msgstr "Round"
 msgid "rules.round_time"
 msgstr "Durata round"
 
-msgid "rules.training"
-msgstr "Partita di pratica"
-
-msgid "rules.training.detail"
-msgstr "Salute e barre si ricaricano e nessuno va K.O. La partita termina allo scadere del tempo del round, quindi attivarla imposta il tempo a 9999."
-
 msgid "screen.home"
 msgstr "Home"
 
@@ -2167,6 +2161,9 @@ msgstr "Ritorno alla sala."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Partita al tavolo annullata. Torna alla sala per selezionare Pronto."
+
+msgid "runtime.practice_ended"
+msgstr "Pratica terminata. Torna alla sala per selezionare Pronto."
 
 msgid "runtime.result_not_recorded"
 msgstr "Impossibile registrare il risultato: il tavolo è cambiato prima della conferma."
@@ -4233,6 +4230,18 @@ msgstr "Partita di pratica"
 msgid "room.rules_summary_practice"
 msgstr "Partita di pratica, {0} round, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Sala di pratica"
+
+msgid "room.practice.detail"
+msgstr "Ogni partita nella sala è una partita di pratica: salute e barre si ricaricano, nessuno va K.O. e il tempo del round è {0}. Resta così finché la sala è aperta. Per giocare partite normali, chiudi la sala e creane una nuova."
+
+msgid "room.practice_status"
+msgstr "Sala di pratica / solo inviti"
+
+msgid "room.practice_locked_status"
+msgstr "Sala di pratica bloccata / solo inviti"
+
 msgid "inputs.presses_value"
 msgstr "{0} pressioni"
 
@@ -4388,9 +4397,6 @@ msgstr "Richiamo di {0} dall'allenamento"
 
 msgid "training.go_now"
 msgstr "Vai ora"
-
-msgid "rules.round_time.practice"
-msgstr "Una partita di pratica termina allo scadere del tempo del round. Il più lungo è {0}."
 
 msgid "reports.setting"
 msgstr "Invia segnalazioni di problemi"

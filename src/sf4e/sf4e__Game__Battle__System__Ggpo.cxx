@@ -343,7 +343,7 @@ bool fSystem::DrainPendingAbort() {
     return true;
 }
 
-void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay) {
     matchTelemetry.Reset();
     rollbackHud.Reset();
     if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
@@ -453,11 +453,9 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
-    fVsBattle::bOverrideNextRandomSeed = true;
-    fVsBattle::nextMatchRandomSeed = rngSeed;
 }
 
-void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
+void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port) {
     rollbackHud.Reset();
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
@@ -517,8 +515,6 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
-    fVsBattle::bOverrideNextRandomSeed = true;
-    fVsBattle::nextMatchRandomSeed = rngSeed;
 }
 
 bool fSystem::ggpo_begin_game_callback(const char*)

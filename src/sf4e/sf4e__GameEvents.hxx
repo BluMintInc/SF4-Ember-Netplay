@@ -6,6 +6,7 @@
 
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../common/NextBattleRequest.hxx"
 #include "../netplay/SessionController.hxx"
 
 namespace sf4e {
@@ -111,14 +112,10 @@ namespace sf4e {
 			static bool bBlockInitialization;
 			static bool bBlockTermination;
 			static bool bForceNextMatchOnline;
-			static bool bOverrideNextRandomSeed;
 			static bool bTerminateOnNextLeftBattle;
-			static DWORD nextMatchRandomSeed;
-				// The next battle is played by a table's Training rules:
-				// both fighters' health and gauges fill again and nobody
-				// is knocked out. Part of the simulation, so both sides
-				// and every spectator of a match must set it alike.
-				static bool bNextMatchTraining;
+			// The seed and Training rules PrepareBattleRequest gives the
+			// next battle, taken there once (battle::NextRequest).
+			static sf4e::battle::NextRequest nextRequest;
 			static void Install();
 		};
 

@@ -358,12 +358,6 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Temps du round"
 
-msgid "rules.training"
-msgstr "Match d'entraînement"
-
-msgid "rules.training.detail"
-msgstr "La vie et les jauges se remplissent et personne ne subit de K.-O. La partie se termine à la fin du temps du round : l'activer règle donc le temps sur 9999."
-
 msgid "screen.home"
 msgstr "Accueil"
 
@@ -2167,6 +2161,9 @@ msgstr "Retour au salon."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Combat de cette table annulé. Retournez au salon pour repasser à Prêt."
+
+msgid "runtime.practice_ended"
+msgstr "Entraînement terminé. Retournez au salon pour repasser à Prêt."
 
 msgid "runtime.result_not_recorded"
 msgstr "Résultat non enregistré : la table a changé avant sa confirmation."
@@ -4233,6 +4230,18 @@ msgstr "Match d'entraînement"
 msgid "room.rules_summary_practice"
 msgstr "Match d'entraînement, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Salon d'entraînement"
+
+msgid "room.practice.detail"
+msgstr "Chaque partie du salon est un match d'entraînement : la vie et les jauges se remplissent, personne ne subit de K.-O. et le temps du round est {0}. Cela reste ainsi tant que le salon est ouvert. Pour jouer des matchs normaux, fermez le salon et créez-en un nouveau."
+
+msgid "room.practice_status"
+msgstr "Salon d'entraînement / sur invitation"
+
+msgid "room.practice_locked_status"
+msgstr "Salon d'entraînement verrouillé / sur invitation"
+
 msgid "inputs.presses_value"
 msgstr "{0} pressions"
 
@@ -4388,9 +4397,6 @@ msgstr "Rappel de {0} depuis l'entraînement"
 
 msgid "training.go_now"
 msgstr "Y aller"
-
-msgid "rules.round_time.practice"
-msgstr "Un match d'entraînement se termine à la fin du temps du round. Le plus long est {0}."
 
 msgid "reports.setting"
 msgstr "Envoyer les rapports de problèmes"

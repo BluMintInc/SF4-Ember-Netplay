@@ -358,12 +358,6 @@ msgstr "Rundy"
 msgid "rules.round_time"
 msgstr "Czas rundy"
 
-msgid "rules.training"
-msgstr "Mecz treningowy"
-
-msgid "rules.training.detail"
-msgstr "Zdrowie i paski się odnawiają, a nikt nie zostaje znokautowany. Gra kończy się po upływie czasu rundy, więc włączenie ustawia czas rundy na 9999."
-
 msgid "screen.home"
 msgstr "Start"
 
@@ -2167,6 +2161,9 @@ msgstr "Powrót do pokoju."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Walka przy tym stole została anulowana. Wróć do pokoju i ponownie zgłoś gotowość."
+
+msgid "runtime.practice_ended"
+msgstr "Trening zakończony. Wróć do pokoju i ponownie zgłoś gotowość."
 
 msgid "runtime.result_not_recorded"
 msgstr "Nie zapisano wyniku: stół zmienił się przed potwierdzeniem."
@@ -4233,6 +4230,18 @@ msgstr "Mecz treningowy"
 msgid "room.rules_summary_practice"
 msgstr "Mecz treningowy, {0} rund, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Pokój treningowy"
+
+msgid "room.practice.detail"
+msgstr "Każda gra w pokoju to mecz treningowy: zdrowie i paski się odnawiają, nikt nie zostaje znokautowany, a czas rundy wynosi {0}. Tak pozostaje, dopóki pokój jest otwarty. Aby grać zwykłe mecze, zamknij pokój i utwórz nowy."
+
+msgid "room.practice_status"
+msgstr "Pokój treningowy / tylko zaproszenia"
+
+msgid "room.practice_locked_status"
+msgstr "Pokój treningowy zamknięty / tylko zaproszenia"
+
 msgid "inputs.presses_value"
 msgstr "{0} naciśnięć"
 
@@ -4388,9 +4397,6 @@ msgstr "Wzywanie {0} z treningu"
 
 msgid "training.go_now"
 msgstr "Idź teraz"
-
-msgid "rules.round_time.practice"
-msgstr "Mecz treningowy kończy się po upływie czasu rundy. Najdłuższy to {0}."
 
 msgid "reports.setting"
 msgstr "Wysyłaj zgłoszenia problemów"

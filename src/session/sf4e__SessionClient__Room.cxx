@@ -186,9 +186,9 @@ void SessionClient::ProjectSelectedRoomTable() {
 	_lobbyData.members.clear();
 	_lobbyData.editionSelect = table.rules.editionSelect;
 	_lobbyData.roundCount = table.rules.roundCount;
-	_lobbyData.roundTime.integral = table.rules.roundTime;
+	_lobbyData.roundTime.integral = room::MatchRoundTime(_roomSnapshot, table);
 	_lobbyData.roundTime.fractional = 0;
-	_lobbyData.trainingMode = table.rules.training;
+	_lobbyData.trainingMode = _roomSnapshot.practice;
 	for (const auto id : {table.p1, table.p2}) {
 		if (!id) {
 			_lobbyData.members.push_back(SessionProtocol::MemberData{});

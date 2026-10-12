@@ -113,9 +113,10 @@ namespace sf4e {
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
 		// Enables the multi-table room authority while retaining the legacy
 		// two-player path until this method is called by the room bootstrap.
+		// practice makes it a Practice room for its life (room::Snapshot::practice).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules());
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false);
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that

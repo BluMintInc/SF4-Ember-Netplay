@@ -358,12 +358,6 @@ msgstr "ラウンド"
 msgid "rules.round_time"
 msgstr "タイム"
 
-msgid "rules.training"
-msgstr "練習対戦"
-
-msgid "rules.training.detail"
-msgstr "体力とゲージが回復し、KOは発生しません。ラウンドの制限時間が切れると対戦が終わるので、オンにするとタイムが9999になります。"
-
 msgid "screen.home"
 msgstr "ホーム"
 
@@ -2167,6 +2161,9 @@ msgstr "ルームに戻っています。"
 
 msgid "runtime.table_game_cancelled"
 msgstr "この対戦席のゲームはキャンセルされました。ルームに戻って再度準備完了にしてください。"
+
+msgid "runtime.practice_ended"
+msgstr "練習を終了しました。ルームに戻って再度準備完了にしてください。"
 
 msgid "runtime.result_not_recorded"
 msgstr "確定前に対戦席が変更されたため、結果を記録できませんでした。"
@@ -4233,6 +4230,18 @@ msgstr "練習対戦"
 msgid "room.rules_summary_practice"
 msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
 
+msgid "room.practice"
+msgstr "練習ルーム"
+
+msgid "room.practice.detail"
+msgstr "ルーム内の対戦はすべて練習対戦です。体力とゲージが回復し、KOは発生せず、タイムは{0}です。ルームが開いている間は変わりません。通常の対戦をするには、ルームを閉じて新しく作成してください。"
+
+msgid "room.practice_status"
+msgstr "練習ルーム / 招待者のみ"
+
+msgid "room.practice_locked_status"
+msgstr "練習ルームはロック中 / 招待者のみ"
+
 msgid "inputs.presses_value"
 msgstr "{0}回のボタン入力"
 
@@ -4388,9 +4397,6 @@ msgstr "{0}をトレーニングから呼び戻しています"
 
 msgid "training.go_now"
 msgstr "今すぐ戻る"
-
-msgid "rules.round_time.practice"
-msgstr "練習対戦はラウンドの制限時間が切れると終わります。最長は{0}です。"
 
 msgid "reports.setting"
 msgstr "問題レポートを送信"

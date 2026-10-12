@@ -324,9 +324,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
     } catch (const std::exception&) { return false; }
 }
 
-void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}};
-    if (value.training) json["training"] = true;
-    if (value.timeBeforePractice) json["time_before_practice"] = value.timeBeforePractice; }
+void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}}; }
 void from_json(const nlohmann::json& json, Rules& value) {
 	const auto format = ReadInt(json, "format", 0, MaxSetLength);
 	value.format = static_cast<SetFormat>(format);
@@ -335,12 +333,8 @@ void from_json(const nlohmann::json& json, Rules& value) {
 	value.editionSelect = json.at("edition_select").get<bool>();
 	value.roundCount = static_cast<std::uint8_t>(ReadInt(json, "round_count", 1, 99));
 	value.roundTime = static_cast<std::uint16_t>(ReadInt(json, "round_time", 30, 9999));
-	// Written only when set, so rules without them read as before.
-	const auto training = json.find("training");
-	if (training != json.end() && !training->is_boolean()) throw std::invalid_argument("room training rule");
-	value.training = training != json.end() && training->get<bool>();
-	value.timeBeforePractice = json.contains("time_before_practice") ?
-		static_cast<std::uint16_t>(ReadInt(json, "time_before_practice", 30, 9999)) : 0;
+	// "training" and "time_before_practice", from the per-table Practice match
+	// the room's own flag replaced, are not read.
 	if (!value.Valid()) throw std::invalid_argument("room rules");
 }
 void to_json(nlohmann::json& json, const ConnectionRef& value) { json = nlohmann::json{{"host", value.host}, {"user", value.user}}; }
@@ -466,6 +460,7 @@ void from_json(const nlohmann::json& json, ChatMessage& value) { value.sequence 
 void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::json{{"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"name", value.name}, {"capacity", value.capacity}, {"locked", value.locked}, {"closed", value.closed}, {"host", value.host}, {"local_member", value.localMember}, {"members", value.members}, {"tables", value.tables}, {"terminal_pending", value.terminalPending}, {"local_terminal_pending", value.localTerminalPending}, {"local_terminal_generations", value.localTerminalGenerations}, {"chat", value.chat}, {"tournament", value.tournament}};
 	if (value.localMatchGenerationsSent) json["local_match_generations"] = value.localMatchGenerations;
 	if (value.serverOwned) json["server_owned"] = true;
+	if (value.practice) json["practice"] = true;
 }
 void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100));
@@ -476,6 +471,8 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.host = ReadU64(json, "host"); value.localMember = ReadU64(json, "local_member");
 		if (json.contains("server_owned") && !json.at("server_owned").is_boolean()) throw std::invalid_argument("room server owned field");
 		value.serverOwned = json.value("server_owned", false);
+	if (json.contains("practice") && !json.at("practice").is_boolean()) throw std::invalid_argument("room practice field");
+	value.practice = json.value("practice", false);
 	value.terminalPending.fill(false);
 	if (json.contains("terminal_pending")) {
 		const auto& pending = json.at("terminal_pending");
@@ -536,6 +533,7 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	}
 	ReadMemberList(json, "chat", value.chat, MaximumChatMessages);
 	value.tournament = json.contains("tournament") ? json.at("tournament").get<TournamentBinding>() : TournamentBinding();
+	if (!PracticeKindValid(value)) throw std::invalid_argument("room practice kind");
 	if (value.host && !memberIds.count(value.host)) throw std::invalid_argument("room host member"); if (value.localMember && !memberIds.count(value.localMember)) throw std::invalid_argument("room local member");
 	// Older owners kept a departed member's chat. Drop those lines rather than
 	// reject the whole room state; the sender cannot be named anyway.

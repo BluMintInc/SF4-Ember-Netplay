@@ -50,10 +50,8 @@ bool fVsBattle::bBlockTermination = false;
 bool fVsBattle::bForceNextMatchOnline = false;
 bool fVsBattle::bSessionSentLoaded = false;
 bool fVsBattle::bSessionSynced = false;
-bool fVsBattle::bOverrideNextRandomSeed = false;
 bool fVsBattle::bTerminateOnNextLeftBattle = false;
-DWORD fVsBattle::nextMatchRandomSeed = 0xffffffff;
-bool fVsBattle::bNextMatchTraining = false;
+sf4e::battle::NextRequest fVsBattle::nextRequest;
 bool fVsPreBattle::bSkipToVersus = false;
 
 char* fRootEvent::eventFlowDescription = R"(	Boot, 0, Title,										
@@ -329,14 +327,15 @@ BOOL fVsBattle::IsTerminationComplete() {
 void fVsBattle::PrepareBattleRequest() {
 	(this->*rVsBattle::privateMethods.PrepareBattleRequest)();
 	Request* r = *rVsBattle::GetRequest(this);
+	const auto next = nextRequest.Take();
 	if (r) {
 		if (bForceNextMatchOnline) {
 			(r->*Request::publicMethods.SetIsOnlineBattle)(TRUE);
 		}
-		if (bOverrideNextRandomSeed) {
-			(r->*Request::publicMethods.SetRandomSeed)(nextMatchRandomSeed);
+		if (next.overrideSeed) {
+			(r->*Request::publicMethods.SetRandomSeed)(next.seed);
 		}
-		if (bNextMatchTraining) {
+		if (next.training) {
 			// The game's own gauge behaviour, chosen before the battle
 			// exists and never changed in it: nothing is written during a
 			// frame, so a rollback has nothing of ours to restore.
@@ -350,10 +349,7 @@ void fVsBattle::PrepareBattleRequest() {
 	}
 	bForceNextMatchOnline = false;
 	// The rule's HUD notice, and the reserved input bits cleared in that battle.
-	sf4e::training::SetMatchPractice(r && bNextMatchTraining);
-	bOverrideNextRandomSeed = false;
-	nextMatchRandomSeed = 0xffffffff;
-	bNextMatchTraining = false;
+	sf4e::training::SetMatchPractice(r && next.training);
 }
 
 void fVsBattle::RegisterTasks() {

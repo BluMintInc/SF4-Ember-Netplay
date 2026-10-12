@@ -56,6 +56,12 @@ std::string SessionProblem(const netplay::Snapshot& session) {
     default:return {};
     }
 }
+// The room's own status line: the kind of room it is, and whether it is locked.
+const char* RoomStatusKey(const room::Snapshot& room) {
+    if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
+    if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
+    return room.locked?"room.locked_status":"room.private_status";
+}
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;std::string preference="auto";
@@ -107,6 +113,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundCount = action.preferences.tableRules.roundCount;
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
+    action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
@@ -315,7 +322,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
-  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason);
+  // Only a private room can be a Practice room, which has no round time to choose.
+  const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_;
+  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
+  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
   if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
    Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
     can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
@@ -452,8 +462,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
-   std::string(loc::T(v.room.serverOwned?(v.room.locked?"room.public_locked_status":"room.public_status"):
-    v.room.locked?"room.locked_status":"room.private_status"));
+   std::string(loc::T(RoomStatusKey(v.room)));
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){
@@ -568,7 +577,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="create")OpenCreate();
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
@@ -600,6 +610,8 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
  else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
+ // Create's own choice, never one of the saved preferences.
+ else if(a.id=="practice-room")createPractice_=a.delta>0;
  else{
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
@@ -651,10 +663,13 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 }
 
 // Create public room opens Create on Public, which stays the default until changed.
+void ApplicationShell::OpenCreate() {
+ createPractice_=false;menu_.navigation.Push("create");
+}
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  ApplyPublicDefaultName();
- error_.clear();menu_.navigation.Push("create");
+ error_.clear();OpenCreate();
 }
 // The room still has the private default name, which would list as "Private room":
 // a public room is named for its host instead, within the name's own limit.

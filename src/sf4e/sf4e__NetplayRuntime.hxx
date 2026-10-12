@@ -153,6 +153,9 @@ struct Runtime {
     std::uint64_t finishActionId=0, finishRetryAt=0;
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
+    // The Practice choice of the room this PC hosts: the player's on Create,
+    // the closed room's for a replacement, false for a room it joins.
+    bool practiceRoom=false;
     bool leaveRequested=false, leaveAcknowledged=false;
     // The room being opened is a public one joined with a ticket, so a refusal or
     // failure is worded for it. Set with the join, cleared when the room closes.
@@ -335,7 +338,26 @@ void TickAutoDelay(bool helperReady);
 void TickCreatedRules(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
+// How a cancelled game's GGPO session ends: aborted if one is live, with a
+// reason the player reads (empty says nothing), or retired quietly under a
+// diagnostics label.
+struct GgpoEnd {
+    const char* text;
+    NoticeSeverity severity;
+    bool retire;
+    static GgpoEnd Abort(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) { return {reason, severity, false}; }
+    static GgpoEnd Retire(const char* label) { return {label, NoticeSeverity::Info, true}; }
+};
+// The one way this PC gives up its part in the current game. Nothing its
+// entry armed for the battle request survives (battle::NextRequest), the
+// spectator drain hold is dropped, the GGPO session ends as `end` says, and
+// the match session aborts. Reporting to the room, leaving the room and
+// recovery stay with the caller.
+void CancelLocalMatch(GgpoEnd end);
+// CancelLocalMatch, and the game is recovered from (recoveringMatch).
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
+// The room ended this PC's game with no result: retire it and say so.
+void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();

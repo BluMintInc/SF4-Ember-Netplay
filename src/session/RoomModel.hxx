@@ -387,6 +387,11 @@ struct Snapshot {
 	// No player's game runs this room's authority: the room host process does. It
 	// is serialized only when true, so a private room's wire form is unchanged.
 	bool serverOwned = false;
+	// Every game in the room is a Practice match: both fighters' health and
+	// gauges fill again, nobody is knocked out, and a game lasts the longest
+	// round time. Chosen by the player who created a private room and fixed
+	// for its life; never a public or tournament room. Serialized only when true.
+	bool practice = false;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -412,6 +417,19 @@ struct Snapshot {
 	// The tournament match this room plays at table 0, when it is bound to one.
 	TournamentBinding tournament;
 };
+
+// Only a player creates a Practice room, so it is never public (server
+// owned) or a tournament's. Every snapshot read from the wire or a
+// checkpoint holds to it, as the actions that make the other kinds do.
+inline bool PracticeKindValid(const Snapshot& room) {
+	return !room.practice || (!room.serverOwned && !room.tournament.Active());
+}
+
+// The round time a table's games are played at: its rules', or in a Practice
+// room the longest, since its games end only when the time runs out.
+inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {
+	return room.practice ? PracticeRoundTime : table.rules.roundTime;
+}
 
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	const auto found = std::find_if(snapshot.members.begin(), snapshot.members.end(),
@@ -526,8 +544,9 @@ struct Result {
 
 class RoomAuthority {
 public:
+	// practice is the room's for its life (Snapshot::practice); nothing changes it later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
-		std::uint64_t roomEpoch = 1, Rules defaults = Rules());
+		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -535,7 +554,8 @@ public:
 	std::uint64_t NextMemberId() const { return nextMemberId_; }
 
 	// Marks a fresh room server-owned (see RoomModelServerOwned.cxx). False, and
-	// no change, once anyone has joined or the room has closed.
+	// no change, once anyone has joined or the room has closed, or for a
+	// Practice room, which only a player creates.
 	bool SetServerOwned();
 	bool ServerOwned() const { return snapshot_.serverOwned; }
 	// Accounts a kick removed for the room's life; empty unless server-owned.

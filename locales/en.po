@@ -358,12 +358,6 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Round time"
 
-msgid "rules.training"
-msgstr "Practice match"
-
-msgid "rules.training.detail"
-msgstr "Health and gauges refill and nobody is knocked out. A game ends when its round time runs out, so turning it on sets round time to 9999."
-
 msgid "screen.home"
 msgstr "Home"
 
@@ -2137,6 +2131,8 @@ msgid "runtime.returning_room"
 msgstr "Returning to the room."
 msgid "runtime.table_game_cancelled"
 msgstr "This table's game was cancelled. Return to the room to ready again."
+msgid "runtime.practice_ended"
+msgstr "Practice ended. Return to the room to ready again."
 msgid "runtime.result_not_recorded"
 msgstr "The result could not be recorded: the table changed before it was confirmed."
 msgid "runtime.participant_left"
@@ -3889,6 +3885,18 @@ msgstr "Practice match"
 msgid "room.rules_summary_practice"
 msgstr "Practice match, {0} rounds, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Practice room"
+
+msgid "room.practice.detail"
+msgstr "Every game in the room is a Practice match: health and gauges refill, nobody is knocked out, and the round time is {0}. This stays for as long as the room is open. To play normal matches, close the room and create a new one."
+
+msgid "room.practice_status"
+msgstr "Practice room / invitation only"
+
+msgid "room.practice_locked_status"
+msgstr "Practice room locked / invitation only"
+
 msgid "inputs.presses_value"
 msgstr "{0} presses"
 
@@ -4045,9 +4053,6 @@ msgstr "Calling {0} back from Training"
 
 msgid "training.go_now"
 msgstr "Go now"
-
-msgid "rules.round_time.practice"
-msgstr "A Practice match ends when its round time runs out. The longest is {0}."
 
 msgid "reports.setting"
 msgstr "Send problem reports"

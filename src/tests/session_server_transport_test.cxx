@@ -2123,11 +2123,14 @@ int main() {
 
 	protocol::LobbySetSettings settings;
 	settings.roundCount = 5;
-	settings.trainingMode = true;
 	transport->Push(2, json(settings)); step();
 	CHECK(server._lobbyData.roundCount == 3);
-	transport->Push(10000000001ULL, json(settings)); step();
-	CHECK(server._lobbyData.roundCount == 5 && server._lobbyData.trainingMode);
+	// The trainingMode an older build still sends is not read: a lobby's games
+	// are never Practice matches; only a Practice room's are.
+	json older = settings;
+	older["trainingMode"] = true;
+	transport->Push(10000000001ULL, older); step();
+	CHECK(server._lobbyData.roundCount == 5 && !server._lobbyData.trainingMode);
 	protocol::PreBattleSetStage stage;
 	for (const auto& option : selection::StageList()) {
 		stage.stageID = option.id;
@@ -2249,7 +2252,6 @@ int main() {
 	server.EnableMatchAuthorization(room, [](session::Connection connection) {
 		return std::string(64, connection == 10000000001ULL ? '1' : static_cast<char>('0' + connection));
 	});
-	settings.trainingMode = false;
 	settings.editionSelect = true;
 	settings.roundCount = 7;
 	settings.roundTime = {0, 99};

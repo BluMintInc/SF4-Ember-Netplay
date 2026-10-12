@@ -2,7 +2,7 @@
 
 Two players in a room want to practise together: one tries a setup, the other
 holds the pad, neither loses a round, and either can put both fighters back
-where the drill starts. The frame meter and Training table rule are kept;
+where the drill starts. The frame meter and Practice rooms are kept;
 shared position save/reset is retired (step 3).
 The implementation checks below do not establish two-machine gameplay acceptance.
 
@@ -15,10 +15,10 @@ The implementation checks below do not establish two-machine gameplay acceptance
 - A match over rollback is a Versus battle. Its rules are the lobby's:
   `LobbySettings` allows a round time of 9999 and long round counts, which is
   the sparring room of today.
-- The protocol still carries `trainingMode` (`LobbyData`, `LobbySetSettings`,
-  `NetplayConfig`). It is vestigial: the server refuses a request that sets it
-  and the config comment says the long round values replaced it. Step 2
-  uses the `LobbyData` field again.
+- The protocol carried `trainingMode` in `LobbyData`, `LobbySetSettings` and
+  `NetplayConfig`, all vestigial. Step 2 uses the `LobbyData` field again;
+  `LobbySetSettings` no longer has it, and `NetplayConfig` keeps its byte only
+  for the payload's layout.
 
 ## Step 1, built: the frame meter in a match
 
@@ -49,11 +49,15 @@ they watch. Only that player sees it.
 
 Whether a meter belongs in a match at all is a decision; see below.
 
-## Step 2, built: the Training rule of a table
+## Step 2, built: Practice rooms
 
-A table rule, **Training**, beside the round count and the round time. With
-it on, both fighters' health, recoverable health, Super and Ultra gauges fill
-again while they are left alone, and nobody is knocked out.
+A private room created with **Practice room** on plays every game as a
+Practice match: both fighters' health, recoverable health, Super and Ultra
+gauges fill again while they are left alone, and nobody is knocked out. It
+began as a per-table rule beside the round count and the round time; that
+rule was applied one match late and could be turned on and off between
+games, so it became a property of the room, chosen on Create and fixed for
+the room's life.
 
 ### How the game does it
 
@@ -82,57 +86,80 @@ refuses a value outside the parameter's range. It sits beside
 ### What was built
 
 - `Request::SetPlayerParam` is bound, with the parameter and value names.
-- `fVsBattle::bNextMatchTraining`, set where the match's seed is taken
-  (`UserApp`, after `StartGGPO` or `StartSpectating`) and applied where the
-  seed is applied (`PrepareBattleRequest`): health, recoverable health, Super
-  and Ultra to 8 for both players. Stun is left as in a match.
-- `room::Rules::training`. On the wire `"training": true`, written only when
-  set and read as off when absent, as the member flag is.
-- It reaches the match the way the round count does: the table's rules into
-  `LobbyData`. That struct already had a `trainingMode` field, left over from
-  an earlier training room and always sent as false; it now carries the rule.
-- A row in the rules list, so it is set and shown where the round time is.
+- `battle::NextRequest` (`fVsBattle::nextRequest`) holds the match's seed and
+  the rule together. `StartMatchFromLobby` arms it from the frozen room
+  projection when it enters the match, beside the round count and time, and
+  `PrepareBattleRequest` takes it once: health, recoverable health, Super and
+  Ultra to 8 for both players. Stun is left as in a match. The game prepares
+  the request before the battle registers the tasks that start GGPO, so
+  anything set at GGPO start reaches only the following battle; an earlier
+  build did that and played the rule and the seed one match late.
+- `room::Snapshot::practice`, set once when the room authority is made
+  (`RoomAuthority`, `SessionServer::EnableCustomRooms`) and changed by no
+  action. On the wire `"practice": true` in the snapshot and the checkpoint,
+  written only when set, like `server_owned`. A public room is never one
+  (`SetServerOwned` refuses it), nor is a tournament room (`BindTournament`
+  refuses it). A replacement room keeps the flag of the room it replaces.
+- It reaches the match the way the round count does: the room's table
+  projection fills `LobbyData`. That struct already had a `trainingMode`
+  field, left over from an earlier training room; it now carries the flag,
+  and a Practice room projects the longest round time
+  (`room::MatchRoundTime`) whatever the table's rules hold.
+- A **Practice room** row on the private Create screen, off each time the
+  screen opens and never saved with the room defaults. It travels on the
+  `HostRoom` command into `AttachRoom`. The room's status line, its table
+  rules summary and its table cards say Practice room, and its tables have
+  no round time row.
+- Rules and room defaults an older build wrote with the per-table rule
+  (`training`, `time_before_practice`, `timeBeforePractice`) still load; the
+  keys are not read.
 
 ### Why this is safe under rollback
 
 Nothing is written during a frame. The values are chosen before the battle
 exists and never change in it; the game's own update does the filling, on
 state its own memento already saves (health and gauges are what a rollback
-restores today). The two sides and every spectator take the rule from the
-same table rules, at the same point they take the round count from.
+restores today). The two sides and every spectator take the flag from the
+same room projection, at the same point they take the round count from.
 
 A room admits only members whose sidecar has the host's own hash
-(`JR_HASH_INVALID`), so no member of a room lacks the rule. The room protocol
+(`JR_HASH_INVALID`), so no member of a room lacks the flag. The room protocol
 version is unchanged.
 
 ### What it does not do
 
 - **Reset.** There is no shared position save/reset (step 3 below).
 - **End.** Nobody is knocked out, so a game ends when the round time runs out
-  (turning the rule on sets the longest, 9999) or a fighter ends it. The
-  result of a timed-out game is reported and scored as any game is. A
-  fighter ends it with End practice: Start or F10 opens Ember over the
-  fight (`input::MenuContext::PracticeMatch`, from the rule as fixed when
-  the battle was prepared), and the row sends the room's `AbortMatch` for
-  the live generation. The room ends the game with no result and both
-  members tear it down from its `MatchEnded`. Turning the rule off gives
-  back the round time it replaced (`Rules::timeBeforePractice`).
-- **Public rooms.** The room server is built from the same sources and needs
-  rebuilding to keep the rule; until then it drops the unknown field and the
-  table plays as a match.
-- The old lobby path still refuses `trainingMode` in `LobbySetSettings`.
+  (always the longest, 9999) or a fighter ends it. The result of a timed-out
+  game is reported and scored as any game is. A fighter ends it with End
+  practice: Start or F10 opens Ember over the fight
+  (`input::MenuContext::PracticeMatch`, from the flag as fixed when the
+  battle was prepared), and the row sends the room's `AbortMatch` for the
+  live generation. The room ends the game with no result and every member
+  tears it down from its `MatchEnded`, with the neutral notice "Practice
+  ended" in a Practice room instead of "This table's game was cancelled".
+  The authority accepts `AbortMatch` from a fighter in any room: a fighter
+  whose game fails reports it the same way (`ReportMatchAbort`), so only
+  the client offers End practice, and only in a Practice match
+  (`AbandonableAt`).
+- **Public and tournament rooms.** Never Practice rooms.
 
 ### What was checked
 
-- `RoomTrainingFlagTest`: only the host sets it, every member's view carries
-  it, it is written only when set, older rules read as before, a value that
-  is no boolean is refused, and the table still starts.
+- `RoomTrainingFlagTest`: the flag is in every member's view and the
+  checkpoint, written only when set, refused when it is no boolean, and
+  unchanged by rules, games or the host leaving; the old per-table key is
+  not read. `RoomServerOwned` and `RoomTournament`: public and tournament
+  rooms refuse it. `PracticeRoomProjection` and `SessionClientTransport`:
+  a Practice room projects `trainingMode` and round time 9999.
+  `NextBattleRequest`: the flag and seed reach only the battle prepared for
+  the match that armed them.
 - The whole suite and the UI render in every language.
 - Not checked: a battle. The parameter values were read from the program,
   not seen in play. The first thing to look at with two players is the state
-  hash staying equal with the rule on. A developer checkbox ("Training rules
-  on next battle?") applies the rule to an offline Versus battle, where the
-  rollback stress harness can be run over it.
+  hash staying equal in a Practice room. A developer checkbox ("Training
+  rules on next battle?") applies the rule to an offline Versus battle,
+  where the rollback stress harness can be run over it.
 
 ## Step 3, retired: shared position save/reset
 
@@ -142,13 +169,13 @@ rollback state, so it cannot save or restore a match's position.
 
 - Nothing of it is in the rollback save state any more.
 - Two bits of the pad's raw word (`training::ReservedInputBits`) carried the
-  presses. At a Training table `ClearReservedInputBits` still takes them out
+  presses. In a Practice match `ClearReservedInputBits` still takes them out
   of the local input before GGPO and out of both synchronized inputs before
   the game plays a frame, as it did before, so the game never sees them.
-  Without the rule the inputs are left alone.
+  In any other match the inputs are left alone.
 - The match HUD says shared save and reset are not available
   (`DrawMatchPracticeNotice`).
-- The Training table's refill/no-knockout rule and confirmed-frame meter
+- The Practice match's refill/no-knockout rule and confirmed-frame meter
   remain separate from offline dummy and checkpoint mutations.
 
 Offline Training keeps its own Save position and Reset position controls.
@@ -164,15 +191,18 @@ or verify. A drill partner is the other player.
 1. **A frame meter in real matches.** Step 1 shows frame data during play,
    to one player, about both. It gives no information the game hides, but it
    is a training aid in a match. Decided: it stays the player's setting in
-   private rooms, and a game under the Training rule always shows it
-   (`match_frame_meter::Wanted`, from the rule as fixed when the battle was
+   private rooms, and a Practice room's game always shows it
+   (`match_frame_meter::Wanted`, from the flag as fixed when the battle was
    prepared). A public room never shows it.
-2. **Results at a training table.** A timed-out game is scored like any
-   other. A table under the rule could report no result and count in no set;
-   that is a change to the authority and was left out.
+2. **Results in a Practice room.** A timed-out game is scored like any
+   other. A Practice room could report no result and count in no set; that
+   is a change to the authority and was left out.
 3. **Stun** is left as in a match. Training mode offers it; it is one more
    parameter in the same call.
-4. **The old `trainingMode` field** now carries the rule. If it should stay
-   dead, the rule needs a field of its own in `LobbyData`.
-5. **The shared reset.** Decided: retired. The table rule works without a
+4. **The old `trainingMode` field** now carries the room's flag. If it should
+   stay dead, the flag needs a field of its own in `LobbyData`.
+5. **The shared reset.** Decided: retired. A Practice room works without a
    shared checkpoint.
+6. **Practice per table or per room.** Decided: per room, chosen on Create
+   and fixed for the room's life. To play normal matches the players close
+   the room and create a new one.

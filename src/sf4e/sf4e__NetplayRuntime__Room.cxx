@@ -334,7 +334,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::SetLobbySettings: {
 		const auto& settings = command.preferences.lobby;
 		if (UserApp::netplay->client.Lobby_SetSettings(settings.editionSelect, settings.roundCount,
-			{0, static_cast<short>(settings.roundTime)}, false) == session::SendResult::Queued) {
+			{0, static_cast<short>(settings.roundTime)}) == session::SendResult::Queued) {
 			runtime->pendingLobbySettings.reset(new netplay::LobbySettings(settings));
 			runtime->lobbySettingsDeadline = GetTickCount64() + 15000;
 		} else runtime->error = loc::T("runtime.lobby_settings_send_failed");
@@ -350,6 +350,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		}
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
+		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -370,13 +371,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
             UserApp::netplay->client.GetRoomSnapshot().localMember) {
             runtime->leaveRequested=true;
-            CancelDeferredGgpoClose();
-            Game::Battle::System::RetireGgpoSession("leave_room");
-            if(runtime->match) runtime->match->Abort();
+            CancelLocalMatch(GgpoEnd::Retire("leave_room"));
         } else CloseRoom();
         break;
     case netplay::Effect::ReplaceRoom:
         runtime->replacementPending=true;
+        // The replacement is the same kind of room as the one it replaces.
+        runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -669,7 +670,7 @@ void DrainRoomEvents() {
 				event.matchGeneration != runtime->match->Generation() ||
 				(event.result != room::MatchResult::Abort && event.result != room::MatchResult::Cancel)) continue;
 			runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-			AbortLocalMatch(loc::T("runtime.table_game_cancelled"));
+			EndUnscoredMatch(event.result);
 		}
 	}
 }

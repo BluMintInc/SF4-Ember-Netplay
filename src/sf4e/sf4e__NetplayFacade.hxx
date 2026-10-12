@@ -105,6 +105,8 @@ namespace sf4e {
             std::string publicTicket;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
+            // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
+            bool practiceRoom = false;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;
@@ -124,8 +126,8 @@ namespace sf4e {
 			std::vector<ui::RoomNotice> roomNotices;
 			bool helperReady = false;
 			bool atMainMenu = false;
-			// The battle being played or watched is a room game under its table's
-			// Practice match rule, as fixed when the battle was prepared
+			// The battle being played or watched is a Practice room's game, as
+			// fixed when the battle was prepared
 			// (training::MatchPracticeActive).
 			bool practiceMatch = false;
 			// A started match is waiting for the player to return to the main menu.

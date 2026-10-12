@@ -24,8 +24,8 @@ void AfterUpdate(Dimps::Game::Battle::System* system);
 // just reached, 0 or less for a spectator, who plays confirmed inputs only.
 // lastConfirmedInput: -1 to capture without showing anything yet.
 void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput);
-// SetMatchPractice: whether the battle being prepared uses a table's
-// Training rule. Game thread.
+// SetMatchPractice: whether the battle being prepared is a Practice room's
+// match. Game thread.
 void SetMatchPractice(bool enabled);
 // Any thread: whether such a match is on, until its battle closes. The
 // runtime snapshot carries it (RuntimeSnapshot::practiceMatch) for the HUD's

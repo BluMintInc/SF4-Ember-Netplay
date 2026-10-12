@@ -358,12 +358,6 @@ msgstr "Rondes"
 msgid "rules.round_time"
 msgstr "Rondetijd"
 
-msgid "rules.training"
-msgstr "Oefenwedstrijd"
-
-msgid "rules.training.detail"
-msgstr "Gezondheid en meters vullen zich aan en niemand gaat knock-out. Een spel eindigt als de rondetijd afloopt, dus aanzetten zet de rondetijd op 9999."
-
 msgid "screen.home"
 msgstr "Start"
 
@@ -2167,6 +2161,9 @@ msgstr "Terug naar de kamer."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Partij geannuleerd. Ga terug naar de kamer en meld je weer klaar."
+
+msgid "runtime.practice_ended"
+msgstr "Oefenen gestopt. Ga terug naar de kamer en meld je weer klaar."
 
 msgid "runtime.result_not_recorded"
 msgstr "De uitslag kon niet worden vastgelegd: de tafel veranderde voor bevestiging."
@@ -4233,6 +4230,18 @@ msgstr "Oefenwedstrijd"
 msgid "room.rules_summary_practice"
 msgstr "Oefenwedstrijd, {0} rondes, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Oefenkamer"
+
+msgid "room.practice.detail"
+msgstr "Elk spel in de kamer is een oefenwedstrijd: gezondheid en meters vullen zich aan, niemand gaat knock-out en de rondetijd is {0}. Dat blijft zo zolang de kamer open is. Sluit de kamer en maak een nieuwe om normale wedstrijden te spelen."
+
+msgid "room.practice_status"
+msgstr "Oefenkamer / alleen op uitnodiging"
+
+msgid "room.practice_locked_status"
+msgstr "Oefenkamer op slot / op uitnodiging"
+
 msgid "inputs.presses_value"
 msgstr "{0} knopdrukken"
 
@@ -4388,9 +4397,6 @@ msgstr "{0} wordt teruggeroepen uit Training"
 
 msgid "training.go_now"
 msgstr "Nu gaan"
-
-msgid "rules.round_time.practice"
-msgstr "Een oefenwedstrijd eindigt als de rondetijd afloopt. De langste is {0}."
 
 msgid "reports.setting"
 msgstr "Probleemrapporten versturen"

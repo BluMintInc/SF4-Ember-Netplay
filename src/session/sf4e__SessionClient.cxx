@@ -764,8 +764,7 @@ session::SendResult SessionClient::Lobby_ResetRematch()
 session::SendResult SessionClient::Lobby_SetSettings(
 	bool editionSelect,
 	int roundCount,
-	Dimps::Math::FixedPoint roundTime,
-	bool trainingMode
+	Dimps::Math::FixedPoint roundTime
 )
 {
 	if (_customRoomsSeen) {
@@ -785,7 +784,6 @@ session::SendResult SessionClient::Lobby_SetSettings(
 	msg.editionSelect = editionSelect;
 	msg.roundCount = roundCount;
 	msg.roundTime = roundTime;
-	msg.trainingMode = trainingMode;
 	json j = msg;
 	session::SendResult result = Send(j, nullptr);
 	if (result != session::SendResult::Queued) {

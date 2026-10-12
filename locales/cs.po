@@ -358,12 +358,6 @@ msgstr "Kola"
 msgid "rules.round_time"
 msgstr "Čas kola"
 
-msgid "rules.training"
-msgstr "Cvičný zápas"
-
-msgid "rules.training.detail"
-msgstr "Zdraví a ukazatele se doplňují a nikdo není vyřazen. Hra končí po vypršení času kola, proto zapnutí nastaví čas kola na 9999."
-
 msgid "screen.home"
 msgstr "Domů"
 
@@ -2167,6 +2161,9 @@ msgstr "Návrat do místnosti."
 
 msgid "runtime.table_game_cancelled"
 msgstr "Zápas u tohoto stolu byl zrušen. Vraťte se do místnosti a znovu potvrďte Připraven."
+
+msgid "runtime.practice_ended"
+msgstr "Trénink skončil. Vraťte se do místnosti a znovu potvrďte Připraven."
 
 msgid "runtime.result_not_recorded"
 msgstr "Výsledek nešlo zaznamenat: stůl se změnil před potvrzením."
@@ -4233,6 +4230,18 @@ msgstr "Cvičný zápas"
 msgid "room.rules_summary_practice"
 msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
 
+msgid "room.practice"
+msgstr "Tréninková místnost"
+
+msgid "room.practice.detail"
+msgstr "Každá hra v místnosti je cvičný zápas: zdraví a ukazatele se doplňují, nikdo není vyřazen a čas kola je {0}. Platí to, dokud je místnost otevřená. Chcete-li hrát běžné zápasy, zavřete místnost a vytvořte novou."
+
+msgid "room.practice_status"
+msgstr "Tréninková místnost / jen s pozvánkou"
+
+msgid "room.practice_locked_status"
+msgstr "Uzamčená tréninková místnost / jen s pozvánkou"
+
 msgid "inputs.presses_value"
 msgstr "{0} stisknutí"
 
@@ -4388,9 +4397,6 @@ msgstr "Volá se {0} zpět z tréninku"
 
 msgid "training.go_now"
 msgstr "Jít hned"
-
-msgid "rules.round_time.practice"
-msgstr "Cvičný zápas končí po vypršení času kola. Nejdelší je {0}."
 
 msgid "reports.setting"
 msgstr "Odesílat hlášení problémů"

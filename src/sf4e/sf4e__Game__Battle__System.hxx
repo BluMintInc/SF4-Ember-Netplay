@@ -297,8 +297,8 @@ namespace sf4e {
 				// Milliseconds until GGPO drops the interrupted peer, or -1
 				// when no connection warning is active. HUD only.
 				static int DisconnectCountdownMs();
-				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay, DWORD rngSeed);
-				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);
+				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay);
+				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
 				static unsigned RecentRollbackFrames();

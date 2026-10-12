@@ -30,9 +30,9 @@ using Dimps::Math::FixedPoint;
 using sf4e::SessionServer;
 
 void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capacity,
-	std::uint64_t roomEpoch, room::Rules defaults) {
+	std::uint64_t roomEpoch, room::Rules defaults, bool practice) {
 	if (_roomAuthority || !name.size()) return;
-	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults));
+	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice));
 	_roomMatchData.clear();
 	for (auto& authority : _roomMatchAuthorities) authority.reset();
 	if (_matchAuthorizationConfigured) {
@@ -306,9 +306,9 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 	update.lobbyData.members.clear();
 	update.lobbyData.editionSelect = table.rules.editionSelect;
 	update.lobbyData.roundCount = table.rules.roundCount;
-	update.lobbyData.roundTime.integral = table.rules.roundTime;
+	update.lobbyData.roundTime.integral = room::MatchRoundTime(snapshot, table);
 	update.lobbyData.roundTime.fractional = 0;
-	update.lobbyData.trainingMode = table.rules.training;
+	update.lobbyData.trainingMode = snapshot.practice;
 	const auto dataFor = [&](room::MemberId id) -> const room::Member* {
 		for (const auto& item : snapshot.members) if (item.id == id) return &item;
 		return nullptr;

@@ -3,6 +3,7 @@
 #include "../session/TrainingCall.hxx"
 #include "../training/PracticeSettings.hxx"
 #include "../training/RecordingFile.hxx"
+#include "../netplay/RoomPreferences.hxx"
 #include "../ui/MenuRows.hxx"
 #include "../ui/TrainingInRoom.hxx"
 #include <chrono>
@@ -69,6 +70,13 @@ void TrainingFromRoom() {
  SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});h.Frame();
  const auto training=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="room-training";});
  Check(training!=rows.end()&&training->label==loc::T("room.training")&&std::next(training)->id=="leave","Wait in Training label or position wrong");
+ // The room's status line says it is a Practice room.
+ Check(status==loc::T("room.private_status"),"A private room's status changed");
+ h.view.room.practice=true;h.Frame();
+ Check(status==loc::T("room.practice_status"),"A Practice room's status did not say so");
+ h.view.room.locked=true;h.Frame();
+ Check(status==loc::T("room.practice_locked_status"),"A locked Practice room's status did not say so");
+ h.view.room.practice=h.view.room.locked=false;h.Frame();
  const auto before=h.actions.size();
  h.Choose("room-training");
  Check(h.actions.size()==before+1&&h.actions.back().training==TrainingEntry::Room&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
@@ -79,9 +87,17 @@ void TrainingFromRoom() {
  Check(h.shell.Navigation().Screen()=="room-table","A player called back from Training was not shown their table");
  Check(status==loc::Tf("room.training_call.ready_in",15)&&tone==Tone::Pending,"Training deadline missing from table status");
  h.Screen("room");Check(status==loc::Tf("room.training_call.ready_in",15)&&tone==Tone::Pending,"Training deadline missing from room status");h.Screen("room-table");
- h.view.room.tables[0].rules.training=true;h.Frame();
+ // In a Practice room every game takes the longest round time, whatever the table's rules say.
+ h.view.room.practice=true;h.Frame();
  const auto rules=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="rules";});
- Check(rules!=rows.end()&&rules->value==loc::Tf("room.rules_summary_practice",3,99,loc::T("common.on")),"Non-host cannot see Practice match rule");
+ Check(rules!=rows.end()&&rules->value==loc::Tf("room.rules_summary_practice",3,room::PracticeRoundTime,loc::T("common.on")),"Non-host cannot see the Practice room's rules");
+ // The host edits the other rules there, but has no round time to choose.
+ const auto hasRow=[&](const char* id){return std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& row){return row.id==id;});};
+ h.view.room.host=1;h.Frame();
+ Check(hasRow("rounds")&&!hasRow("time"),"A Practice room's host was offered a round time");
+ h.view.room.practice=false;h.Frame();
+ Check(hasRow("rounds")&&hasRow("time"),"A plain room's host lost the round time");
+ h.view.room.host=0;h.view.room.practice=true;h.Frame();
  // Asked to be readied: nothing until the runtime's gate opens, then one Ready.
  const auto sent=h.actions.size();
  h.view.trainingReadySequence=1;h.Frame();h.Frame();
@@ -159,27 +175,37 @@ void TrainingInRoom() {
  Check(std::string(ui::GoNowGlyph(input::PadXInput))=="View","An Xbox pad was not offered View");
  Check(std::string(ui::GoNowGlyph(input::PadDirectInput))=="Enter","A DirectInput pad was offered a pad button");
  Check(std::string(ui::GoNowGlyph(input::PadKeyboard))=="Enter","A keyboard player was offered a pad button");
- // Practice match takes the longest round time with it; off gives back the
- // time from before it, whatever was chosen while it was on.
- {
-  using room::PracticeRoundTime;
-  room::Rules rules;rules.roundTime=60;
-  MenuAction adjust;adjust.kind=MenuAction::Adjust;adjust.id="training";adjust.delta=1;
-  Check(AdjustRule(rules,adjust)&&rules.training&&rules.roundTime==PracticeRoundTime,"Practice match did not set round time 9999");
-  rules.roundTime=300;
-  Check(AdjustRule(rules,adjust)&&rules.roundTime==300,"Practice match, already on, reset a round time the host chose");
-  const auto time=[&]{std::vector<MenuEntry> rows;RuleRows(rows,rules,true,"Applies on Apply rules.");
-   return *std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="time";});};
-  Check(time().detail==Tf("rules.round_time.practice",PracticeRoundTime)+"\nApplies on Apply rules.","A short Practice match time was not pointed out");
-  adjust.delta=-1;
-  Check(AdjustRule(rules,adjust)&&!rules.training&&rules.roundTime==60&&!rules.timeBeforePractice,"Turning Practice match off did not give back the round time from before");
-  Check(time().detail=="Applies on Apply rules.","A plain table's round time was told about Practice match");
-  // Off again changes nothing; rules from before the time was kept fall back to the default.
-  Check(AdjustRule(rules,adjust)&&rules.roundTime==60,"Turning Practice match off twice changed the round time");
-  rules.training=true;rules.roundTime=PracticeRoundTime;
-  Check(time().detail=="Applies on Apply rules.","Round time 9999 was still pointed out");
-  Check(AdjustRule(rules,adjust)&&rules.roundTime==room::DefaultRoundTime,"Practice match kept without a time from before stayed endless when turned off");
- }
+}
+// A Practice room is chosen on the private Create screen only: off whenever
+// Create opens, never saved with the defaults, carried by Create room, and
+// with no round time to choose.
+void PracticeRoomCreate() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ h.Screen("online");h.Choose("create");
+ Check(h.shell.Navigation().Screen()=="create"&&row("practice-room")!=rows.end()&&row("practice-room")->value==loc::T("common.off")&&
+  row("time")!=rows.end(),"Create did not open with Practice room off");
+ Check(row("practice-room")->detail==loc::Tf("room.practice.detail",room::PracticeRoundTime),"Practice room did not explain itself");
+ h.FocusOn("practice-room");h.Press(MenuInput::Right);
+ Check(row("practice-room")->value==loc::T("common.on")&&row("time")==rows.end(),"Practice room did not turn on, or left a round time to choose");
+ h.Choose("host");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().practiceRoom,"Create room did not ask for a Practice room");
+ const auto saved=netplay::RoomPreferences(h.actions.back().preferences);
+ Check(!saved.contains("practice")&&!saved.contains("training"),"The Practice room choice reached the saved defaults");
+ h.Screen("online");h.Choose("create");
+ Check(row("practice-room")->value==loc::T("common.off"),"Practice room was still on when Create opened again");
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&!h.actions.back().practiceRoom,"A room created with Practice room off asked for one");
+ // A public room is never one, and the gameplay defaults do not offer it.
+ h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room");
+ h.Press(MenuInput::Left);
+ h.Screen("defaults");
+ Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room");
+ SetMenuEntriesProbe({});
 }
 void TrainingJourneys() {
  using namespace sf4e;

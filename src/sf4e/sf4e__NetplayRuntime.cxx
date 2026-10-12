@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
@@ -19,8 +20,10 @@ namespace internal {
 // and the launcher's owned job reaps the helper.
 Runtime* runtime = nullptr;
 
-// The battle of the granted match is no longer entered, or never was.
+// The battle of the granted match is no longer entered, or never was. What
+// the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
+	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
 	runtime->sessionlessCloseGeneration = 0;
@@ -158,7 +161,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -538,6 +541,7 @@ static void SettleRoomState(bool helperReady) {
         RuntimeCommand replacement;
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
+        replacement.practiceRoom=runtime->practiceRoom;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }
