@@ -205,6 +205,7 @@ void PracticeRoomCreate() {
  h.Press(MenuInput::Left);
  h.Screen("defaults");
  Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room");
+ SetMenuEntriesProbe({});
 }
 void TrainingJourneys() {
  using namespace sf4e;
