@@ -162,6 +162,6 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(hostHelper.Send("{\"type\":\"shutdown\"}")); CHECK(guestHelper.Send("{\"type\":\"shutdown\"}"));
 	wait([&]() { return !hostProcess.IsRunning() && !guestProcess.IsRunning(); });
 	std::cout << "C++ raw UDP bridge: 3 generations, 30 exact 1024-byte round trips, statistics and control-loss independence passed; relay-only=" << (argc == 3) << ". No SF4 gameplay tested.\n";
-	return 0;
     sf4e::test::CompleteNetworkCase("game");
+	return 0;
 }
