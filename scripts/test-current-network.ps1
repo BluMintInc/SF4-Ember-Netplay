@@ -10,6 +10,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 . (Join-Path $PSScriptRoot 'NetworkCompletion.ps1')
+. (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 $target = Get-EmberBuildTarget $repo
 $build = Join-Path $repo $target.buildDirectory
 $helper = Join-Path $build 'sf4-net.exe'
@@ -32,6 +33,16 @@ if ($IncludeLargeRooms -or @($Cases | Where-Object { $_ -in 'four-tables','spect
     $plan += @{name='spectators';executable='CustomRoomGameTest';arguments=@('--single-table')}
 }
 if ($Cases.Count) { $plan = @($plan | Where-Object { $_.name -in $Cases }) }
+$receipt = [ordered]@{sourceRoot=$repo;branch=(& git -C $repo branch --show-current);
+    commit=(& git -C $repo rev-parse HEAD);sourceFingerprint=(Get-SourceFingerprint $repo);
+    platform='windows';startedUtc=[DateTime]::UtcNow.ToString('o');components=@();
+    evidence='Synthetic public-network transport and GGPO fixtures; no game launch or live gameplay acceptance'}
+foreach ($case in $plan) {
+    foreach ($route in ($Routes | Select-Object -Unique)) {
+        $receipt.components += [pscustomobject]@{test=$case.name;routePolicy=$route;status='unexecuted'}
+    }
+}
+$receipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'network-provenance.json')
 $artifacts = @($helper) + @($plan | ForEach-Object { Join-Path $build ($_.executable + '.exe') } | Select-Object -Unique)
 $artifacts += @(Get-ChildItem -LiteralPath $build -File -Filter '*.dll' | ForEach-Object { $_.FullName })
 $hashes = foreach ($artifact in $artifacts) {
@@ -65,9 +76,15 @@ foreach ($case in $plan) {
             exitCode=$exitCode;completed=[bool]$completed;artifactsUnchanged=($changed.Count -eq 0);startedUtc=$started.ToString('o');
             elapsedSeconds=([DateTime]::UtcNow-$started).TotalSeconds;log=$log}
         $results += $result
+        ($receipt.components | Where-Object { $_.test -eq $case.name -and $_.routePolicy -eq $route }).status =
+            $(if ($completed) {'passed'} else {'failed'})
+        $receipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'network-provenance.json')
         $results | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'results.json')
         if ($changed.Count) { throw "Binaries changed during acceptance; see $OutputDirectory" }
         if ($exitCode -or !$completed) { throw "Failed $($case.name) ($route); see $log" }
         Write-Output "PASS $($case.name) ($route). Synthetic transport/GGPO only. Log: $log"
     }
 }
+if ($receipt.sourceFingerprint -ne (Get-SourceFingerprint $repo)) { throw 'Source changed during network acceptance; receipt is not valid for the current source.' }
+$receipt.completedUtc = [DateTime]::UtcNow.ToString('o')
+$receipt | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'network-provenance.json')
