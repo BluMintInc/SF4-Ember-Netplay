@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Игра по сети"
 
 msgid "home.online_detail"
-msgstr "Создайте лобби, войдите в лобби, просмотрите открытые лобби или настройте Ember ID для турниров."
+msgstr "Открытые или приватные лобби"
 
 msgid "home.return_room"
 msgstr "Вернуться в текущее лобби"
@@ -632,13 +632,13 @@ msgid "home.profile"
 msgstr "Профиль игрока"
 
 msgid "home.profile_detail"
-msgstr "Ваше имя, основной персонаж и локальная статистика подтверждённых сетевых игр."
+msgstr "Ник (псевдоним), основной персонаж, боевая статистика"
 
 msgid "home.settings"
 msgstr "Настройки"
 
 msgid "home.identity_detail"
-msgstr "Ваши турнирные матчи, Discord для турнирных сайтов и ваш Ember ID."
+msgstr "Ваш логин Ember, турниры и связанные аккаунты"
 
 msgid "home.identity_start"
 msgstr "Начните здесь, чтобы играть в турнирах: настройте Ember ID и подключите Discord."
@@ -647,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "Турнирных матчей готово к игре: {0}"
 
 msgid "home.settings_detail"
-msgstr "Игрок, контроллер, правила по умолчанию, интерфейс, язык, тренировка и Discord."
+msgstr "Управление, настройки боя, графические элементы, язык, Discord"
 
 msgid "home.about"
 msgstr "Справка и сведения"
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Главное меню"
 
 msgid "home.offline_detail"
-msgstr "Тренировка, Versus, Аркада и другие режимы игры без сети."
+msgstr "Возврат в оригинальное меню SF4"
 
 msgid "home.replays"
 msgstr "Записи"
