@@ -45,4 +45,10 @@ if ((Get-FileHash -LiteralPath (Join-Path $stage 'GGPO.dll')).Hash -ne $dependen
 $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll' }) {
     [pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $file.FullName).Hash}
 }
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+$components = @(
+    [ordered]@{name='Windows native build and local staging';platform='windows';status='passed'},
+    [ordered]@{name='Default CTest including helper Rust, Ember Rust and BridgeSdk';platform='windows';status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
+    [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
+    [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
+    [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
