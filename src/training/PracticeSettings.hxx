@@ -114,8 +114,9 @@ inline bool BuildReplyPlan(const std::string& text, const DummyPlan& settings, D
     }
     DummyPlan plan = settings;
     // Made for the dummy facing right, as a slot holds it; it is played for the way it faces.
-    if (steps.empty()) plan.moves.clear();
-    else if (!combo::Synthesize(steps, true, plan.moves, error)) return false;
+    combo::Compiled compiled;
+    if (!steps.empty() && !combo::Synthesize(steps, true, compiled, error)) return false;
+    plan.moves = std::move(compiled.frames); plan.offset = compiled.offset;
     result = std::move(plan);
     return true;
 }

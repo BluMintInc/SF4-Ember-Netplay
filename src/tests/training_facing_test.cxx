@@ -11,9 +11,9 @@
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 std::vector<Input> Synth(const std::vector<std::string>& steps, bool facingRight) {
-    std::vector<Input> frames; std::string error;
-    Require(sf4e::combo::Synthesize(steps, facingRight, frames, error), "A move did not synthesize");
-    return frames;
+    sf4e::combo::Compiled compiled; std::string error;
+    Require(sf4e::combo::Synthesize(steps, facingRight, compiled, error), "A move did not synthesize");
+    return compiled.frames;
 }
 int main() {
     try {

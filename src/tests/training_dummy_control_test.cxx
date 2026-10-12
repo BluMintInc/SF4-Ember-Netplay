@@ -12,11 +12,12 @@
 #include <vector>
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
-std::vector<Input> Synth(const std::vector<std::string>& steps) {
-    std::vector<Input> frames; std::string error;
-    Require(sf4e::combo::Synthesize(steps, true, frames, error), "A move did not synthesize");
-    return frames;
+sf4e::combo::Compiled Compile(const std::vector<std::string>& steps) {
+    sf4e::combo::Compiled compiled; std::string error;
+    Require(sf4e::combo::Synthesize(steps, true, compiled, error), "A move did not synthesize");
+    return compiled;
 }
+std::vector<Input> Synth(const std::vector<std::string>& steps) { return Compile(steps).frames; }
 int main() {
     try {
         {
@@ -292,12 +293,13 @@ int main() {
                         const int at = timing + step.offset;
                         Dummy dummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 18, after, 20);
-                        const Run first = play(dummy, frames, timing, block, 0);
+                        // As the runtime plays it: the plan's timing with the move's own offset (FirstMoveTiming).
+                        const Run first = play(dummy, frames, at, block, 0);
                         // Not timed, the hold gives way once the dummy is seen free, later by timing.
                         Require(first.read[6] == (Down | Left) && first.read[22] == (Down | Left) &&
                             first.button + 1 == first.free + (std::max)(ReplyLead(frames) + 2, at) && !first.dropped,
                             "A hold over a blockstun not seen before did not begin with it, or gave way at the wrong frame");
-                        const Run timed = play(dummy, frames, timing, block, 0);
+                        const Run timed = play(dummy, frames, at, block, 0);
                         bool heldThrough = true;
                         for (int frame = 6; frame < timed.button - ReplyLead(frames); ++frame) heldThrough = heldThrough && timed.read[frame] == (Down | Left);
                         Require(heldThrough && timed.button + 1 == timed.free + at && (at < 0 || timed.move == timed.free + at) && !timed.dropped,
@@ -323,6 +325,36 @@ int main() {
                         for (int frame = run.button - 33; frame < run.button - 3 && line.size() == 2; ++frame) led = led && run.read[frame] == Down;
                         Require(led, "A reply's leading hold was not played before its move");
                     }
+                }
+                // The first move's own offset counts from the free frame with the
+                // timing, whatever leads into it.
+                for (const auto& line : std::vector<std::vector<std::string>>{{"[2]30f", "5MK@+3"}, {"[2]30f", "5MK@-2"}, {"[2]30f", "[4]", "5MK@+3"},
+                         {"[2]30f", "[4]", "5MK@-2"}}) {
+                    const auto compiled = Compile(line);
+                    for (const unsigned after : {0u, walkBack}) for (const int timing : {0, 2}) {
+                        DummyPlan plan; plan.timing = timing; plan.moves = compiled.frames; plan.offset = compiled.offset;
+                        const int at = FirstMoveTiming(plan);
+                        Require(at == timing + (line.back().back() == '3' ? 3 : -2), "A reply's first move's offset was not in its timing");
+                        Dummy dummy;
+                        const auto block = statuses(ActorStatus::DamageGuard, 90, after, 40);
+                        play(dummy, plan.moves, at, block, 0);
+                        const Run run = play(dummy, plan.moves, at, block, 0);
+                        Require(run.button + 1 == 95 + at && (at < 0 || run.move == 95 + at) && !run.dropped,
+                            "A reply's first move did not keep its own offset");
+                    }
+                }
+                // A later move on a frame of the reply: the hold before it lasts
+                // up to its motion, and its button lands on that frame.
+                for (const char* move : {"3HP#60", "623HP#60"}) {
+                    const auto frames = Synth({"5LP", "[4]", move});
+                    const int motion = move[1] == '2' ? 9 : 3;
+                    Dummy dummy;
+                    const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 120);
+                    play(dummy, frames, 0, block, 0);
+                    const Run run = play(dummy, frames, 0, block, 0);
+                    bool held = true;
+                    for (int frame = run.button + 2; frame < run.button + 60 - motion; ++frame) held = held && run.read[frame] == Left;
+                    Require(run.move == 95 && held && (run.read[run.button + 60] & HP), "A move on a frame of the reply did not land there, or the hold before it broke");
                 }
                 // A gap in the frames takes what was seen of the stun, and the
                 // hold waiting on it goes too: over the free frame, and in the

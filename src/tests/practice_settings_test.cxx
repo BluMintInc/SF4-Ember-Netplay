@@ -60,8 +60,9 @@ int main() {
         CHECK(BuildReplyPlan(migrated, settings, plan, error));
         CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves.empty());
         // Made once, for the dummy facing right, as a slot holds it.
-        std::vector<Input> expected;
-        CHECK(sf4e::combo::Synthesize({notation[i]}, true, expected, error));
+        sf4e::combo::Compiled compiled;
+        CHECK(sf4e::combo::Synthesize({notation[i]}, true, compiled, error));
+        const auto& expected = compiled.frames;
         CHECK(plan.moves.size() == expected.size());
         for (std::size_t frame = 0; frame < expected.size() && frame < plan.moves.size(); ++frame) {
             const auto& got = plan.moves[frame]; const auto& want = expected[frame];
@@ -83,6 +84,9 @@ int main() {
     }
     CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.slot == 3);
     CHECK(BuildReplyPlan("[1] > 3HP", settings, result, error) && !result.moves.empty() && BuildReplyPlan("[2]30f > 5MK", settings, result, error));
+    // The first move's own offset rides with the plan, and goes with typed moves.
+    CHECK(BuildReplyPlan("[2]30f > 5MK@+3", settings, result, error) && result.offset == 3 && ValidDummyPlan(result));
+    CHECK(BuildReplyPlan("", settings, result, error) && result.offset == 0 && result.moves.empty());
 
     // Every reply preset, 214K and 236P included, is notation the parser and
     // the plan builder take as typed text, and reads back as itself however

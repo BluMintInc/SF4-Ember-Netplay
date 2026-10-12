@@ -13,10 +13,10 @@ static std::vector<std::string> Steps(const char* line) {
 
 // The frames of whole moves; every line synthesized here fits a slot.
 static std::vector<sf4e::training::Input> Synth(const std::vector<std::string>& steps, bool facingRight) {
-    std::vector<sf4e::training::Input> frames;
+    Compiled compiled;
     std::string error;
-    CHECK(Synthesize(steps, facingRight, frames, error));
-    return frames;
+    CHECK(Synthesize(steps, facingRight, compiled, error));
+    return compiled.frames;
 }
 
 int main() {
@@ -131,6 +131,8 @@ int main() {
     CHECK(Steps(" > , ").empty());
     CHECK(!ParseSteps("cr.MK > shoryu", steps, error) && steps.empty() && error == "\"shoryu\" is not a move");
     CHECK(!ParseSteps("xx 236HP", steps, error) && error == "the first move cannot be a cancel");
+    // Leading holds and waits are no move to cancel or follow up.
+    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP"}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
     CHECK(!ParseSteps("2MK xx", steps, error));
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
@@ -161,12 +163,12 @@ int main() {
         const auto mirrored = Synth(Steps("236HP > 5LP"), false);
         CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[11].wait == sf4e::training::WaitActionable && mirrored[12].raw == LP);
         {
-            std::vector<sf4e::training::Input> frames{{1, 1, 0, 0}};
-            CHECK(Synth({}, true).size() == 1 && !Synthesize({"nonsense"}, true, frames, error) && frames.empty() && !error.empty());
+            Compiled compiled; compiled.frames = {{1, 1, 0, 0}};
+            CHECK(Synth({}, true).empty() && !Synthesize({"nonsense"}, true, compiled, error) && compiled.frames.empty() && !error.empty());
         }
         // Moves on frames: the press lands on its frame, no cue is waited for,
         // and a frame already passed starts the move at once.
-        const auto timed = Synth(Steps("5LP#10 > 2MK#30 > xx 236HP#42 > 5HP#43"), true);
+        const auto timed = Synth(Steps("[2]2f > 5LP#10 > 2MK#30 > xx 236HP#42 > 5HP#43"), true);
         CHECK(timed[10].raw == LP && timed[9].raw == 0 && timed[30].raw == (Down | MK) && timed[27].raw == Down && timed[42].raw == (Right | HP));
         for (const auto& frame : timed) CHECK(!frame.wait);
         CHECK(timed[29].raw == Down && timed[31].raw == Down && timed[32].raw == 0 && timed[36].raw == Down);
@@ -198,8 +200,12 @@ int main() {
             (std::vector<std::string>{"hold:" + text(Down | Left), text(Right), text(Down), text(Down | Right), text(Down | Right | LP), text(Down | Right), "0"}));
         CHECK(runs(Synth(Steps("[1] > 8"), true)) == (std::vector<std::string>{"hold:" + text(Down | Left), text(Up), "0"}));
         CHECK(runs(Synth(Steps("5LP > [1] > 3HP"), true)) ==
-            (std::vector<std::string>{"0", text(LP), "0", "free:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
-        CHECK(Synth(Steps("[1] > 3HP@+3"), true)[0].offset == 3 && Synth(Steps("[1] > 3HP@-2"), true)[0].offset == -2);
+            (std::vector<std::string>{text(LP), "0", "free:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
+        {
+            // The move's own offset is the reply's, not its hold's.
+            Compiled compiled;
+            CHECK(Synthesize(Steps("[1] > 3HP@+3"), true, compiled, error) && compiled.offset == 3 && compiled.frames[0].offset == 0);
+        }
         // Facing left, back is Right.
         CHECK(Synth(Steps("[1] > 3HP"), false)[0].raw == (Down | Right));
         const auto follow = Synth(Steps("236P > [4] > ~ LP"), true);
@@ -213,10 +219,32 @@ int main() {
             (std::vector<std::string>{text(Down), "0", text(Left), "0", text(MK), "0"}));
         // The moves come out whole or not at all: the most that fits a slot, one frame more, and holds that add up past it.
         {
-            std::vector<sf4e::training::Input> frames;
-            CHECK(Synthesize(Steps("[2]7194f > 5MK"), true, frames, error) && frames.size() == sf4e::training::MaxFrames && frames[7197].raw == MK);
-            CHECK(!Synthesize(Steps("[2]7195f > 5MK"), true, frames, error) && frames.empty() && !error.empty());
-            CHECK(!Synthesize(Steps("[2]3000f > [4]3000f > [1]1500f > 5MK"), true, frames, error) && frames.empty());
+            Compiled compiled;
+            CHECK(Synthesize(Steps("[2]7194f > 5MK"), true, compiled, error) && compiled.frames.size() == sf4e::training::MaxFrames &&
+                compiled.frames[7197].raw == MK);
+            CHECK(!Synthesize(Steps("[2]7195f > 5MK"), true, compiled, error) && compiled.frames.empty() && !error.empty());
+            CHECK(!Synthesize(Steps("[2]3000f > [4]3000f > [1]1500f > 5MK"), true, compiled, error) && compiled.frames.empty());
+        }
+        // The first move's own offset is the reply's, whatever leads into it;
+        // nothing is played before the first input.
+        {
+            Compiled compiled;
+            CHECK(Synthesize(Steps("[2]30f > 5MK@+3"), true, compiled, error) && compiled.offset == 3 && compiled.frames.size() == 36 && compiled.frames[33].raw == MK);
+            CHECK(Synthesize(Steps("[2]30f > [4] > 5MK@-2"), true, compiled, error) && compiled.offset == -2 && compiled.frames[30].wait == sf4e::training::WaitReply &&
+                compiled.frames[30].offset == 0);
+            CHECK(Synthesize(Steps("5MK@+2 > 5LP@+1"), true, compiled, error) && compiled.offset == 2 && compiled.frames[0].raw == MK);
+            // "#N": a frame of the reply, counted from its first played frame, reached
+            // only through frames of a known length; a hold with no count before it
+            // holds through the frames up to the move.
+            for (const char* line : {"5MK#45", "[1] > 3HP#45", "[2]30f > [1] > 3HP#45", "5LP > 5MK > 2HP#40", "2LP > xx 236P > 5HP#80"})
+                CHECK(!Synthesize(Steps(line), true, compiled, error) && compiled.frames.empty() && !error.empty());
+            for (const char* line : {"5LP > [4] > 3HP#60", "5LP > [4] > 623HP#60"}) {
+                CHECK(Synthesize(Steps(line), true, compiled, error));
+                const auto& frames = compiled.frames;
+                const int motion = std::string(line).find("623") != std::string::npos ? 9 : 3;
+                CHECK(frames[0].raw == LP && (frames[60].raw & HP) && std::all_of(frames.begin() + 2, frames.begin() + 60 - motion,
+                    [](const sf4e::training::Input& frame) { return frame.raw == Left && !frame.wait; }));
+            }
         }
         const auto spaced = Synth(Steps("5LP > 10f > 5MK"), true);
         const auto lp = std::find_if(spaced.begin(), spaced.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });

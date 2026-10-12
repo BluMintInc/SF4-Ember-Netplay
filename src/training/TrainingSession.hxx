@@ -23,7 +23,7 @@ constexpr unsigned AttackButtons = 0xcf0;
 // predicted from the fighter's script, so 0 is that frame itself and a
 // negative offset is before it; a hit is pressed on the frame after it is seen.
 // A reply's leading hold (3) repeats until the reply's first move is due
-// (ReplyFirstMoveDue), its offset that move's own; elsewhere it is met at once.
+// (ReplyFirstMoveDue); elsewhere it is met at once.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
 constexpr int MinOffset = -120, MaxOffset = 120;
 // A slot holds its frames as played by a fighter facing right, so a move
@@ -134,13 +134,18 @@ inline bool ValidDummyState(const DummyState& s) {
 // empty it replies with the recording in slot. chance:
 // percent of the times it replies. timing: frames the reply's first attack
 // button lands after the dummy's first free frame. varyStance: it stands or
-// crouches at random each time.
-struct DummyPlan { int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves; };
+// crouches at random each time. offset: the typed moves' first move's own
+// offset ("5MK@+3"), added to timing; 0 with no typed moves.
+struct DummyPlan { int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves; int offset = 0; };
 constexpr int MaxReplyTiming = 5;
 inline bool ValidDummyPlan(const DummyPlan& plan) {
     return plan.when >= 0 && plan.when <= 4 && plan.slot >= 0 && plan.slot < SlotCount && plan.chance >= 0 && plan.chance <= 100 &&
-        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && plan.moves.size() <= std::size_t(MaxFrames);
+        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && plan.moves.size() <= std::size_t(MaxFrames) &&
+        plan.offset >= MinOffset && plan.offset <= MaxOffset && (!plan.moves.empty() || !plan.offset);
 }
+// Frames after the dummy is free the reply's first button lands: the
+// plan's timing and its first move's own offset.
+inline int FirstMoveTiming(const DummyPlan& plan) { return plan.timing + plan.offset; }
 // A reply starts on its first pressed frame; -1 when it presses nothing.
 inline int ReplyStart(const std::vector<Input>& frames) {
     const auto first = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & FightButtons) != 0; });
@@ -241,11 +246,10 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     if (seen.held) return seen.until >= 0 && seen.until <= lead + 1 - timing;
     return seen.free >= 0 && -seen.free <= lead + 1 - timing;
 }
-// Whether the first move of a reply's frames is due, its own offset (carried
-// by a leading hold) added to the plan's timing.
+// Whether the first move of a reply's frames is due. timing: frames after
+// the free frame its button lands (FirstMoveTiming).
 inline bool ReplyFirstMoveDue(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
-    const int hold = ReplyHold(frames);
-    return ReplyDue(seen, ReplyLead(frames) + DummyInputLag, timing + (hold >= 0 ? frames[hold].offset : 0));
+    return ReplyDue(seen, ReplyLead(frames) + DummyInputLag, timing);
 }
 // Whether a reply should begin after this frame's observation: one holding
 // first begins with the stun, any other when its first move is due.

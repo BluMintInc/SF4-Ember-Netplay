@@ -260,17 +260,20 @@ inline std::vector<std::string> Tokens(const std::string& line) {
 // Fails on the first step that is not a move.
 inline bool ParseSteps(const std::string& line, std::vector<std::string>& steps, std::string& error) {
     steps.clear();
-    // A hold with no frames lasts until the next step begins, so that step is a move.
-    bool holding = false;
+    const auto fail = [&](std::string why) { error = std::move(why); steps.clear(); return false; };
+    // A hold with no frames lasts until the next step begins, so that step is
+    // a move; the first move has no move before it to cancel or follow up.
+    bool holding = false, moved = false;
     for (const auto& token : Tokens(line)) {
         Step step;
-        if (!ParseStep(token, step, error)) { steps.clear(); return false; }
-        if (holding && step.hold) { error = "a hold with no frames needs a move after it, not \"" + Canonical(step) + "\""; steps.clear(); return false; }
+        if (!ParseStep(token, step, error)) return fail(error);
+        if (holding && step.hold) return fail("a hold with no frames needs a move after it, not \"" + Canonical(step) + "\"");
+        if (!step.hold && !moved && step.cancel) return fail(step.follow ? "the first move cannot be a follow-up" : "the first move cannot be a cancel");
         holding = step.hold && !step.frames;
+        moved = moved || !step.hold;
         steps.push_back(Canonical(step));
     }
-    if (holding) { error = "a hold with no frames needs a move after it"; steps.clear(); return false; }
-    if (!steps.empty() && steps[0].compare(0, 3, "xx ") == 0) { error = "the first move cannot be a cancel"; steps.clear(); return false; }
+    if (holding) return fail("a hold with no frames needs a move after it");
     return true;
 }
 } }

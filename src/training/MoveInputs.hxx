@@ -34,16 +34,35 @@ inline unsigned ChosenButtons(const Step& step) {
     for (int i = 0; i < step.need && i < 3; ++i) mask |= order[step.buttons == Kicks][i];
     return mask;
 }
+// Typed moves as the dummy plays them for its reply. frames: as a slot holds
+// them, from the reply's first played frame. offset: the first move's own
+// "@N", frames after the dummy is free its button lands, added to the
+// reply's timing (DummyPlan::offset).
+//
+// How the reply is laid out in time, the reply anchored at the dummy's free
+// frame (ReplyDue): holds and waits with a count before the first move lead
+// into it; a hold with no count there is its leading hold (WaitReply), its
+// length the stun's; the first move's button meets the free frame plus the
+// timing and its "@N". Each later move waits on the one before (a link for
+// the dummy to be free, a cancel for the hit, a follow-up a few frames), its
+// "@N" counted from that cue, or lands on a frame of the reply ("#N"), counted
+// from its first played frame, which only frames of a known length before it
+// can reach: "#N" after a wait on the fight is refused, as on the first move.
+struct Compiled { std::vector<training::Input> frames; int offset = 0; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
-// a step is not a move or the input would not fit in a slot (MaxFrames):
-// the moves come out whole or not at all.
-inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, std::vector<training::Input>& out, std::string& error) {
-    out.clear();
-    bool full = false;
+// a step is not a move, a "#N" cannot be laid out, or the input would not
+// fit in a slot (MaxFrames): the moves come out whole or not at all.
+inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, Compiled& compiled, std::string& error) {
+    compiled = {};
+    auto& out = compiled.frames;
+    bool full = false, waited = false;
     const auto add = [&](training::Input input) {
+        // Nothing is played before the first input: the reply starts there.
+        if (out.empty() && !input.raw && !input.wait) return;
         if (out.size() < training::MaxFrames) out.push_back(input);
         else full = true;
+        waited = waited || input.wait;
     };
     const auto push = [&](unsigned bits, int frames) { for (; frames > 0; --frames) add({bits, bits, 0, 0}); };
     const auto wait = [&](unsigned char on, unsigned held, int timing) {
@@ -58,9 +77,10 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
     // with a count before the first move are input leading into it, not a
     // move to recover from: the first move plays straight after them.
     bool follows = false;
+    const auto fail = [&](std::string why) { compiled = {}; error = std::move(why); return false; };
     for (const auto& text : steps) {
         Step step;
-        if (!ParseStep(text, step, error)) { out.clear(); return false; }
+        if (!ParseStep(text, step, error)) return fail(error);
         if (step.hold) {
             const unsigned held = DirectionBits(step.motion[0], facingRight);
             if (step.frames) push(held, step.frames);
@@ -68,18 +88,21 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             continue;
         }
         const int timing = step.offset;
+        // A move laid out on a frame ("#45") starts its input so the press
+        // lands there, or at once when that frame has passed; it waits for no cue.
+        const bool timed = step.at >= 0;
+        if (timed && (out.empty() || waited || (pending && !follows)))
+            return fail("\"" + text + "\" needs frames of a known length before it to land on frame " + std::to_string(step.at));
         // after: an earlier move played, so this one waits on it; idle: what
         // its frames before its own input hold.
         const bool after = follows, afterLead = pending && !after;
         const unsigned idle = after ? pending : 0;
-        if (afterLead) wait(training::WaitReply, pending, timing);
+        if (afterLead) wait(training::WaitReply, pending, 0);
+        if (!after) compiled.offset = timing;
         pending = 0;
         follows = true;
         const auto gap = [&](int frames) { push(idle, frames); };
         const unsigned buttons = ChosenButtons(step);
-        // A move laid out on a frame ("#45") starts its input so the press
-        // lands there, or at once when that frame has passed; it waits for no cue.
-        const bool timed = step.at >= 0;
         const auto reach = [&](int frame) { gap(frame - static_cast<int>(out.size())); };
         const bool red = step.buttons == (LP | MP | MK) && step.need == 3;
         const bool fadc = (step.buttons == (MP | MK) && step.need == 2) || red;
@@ -160,7 +183,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         push(last, 1);
     }
     push(0, 1);
-    if (full) { out.clear(); error = "the moves take more than " + std::to_string(training::MaxFrames) + " frames"; return false; }
+    if (full) return fail("the moves take more than " + std::to_string(training::MaxFrames) + " frames");
     return true;
 }
 } }
