@@ -88,7 +88,7 @@ Set-Content -LiteralPath (Join-Path $destination 'MANIFEST.txt') -Encoding UTF8 
 if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Package preflight failed" }
 $validator = @((Join-Path $BuildDir 'PackageInstallerTest.exe'), (Join-Path $BuildDir 'candidate/PackageInstallerTest.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (!$validator) { throw 'Build PackageInstallerTest before packaging so the native update inventory can validate the output.' }
-& $validator $destination
+& $validator --validate $destination
 if ($LASTEXITCODE -ne 0) { throw 'The native updater rejected the package inventory' }
 Compress-Archive -LiteralPath $destination -DestinationPath "$destination.zip"
 $hash = (Get-FileHash -LiteralPath "$destination.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
