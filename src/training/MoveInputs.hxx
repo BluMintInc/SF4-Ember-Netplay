@@ -57,21 +57,19 @@ inline unsigned ChosenButtons(const Step& step) {
 struct Compiled { std::vector<training::Input> frames; int offset = 0, anchor = -1, hold = -1; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
-// a step is not a move, a "#N" cannot be laid out, there is no move to time
-// the reply by, or the input would not fit in a slot (MaxFrames): the moves
-// come out whole or not at all.
+// a step is not a move or presses nothing, a "#N" cannot be laid out, there
+// is no move to time the reply by, or the input would not fit in a slot
+// (MaxFrames): the moves come out whole or not at all.
 inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, Compiled& compiled, std::string& error) {
     compiled = {};
     auto& out = compiled.frames;
     bool full = false, waited = false;
-    // Whether the input went in: nothing is played before the first input,
-    // the reply starts there.
     const auto add = [&](training::Input input) {
-        if (out.empty() && !input.raw && !input.wait) return false;
+        // Nothing is played before the first input: the reply starts there.
+        if (out.empty() && !input.raw && !input.wait) return;
         if (out.size() < training::MaxFrames) out.push_back(input);
         else full = true;
         waited = waited || input.wait;
-        return !full;
     };
     const auto clamp = [](int timing) { return static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing))); };
     const auto push = [&](unsigned bits, int frames) { for (; frames > 0; --frames) add({bits, bits, 0, 0}); };
@@ -108,7 +106,6 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         if (afterLead) { compiled.hold = static_cast<int>(out.size()); wait(training::WaitReply, pending, 0); }
         if (!after) compiled.offset = timing;
         pending = 0;
-        follows = true;
         const auto gap = [&](int frames) { push(idle, frames); };
         const unsigned buttons = ChosenButtons(step);
         const bool red = step.buttons == (LP | MP | MK) && step.need == 3;
@@ -129,9 +126,12 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // enough in for the move to take it (El Fuerte's run takes its stop
         // from about its sixth frame, measured in play at this delay; "@"
         // moves it); a move on a frame waits for none.
+        // A link's wait holds what comes before its input: a hold, or the
+        // motion's first direction.
+        const unsigned linkHeld = idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight);
         if (step.follow && after && !timed) gap((std::max)(0, FollowDelay + timing));
         if (focusDash) { if (after && !timed) wait(training::WaitHit, idle, timing); }
-        else if (link) wait(training::WaitActionable, idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
+        else if (link) wait(training::WaitActionable, linkHeld, timing);
         else if (after) gap(1);
         // The move's own input, and the frame of it the move takes effect on
         // (Compiled::anchor), which a "#N" lands on and the first move's
@@ -202,13 +202,20 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
                 put(last, 1);
             }
         }
+        // A move takes effect on input: one that presses nothing there (a
+        // neutral "5") is no move, to time the reply by or to recover from,
+        // wherever it stands, so the moves are refused whole. A linked lone
+        // direction is its wait's: its own input has none after it.
+        const unsigned takes = anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : link ? linkHeld : 0u;
+        if (!takes) return fail("\"" + text + "\" presses nothing: a move needs a direction or a button");
+        follows = true;
         // On a frame, the move's anchor lands there ("@N" from it, but on the
         // first move, whose "@N" is the reply's own), the frames before it
         // held as a move's frames before its own input hold.
-        if (timed) gap(step.at + (after ? timing : 0) - (std::max)(anchor, 0) - static_cast<int>(out.size()));
+        if (timed) gap(step.at + (after ? timing : 0) - anchor - static_cast<int>(out.size()));
         for (int i = 0; i < static_cast<int>(own.size()); ++i) {
-            const int at = static_cast<int>(out.size());
-            if (add(own[i]) && i == anchor && !after) compiled.anchor = at;
+            if (i == anchor && !after) compiled.anchor = static_cast<int>(out.size());
+            add(own[i]);
         }
     }
     push(0, 1);

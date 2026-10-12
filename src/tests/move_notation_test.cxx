@@ -273,10 +273,16 @@ int main() {
                 compiled.frames[59].raw == 0 && compiled.frames[60].raw == Right);
             CHECK(Synthesize(Steps("[2]2f > 5LP#10 > j.HK#30"), true, compiled, error) && compiled.frames[30].raw == Up && compiled.frames[29].raw == 0 &&
                 compiled.frames[42].raw == HK);
-            // Holds and waits with no move after them, or a first move with no
-            // input (a neutral "5"): nothing to time the reply by.
-            for (const char* line : {"[2]30f", "[2]30f > [4]10f", "[2]30f > 5f > [4]10f", "5", "5 > 5"})
+            // Holds and waits with no move after them: nothing to time the reply
+            // by. A neutral "5" presses nothing, so it is no move wherever it
+            // stands, whatever comes before it: not the first move, nor one a
+            // later move recovers from.
+            for (const char* line : {"[2]30f", "[2]30f > [4]10f", "[2]30f > 5f > [4]10f", "5", "5 > 5", "[2]30f > 5", "[2]30f > 2f > [4]10f > 5",
+                     "[1] > 5", "[2]30f > 5 > 5MK", "5LP > 5 > 5MK", "5MK > 5"})
                 CHECK(!Synthesize(Steps(line), true, compiled, error) && compiled.frames.empty() && compiled.anchor == -1 && !error.empty());
+            // A linked jump is a move: its wait holds its direction to the free frame.
+            CHECK(Synthesize(Steps("5LP > 8"), true, compiled, error) && std::any_of(compiled.frames.begin(), compiled.frames.end(),
+                [](const sf4e::training::Input& frame) { return frame.wait == sf4e::training::WaitActionable && frame.raw == Up; }));
         }
         const auto spaced = Synth(Steps("5LP > 10f > 5MK"), true);
         const auto lp = std::find_if(spaced.begin(), spaced.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });

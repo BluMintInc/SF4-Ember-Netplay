@@ -5,6 +5,7 @@
 // the game's input path.
 #include "../training/TrainingSession.hxx"
 #include "../training/MoveInputs.hxx"
+#include "../training/PracticeSettings.hxx"
 #include <algorithm>
 #include <cstdio>
 #include <stdexcept>
@@ -391,6 +392,28 @@ int main() {
                         const int acted = 95 + timing - DummyInputLag;
                         Require(run.read[acted] == (jump ? Up : Right) && run.read[acted - 1] == (jump ? Down : 0u) && (jump || run.read[acted - 2] == Right),
                             "A jump or a dash did not take effect on the free frame plus timing");
+                    }
+                }
+                // A neutral "5" presses nothing: typed, after holds or before
+                // an attack, the reply is refused, and the dummy keeps the plan
+                // it had, its button acted on the free frame plus timing.
+                {
+                    DummyPlan settings; settings.when = 4; std::string error;
+                    DummyPlan kept;
+                    Require(BuildReplyPlan("[2]30f > 5MK", settings, kept, error) && ValidDummyPlan(kept), "The reply kept was not built");
+                    for (const char* line : {"[2]30f > 5", "[2]30f > 3f > [4]10f > 5", "[2]30f > 5 > 5MK"}) {
+                        DummyPlan reply = kept;
+                        Require(!BuildReplyPlan(line, settings, reply, error) && !error.empty(), "A reply that presses nothing was built");
+                        Require(reply.moves.size() == kept.moves.size() && reply.anchor == kept.anchor && reply.hold == kept.hold && reply.offset == kept.offset,
+                            "A refused reply changed the plan");
+                        for (const int timing : {0, 2}) {
+                            Dummy dummy;
+                            const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 40);
+                            play(dummy, reply, timing, block, 0);
+                            const Run run = play(dummy, reply, timing, block, 0);
+                            Require(run.button + 1 == 95 + timing && run.move == 95 + timing && (run.read[run.button] & MK),
+                                "The plan kept did not reply on the free frame plus timing");
+                        }
                     }
                 }
                 // A recording replies from its own frames: from its first pressed
