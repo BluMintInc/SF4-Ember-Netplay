@@ -43,7 +43,7 @@ enum class Range { Any, Close, Far };
 // mash: five presses; P, K or several buttons are cycled one per frame, one
 // button goes on and off (Hundred Hand Slap, lightning legs).
 // offset: frames after this move's cue the press lands on, before it when negative ("cr.MK@+1").
-// at: the frame of the playback the press lands on, -1 when the move follows
+// at: the frame of the playback the move takes effect on, -1 when the move follows
 // the fight's cues instead ("cr.MK#45").
 // hold: the step holds the direction in motion and presses nothing, for
 // `frames` frames ("[1]20f"), or with frames 0 until the next move begins
@@ -76,7 +76,7 @@ constexpr int MaxAtFrame = 7200;
 //            "(mash HP-MP-LP)" in that order, one press per frame, up to 10;
 //            "(mash 1MK-1MK-1MK)" with a direction for each press
 //   @N:      playback timing, -120..+120 frames ("@-1", "@+3")
-//   #N:      playback frame the press lands on, 0..7200 ("#45")
+//   #N:      playback frame the move takes effect on, 0..7200 ("#45")
 // or a direction held with no button, alone: "[1]" until the next move
 // begins, "[1]20f" for 1..7200 frames; "20f" waits that long, nothing held.
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;

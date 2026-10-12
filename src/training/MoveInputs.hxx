@@ -57,23 +57,25 @@ inline unsigned ChosenButtons(const Step& step) {
 struct Compiled { std::vector<training::Input> frames; int offset = 0, anchor = -1, hold = -1; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
-// a step is not a move, a "#N" cannot be laid out, or the input would not
-// fit in a slot (MaxFrames): the moves come out whole or not at all.
+// a step is not a move, a "#N" cannot be laid out, there is no move to time
+// the reply by, or the input would not fit in a slot (MaxFrames): the moves
+// come out whole or not at all.
 inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, Compiled& compiled, std::string& error) {
     compiled = {};
     auto& out = compiled.frames;
     bool full = false, waited = false;
+    // Whether the input went in: nothing is played before the first input,
+    // the reply starts there.
     const auto add = [&](training::Input input) {
-        // Nothing is played before the first input: the reply starts there.
-        if (out.empty() && !input.raw && !input.wait) return;
+        if (out.empty() && !input.raw && !input.wait) return false;
         if (out.size() < training::MaxFrames) out.push_back(input);
         else full = true;
         waited = waited || input.wait;
+        return !full;
     };
+    const auto clamp = [](int timing) { return static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing))); };
     const auto push = [&](unsigned bits, int frames) { for (; frames > 0; --frames) add({bits, bits, 0, 0}); };
-    const auto wait = [&](unsigned char on, unsigned held, int timing) {
-        add({held, held, on, static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing)))});
-    };
+    const auto wait = [&](unsigned char on, unsigned held, int timing) { add({held, held, on, clamp(timing)}); };
     // A direction held until the next move begins ("[1]", ParseSteps puts a
     // move after it): that move's frames before its own input carry it, its
     // wait included. Held before the first move, it is a reply's leading hold
@@ -94,8 +96,8 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             continue;
         }
         const int timing = step.offset;
-        // A move laid out on a frame ("#45") starts its input so the press
-        // lands there, or at once when that frame has passed; it waits for no cue.
+        // A move laid out on a frame ("#45") starts its input so it takes
+        // effect there, or at once when that frame has passed; it waits for no cue.
         const bool timed = step.at >= 0;
         if (timed && (out.empty() || waited || (pending && !follows)))
             return fail("\"" + text + "\" needs frames of a known length before it to land on frame " + std::to_string(step.at));
@@ -109,25 +111,10 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         follows = true;
         const auto gap = [&](int frames) { push(idle, frames); };
         const unsigned buttons = ChosenButtons(step);
-        // The frame a "#N" move presses on: its "@N" counts from it, but the
-        // first move's is the reply's own (the free frame its cue).
-        const int landing = step.at + (after ? timing : 0);
-        const auto reach = [&](int frame) { gap(frame - static_cast<int>(out.size())); };
         const bool red = step.buttons == (LP | MP | MK) && step.need == 3;
         const bool fadc = (step.buttons == (MP | MK) && step.need == 2) || red;
-        if (fadc && (step.motion == "66" || step.motion == "44") && !step.charge && !step.air) {
-            // A focus cancel: focus as the hit lands, then the dash at once.
-            // The red focus is tapped and let go so the attack itself comes
-            // out and lands, and the dash cancels that hit.
-            const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
-            if (timed) reach(landing);
-            else if (after) wait(training::WaitHit, idle, timing);
-            if (!after) compiled.anchor = static_cast<int>(out.size());
-            push(step.buttons, 2); push(0, 2);
-            if (red) wait(training::WaitHit, 0, 0);
-            push(dash, 2); push(0, 2); push(dash, 2);
-            continue;
-        }
+        const bool focusDash = fadc && (step.motion == "66" || step.motion == "44") && !step.charge && !step.air;
+        const bool link = after && !step.cancel && !timed;
         // The directions, as a player does them: a linked move holds its
         // first direction through the recovery before it and presses on the
         // free frame; a cancelled move does its motion during the move before
@@ -135,74 +122,100 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // the hit lands, so the motion is fresh.
         std::string motion = step.motion;
         if (motion == "360" || motion == "720") { motion.clear(); for (int turn = step.motion == "720" ? 2 : 1; turn > 0; --turn) motion += "63214789"; }
-        // A jumping move takes effect on its jump.
-        if (step.air && !after) compiled.anchor = static_cast<int>(out.size());
-        if (step.air) { push(DirectionBits('8', facingRight), 2); push(0, 10); }
-        unsigned last = 0;
-        const bool link = after && !step.cancel && !timed;
-        // A follow-up goes into the move before it with no cue, far enough in
-        // for the move to take it: El Fuerte's run takes its stop from about
-        // its sixth frame, measured in play at this delay. "@" moves it.
+        // What the move waits on before its own input: the move before for a
+        // link, the hit for a cancel (a focus cancel's comes before its
+        // focus, any other's before its last direction), a few frames for a
+        // follow-up, which goes into the move before it with no cue, far
+        // enough in for the move to take it (El Fuerte's run takes its stop
+        // from about its sixth frame, measured in play at this delay; "@"
+        // moves it); a move on a frame waits for none.
         if (step.follow && after && !timed) gap((std::max)(0, FollowDelay + timing));
-        if (timed) {
-            int lead = 0;
-            for (std::size_t i = 0; i < motion.size(); ++i) lead += (step.charge && i == 0 ? ChargeFrames : step.cancel ? 2 : 3) + (i && motion[i] == motion[i - 1] ? 1 : 0);
-            if (after) gap(1);
-            reach(landing - lead);
-        } else if (link) wait(training::WaitActionable, idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
+        if (focusDash) { if (after && !timed) wait(training::WaitHit, idle, timing); }
+        else if (link) wait(training::WaitActionable, idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
         else if (after) gap(1);
-        // The wait held the motion's first direction, or a hold in its place;
-        // a lone direction goes in with the button either way, after a
-        // leading hold too.
-        const bool lone = motion.size() == 1 && buttons;
-        const bool firstHeld = (link && !idle) || ((link || afterLead) && lone);
-        const bool finish = step.cancel && !step.follow && after && !timed && buttons && !motion.empty();
-        int lastAt = static_cast<int>(out.size());
-        for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
-            // The same direction again is a new tap: a neutral frame between (a "66" dash).
-            if (i && motion[i] == motion[i - 1]) push(0, 1);
-            last = DirectionBits(motion[i], facingRight);
-            lastAt = static_cast<int>(out.size());
-            const bool held = firstHeld && i == 0;
-            push(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
-        }
-        if (!buttons) {
-            // A move with no button takes effect on its last direction.
-            if (!after && !step.air) compiled.anchor = lastAt;
-            continue;
-        }
-        if (step.cancel && !step.follow && after && !timed) wait(training::WaitHit, last, timing);
-        if (finish) last = DirectionBits(motion.back(), facingRight);
-        if (!after && !step.air) compiled.anchor = static_cast<int>(out.size());
-        if (step.edge == Edge::Hold) push(last | buttons, 30);
-        else if (step.edge == Edge::Release) { push(last | buttons, 30); push(last, 2); }
-        else if (step.mash) {
-            // Five presses: several buttons are cycled one per frame (a piano),
-            // one button goes on and off a frame at a time.
-            std::vector<Step::MashPress> cycle = step.mashOrder;
-            const int presses = cycle.empty() ? 5 : static_cast<int>(cycle.size());
-            if (cycle.empty()) {
-                std::vector<unsigned> bits;
-                if (step.buttons == Punches) bits = {LP, MP, HP};
-                else if (step.buttons == Kicks) bits = {LK, MK, HK};
-                else for (unsigned bit = 1; bit; bit <<= 1) if (step.buttons & bit) bits.push_back(bit);
-                for (unsigned bit : bits) cycle.push_back({'0', bit});
+        // The move's own input, and the frame of it the move takes effect on
+        // (Compiled::anchor), which a "#N" lands on and the first move's
+        // schedule is timed by: laid out together, so the two agree.
+        std::vector<training::Input> own;
+        int anchor = -1;
+        const auto put = [&](unsigned bits, int frames) { for (; frames > 0; --frames) own.push_back({bits, bits, 0, 0}); };
+        const auto mark = [&] { anchor = static_cast<int>(own.size()); };
+        if (focusDash) {
+            // A focus cancel: focus as the hit lands, then the dash at once.
+            // The red focus is tapped and let go so the attack itself comes
+            // out and lands, and the dash cancels that hit.
+            const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
+            mark(); put(step.buttons, 2); put(0, 2);
+            if (red) own.push_back({0, 0, training::WaitHit, 0});
+            put(dash, 2); put(0, 2); put(dash, 2);
+        } else {
+            // A jumping move takes effect on its jump.
+            if (step.air) { mark(); put(DirectionBits('8', facingRight), 2); put(0, 10); }
+            unsigned last = 0;
+            // The wait held the motion's first direction, or a hold in its
+            // place; a lone direction goes in with the button either way,
+            // after a leading hold too.
+            const bool lone = motion.size() == 1 && buttons;
+            const bool firstHeld = (link && !idle) || ((link || afterLead) && lone);
+            const bool finish = step.cancel && !step.follow && after && !timed && buttons && !motion.empty();
+            int lastAt = static_cast<int>(own.size());
+            for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
+                // The same direction again is a new tap: a neutral frame between (a "66" dash).
+                if (i && motion[i] == motion[i - 1]) put(0, 1);
+                last = DirectionBits(motion[i], facingRight);
+                lastAt = static_cast<int>(own.size());
+                const bool held = firstHeld && i == 0;
+                put(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
             }
-            unsigned previous = 0;
-            for (int press = 0; press < presses; ++press) {
-                const auto& one = cycle[press % cycle.size()];
-                const unsigned direction = one.direction != '0' ? DirectionBits(one.direction, facingRight) : last;
-                // The same button twice in a row needs a frame off between, to be a new press.
-                if (one.button == previous) push(direction, 1);
-                push(direction | one.button, 1); previous = one.button;
+            // A move with no button takes effect on its last direction; one
+            // with a button, on it.
+            if (!buttons) { if (!step.air) anchor = lastAt; }
+            else {
+                if (step.cancel && !step.follow && after && !timed) own.push_back({last, last, training::WaitHit, clamp(timing)});
+                if (finish) last = DirectionBits(motion.back(), facingRight);
+                if (!step.air) mark();
+                if (step.edge == Edge::Hold) put(last | buttons, 30);
+                else if (step.edge == Edge::Release) { put(last | buttons, 30); put(last, 2); }
+                else if (step.mash) {
+                    // Five presses: several buttons are cycled one per frame (a piano),
+                    // one button goes on and off a frame at a time.
+                    std::vector<Step::MashPress> cycle = step.mashOrder;
+                    const int presses = cycle.empty() ? 5 : static_cast<int>(cycle.size());
+                    if (cycle.empty()) {
+                        std::vector<unsigned> bits;
+                        if (step.buttons == Punches) bits = {LP, MP, HP};
+                        else if (step.buttons == Kicks) bits = {LK, MK, HK};
+                        else for (unsigned bit = 1; bit; bit <<= 1) if (step.buttons & bit) bits.push_back(bit);
+                        for (unsigned bit : bits) cycle.push_back({'0', bit});
+                    }
+                    unsigned previous = 0;
+                    for (int press = 0; press < presses; ++press) {
+                        const auto& one = cycle[press % cycle.size()];
+                        const unsigned direction = one.direction != '0' ? DirectionBits(one.direction, facingRight) : last;
+                        // The same button twice in a row needs a frame off between, to be a new press.
+                        if (one.button == previous) put(direction, 1);
+                        put(direction | one.button, 1); previous = one.button;
+                    }
+                }
+                else put(last | buttons, 1);
+                // The button comes up before the next move, so its press is its own edge.
+                put(last, 1);
             }
         }
-        else push(last | buttons, 1);
-        // The button comes up before the next move, so its press is its own edge.
-        push(last, 1);
+        // On a frame, the move's anchor lands there ("@N" from it, but on the
+        // first move, whose "@N" is the reply's own), the frames before it
+        // held as a move's frames before its own input hold.
+        if (timed) gap(step.at + (after ? timing : 0) - (std::max)(anchor, 0) - static_cast<int>(out.size()));
+        for (int i = 0; i < static_cast<int>(own.size()); ++i) {
+            const int at = static_cast<int>(out.size());
+            if (add(own[i]) && i == anchor && !after) compiled.anchor = at;
+        }
     }
     push(0, 1);
     if (full) return fail("the moves take more than " + std::to_string(training::MaxFrames) + " frames");
+    // Holds and waits with no move after them lead into nothing the reply
+    // could time.
+    if (!steps.empty() && compiled.anchor < 0) return fail("a reply needs a move, not only holds and waits");
     return true;
 }
 } }

@@ -255,6 +255,28 @@ int main() {
                 CHECK(frames[0].raw == LP && (frames[60].raw & HP) && std::all_of(frames.begin() + 2, frames.begin() + 60 - motion,
                     [](const sf4e::training::Input& frame) { return frame.raw == Left && !frame.wait; }));
             }
+            // A "#N" move with no button, or a jumping one, lands where it takes
+            // effect (its last direction, its jump), not where its input starts;
+            // the first one's anchor is that same frame, its "@N" the reply's.
+            const auto all = [](const std::vector<sf4e::training::Input>& frames, int from, int to, unsigned bits) {
+                return std::all_of(frames.begin() + from, frames.begin() + to, [&](const sf4e::training::Input& frame) { return frame.raw == bits && !frame.wait; });
+            };
+            CHECK(Synthesize(Steps("[2]30f > 8#45"), true, compiled, error) && compiled.anchor == 45 && all(compiled.frames, 30, 45, 0) &&
+                all(compiled.frames, 45, 48, Up) && compiled.frames[29].raw == Down);
+            CHECK(Synthesize(Steps("[2]30f > 66#45@+2"), true, compiled, error) && compiled.anchor == 45 && compiled.offset == 2 &&
+                all(compiled.frames, 41, 44, Right) && compiled.frames[44].raw == 0 && all(compiled.frames, 45, 48, Right) && all(compiled.frames, 30, 41, 0));
+            CHECK(Synthesize(Steps("[2]2f > j.HK#20"), true, compiled, error) && compiled.anchor == 20 && compiled.frames[20].raw == Up && compiled.frames[32].raw == HK);
+            // Later ones, a hold before them held up to their own input, their "@N" from their frame.
+            CHECK(Synthesize(Steps("5LP > [4] > 8#60"), true, compiled, error) && all(compiled.frames, 2, 60, Left) && all(compiled.frames, 60, 63, Up));
+            CHECK(Synthesize(Steps("5LP > [4] > 8#60@+3"), true, compiled, error) && all(compiled.frames, 2, 63, Left) && compiled.frames[63].raw == Up);
+            CHECK(Synthesize(Steps("5LP > [4] > 66#60"), true, compiled, error) && all(compiled.frames, 2, 56, Left) && all(compiled.frames, 56, 59, Right) &&
+                compiled.frames[59].raw == 0 && compiled.frames[60].raw == Right);
+            CHECK(Synthesize(Steps("[2]2f > 5LP#10 > j.HK#30"), true, compiled, error) && compiled.frames[30].raw == Up && compiled.frames[29].raw == 0 &&
+                compiled.frames[42].raw == HK);
+            // Holds and waits with no move after them, or a first move with no
+            // input (a neutral "5"): nothing to time the reply by.
+            for (const char* line : {"[2]30f", "[2]30f > [4]10f", "[2]30f > 5f > [4]10f", "5", "5 > 5"})
+                CHECK(!Synthesize(Steps(line), true, compiled, error) && compiled.frames.empty() && compiled.anchor == -1 && !error.empty());
         }
         const auto spaced = Synth(Steps("5LP > 10f > 5MK"), true);
         const auto lp = std::find_if(spaced.begin(), spaced.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });
