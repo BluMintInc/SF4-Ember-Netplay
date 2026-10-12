@@ -308,6 +308,7 @@ std::uint64_t PublishFingerprint() {
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
+    mixString(runtime->padHint);
     mix(AtMainMenu());
     return h;
 }
@@ -399,6 +400,8 @@ PostPublishState Publish() {
     snapshot.inputCapture = runtime->input.State();
     snapshot.controllerReady = runtime->input.Ready();
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
+    if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle)
+        snapshot.padHint = runtime->padHint;
 
 	snapshot.atMainMenu = AtMainMenu();
 	snapshot.practiceMatch = training::MatchPracticeActive();

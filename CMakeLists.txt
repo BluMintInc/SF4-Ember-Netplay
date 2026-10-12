@@ -257,6 +257,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME GamepadSlots SOURCES src/tests/gamepad_slots_test.cxx STD 17)
     sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
+    sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
         src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx
@@ -364,6 +365,7 @@ endif()
 
 add_library(sf4e STATIC
     "src/sf4e/sf4e__Gamepads.cxx"
+    "src/sf4e/sf4e__DirectInputFilter.cxx"
     "src/sf4e/sf4e__ImportPatch.cxx"
     "src/sf4e/sf4e__InputDevices.cxx"
     "src/sf4e/sf4e.hxx"
@@ -430,7 +432,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__RuntimeBridge.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
-target_link_libraries(sf4e PRIVATE SDL3::SDL3-static)
+target_link_libraries(sf4e PRIVATE SDL3::SDL3-static dxguid)
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
 if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")

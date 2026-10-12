@@ -1278,6 +1278,12 @@ msgstr "Clavier"
 msgid "controller.numbered"
 msgstr "Manette {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} n'est pas connecté. Utilisation de {1} pour le moment."
+
+msgid "controller.connected_adopted"
+msgstr "{0} est connecté. Vous jouez avec."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (déconnecté)"
 

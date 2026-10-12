@@ -207,9 +207,15 @@ static void Restore() {
     CHECK(restored.device.Same(pad) && !restored.provisional);
     restored = input::RestoreController({keyboard, pad}, pad, keyboard);
     CHECK(restored.device.Same(keyboard) && !restored.provisional);
+    auto oldKeyboard = keyboard; oldKeyboard.index = 1;
+    restored = input::RestoreController({keyboard, pad}, pad, oldKeyboard);
+    CHECK(restored.device.Same(keyboard) && !restored.provisional);
     auto legacy = pad; legacy.identity = {};
     restored = input::RestoreController({keyboard, pad}, keyboard, legacy);
     CHECK(restored.device.Same(pad) && !restored.provisional);
+    auto wrongSlot = pad; wrongSlot.index = 0;
+    restored = input::RestoreController({keyboard, wrongSlot}, wrongSlot, legacy);
+    CHECK(restored.device.Same(wrongSlot) && restored.provisional);
     restored = input::RestoreController({keyboard}, keyboard, input::Device{});
     CHECK(restored.device.Same(keyboard) && restored.provisional);
 }

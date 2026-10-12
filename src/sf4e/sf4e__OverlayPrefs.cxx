@@ -111,7 +111,6 @@ namespace OverlayPrefs {
         data.randomStageExcluded = selection::NormalizeRandomExclusions(data.randomStageExcluded);
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
-        if ((data.deviceType != input::PadKeyboard && data.deviceType != input::PadXInput) || (data.deviceType == input::PadXInput && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
     }
 
 	void FromJson(const nlohmann::json& j, Data& out) {

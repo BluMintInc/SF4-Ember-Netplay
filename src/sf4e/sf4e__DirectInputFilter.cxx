@@ -1,0 +1,245 @@
+#include "sf4e__DirectInputFilter.hxx"
+#include "sf4e__Gamepads.hxx"
+#include "../common/DirectInputState.hxx"
+#include <spdlog/spdlog.h>
+#include <mutex>
+#include <new>
+#include <set>
+
+namespace sf4e { namespace DirectInputFilter {
+std::atomic<void*> originalCreate{nullptr};
+namespace {
+struct Ansi {
+    using Input = IDirectInput8A;
+    using Device = IDirectInputDevice8A;
+    using Instance = DIDEVICEINSTANCEA;
+    using Object = DIDEVICEOBJECTINSTANCEA;
+    using EnumDevices = LPDIENUMDEVICESCALLBACKA;
+    using EnumObjects = LPDIENUMDEVICEOBJECTSCALLBACKA;
+    using EnumEffects = LPDIENUMEFFECTSCALLBACKA;
+    using EffectInfo = DIEFFECTINFOA;
+    using ActionFormat = DIACTIONFORMATA;
+    using ImageInfo = DIDEVICEIMAGEINFOHEADERA;
+    using Semantics = LPDIENUMDEVICESBYSEMANTICSCBA;
+    using ConfigureParams = DICONFIGUREDEVICESPARAMSA;
+    using String = LPCSTR;
+    static const GUID& InputIid() { return IID_IDirectInput8A; }
+    static const GUID& DeviceIid() { return IID_IDirectInputDevice8A; }
+};
+struct Wide {
+    using Input = IDirectInput8W;
+    using Device = IDirectInputDevice8W;
+    using Instance = DIDEVICEINSTANCEW;
+    using Object = DIDEVICEOBJECTINSTANCEW;
+    using EnumDevices = LPDIENUMDEVICESCALLBACKW;
+    using EnumObjects = LPDIENUMDEVICEOBJECTSCALLBACKW;
+    using EnumEffects = LPDIENUMEFFECTSCALLBACKW;
+    using EffectInfo = DIEFFECTINFOW;
+    using ActionFormat = DIACTIONFORMATW;
+    using ImageInfo = DIDEVICEIMAGEINFOHEADERW;
+    using Semantics = LPDIENUMDEVICESBYSEMANTICSCBW;
+    using ConfigureParams = DICONFIGUREDEVICESPARAMSW;
+    using String = LPCWSTR;
+    static const GUID& InputIid() { return IID_IDirectInput8W; }
+    static const GUID& DeviceIid() { return IID_IDirectInputDevice8W; }
+};
+
+// One inner reference for the wrapper's entire lifetime, independent of the
+// number of references callers hold to its IUnknown or wrapped interface.
+template<class Interface>
+class OwnedCom : public Interface {
+public:
+    OwnedCom(Interface* inner, REFIID iid) : inner_(inner), iid_(iid) {}
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** out) override {
+        if (!out) return E_POINTER;
+        if (iid == IID_IUnknown || iid == iid_) {
+            *out = static_cast<Interface*>(this);
+            AddRef();
+            return S_OK;
+        }
+        return inner_->QueryInterface(iid, out);
+    }
+    ULONG STDMETHODCALLTYPE AddRef() override { return ++references_; }
+    ULONG STDMETHODCALLTYPE Release() override {
+        const ULONG left = --references_;
+        if (!left) delete this;
+        return left;
+    }
+protected:
+    virtual ~OwnedCom() { inner_->Release(); }
+    Interface* const inner_;
+private:
+    const GUID iid_;
+    std::atomic<ULONG> references_{1};
+};
+
+template<class Api>
+class Device final : public OwnedCom<typename Api::Device> {
+    using Base = OwnedCom<typename Api::Device>;
+    using Base::inner_;
+public:
+    Device(typename Api::Device* inner, Serves serves) : Base(inner, Api::DeviceIid()), serves_(serves) {
+        info_.dwSize = sizeof(info_);
+        inner_->GetDeviceInfo(&info_);
+    }
+    HRESULT STDMETHODCALLTYPE GetDeviceState(DWORD size, void* out) override {
+        if (!Served()) return inner_->GetDeviceState(size, out);
+        return neutral_.Write(size, out) ? DI_OK : DIERR_INVALIDPARAM;
+    }
+    HRESULT STDMETHODCALLTYPE GetDeviceData(DWORD size, DIDEVICEOBJECTDATA* out, DWORD* count, DWORD flags) override {
+        if (!Served()) return inner_->GetDeviceData(size, out, count, flags);
+        if (!count) return DIERR_INVALIDPARAM;
+        *count = 0;
+        return DI_OK;
+    }
+    HRESULT STDMETHODCALLTYPE SetDataFormat(const DIDATAFORMAT* format) override {
+        const HRESULT result = inner_->SetDataFormat(format);
+        if (SUCCEEDED(result)) {
+            std::vector<gamepads::NeutralState::Field> fields;
+            for (DWORD i = 0; i < format->dwNumObjs; ++i) {
+                const auto* object = reinterpret_cast<const DIOBJECTDATAFORMAT*>(
+                    reinterpret_cast<const BYTE*>(format->rgodf) + i * format->dwObjSize);
+                const auto type = DIDFT_GETTYPE(object->dwType);
+                if (!(type & (DIDFT_AXIS | DIDFT_POV))) continue;
+                const auto kind = (type & DIDFT_AXIS) ? gamepads::NeutralState::Kind::Axis :
+                    gamepads::NeutralState::Kind::Pov;
+                typename Api::Object resolved{};
+                resolved.dwSize = sizeof(resolved);
+                const DWORD id = SUCCEEDED(inner_->GetObjectInfo(&resolved, object->dwOfs, DIPH_BYOFFSET)) ?
+                    resolved.dwType : DIDFT_GETTYPE(object->dwType) | DIDFT_MAKEINSTANCE(DIDFT_GETINSTANCE(object->dwType));
+                fields.push_back({object->dwOfs, id, kind});
+            }
+            neutral_.SetFormat(format->dwDataSize, std::move(fields));
+        }
+        return result;
+    }
+    HRESULT STDMETHODCALLTYPE SetProperty(REFGUID property, const DIPROPHEADER* header) override {
+        const HRESULT result = inner_->SetProperty(property, header);
+        // DIPROP_* are pseudo GUID references (small integer addresses).
+        if (SUCCEEDED(result) && &property == &DIPROP_RANGE) {
+            const auto* range = reinterpret_cast<const DIPROPRANGE*>(header);
+            const gamepads::AxisRange values{range->lMin, range->lMax};
+            if (header->dwHow == DIPH_DEVICE) neutral_.SetRange(values);
+            else {
+                typename Api::Object object{};
+                object.dwSize = sizeof(object);
+                if (SUCCEEDED(inner_->GetObjectInfo(&object, header->dwObj, header->dwHow)))
+                    neutral_.SetRange(object.dwType, values);
+            }
+        }
+        return result;
+    }
+    HRESULT STDMETHODCALLTYPE GetCapabilities(DIDEVCAPS* a) override { return inner_->GetCapabilities(a); }
+    HRESULT STDMETHODCALLTYPE EnumObjects(typename Api::EnumObjects a, void* b, DWORD c) override { return inner_->EnumObjects(a,b,c); }
+    HRESULT STDMETHODCALLTYPE GetProperty(REFGUID a, DIPROPHEADER* b) override { return inner_->GetProperty(a,b); }
+    HRESULT STDMETHODCALLTYPE Acquire() override { return inner_->Acquire(); }
+    HRESULT STDMETHODCALLTYPE Unacquire() override { return inner_->Unacquire(); }
+    HRESULT STDMETHODCALLTYPE SetEventNotification(HANDLE a) override { return inner_->SetEventNotification(a); }
+    HRESULT STDMETHODCALLTYPE SetCooperativeLevel(HWND a, DWORD b) override { return inner_->SetCooperativeLevel(a,b); }
+    HRESULT STDMETHODCALLTYPE GetObjectInfo(typename Api::Object* a, DWORD b, DWORD c) override { return inner_->GetObjectInfo(a,b,c); }
+    HRESULT STDMETHODCALLTYPE GetDeviceInfo(typename Api::Instance* a) override { return inner_->GetDeviceInfo(a); }
+    HRESULT STDMETHODCALLTYPE RunControlPanel(HWND a, DWORD b) override { return inner_->RunControlPanel(a,b); }
+    HRESULT STDMETHODCALLTYPE Initialize(HINSTANCE a, DWORD b, REFGUID c) override { return inner_->Initialize(a,b,c); }
+    HRESULT STDMETHODCALLTYPE CreateEffect(REFGUID a, const DIEFFECT* b, IDirectInputEffect** c, IUnknown* d) override { return inner_->CreateEffect(a,b,c,d); }
+    HRESULT STDMETHODCALLTYPE EnumEffects(typename Api::EnumEffects a, void* b, DWORD c) override { return inner_->EnumEffects(a,b,c); }
+    HRESULT STDMETHODCALLTYPE GetEffectInfo(typename Api::EffectInfo* a, REFGUID b) override { return inner_->GetEffectInfo(a,b); }
+    HRESULT STDMETHODCALLTYPE GetForceFeedbackState(DWORD* a) override { return inner_->GetForceFeedbackState(a); }
+    HRESULT STDMETHODCALLTYPE SendForceFeedbackCommand(DWORD a) override { return inner_->SendForceFeedbackCommand(a); }
+    HRESULT STDMETHODCALLTYPE EnumCreatedEffectObjects(LPDIENUMCREATEDEFFECTOBJECTSCALLBACK a, void* b, DWORD c) override { return inner_->EnumCreatedEffectObjects(a,b,c); }
+    HRESULT STDMETHODCALLTYPE Escape(DIEFFESCAPE* a) override { return inner_->Escape(a); }
+    HRESULT STDMETHODCALLTYPE Poll() override { return inner_->Poll(); }
+    HRESULT STDMETHODCALLTYPE SendDeviceData(DWORD a, const DIDEVICEOBJECTDATA* b, DWORD* c, DWORD d) override { return inner_->SendDeviceData(a,b,c,d); }
+    HRESULT STDMETHODCALLTYPE EnumEffectsInFile(typename Api::String a, LPDIENUMEFFECTSINFILECALLBACK b, void* c, DWORD d) override { return inner_->EnumEffectsInFile(a,b,c,d); }
+    HRESULT STDMETHODCALLTYPE WriteEffectToFile(typename Api::String a, DWORD b, DIFILEEFFECT* c, DWORD d) override { return inner_->WriteEffectToFile(a,b,c,d); }
+    HRESULT STDMETHODCALLTYPE BuildActionMap(typename Api::ActionFormat* a, typename Api::String b, DWORD c) override { return inner_->BuildActionMap(a,b,c); }
+    HRESULT STDMETHODCALLTYPE SetActionMap(typename Api::ActionFormat* a, typename Api::String b, DWORD c) override { return inner_->SetActionMap(a,b,c); }
+    HRESULT STDMETHODCALLTYPE GetImageInfo(typename Api::ImageInfo* a) override { return inner_->GetImageInfo(a); }
+private:
+    bool Served() const { return serves_(info_.guidInstance, info_.guidProduct.Data1); }
+    const Serves serves_;
+    typename Api::Instance info_{};
+    gamepads::NeutralState neutral_;
+};
+
+template<class Api>
+class Input final : public OwnedCom<typename Api::Input> {
+    using Base = OwnedCom<typename Api::Input>;
+    using Base::inner_;
+public:
+    Input(typename Api::Input* inner, Serves serves) : Base(inner, Api::InputIid()), serves_(serves) {}
+    HRESULT STDMETHODCALLTYPE CreateDevice(REFGUID guid, typename Api::Device** out, IUnknown* outer) override {
+        const HRESULT result = inner_->CreateDevice(guid, out, outer);
+        if (FAILED(result) || !out || !*out || outer) return result;
+        auto* wrapped = new(std::nothrow) Device<Api>(*out, serves_);
+        if (!wrapped) { (*out)->Release(); *out = nullptr; return E_OUTOFMEMORY; }
+        *out = wrapped;
+        return result;
+    }
+    HRESULT STDMETHODCALLTYPE EnumDevices(DWORD type, typename Api::EnumDevices callback, void* context, DWORD flags) override {
+        if (!callback) return inner_->EnumDevices(type, callback, context, flags);
+        Enumeration enumeration{serves_, callback, context};
+        return inner_->EnumDevices(type, Enumerate, &enumeration, flags);
+    }
+    HRESULT STDMETHODCALLTYPE GetDeviceStatus(REFGUID a) override { return inner_->GetDeviceStatus(a); }
+    HRESULT STDMETHODCALLTYPE RunControlPanel(HWND a, DWORD b) override { return inner_->RunControlPanel(a,b); }
+    HRESULT STDMETHODCALLTYPE Initialize(HINSTANCE a, DWORD b) override { return inner_->Initialize(a,b); }
+    HRESULT STDMETHODCALLTYPE FindDevice(REFGUID a, typename Api::String b, GUID* c) override { return inner_->FindDevice(a,b,c); }
+    HRESULT STDMETHODCALLTYPE EnumDevicesBySemantics(typename Api::String a, typename Api::ActionFormat* b, typename Api::Semantics c, void* d, DWORD e) override { return inner_->EnumDevicesBySemantics(a,b,c,d,e); }
+    HRESULT STDMETHODCALLTYPE ConfigureDevices(LPDICONFIGUREDEVICESCALLBACK a, typename Api::ConfigureParams* b, DWORD c, void* d) override { return inner_->ConfigureDevices(a,b,c,d); }
+private:
+    struct Enumeration { Serves serves; typename Api::EnumDevices callback; void* context; };
+    static BOOL CALLBACK Enumerate(const typename Api::Instance* device, void* context) {
+        auto& enumeration = *static_cast<Enumeration*>(context);
+        return enumeration.serves(device->guidInstance, device->guidProduct.Data1) ? DIENUM_CONTINUE :
+            enumeration.callback(device, enumeration.context);
+    }
+    const Serves serves_;
+};
+
+template<class Wrapper, class Interface>
+HRESULT WrapOwned(void** object, Serves serves) {
+    auto* wrapped = new(std::nothrow) Wrapper(static_cast<Interface*>(*object), serves);
+    if (!wrapped) return E_OUTOFMEMORY;
+    *object = static_cast<Interface*>(wrapped);
+    return S_OK;
+}
+
+struct GuidLess {
+    bool operator()(const GUID& a, const GUID& b) const { return std::memcmp(&a, &b, sizeof(GUID)) < 0; }
+};
+bool ServesDevice(const GUID& instance, DWORD product) {
+    // ReadPads releases the layer lock before logging or calling any COM method.
+    const auto pads = Gamepads::ReadPads();
+    if (!gamepads::Served(product, pads)) return false;
+    static std::mutex logMutex;
+    static std::set<GUID, GuidLess> hidden;
+    std::lock_guard lock(logMutex);
+    if (hidden.insert(instance).second) {
+        const auto pad = std::find_if(pads.begin(), pads.end(), [&](const gamepads::Pad& pad) {
+            return product == (DWORD(pad.pid) << 16 | pad.vid);
+        });
+        spdlog::info("Input: hiding DirectInput copy of '{}' {:04X}:{:04X}", pad->identity.name, pad->vid, pad->pid);
+    }
+    return true;
+}
+}
+
+HRESULT Wrap(REFIID iid, void** object, Serves serves) {
+    if (!object || !*object || !serves) return E_INVALIDARG;
+    if (iid == IID_IDirectInput8A) return WrapOwned<Input<Ansi>, Ansi::Input>(object, serves);
+    if (iid == IID_IDirectInput8W) return WrapOwned<Input<Wide>, Wide::Input>(object, serves);
+    if (iid == IID_IDirectInputDevice8A) return WrapOwned<Device<Ansi>, Ansi::Device>(object, serves);
+    if (iid == IID_IDirectInputDevice8W) return WrapOwned<Device<Wide>, Wide::Device>(object, serves);
+    return E_NOINTERFACE;
+}
+
+HRESULT WINAPI Create(HINSTANCE instance, DWORD version, REFIID iid, void** out, IUnknown* outer) {
+    const auto original = reinterpret_cast<decltype(&DirectInput8Create)>(originalCreate.load());
+    const HRESULT result = original(instance, version, iid, out, outer);
+    if (FAILED(result) || !out || !*out || outer || (iid != IID_IDirectInput8A && iid != IID_IDirectInput8W)) return result;
+    const HRESULT wrapped = Wrap(iid, out, ServesDevice);
+    if (FAILED(wrapped)) { static_cast<IUnknown*>(*out)->Release(); *out = nullptr; return wrapped; }
+    return result;
+}
+
+} }

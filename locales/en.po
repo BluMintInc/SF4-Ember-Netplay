@@ -1278,6 +1278,12 @@ msgstr "Keyboard"
 msgid "controller.numbered"
 msgstr "Controller {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} is not connected. Using {1} for now."
+
+msgid "controller.connected_adopted"
+msgstr "{0} connected. You play with it."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (disconnected)"
 

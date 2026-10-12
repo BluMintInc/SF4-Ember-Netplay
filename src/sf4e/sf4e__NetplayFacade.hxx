@@ -206,6 +206,7 @@ namespace sf4e {
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
+            std::string padHint;
             bool canChangeController = false, controllerReady = false;
             // The identity as the helper last reported it. identityTicket is the
             // interface's last request the runtime handled, and identityRequest

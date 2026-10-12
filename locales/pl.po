@@ -1278,6 +1278,12 @@ msgstr "Klawiatura"
 msgid "controller.numbered"
 msgstr "Kontroler {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} nie jest podłączony. Na razie używasz {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} jest podłączony. Grasz na nim."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (odłączony)"
 

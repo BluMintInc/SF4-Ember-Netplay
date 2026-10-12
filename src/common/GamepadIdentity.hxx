@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include <tuple>
 
@@ -15,6 +16,13 @@ struct Identity {
 inline bool Same(const Identity& a, const Identity& b) {
     if (!a.serial.empty() && !b.serial.empty()) return a.serial == b.serial;
     return a.guid == b.guid && a.path == b.path;
+}
+
+// Stable short log tag. Keep serials and paths out of the logs themselves.
+inline std::uint32_t IdentityHash(const Identity& identity) {
+    std::uint32_t hash = 2166136261u;
+    for (unsigned char c : identity.serial.empty() ? identity.path : identity.serial) hash = (hash ^ c) * 16777619u;
+    return hash;
 }
 
 } }

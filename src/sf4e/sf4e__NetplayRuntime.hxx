@@ -65,6 +65,7 @@
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
+void LogGameplayController(const input::Device& device, const char* reason);
 // The lifecycle trace records only changes. Publish runs every application
 // tick, so the traced values are compared here first and the JSON document is
 // built only when one of them moved.
@@ -121,6 +122,8 @@ struct Runtime {
 
     input::Assignment input;
     bool inputInitialized = false;
+    std::string padHint;
+    ULONGLONG padHintUntil = 0;
     input::Device matchInput;
     int matchInputSide=-1;
     bool matchInputFault=false;

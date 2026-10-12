@@ -676,7 +676,15 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
             draw(nullptr,MenuInput::Back,1);draw();
-            view.error="The helper stopped responding. Ember is restarting it.";page("home");draw("home-status");view.error.clear();
+            std::string controllerStatus;Tone controllerTone=Tone::Neutral;
+            SetMenuStatusProbe([&](const char* status,Tone tone){controllerStatus=status;controllerTone=tone;});
+            view.padHint=loc::Tf("controller.using_for_now","Saved pad","Other pad");page("home");
+            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Provisional controller hint did not reach Home's status");
+            view.error="The helper stopped responding. Ember is restarting it.";draw("home-status");
+            Require(controllerStatus==view.error&&controllerTone==Tone::Error,"Controller hint replaced a Home error");
+            view.error.clear();view.padHint=loc::Tf("controller.connected_adopted","Saved pad");draw("controller-restored");
+            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Restored controller hint did not reach Home's status");
+            view.padHint.clear();SetMenuStatusProbe({});
             view.inputCapture=input::Capture::ReleaseAll;draw("controller-assignment");view.inputCapture=input::Capture::Idle;
             view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
             page("main-character");

@@ -1278,6 +1278,12 @@ msgstr "键盘"
 msgid "controller.numbered"
 msgstr "控制器 {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} 未连接。暂时使用 {1}。"
+
+msgid "controller.connected_adopted"
+msgstr "{0} 已连接。你将使用它游玩。"
+
 msgid "controller.disconnected_name"
 msgstr "{0}（已断开）"
 

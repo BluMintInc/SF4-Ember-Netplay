@@ -1278,6 +1278,12 @@ msgstr "Tastatur"
 msgid "controller.numbered"
 msgstr "Controller {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} ist nicht verbunden. Vorerst wird {1} verwendet."
+
+msgid "controller.connected_adopted"
+msgstr "{0} ist verbunden. Du spielst damit."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (getrennt)"
 

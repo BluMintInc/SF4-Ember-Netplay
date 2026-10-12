@@ -4,6 +4,8 @@
 // menu shown, a match being prepared gives the pads back to the game at once,
 // and behind another window the menu still holds them at the main menu.
 #include "../sf4e/sf4e__Overlay.hxx"
+#include "../sf4e/sf4e__OverlayPrefs.hxx"
+#include "../netplay/ControllerRestore.hxx"
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -11,6 +13,45 @@
 #include "test_support.hxx"
 
 int main() {
+    {
+        namespace input = sf4e::input;
+        namespace prefs = sf4e::OverlayPrefs;
+        input::Device keyboard{input::PadKeyboard, 0, "Keyboard", true};
+        input::Device pad{input::PadXInput, 2, "Controller 3", true};
+        pad.identity = {"guid", "serial", "path", "Recognised pad"};
+        // The old slot save adopts the recognised occupant and round-trips its identity.
+        prefs::Data old;
+        prefs::FromJson({{"device", {{"type", input::PadXInput}, {"idx", 2}}}}, old);
+        input::Device saved; saved.type = old.deviceType; saved.index = old.deviceIdx;
+        auto restored = input::RestoreController({keyboard, pad}, keyboard, saved);
+        CHECK(!restored.provisional && restored.device.Same(pad));
+        old.deviceIdentity = restored.device.identity;
+        prefs::Data migrated;
+        prefs::FromJson(prefs::ToJson(old), migrated);
+        CHECK(migrated.deviceIdentity && *migrated.deviceIdentity == pad.identity);
+        saved.identity = *migrated.deviceIdentity;
+        auto other = pad; other.identity.serial = "other";
+        restored = input::RestoreController({keyboard, other}, other, saved);
+        CHECK(restored.provisional && restored.device.Same(other));
+        pad.index = 0;
+        restored = input::RestoreController({keyboard, other, pad}, other, saved);
+        CHECK(!restored.provisional && restored.device.Same(saved) && restored.device.index == 0);
+        CHECK(*migrated.deviceIdentity == saved.identity);
+        // Capture follows the candidate's identity while it releases in a different slot.
+        input::Assignment capture;
+        capture.Begin(); capture.Tick({keyboard, pad});
+        pad.buttons = 1; capture.Tick({keyboard, pad});
+        CHECK(capture.State() == input::Capture::ReleaseSelected);
+        pad.index = 1; pad.buttons = 0;
+        CHECK(capture.Tick({keyboard, pad}) && capture.Selected().index == 1);
+        // Unmapped DirectInput choices keep the original type/index persistence.
+        prefs::Data direct;
+        direct.deviceType = input::PadDirectInput; direct.deviceIdx = 5;
+        prefs::Clamp(direct);
+        prefs::Data roundTrip;
+        prefs::FromJson(prefs::ToJson(direct), roundTrip); prefs::Clamp(roundTrip);
+        CHECK(roundTrip.deviceType == input::PadDirectInput && roundTrip.deviceIdx == 5 && !roundTrip.deviceIdentity);
+    }
     namespace Overlay = sf4e::Overlay;
     using sf4e::input::MenuContext;
     auto& pads = Overlay::MenuPads();

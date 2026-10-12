@@ -13,13 +13,15 @@ inline RestoredController RestoreController(const std::vector<Device>& devices, 
     Device only, keyboard;
     unsigned pads = 0;
     for (const auto& device : devices) if (device.connected) {
-        const bool matches = saved.identity.guid.empty() ? device.type == saved.type && device.index == saved.index :
+        const bool matches = saved.identity.guid.empty() ? device.type == saved.type &&
+            (saved.type == PadKeyboard || device.index == saved.index) :
             !device.identity.guid.empty() && gamepads::Same(device.identity, saved.identity);
         if (matches) return {device, false};
         if (device.type == PadKeyboard) keyboard = device;
         else { only = device; ++pads; }
     }
-    if (!saved.identity.guid.empty()) return {pads == 1 ? only : pads == 0 ? keyboard : Device{}, true};
+    if (!saved.identity.guid.empty() || saved.type == PadXInput || saved.type == PadDirectInput)
+        return {pads == 1 ? only : pads == 0 ? keyboard : Device{}, true};
     return {native, native.type == PadKeyboard && saved.type != PadKeyboard};
 }
 

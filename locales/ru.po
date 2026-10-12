@@ -1279,6 +1279,12 @@ msgstr "Клавиатура"
 msgid "controller.numbered"
 msgstr "Контроллер {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} не подключён. Пока используется {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} подключён. Теперь вы играете с ним."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (отключено)"
 

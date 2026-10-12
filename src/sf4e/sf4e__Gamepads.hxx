@@ -3,7 +3,8 @@
 
 namespace sf4e { namespace Gamepads {
 
-// Install only arms startup in DllMain. Start and Shutdown run on Main's game thread.
+// Install patches imports in DllMain. Providers pass through until Start succeeds.
+// Start and Shutdown run on Main's game thread.
 void Install();
 void Start();
 void Update();

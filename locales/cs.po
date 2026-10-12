@@ -1278,6 +1278,12 @@ msgstr "Klávesnice"
 msgid "controller.numbered"
 msgstr "Ovladač {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} není připojen. Zatím používáte {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} je připojen. Hrajete s ním."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (odpojeno)"
 

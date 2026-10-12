@@ -1278,6 +1278,12 @@ msgstr "Tastiera"
 msgid "controller.numbered"
 msgstr "Controller {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} non è connesso. Per ora usi {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} connesso. Ora giochi con questo controller."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (scollegato)"
 

@@ -295,6 +295,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.discordRevision=snapshot.discordRevision;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
     view.inputDevice = snapshot.inputDevice;
+    view.padHint = snapshot.padHint;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
     view.canChangeController = snapshot.canChangeController;
@@ -589,6 +590,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room, call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
+    layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown) {
         const auto& caption = snapshot.replays.caption;
         auto& shown = layers.caption;

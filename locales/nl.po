@@ -1278,6 +1278,12 @@ msgstr "Toetsenbord"
 msgid "controller.numbered"
 msgstr "Controller {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} is niet verbonden. Je gebruikt voorlopig {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} is verbonden. Je speelt ermee."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (niet verbonden)"
 

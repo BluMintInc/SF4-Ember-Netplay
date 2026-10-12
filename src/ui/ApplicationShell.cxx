@@ -514,6 +514,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // vanish because a preference write happens to be in flight. Save failures
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
+ if(!v.padHint.empty()&&statusTone!=Tone::Error){status=v.padHint;statusTone=Tone::Neutral;}
  // The failed language save is about the row on the Interface screen, so it
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}

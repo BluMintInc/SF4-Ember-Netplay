@@ -1278,6 +1278,12 @@ msgstr "Teclado"
 msgid "controller.numbered"
 msgstr "Controle {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} não está conectado. Usando {1} por enquanto."
+
+msgid "controller.connected_adopted"
+msgstr "{0} conectado. Você joga com ele."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (desconectado)"
 

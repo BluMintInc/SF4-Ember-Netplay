@@ -1278,6 +1278,12 @@ msgstr "キーボード"
 msgid "controller.numbered"
 msgstr "コントローラー {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} が接続されていません。今は {1} を使用します。"
+
+msgid "controller.connected_adopted"
+msgstr "{0} が接続されました。このコントローラーでプレイします。"
+
 msgid "controller.disconnected_name"
 msgstr "{0}（未接続）"
 

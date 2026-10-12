@@ -691,7 +691,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.editionSelect = settings.editionSelect;
     payload.netplay.roundCount = settings.roundCount;
     payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
-    payload.netplay.deviceIdx = payload.netplay.deviceType = 0xff;
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
     // The game reads the room link once at start and clears it (NetplayRuntime).

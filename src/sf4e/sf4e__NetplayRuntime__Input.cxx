@@ -1,5 +1,4 @@
 #include "sf4e__NetplayRuntime.hxx"
-#include "sf4e__Gamepads.hxx"
 #include "../netplay/ControllerRestore.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -19,44 +18,70 @@ std::string ControllerLabel(const input::Device& device) {
     return device.connected ? DeviceName(device) : loc::Tf("controller.disconnected_name", DeviceName(device));
 }
 
+void LogGameplayController(const input::Device& device, const char* reason) {
+    spdlog::info("Input: gameplay controller '{}' id {:08x} slot {} by {}", DeviceName(device),
+        gamepads::IdentityHash(device.identity), device.index, reason);
+}
+
+namespace {
+void RestoreMenuController() {
+    OverlayPrefs::Data prefs;
+    OverlayPrefs::Load(prefs);
+    input::Device saved;
+    saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
+    if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;
+    const auto restored = input::RestoreController(runtime->inputDevices, input::MenuDevice(runtime->inputDevices), saved);
+    const auto& device = restored.device;
+    runtime->inputInitialized = !restored.provisional && device.connected;
+    if (!device.connected) {
+        if (!runtime->inputDevices.empty()) runtime->input.Begin();
+        return;
+    }
+    const bool migration = !prefs.deviceIdentity && prefs.deviceType == input::PadXInput &&
+        !device.identity.guid.empty() && !restored.provisional;
+    if (!restored.provisional && !device.identity.guid.empty())
+        OverlayPrefs::SaveGameplayDevice(device.type, device.index, device.identity);
+    const auto& previous = runtime->input.Selected();
+    if (previous.connected && previous.Same(device)) return;
+    if (prefs.deviceIdentity) {
+        if (restored.provisional) {
+            runtime->padHint = device.type == input::PadKeyboard ? std::string{} :
+                loc::Tf("controller.using_for_now", prefs.deviceIdentity->name, DeviceName(device));
+            spdlog::info("Input: saved controller id {:08x} not connected; using '{}' for now",
+                gamepads::IdentityHash(*prefs.deviceIdentity), DeviceName(device));
+        } else {
+            runtime->padHint = previous.type < 0 ? std::string{} : loc::Tf("controller.connected_adopted", DeviceName(device));
+            spdlog::info("Input: saved controller '{}' id {:08x} restored to slot {}",
+                DeviceName(device), gamepads::IdentityHash(device.identity), device.index);
+        }
+        runtime->padHintUntil = GetTickCount64() + 4000;
+    }
+    runtime->input.Adopt(device);
+    LogGameplayController(device, migration ? "migration" : restored.provisional && device.type != input::PadKeyboard ? "only pad" : "restore");
+    if (device.type != input::PadKeyboard && !input::AssignToSide(device, 0, false)) runtime->input.Begin();
+}
+}
+
 void CaptureMenuInput() {
+    if (GetTickCount64() >= runtime->padHintUntil) runtime->padHint.clear();
     if (AtMainMenu()) {
         runtime->inputDevices = input::ReadDevices();
         input::LogInventory(runtime->inputDevices);
         if (!runtime->inputInitialized && runtime->input.State()==input::Capture::Idle &&
-            runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) {
-            OverlayPrefs::Data prefs;
-            if (!OverlayPrefs::Load(prefs)) {
-                prefs.deviceType = GetConfig().deviceType; prefs.deviceIdx = GetConfig().deviceIdx;
-            }
-            input::Device saved;
-            saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
-            if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;
-            const auto restored = input::RestoreController(runtime->inputDevices, input::MenuDevice(runtime->inputDevices), saved);
-            const auto& device = restored.device;
-            runtime->inputInitialized = !restored.provisional && device.connected;
-            if (device.connected) {
-                if (!prefs.deviceIdentity || !restored.provisional) {
-                    const auto identity = device.type == input::PadXInput ? Gamepads::IdentityForSlot(device.index) : std::nullopt;
-                    if (identity) OverlayPrefs::SaveGameplayDevice(device.type, device.index, identity);
-                }
-                if (!runtime->input.Selected().connected || !runtime->input.Selected().Same(device)) {
-                    runtime->input.Adopt(device);
-                    if(device.type!=Dimps::Pad::PADTYPE_RAWINPUT&&!input::AssignToSide(device,0,false))runtime->input.Begin();
-                }
-            } else if(!runtime->inputDevices.empty())runtime->input.Begin();
-        }
+            runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) RestoreMenuController();
         const int previousIndex = runtime->input.Selected().index;
         const bool captured = runtime->input.Tick(runtime->inputDevices);
         const auto& chosen = runtime->input.Selected();
         const bool moved = runtime->input.Ready() && chosen.index != previousIndex &&
             runtime->controller.GetSnapshot().room == netplay::RoomState::Idle;
         if (captured || moved) {
+            if (captured) runtime->padHint.clear();
             if (captured) runtime->inputInitialized=true;
-            if (runtime->inputInitialized && chosen.type == input::PadXInput) {
-                const auto identity = Gamepads::IdentityForSlot(chosen.index);
-                if (identity) OverlayPrefs::SaveGameplayDevice(chosen.type, chosen.index, identity);
+            if (runtime->inputInitialized) {
+                const auto identity = chosen.identity.guid.empty() ? std::nullopt : std::make_optional(chosen.identity);
+                OverlayPrefs::SaveGameplayDevice(chosen.type, chosen.index, identity);
             }
+            LogGameplayController(chosen, captured ? "capture" : "restore");
             if(!input::AssignToSide(runtime->input.Selected(),0,false))runtime->input.Begin();
         }
         if (UserApp::netplay && runtime->input.Ready()) {

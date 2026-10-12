@@ -83,6 +83,7 @@ struct ShellView {
     netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
     platform::ServiceSnapshot services;
     std::string controller;
+    std::string padHint;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;

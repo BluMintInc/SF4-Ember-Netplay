@@ -1,5 +1,6 @@
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__ImportPatch.hxx"
+#include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "../common/XInputMapping.hxx"
 #include <windows.h>
@@ -71,10 +72,7 @@ const char* TypeName(Type type) {
 }
 
 std::string IdentityTag(const Identity& identity) {
-    // Stable short tag; never log the serial or device path itself.
-    std::uint32_t hash = 2166136261u;
-    for (unsigned char c : identity.serial.empty() ? identity.path : identity.serial) hash = (hash ^ c) * 16777619u;
-    return fmt::format("{:08x}", hash);
+    return fmt::format("{:08x}", IdentityHash(identity));
 }
 
 void LogLocked() {
@@ -194,8 +192,12 @@ void UpdateLocked(bool rebuild) {
 }
 
 DWORD WINAPI GetState(DWORD slot, XINPUT_STATE* out) {
-    if (!out) return ERROR_BAD_ARGUMENTS;
     std::shared_lock lock(mutex);
+    if (!active) {
+        lock.unlock();
+        return reinterpret_cast<decltype(&XInputGetState)>(originalState.load())(slot, out);
+    }
+    if (!out) return ERROR_BAD_ARGUMENTS;
     if (slot >= snapshots.size() || !snapshots[slot].id) return ERROR_DEVICE_NOT_CONNECTED;
     const auto& state = snapshots[slot];
     const auto& f = state.fields;
@@ -203,9 +205,13 @@ DWORD WINAPI GetState(DWORD slot, XINPUT_STATE* out) {
     return ERROR_SUCCESS;
 }
 
-DWORD WINAPI GetCapabilities(DWORD slot, DWORD, XINPUT_CAPABILITIES* out) {
-    if (!out) return ERROR_BAD_ARGUMENTS;
+DWORD WINAPI GetCapabilities(DWORD slot, DWORD flags, XINPUT_CAPABILITIES* out) {
     std::shared_lock lock(mutex);
+    if (!active) {
+        lock.unlock();
+        return reinterpret_cast<decltype(&XInputGetCapabilities)>(originalCapabilities.load())(slot, flags, out);
+    }
+    if (!out) return ERROR_BAD_ARGUMENTS;
     if (slot >= snapshots.size() || !snapshots[slot].id) return ERROR_DEVICE_NOT_CONNECTED;
     *out = {};
     out->Type = XINPUT_DEVTYPE_GAMEPAD; out->SubType = XINPUT_DEVSUBTYPE_GAMEPAD;
@@ -215,8 +221,12 @@ DWORD WINAPI GetCapabilities(DWORD slot, DWORD, XINPUT_CAPABILITIES* out) {
 }
 
 DWORD WINAPI SetState(DWORD slot, XINPUT_VIBRATION* vibration) {
-    if (!vibration) return ERROR_BAD_ARGUMENTS;
     std::shared_lock lock(mutex);
+    if (!active) {
+        lock.unlock();
+        return reinterpret_cast<decltype(&XInputSetState)>(originalRumble.load())(slot, vibration);
+    }
+    if (!vibration) return ERROR_BAD_ARGUMENTS;
     if (slot >= snapshots.size() || !snapshots[slot].id) return ERROR_DEVICE_NOT_CONNECTED;
     const auto handle = handles.find(snapshots[slot].id);
     if (handle == handles.end()) return ERROR_DEVICE_NOT_CONNECTED;
@@ -225,8 +235,12 @@ DWORD WINAPI SetState(DWORD slot, XINPUT_VIBRATION* vibration) {
 }
 
 DWORD WINAPI GetBattery(DWORD slot, BYTE deviceType, XINPUT_BATTERY_INFORMATION* out) {
-    if (!out) return ERROR_BAD_ARGUMENTS;
     std::shared_lock lock(mutex);
+    if (!active) {
+        lock.unlock();
+        return reinterpret_cast<decltype(&XInputGetBatteryInformation)>(originalBattery.load())(slot, deviceType, out);
+    }
+    if (!out) return ERROR_BAD_ARGUMENTS;
     if (slot >= snapshots.size() || !snapshots[slot].id || deviceType != BATTERY_DEVTYPE_GAMEPAD)
         return ERROR_DEVICE_NOT_CONNECTED;
     *out = {BATTERY_TYPE_WIRED, BATTERY_LEVEL_FULL};
@@ -242,12 +256,22 @@ void CloseLocked() {
 }
 }
 
-void Install() { requested = true; }
+void Install() {
+    // DirectInput's window-aware device init at 0x718CE0 can precede Main::Initialize.
+    // Arm every import here; the providers preserve native input until Start succeeds.
+    requested = imports::PatchImports(GetModuleHandleW(nullptr), {
+        {"XINPUT9_1_0.dll", "XInputGetState", reinterpret_cast<void*>(&GetState), originalState},
+        {"XINPUT9_1_0.dll", "XInputGetCapabilities", reinterpret_cast<void*>(&GetCapabilities), originalCapabilities},
+        {"XINPUT9_1_0.dll", "XInputSetState", reinterpret_cast<void*>(&SetState), originalRumble},
+        {"XINPUT1_3.dll", WORD(7), reinterpret_cast<void*>(&GetBattery), originalBattery},
+        {"DINPUT8.dll", "DirectInput8Create", reinterpret_cast<void*>(&DirectInputFilter::Create), DirectInputFilter::originalCreate}});
+}
 
 void Start() {
     std::unique_lock lock(mutex);
-    if (!requested || started) return;
+    if (started) return;
     started = true;
+    if (!requested) { startupNote = "Input: controller layer off (game imports could not be patched)"; return; }
     OverlayPrefs::Data prefs;
     OverlayPrefs::Load(prefs);
     if (!prefs.controllerLayer) { startupNote = "Input: controller layer off (setting)"; return; }
@@ -264,15 +288,6 @@ void Start() {
         return;
     }
     UpdateLocked(true);
-    if (!imports::PatchImports(GetModuleHandleW(nullptr), {
-        {"XINPUT9_1_0.dll", "XInputGetState", reinterpret_cast<void*>(&GetState), originalState},
-        {"XINPUT9_1_0.dll", "XInputGetCapabilities", reinterpret_cast<void*>(&GetCapabilities), originalCapabilities},
-        {"XINPUT9_1_0.dll", "XInputSetState", reinterpret_cast<void*>(&SetState), originalRumble},
-        {"XINPUT1_3.dll", WORD(7), reinterpret_cast<void*>(&GetBattery), originalBattery}})) {
-        startupNote = "Input: controller layer off (game imports could not be patched)";
-        CloseLocked();
-        return;
-    }
     active = true;
 }
 

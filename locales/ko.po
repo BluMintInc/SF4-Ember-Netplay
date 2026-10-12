@@ -1278,6 +1278,12 @@ msgstr "키보드"
 msgid "controller.numbered"
 msgstr "컨트롤러 {0}"
 
+msgid "controller.using_for_now"
+msgstr "{0} 연결이 끊겼습니다. 지금은 {1} 장치를 사용합니다."
+
+msgid "controller.connected_adopted"
+msgstr "{0} 장치가 연결되었습니다. 이 장치로 플레이합니다."
+
 msgid "controller.disconnected_name"
 msgstr "{0} (연결 끊김)"
 
