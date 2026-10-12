@@ -757,10 +757,13 @@ int main() {
                 Require(seen.held == 1 && seen.until == -1 && !seen.freed, "An unseen stun was timed");
             }
             const auto first = watch.Observe(sample(0, 0, 0), 0);
-            Require(first.freed == 1 && !watch.Observe(sample(0, 0, 1), 0).freed, "A hit's end was not reported once");
+            const auto next = watch.Observe(sample(0, 0, 1), 0);
+            Require(first.freed == 1 && !next.freed, "A hit's end was not reported once");
+            // While free it counts the frames since, and what it came out of.
+            Require(first.free == 0 && first.out == 1 && next.free == 1 && next.out == 1, "The frames since the dummy was free were miscounted");
             // The same hit again counts down to its free frame, and a second hit in it starts over.
             auto seen = watch.Observe(sample(21, 300, 0, 10), 100);
-            Require(seen.until == 5 && seen.stretch != first.stretch, "A seen stun was not timed");
+            Require(seen.until == 5 && seen.stretch != first.stretch && seen.free == -1 && !seen.out, "A seen stun was not timed");
             Require(watch.Observe(sample(21, 300, 1, 10), 100).until == 4, "The stun did not count down");
             seen = watch.Observe(sample(21, 300, 2, 20), 100);
             Require(seen.until == 5, "A second hit did not start the stun over");
@@ -771,6 +774,11 @@ int main() {
             Require(ReplyDue(left, 3, 0) && !ReplyDue(left, 3, 1) && ReplyDue(first, 0, 0), "The reply was not due on its frame");
             left.until = -1;
             Require(!ReplyDue(left, 3, 0), "A reply was due in an untimed stun");
+            // Free, a later timing waits past the free frame: due as many frames after it as the timing is past the lead.
+            DummySeen after; after.free = 0;
+            Require(ReplyDue(after, 3, 4) && !ReplyDue(after, 3, 5), "A reply past the free frame was due too soon");
+            after.free = 1;
+            Require(ReplyDue(after, 3, 5), "A reply past the free frame was not due on its frame");
             // Another move's hit is its own length; a knockdown is one whoever caused it.
             Require(watch.Observe(sample(21, 300, 0, 30), 101).until == -1, "Another move's stun was taken as known");
             watch.Reset();
@@ -847,10 +855,11 @@ int main() {
                 frame(stun(0, 2, 9), false);
                 int after = 3;
                 while (!frame(stun(0, 0, 0), false)) ++after;
-                Require(reports == 2 && after == static_cast<int>(move.size()) - 1 + ReplyTrace::Grace && timing.sent == 1 && timing.freed == 2 && timing.move == -1,
+                Require(reports == 2 && after == static_cast<int>(move.size()) - 1 + ReplyTrace::Grace && timing.sent == 1 && timing.freed == 2 && timing.move == ReplyTiming::NotSeen,
                     "A reply whose move never came was not reported after its grace, or took the stopped reply's press");
                 Require(FramesBetween(timing.freed, timing.move) == "none" && FramesBetween(timing.Acted(), timing.move) == "none" &&
-                    FramesBetween(timing.Acted(), timing.freed) == "0" && ReplyTiming{}.Acted() == -1, "A move never seen was given a timing");
+                    FramesBetween(timing.Acted(), timing.freed) == "0" && ReplyTiming{}.Acted() == ReplyTiming::NotSeen && SeenAt(timing.move) == "none",
+                    "A move never seen was given a timing");
                 // Hit again: dropped, and not traced again while the same reply plays on.
                 frame(stun(0, 1, 10), false, true);
                 frame(stun(1, 0, 11), false);
@@ -870,6 +879,12 @@ int main() {
                 frame(stun(0, 1, 1), false, true); frame(stun(0, 0, 1), false);
                 Require(frame(stun(0, 0, 1), true) && reports == 3 && timing.sent == 1 && timing.freed == 0 && timing.move == 2,
                     "A reply in a new battle was not traced on its own");
+                // Decided past the free frame by a later timing: the free frame comes before the decision.
+                idle(2 * ReplyTrace::Grace, false);
+                DummySeen late = stun(0, 0, 1); late.free = 2;
+                frame(late, false, true); frame(stun(0, 0, 1), false);
+                Require(frame(stun(0, 0, 1), true) && reports == 4 && timing.freed == -2 && timing.sent == 1 && timing.move == 2 &&
+                    FramesBetween(timing.freed, timing.move) == "4", "A reply decided past the free frame lost it");
             }
             DummyPlan plan;
             Require(!DummyReplies(plan, 1, 0), "A dummy with no plan replied");

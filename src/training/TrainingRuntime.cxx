@@ -449,12 +449,9 @@ void AfterUpdate(Native* system) {
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
-            // A stunned dummy's script says nothing: a reply's wait is timed by
-            // the stun, and when the stun is not timed the dummy is free as it
-            // ends, whatever it does then (guard stance, a walk).
-            const bool replying = session.Replying();
-            session.Observe((own.valid && ClassifyStatus(own.status) == Phase::Neutral) || (replying && seen.freed), hit,
-                until < 0 && replying ? ReplyWaitUntil(seen, dummyPlan.timing) : until);
+            // A reply's leading hold gives way as its first move is due.
+            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
+                session.Replying() && ReplyFirstMoveDue(session.Slot(session.GetView().selected), seen, dummyPlan.timing));
             playbackSeen = fighters;
         }
         // Recorded for the facing the input was prepared with, then the new positions.
@@ -472,8 +469,8 @@ void AfterUpdate(Native* system) {
             // Typed or recorded, the reply is played for the way the dummy faces on each frame (Session::Prepare).
             const bool typed = !dummyPlan.moves.empty();
             const auto& frames = typed ? dummyPlan.moves : session.Slot(dummyPlan.slot);
-            const int cause = seen.freed ? seen.freed : seen.held;
-            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames) + DummyInputLag, dummyPlan.timing)) {
+            const int cause = seen.held ? seen.held : seen.out;
+            if (cause && seen.stretch != decidedStretch && ReplyBegins(frames, seen, dummyPlan.timing)) {
                 decidedStretch = seen.stretch;
                 if (DummyReplies(dummyPlan, cause, dummyRandom())) {
                     // Ember plays the reply from the next update, and the dummy from the pad (FollowDummy).
@@ -493,7 +490,7 @@ void AfterUpdate(Native* system) {
             if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
                 spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; "
                     "Lower input lag {}, timing {}; move {} after free, {} after the button was acted on",
-                    timing.sent, timing.freed, timing.move, sf4e::InputLag::BattleInputLowered() ? "on" : "off", dummyPlan.timing,
+                    SeenAt(timing.sent), SeenAt(timing.freed), SeenAt(timing.move), sf4e::InputLag::BattleInputLowered() ? "on" : "off", dummyPlan.timing,
                     FramesBetween(timing.freed, timing.move), FramesBetween(timing.Acted(), timing.move));
         }
         if (!capture) capture = new TrainingCapture();

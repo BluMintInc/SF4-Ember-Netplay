@@ -158,13 +158,15 @@ int main() {
         CHECK(timed[29].raw == Down && timed[31].raw == Down && timed[32].raw == 0 && timed[36].raw == Down);
         CHECK(timed.size() > 44 && timed.back().raw == 0);
         // A hold for frames is that many frames. One kept until the next move
-        // is held through that move's wait: a lone direction's press follows
-        // it at once, a motion's first direction after it; through a
-        // follow-up's delay too. A wait is frames with nothing held.
+        // is held through that move's wait, or a follow-up's delay; first in
+        // the line it is a reply's leading hold, carrying the move's offset.
+        // After either, a lone direction's press follows it at once, a
+        // motion's first direction after it. A wait is frames with nothing held.
         const auto runs = [](const std::vector<sf4e::training::Input>& frames) {
             std::vector<std::string> seen;
             for (const auto& frame : frames) {
-                const std::string text = (frame.wait == sf4e::training::WaitActionable ? "free:" : "") + std::to_string(frame.raw);
+                const std::string text = (frame.wait == sf4e::training::WaitActionable ? "free:" : frame.wait == sf4e::training::WaitReply ? "hold:" : "") +
+                    std::to_string(frame.raw);
                 if (seen.empty() || seen.back() != text) seen.push_back(text);
             }
             return seen;
@@ -175,10 +177,13 @@ int main() {
         const auto fixed = Synthesize(Steps("[1]4f > 3HP"), true);
         CHECK(fixed.size() == 8 && fixed[3].raw == (Down | Left) && fixed[4].wait == sf4e::training::WaitActionable);
         CHECK(runs(Synthesize(Steps("[1] > 3HP"), true)) ==
-            (std::vector<std::string>{"free:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
+            (std::vector<std::string>{"hold:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
         CHECK(runs(Synthesize(Steps("[1] > 623P"), true)) ==
-            (std::vector<std::string>{"free:" + text(Down | Left), text(Right), text(Down), text(Down | Right), text(Down | Right | LP), text(Down | Right), "0"}));
-        CHECK(runs(Synthesize(Steps("[1] > 8"), true)) == (std::vector<std::string>{"free:" + text(Down | Left), text(Up), "0"}));
+            (std::vector<std::string>{"hold:" + text(Down | Left), text(Right), text(Down), text(Down | Right), text(Down | Right | LP), text(Down | Right), "0"}));
+        CHECK(runs(Synthesize(Steps("[1] > 8"), true)) == (std::vector<std::string>{"hold:" + text(Down | Left), text(Up), "0"}));
+        CHECK(runs(Synthesize(Steps("5LP > [1] > 3HP"), true)) ==
+            (std::vector<std::string>{"0", text(LP), "0", "free:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
+        CHECK(Synthesize(Steps("[1] > 3HP@+3"), true)[0].offset == 3 && Synthesize(Steps("[1] > 3HP@-2"), true)[0].offset == -2);
         // Facing left, back is Right.
         CHECK(Synthesize(Steps("[1] > 3HP"), false)[0].raw == (Down | Right));
         const auto follow = Synthesize(Steps("236P > [4] > ~ LP"), true);

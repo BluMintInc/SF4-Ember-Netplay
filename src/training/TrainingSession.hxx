@@ -22,6 +22,8 @@ constexpr unsigned AttackButtons = 0xcf0;
 // fight; offset: frames after the cue the press lands on. A free frame is
 // predicted from the fighter's script, so 0 is that frame itself and a
 // negative offset is before it; a hit is pressed on the frame after it is seen.
+// A reply's leading hold (3) repeats until the reply's first move is due
+// (ReplyFirstMoveDue), its offset that move's own; elsewhere it is met at once.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
 constexpr int MinOffset = -120, MaxOffset = 120;
 // A slot holds its frames as played by a fighter facing right, so a move
@@ -34,12 +36,11 @@ inline unsigned MirrorDirections(unsigned bits) {
 inline Input Mirror(Input input) { input.mapped = MirrorDirections(input.mapped); input.raw = MirrorDirections(input.raw); return input; }
 // Between the slot's facing and a fighter's: the same swap both ways.
 inline Input ForFacing(const Input& input, bool facingRight) { return facingRight ? input : Mirror(input); }
-constexpr unsigned char WaitActionable = 1, WaitHit = 2;
+constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
-// for its hit before the motion goes stale. A reply's wait for the dummy to
-// be free never gives up: the runtime cues it as the dummy's stun ends
-// however long it lasts (a dizzy), and a new stun drops the reply.
+// for its hit before the motion goes stale. A reply's leading hold has no
+// such limit: the stun it waits out always ends, and a new one drops the reply.
 constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
@@ -145,23 +146,28 @@ inline int ReplyStart(const std::vector<Input>& frames) {
     const auto first = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & FightButtons) != 0; });
     return first == frames.end() ? -1 : static_cast<int>(first - frames.begin());
 }
-// Frames a reply plays before its first attack button: its motion, which is
-// done while the dummy is still held so the button meets the free frame. A
-// reply that first holds a direction until the dummy is free ("[1] > 3HP")
-// leads by MaxFrames: it begins with the stun, and its wait gives way in
-// time (ReplyWaitUntil).
-inline int ReplyLead(const std::vector<Input>& frames) {
+// Whether a reply begins by holding a direction until its first move is due
+// ("[1] > 3HP", WaitReply).
+inline bool ReplyHolds(const std::vector<Input>& frames) {
     const int start = ReplyStart(frames);
-    if (start >= 0 && frames[start].wait == WaitActionable) return MaxFrames;
+    return start >= 0 && frames[start].wait == WaitReply;
+}
+// Frames a reply plays before its first attack button, after a leading hold:
+// its motion, which is done while the dummy is still held so the button
+// meets the free frame.
+inline int ReplyLead(const std::vector<Input>& frames) {
+    const int start = ReplyStart(frames) + (ReplyHolds(frames) ? 1 : 0);
     const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & AttackButtons) != 0; });
     return start < 0 || press == frames.end() ? 0 : static_cast<int>(press - frames.begin()) - start;
 }
 // freed: on the frame the dummy is free again, what it came out of, numbered
 // as DummyPlan::when (1 hit, 2 block, 3 knockdown; a hit that ends in a
 // knockdown is a knockdown). held: the same while it is still in it. until:
-// frames from now to that free frame, -1 while not known. stretch: counts the
-// hits, blocks and reactions, so a change says the wait began again.
-struct DummySeen { int freed = 0, held = 0, until = -1; unsigned stretch = 0; };
+// frames from now to that free frame, -1 while not known. free: frames since
+// that free frame (0 on it), -1 while held or before any stun; out: what it
+// came out of while free counts. stretch: counts the hits, blocks and
+// reactions, so a change says the wait began again.
+struct DummySeen { int freed = 0, held = 0, until = -1, free = -1, out = 0; unsigned stretch = 0; };
 // What the dummy's status holds it in, numbered as DummyPlan::when: 1 hit
 // or dizzy, 2 blockstun, 3 knocked down or getting up, 0 free. Not the
 // frame meter's grouping: the game sets GuardStand and GuardCrouch only to
@@ -200,55 +206,68 @@ public:
             const auto known = learned_.find(key_);
             seen.held = held; seen.stretch = stretch_;
             if (known != learned_.end()) seen.until = (std::max)(0, known->second - elapsed_);
+            free_ = -1;
         } else if (from_ && hold < 0) ++elapsed_;
         else if (from_) {
             if (learned_.size() >= 4096) learned_.clear();
-            learned_[key_] = elapsed_ + 1; seen.freed = from_; from_ = 0;
-        }
+            learned_[key_] = elapsed_ + 1; seen.freed = out_ = from_; from_ = 0; free_ = 0;
+        } else if (free_ >= 0) ++free_;
+        if (!seen.held && free_ >= 0) { seen.free = free_; seen.out = out_; }
         return seen;
     }
     // The frames stopped being consecutive; what was learned stays.
-    void Reset() { from_ = 0; }
+    void Reset() { from_ = 0; free_ = -1; }
 private:
     using Key = std::tuple<unsigned, int, int>;
     std::map<Key, int> learned_;
     Key key_;
     FighterSample last_;
-    int from_ = 0, elapsed_ = 0;
+    int from_ = 0, elapsed_ = 0, free_ = -1, out_ = 0;
     unsigned stretch_ = 0;
 };
-// cause: DummySeen::freed or held. roll: any random number; it decides the chance.
+// cause: DummySeen::held, else out while the dummy is free. roll: any random number; it decides the chance.
 inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
     return cause && (plan.when == 4 || plan.when == cause) && roll % 100 < static_cast<unsigned>(plan.chance);
 }
-// Whether a reply should start after this frame's observation: its first
-// attack button, acted on lead frames in (its ReplyLead plus DummyInputLag),
-// then meets the free frame (plus timing). One leading by MaxFrames starts
-// on any frame of a stun, timed or not.
+// Whether a move played from the next update should start after this
+// frame's observation: its first attack button, acted on lead frames in (its
+// lead plus DummyInputLag), then meets the free frame plus timing. The free
+// frame is ahead while a timed stun counts down and behind once the dummy is
+// free, so a positive timing waits past it; a stun not timed is replied to as
+// it ends, or later by timing.
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
-    return seen.freed || (seen.held && lead >= MaxFrames) || (seen.until >= 0 && seen.until <= lead + 1 - timing);
+    if (seen.held) return seen.until >= 0 && seen.until <= lead + 1 - timing;
+    return seen.free >= 0 && -seen.free <= lead + 1 - timing;
 }
-// For a reply waiting for the dummy to be free, whose own script says
-// nothing while it is stunned: the frames its wait has left, from the stun
-// as DummyWatch times it, so the frame after the wait is acted on as the
-// dummy is free (plus timing). -1 when the stun is not timed; the wait then
-// gives way once the dummy is seen free.
-inline int ReplyWaitUntil(const DummySeen& seen, int timing) {
-    return seen.held && seen.until >= 0 ? (std::max)(0, seen.until - DummyInputLag + timing) : -1;
+// Whether the first move of a reply's frames is due, its own offset (carried
+// by a leading hold) added to the plan's timing.
+inline bool ReplyFirstMoveDue(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
+    const int start = ReplyStart(frames);
+    return ReplyDue(seen, ReplyLead(frames) + DummyInputLag, timing + (ReplyHolds(frames) ? frames[start].offset : 0));
+}
+// Whether a reply should begin after this frame's observation: one holding
+// first begins with the stun, any other when its first move is due.
+inline bool ReplyBegins(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
+    return (seen.held && ReplyHolds(frames)) || ReplyFirstMoveDue(frames, seen, timing);
 }
 // Where one reply's button met the dummy, in frames after the one the reply
-// was decided in, -1 where not seen: the frame its first attack button was
-// sent in (acted on DummyInputLag frames later), the dummy's first free
-// frame, and the first frame of its move. A stun ends and a move starts in
-// the same game frame, so a button that meets the free frame shows the last
-// two the same.
+// was decided in, NotSeen where not seen: the frame its first attack button
+// was sent in (acted on DummyInputLag frames later), the dummy's first free
+// frame, before the decision (negative) when a later timing waited past it,
+// and the first frame of its move. A stun ends and a move starts in the same
+// game frame, so a button that meets the free frame shows the last two the same.
 struct ReplyTiming {
-    int sent = -1, freed = -1, move = -1;
-    int Acted() const { return sent < 0 ? -1 : sent + DummyInputLag; }
+    static constexpr int NotSeen = -1000000;
+    int sent = NotSeen, freed = NotSeen, move = NotSeen;
+    int Acted() const { return sent == NotSeen ? NotSeen : sent + DummyInputLag; }
 };
+// For the trace: a frame, or "none" when it was not seen.
+inline std::string SeenAt(int frame) { return frame == ReplyTiming::NotSeen ? "none" : std::to_string(frame); }
 // For the trace: frames from one observation to a later one, "none" when
 // either was not seen.
-inline std::string FramesBetween(int from, int to) { return from < 0 || to < 0 ? "none" : std::to_string(to - from); }
+inline std::string FramesBetween(int from, int to) {
+    return from == ReplyTiming::NotSeen || to == ReplyTiming::NotSeen ? "none" : std::to_string(to - from);
+}
 // Follows each reply once, for the log, from the frame it is decided in
 // (Session::Replies changes) over consecutive frames, counting them itself.
 // It is done once all three are seen, or Grace frames after the reply's
@@ -263,16 +282,20 @@ public:
     // (Skill). True when done, with out set.
     bool Observe(std::uint64_t reply, bool replying, bool pressed, const DummySeen& seen, bool moving, ReplyTiming& out) {
         const bool begins = reply != reply_;
-        if (begins) { reply_ = reply; on_ = true; timing_ = {}; stretch_ = seen.stretch; frame_ = after_ = 0; }
+        if (begins) {
+            reply_ = reply; on_ = true; timing_ = {}; stretch_ = seen.stretch; frame_ = after_ = 0;
+            // Decided after the free frame, by a later timing.
+            if (seen.free > 0) timing_.freed = -seen.free;
+        }
         else if (on_) ++frame_;
         if (!on_) return false;
         if (seen.held && seen.stretch != stretch_) { Reset(); return false; }
         // What played in the frame a reply is decided in was not that reply: it plays from the next.
-        if (pressed && !begins && timing_.sent < 0) timing_.sent = frame_;
-        if (seen.freed && timing_.freed < 0) timing_.freed = frame_;
-        if (moving && timing_.move < 0) timing_.move = frame_;
+        if (pressed && !begins && timing_.sent == ReplyTiming::NotSeen) timing_.sent = frame_;
+        if (seen.freed && timing_.freed == ReplyTiming::NotSeen) timing_.freed = frame_;
+        if (moving && timing_.move == ReplyTiming::NotSeen) timing_.move = frame_;
         if (replying) after_ = 0;
-        const bool seenAll = timing_.sent >= 0 && timing_.freed >= 0 && timing_.move >= 0;
+        const bool seenAll = timing_.sent != ReplyTiming::NotSeen && timing_.freed != ReplyTiming::NotSeen && timing_.move != ReplyTiming::NotSeen;
         if (!seenAll && after_++ < Grace) return false;
         out = timing_; Reset(); return true;
     }
@@ -434,8 +457,9 @@ public:
     // What the fight showed this frame, for the waiting frames of a playback:
     // whether the fighter is free now, and whether a hit landed on the other one.
     // untilActionable: frames until the fighter's script says it can act again, -1 when unknown.
-    void Observe(bool actionable, bool hit, int untilActionable = -1) {
-        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable;
+    // replyDue: a reply's leading hold gives way (ReplyFirstMoveDue).
+    void Observe(bool actionable, bool hit, int untilActionable = -1, bool replyDue = false) {
+        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; replyDue_ = replyDue;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     // The fighters face each other, by where they stood after the last
@@ -560,16 +584,20 @@ public:
         } else if (view_.mode == Mode::Playback) {
             // A waiting frame repeats until its condition shows, or long enough.
             const auto& frame = slots_[view_.selected][view_.cursor];
-            // The cue, then the offset's frames more.
-            const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
-            // A free frame is pressed on as predicted, plus the offset; seen,
-            // it releases the press the frame after, so a prediction is never late.
-            const bool predicted = frame.wait == WaitActionable && untilActionable_ >= 0 && untilActionable_ <= 1 - frame.offset;
-            const int after = frame.wait == WaitActionable ? (std::max)(0, frame.offset - 1) : (std::max)(0, static_cast<int>(frame.offset));
-            const bool met = (cued && (cued ? waitedPast_++ : 0) >= after) || predicted;
-            // The wait gives up only on the cue; the offset's frames after it are always granted.
-            const bool replyFree = resume_ >= 0 && frame.wait == WaitActionable;
-            if (!met && (replyFree || ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset)))) return;
+            if (frame.wait == WaitReply) {
+                // A reply's leading hold: until the runtime finds its first move due.
+                if (resume_ >= 0 && !replyDue_) return;
+            } else {
+                // The cue, then the offset's frames more.
+                const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
+                // A free frame is pressed on as predicted, plus the offset; seen,
+                // it releases the press the frame after, so a prediction is never late.
+                const bool predicted = frame.wait == WaitActionable && untilActionable_ >= 0 && untilActionable_ <= 1 - frame.offset;
+                const int after = frame.wait == WaitActionable ? (std::max)(0, frame.offset - 1) : (std::max)(0, static_cast<int>(frame.offset));
+                const bool met = (cued && (cued ? waitedPast_++ : 0) >= after) || predicted;
+                // The wait gives up only on the cue; the offset's frames after it are always granted.
+                if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset))) return;
+            }
             // A hit is kept until the next press starts a move of its own, so
             // one landing while a cancel's motion is still going is not lost.
             // Limitation: a hit during a held button is dropped; track edges per button if it matters.
@@ -585,7 +613,7 @@ public:
 private:
     View view_;
     std::array<std::vector<Input>, SlotCount + 1> slots_;
-    bool actionable_ = false, hit_ = false;
+    bool actionable_ = false, hit_ = false, replyDue_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0;
     unsigned lastRaw_ = 0;
