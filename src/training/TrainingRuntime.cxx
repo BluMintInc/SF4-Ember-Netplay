@@ -150,7 +150,7 @@ bool RestoreCheckpoint(Native* system) {
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); dummyWatch.Reset(); replyTrace.Reset();
+    meter.Reset(); ForgetStun(dummyWatch, session); replyTrace.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -496,7 +496,7 @@ void AfterUpdate(Native* system) {
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        meter.Reset(); dummyWatch.Reset(); replyTrace.Reset();
+        meter.Reset(); ForgetStun(dummyWatch, session); replyTrace.Reset();
         ++gapResets;
     }
     sampling = false; following = false;

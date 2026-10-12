@@ -35,39 +35,45 @@ inline unsigned ChosenButtons(const Step& step) {
     return mask;
 }
 // Directions are read for the facing; the buttons of a step are chosen once.
-inline std::vector<training::Input> Synthesize(const std::vector<std::string>& steps, bool facingRight) {
-    std::vector<training::Input> out;
-    const auto push = [&](unsigned bits, int frames) { for (; frames > 0 && out.size() < training::MaxFrames; --frames) out.push_back({bits, bits, 0, 0}); };
-    const auto wait = [&](unsigned char on, unsigned held, int timing) {
-        if (out.size() < training::MaxFrames) out.push_back({held, held, on, static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing)))});
+// steps: as ParseSteps leaves them. False, with out empty and error set, when
+// a step is not a move or the input would not fit in a slot (MaxFrames):
+// the moves come out whole or not at all.
+inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, std::vector<training::Input>& out, std::string& error) {
+    out.clear();
+    bool full = false;
+    const auto add = [&](training::Input input) {
+        if (out.size() < training::MaxFrames) out.push_back(input);
+        else full = true;
     };
-    // A direction held until the next move begins ("[1]"): the frames before
-    // that move's own input carry it instead of nothing, its wait included.
-    // Held before anything else, it is a reply's leading hold (WaitReply),
-    // given way when the move after it is due, that move's offset its own.
-    unsigned idle = 0, leading = 0;
-    const auto gap = [&](int frames) { push(idle, frames); };
+    const auto push = [&](unsigned bits, int frames) { for (; frames > 0; --frames) add({bits, bits, 0, 0}); };
+    const auto wait = [&](unsigned char on, unsigned held, int timing) {
+        add({held, held, on, static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing)))});
+    };
+    // A direction held until the next move begins ("[1]", ParseSteps puts a
+    // move after it): that move's frames before its own input carry it, its
+    // wait included. Held before anything played, it is a reply's leading
+    // hold (WaitReply), given way when the move is due, the move's offset its own.
+    unsigned pending = 0;
     // Whether a step so far played input.
     bool follows = false;
     for (const auto& text : steps) {
-        Step step; std::string error;
-        if (!ParseStep(text, step, error)) continue;
+        Step step;
+        if (!ParseStep(text, step, error)) { out.clear(); return false; }
         if (step.hold) {
             const unsigned held = DirectionBits(step.motion[0], facingRight);
-            if (!follows && !step.frames) { leading = held; continue; }
-            // A hold or wait of its own begins at once, ending one held until it.
-            idle = step.frames ? 0 : held;
-            push(held, step.frames);
-            if (step.frames) follows = true;
+            if (step.frames) { push(held, step.frames); follows = true; }
+            else pending = held;
             continue;
         }
         const int timing = step.offset;
-        const bool afterLead = leading != 0;
-        if (afterLead) wait(training::WaitReply, leading, timing);
-        leading = 0;
-        // after: an earlier move played input, so this one waits on it.
-        const bool after = follows;
+        // after: an earlier step played input, so this one waits on it; idle:
+        // what its frames before its own input hold.
+        const bool after = follows, afterLead = pending && !after;
+        const unsigned idle = after ? pending : 0;
+        if (afterLead) wait(training::WaitReply, pending, timing);
+        pending = 0;
         follows = true;
+        const auto gap = [&](int frames) { push(idle, frames); };
         const unsigned buttons = ChosenButtons(step);
         // A move laid out on a frame ("#45") starts its input so the press
         // lands there, or at once when that frame has passed; it waits for no cue.
@@ -82,7 +88,6 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
             const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
             if (timed) reach(step.at);
             else if (after) wait(training::WaitHit, idle, timing);
-            idle = 0;
             push(step.buttons, 2); push(0, 2);
             if (red) wait(training::WaitHit, 0, 0);
             push(dash, 2); push(0, 2); push(dash, 2);
@@ -114,7 +119,6 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         // leading hold too.
         const bool lone = motion.size() == 1 && buttons;
         const bool firstHeld = (link && !idle) || ((link || afterLead) && lone);
-        idle = 0;
         const bool finish = step.cancel && !step.follow && after && !timed && buttons && !motion.empty();
         for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
             // The same direction again is a new tap: a neutral frame between (a "66" dash).
@@ -154,6 +158,7 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         push(last, 1);
     }
     push(0, 1);
-    return out;
+    if (full) { out.clear(); error = "the moves take more than " + std::to_string(training::MaxFrames) + " frames"; return false; }
+    return true;
 }
 } }

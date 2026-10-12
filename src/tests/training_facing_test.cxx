@@ -10,6 +10,11 @@
 #include <vector>
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
+std::vector<Input> Synth(const std::vector<std::string>& steps, bool facingRight) {
+    std::vector<Input> frames; std::string error;
+    Require(sf4e::combo::Synthesize(steps, facingRight, frames, error), "A move did not synthesize");
+    return frames;
+}
 int main() {
     try {
         Require(MirrorDirections(LeftBit | 2 | 0x10) == (RightBit | 2 | 0x10) && MirrorDirections(LeftBit | RightBit) == (LeftBit | RightBit) &&
@@ -17,7 +22,7 @@ int main() {
         // The two facings of a typed move differ by Left and Right alone,
         // so one held facing and the swap stand for both.
         for (const char* line : {"623HP", "41236LP", "[4]6HP", "2MK", "236P", "63214HK", "44", "MP+MK", "j.HK", "8"}) {
-            const auto right = sf4e::combo::Synthesize({line}, true), left = sf4e::combo::Synthesize({line}, false);
+            const auto right = Synth({line}, true), left = Synth({line}, false);
             Require(right.size() == left.size(), "The two facings of a typed move differ in length");
             for (std::size_t frame = 0; frame < right.size(); ++frame) {
                 const auto turned = Mirror(right[frame]);
@@ -25,7 +30,7 @@ int main() {
                     right[frame].offset == left[frame].offset, "The two facings of a typed move differ by more than Left and Right");
             }
         }
-        const auto hcf = sf4e::combo::Synthesize({"41236LP"}, true), hcfLeft = sf4e::combo::Synthesize({"41236LP"}, false);
+        const auto hcf = Synth({"41236LP"}, true), hcfLeft = Synth({"41236LP"}, false);
         const unsigned L = LeftBit, R = RightBit, D = 2, LP = 0x10;
         // Plays a whole reply on the dummy, which turns to face right before frame turnAt (-1 never).
         const auto play = [&](Session& session, int turnAt) {

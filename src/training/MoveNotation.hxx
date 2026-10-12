@@ -260,13 +260,17 @@ inline std::vector<std::string> Tokens(const std::string& line) {
 // Fails on the first step that is not a move.
 inline bool ParseSteps(const std::string& line, std::vector<std::string>& steps, std::string& error) {
     steps.clear();
-    Step step;
+    // A hold with no frames lasts until the next step begins, so that step is a move.
+    bool holding = false;
     for (const auto& token : Tokens(line)) {
+        Step step;
         if (!ParseStep(token, step, error)) { steps.clear(); return false; }
+        if (holding && step.hold) { error = "a hold with no frames needs a move after it, not \"" + Canonical(step) + "\""; steps.clear(); return false; }
+        holding = step.hold && !step.frames;
         steps.push_back(Canonical(step));
     }
+    if (holding) { error = "a hold with no frames needs a move after it"; steps.clear(); return false; }
     if (!steps.empty() && steps[0].compare(0, 3, "xx ") == 0) { error = "the first move cannot be a cancel"; steps.clear(); return false; }
-    if (!steps.empty() && step.hold && !step.frames) { error = "a hold with no frames needs a move after it"; steps.clear(); return false; }
     return true;
 }
 } }

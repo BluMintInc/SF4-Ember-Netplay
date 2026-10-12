@@ -12,6 +12,11 @@
 #include <vector>
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
+std::vector<Input> Synth(const std::vector<std::string>& steps) {
+    std::vector<Input> frames; std::string error;
+    Require(sf4e::combo::Synthesize(steps, true, frames, error), "A move did not synthesize");
+    return frames;
+}
 int main() {
     try {
         {
@@ -187,8 +192,9 @@ int main() {
             // button: the update the reply's first attack button was read in;
             // free: the dummy's first free frame; move: the frame its move
             // starts; ended: the first update after the reply that no longer
-            // plays it; read: Player 2's input as the game read it, per update.
-            struct Run { int button = -1, free = -1, move = -1, ended = -1; bool dropped = false; std::vector<unsigned> read; };
+            // plays it; padOff: the first one Player 2 is off the pad again;
+            // read: Player 2's input as the game read it, per update.
+            struct Run { int button = -1, free = -1, move = -1, ended = -1, padOff = -1; bool dropped = false; std::vector<unsigned> read; };
             // What the runtime keeps across stuns: the stun watch, the session
             // and the stretch a reply was last decided for. Faces right, as a
             // slot holds its frames, so a charge's back is Left.
@@ -197,8 +203,11 @@ int main() {
                 Dummy() { session.Enter(); session.SetReady(true); session.SetPositions(1, 0); }
             };
             // statuses: the dummy's, one per frame; it is free from the first
-            // one after the stun that holds it in none.
-            const auto play = [](Dummy& dummy, const std::vector<Input>& frames, int timing, const std::vector<unsigned>& statuses, unsigned charge) {
+            // one after the stun that holds it in none. gap: an update that
+            // moved the battle more than a frame on, which the runtime does not
+            // observe (TrainingRuntime.cxx, AfterUpdate), -1 for none.
+            const auto play = [](Dummy& dummy, const std::vector<Input>& frames, int timing, const std::vector<unsigned>& statuses, unsigned charge,
+                                 int gap = -1) {
                 DummyWatch& watch = dummy.watch; Session& session = dummy.session; unsigned& decided = dummy.decided;
                 Run run; bool held = false, began = false;
                 DummyControl control; Game game;
@@ -221,7 +230,9 @@ int main() {
                     if (game.Update(frame, step == DummyControl::Step::Begin || step == DummyControl::Step::Keep, output[1].raw, free, buttons, charge) &&
                         run.move < 0)
                         run.move = frame;
+                    if (began && step == DummyControl::Step::End && run.padOff < 0) run.padOff = frame;
                     control.Simulated();
+                    if (frame == gap) { ForgetStun(watch, session); continue; }
                     // As the runtime observes the fight before committing the update (TrainingRuntime.cxx).
                     const DummySeen seen = watch.Observe(sample(frame), 100);
                     session.Observe(ClassifyStatus(statuses[frame]) == Phase::Neutral, false, -1,
@@ -249,7 +260,7 @@ int main() {
             // none the frame before, so each is a new press of them all.
             const std::pair<const char*, unsigned> presses[] = {{"5MK", MK}, {"LP+LK", LP | LK}, {"MP+MK", MP | MK}, {"PPP", Punches}, {"KKK", Kicks}};
             for (const auto& pressed : presses) {
-                const auto frames = Synthesize({pressed.first}, true);
+                const auto frames = Synth({pressed.first});
                 const int start = ReplyStart(frames);
                 Require(start >= 0 && frames[start].raw == pressed.second && ReplyLead(frames) == 0, "A press was not all its buttons on the reply's first frame");
                 for (int timing = 0; timing <= MaxReplyTiming; ++timing) {
@@ -274,7 +285,7 @@ int main() {
                 // frame plus timing, the plan's and the move's own, whatever
                 // the dummy does once free.
                 for (const char* move : {"3HP", "623P", "236P", "22LK", "3HP@+3", "3HP@-2"}) {
-                    const auto frames = Synthesize({"[1]", move}, true);
+                    const auto frames = Synth({"[1]", move});
                     Step step; std::string error;
                     Require(ParseStep(move, step, error) && ReplyHolds(frames) && ReplyStart(frames) == 0, "A reply did not begin with its hold");
                     for (const unsigned after : {0u, guardCrouch}) for (int timing = -MaxReplyTiming; timing <= MaxReplyTiming; ++timing) {
@@ -293,8 +304,19 @@ int main() {
                             "A hold over a timed blockstun did not give way so its move's button met the free frame plus timing");
                     }
                 }
+                // A gap in the frames takes what was seen of the stun, and the
+                // hold waiting on it goes too: over the free frame, and in the
+                // frames a later timing waits past it.
+                for (const int gap : {23, 24}) {
+                    Dummy dummy;
+                    const auto frames = Synth({"[1]", "3HP"});
+                    const auto block = statuses(ActorStatus::DamageGuard, 18, 0u, 0);
+                    play(dummy, frames, MaxReplyTiming, block, 0);
+                    const Run run = play(dummy, frames, MaxReplyTiming, block, 0, gap);
+                    Require(run.ended == gap + 1 && run.padOff == gap + 2 && run.move < 0, "A gap in the frames left a hold waiting on the pad");
+                }
                 // A stun longer than any recovery, a dizzy: the hold waits it out.
-                const auto frames = Synthesize({"[1]", "3HP"}, true);
+                const auto frames = Synth({"[1]", "3HP"});
                 {
                     Dummy dummy;
                     const auto dizzy = statuses(ActorStatus::Stun, 150, 0u, 0);
@@ -304,7 +326,7 @@ int main() {
                 // A hold later in a reply waits as any link does: walking back
                 // or in guard stance the dummy is never seen neutral, and the
                 // wait gives up rather than keep it on the pad.
-                const auto later = Synthesize({"5LP", "[4]120f", "[4]", "6P"}, true);
+                const auto later = Synth({"5LP", "[4]120f", "[4]", "6P"});
                 for (const unsigned after : {walkBack, guardCrouch}) {
                     Dummy dummy;
                     const auto walking = statuses(ActorStatus::DamageGuard, 18, after, 400);
@@ -315,7 +337,7 @@ int main() {
                 }
                 // The hold is the charge only when the stun is long enough to
                 // charge in: after a short blockstun "[1] > 6P" comes out uncharged.
-                const auto charge = Synthesize({"[1]", "6P"}, true);
+                const auto charge = Synth({"[1]", "6P"});
                 Dummy longDummy;
                 const auto longBlock = statuses(ActorStatus::DamageGuard, 80, 0u, 0);
                 play(longDummy, charge, 0, longBlock, Left);
@@ -326,7 +348,7 @@ int main() {
                 Require(play(shortDummy, charge, 0, shortBlock, Left).move < 0, "A short blockstun charged a hold");
             }
             for (const char* move : {"[4]6P", "[2]8K"}) {
-                const auto frames = Synthesize({move}, true);
+                const auto frames = Synth({move});
                 const unsigned back = move[1] == '4' ? Left : Down;
                 int hold = 0;
                 while (hold < static_cast<int>(frames.size()) && frames[hold].raw == back) ++hold;

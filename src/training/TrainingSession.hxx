@@ -551,7 +551,7 @@ public:
     bool Replying() const { return resume_ >= 0; }
     // Replies started so far, never reset: each new reply changes it.
     std::uint64_t Replies() const { return replies_; }
-    // The dummy was hit again: the reply it had begun is dropped.
+    // The dummy was hit again, or what was seen of its stun went: the reply it had begun is dropped.
     void StopReply() { if (resume_ >= 0) Stop(); }
     Frame Prepare(Frame physical) const {
         if (!view_.available || !view_.ready) return physical;
@@ -642,4 +642,8 @@ private:
         ClearHistory();
     }
 };
+// The frames stopped being consecutive (a gap or a reset): what the stun
+// watch saw goes, and with it a reply that waits or is timed on it; a
+// recording or another playback goes on.
+inline void ForgetStun(DummyWatch& watch, Session& session) { watch.Reset(); session.StopReply(); }
 } }
