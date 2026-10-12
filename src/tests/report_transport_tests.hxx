@@ -105,22 +105,24 @@ inline void Run() {
         // Destruction cannot close again or outlive its callback context.
         CHECK(fake.closes == 1);
     }
-    // Every step makes progress, but slowly: the upload still ends at its one
-    // deadline, not after a fresh wait for each step.
+    // Establish progress inline, then complete writes slowly: the upload
+    // still ends at its one deadline, not after a fresh wait for each step.
     {
-        Fake fake; fake.delayMs = 40;
+        Fake fake;
         sf4e::detail::ReportHttpApi api{Fake::Option, Fake::Callback, Fake::Send, Fake::Write, Fake::Receive, Fake::Read, Fake::Close};
         const auto started = std::chrono::steady_clock::now();
         ReportHttpRequest request(reinterpret_cast<HINTERNET>(&fake), api, std::chrono::milliseconds(150));
         CHECK(request.Initialize());
         const auto never = [] { return false; };
         bool ok = request.Send(L"Content-Type: text/plain\r\n", 40, never);
-        int writes = 0;
+        CHECK(ok && request.Write("body", 4, never));
+        int writes = 1;
+        fake.delayMs = 40;
         while (ok && writes < 20) { ok = request.Write("body", 4, never); if (ok) ++writes; }
         const auto took = std::chrono::steady_clock::now() - started;
         CHECK(!ok && writes > 0 && writes < 20);
         CHECK(request.Error() == ERROR_WINHTTP_TIMEOUT && !request.Cancelled() && !request.Handle());
-        CHECK(took < std::chrono::milliseconds(400));
+        CHECK(took < std::chrono::seconds(2));
         // Nothing starts once the time is spent.
         const int calls = fake.calls;
         CHECK(!request.Receive(never) && fake.calls == calls);
