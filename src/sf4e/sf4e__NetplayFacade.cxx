@@ -201,6 +201,9 @@ namespace sf4e {
 			fSystem::RetireGgpoSession("shutdown");
 		}
 		fSystem::ResetPacing();
+		// A match entered but not yet prepared has no session left to play
+		// it for: no later battle takes its seed or Training rules.
+		fVsBattle::nextRequest = {};
 		s_ggpoTransportStatus = { 0 };
 		s_ggpoSyncPhase = GgpoSyncPhase::None;
 		if (fUserApp::netplay) {

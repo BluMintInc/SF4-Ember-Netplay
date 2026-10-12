@@ -8,8 +8,10 @@ namespace sf4e { namespace battle {
 //
 // The match arms it when it is entered, from the room's frozen projection,
 // before the game prepares the battle; that preparation takes it once, so
-// nothing reaches the battle after it. A start that is deferred, refused or
-// abandoned before the battle clears it.
+// nothing reaches the battle after it. An entry that ends without that
+// preparation clears it: a deferred or refused start, a game this PC leaves
+// (AbortLocalMatch), the end of the entry (ResetMatchEntry) and the netplay
+// shutdown (NetplayFacade::ShutdownNetplay).
 struct NextRequest {
     bool training = false;
     bool overrideSeed = false;

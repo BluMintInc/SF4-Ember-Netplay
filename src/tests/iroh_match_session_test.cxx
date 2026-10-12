@@ -8,7 +8,11 @@
 #include "../sf4e/sf4e__GameEvents.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
 #include "../sf4e/sf4e__UserApp.hxx"
+#include "../sf4e/sf4e__Game__Battle__System.hxx"
+#include "../common/Localization.hxx"
+#include "../common/NextBattleRequest.hxx"
 #include "../Dimps/Dimps.hxx"
+#include <winsock2.h>
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
@@ -564,6 +568,150 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 	CHECK(record.Take(GetTickCount64(), holds) == Taken::Dropped && none());
 	std::cout << "TestFailedSetupThroughRuntime queued=" << queued << " staged=" << staged << " ended=" << alreadyEnded << " passed\n";
 }
+
+// A room, as this PC's runtime watches its table 0, and the game it is in.
+struct WatchedGame {
+	sf4e::room::RoomAuthority authority;
+	sf4e::room::MemberId p1 = 0, p2 = 0, member = 0;
+	std::uint64_t generation = 0;
+	RuntimeRoom r;
+	explicit WatchedGame(bool practice) : authority("Watched", 16, 96, sf4e::room::Rules(), practice) {
+		namespace room = sf4e::room;
+		const auto join = [&](int index, bool host) {
+			const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
+			CHECK(result.accepted);
+			return result.snapshot.members.back().id;
+		};
+		join(0, true);
+		p1 = join(1, false); p2 = join(2, false); member = join(3, false);
+		for (const auto fighter : {p1, p2}) CHECK(Act(fighter, room::ActionKind::Queue));
+		CHECK(Act(member, room::ActionKind::Watch));
+		for (const auto fighter : {p1, p2}) CHECK(Act(fighter, room::ActionKind::Ready));
+		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		generation = authority.SnapshotView().tables[0].matchGeneration;
+		r.Snapshot(authority.SnapshotFor(member));
+		r.Projection(generation);
+		r.Deliver(r.Grant(generation));
+		r.Deliver(Fixture::Connect(generation));
+		Tick(); Tick();
+		CHECK(r.Match().Generation() == generation);
+	}
+	bool Act(sf4e::room::MemberId who, sf4e::room::ActionKind kind) {
+		const auto& view = authority.SnapshotView();
+		sf4e::room::Action action;
+		action.kind = kind; action.roomEpoch = view.roomEpoch; action.revision = view.revision;
+		action.table = 0; action.tableRevision = view.tables[0].revision; action.actionId = who * 1000 + view.revision + 1;
+		return authority.Apply(who, action).accepted;
+	}
+	void Tick() { sf4e::NetplayFacade::internal::TickMatch(); sf4e::NetplayFacade::internal::ReleaseFinishedMatch(); }
+	// The room ends the game; its end reaches this PC through the runtime's own event handler.
+	void End(sf4e::room::MatchResult result) {
+		const auto ended = authority.EndMatch(0, generation, result);
+		CHECK(ended.accepted);
+		for (const auto& event : ended.events) {
+			if (event.kind != sf4e::room::Event::Kind::MatchEnded) continue;
+			protocol::RoomEventMessage message; message.event = event;
+			r.Deliver(json(message));
+		}
+		sf4e::NetplayFacade::internal::DrainRoomEvents();
+	}
+};
+
+static bool __cdecl GgpoBegin(const char*) { return true; }
+static bool __cdecl GgpoSave(unsigned char**, int*, int*, int) { return false; }
+static bool __cdecl GgpoLoad(unsigned char*, int) { return true; }
+static bool __cdecl GgpoLog(char*, unsigned char*, int) { return true; }
+static void __cdecl GgpoFree(void*) {}
+static bool __cdecl GgpoAdvance(int) { return true; }
+static bool __cdecl GgpoEvent(GGPOEvent*) { return true; }
+// A live GGPO session towards a port nobody answers: something for the end to retire.
+static void StartGgpoSession() {
+	GGPOSessionCallbacks callbacks = {};
+	callbacks.begin_game = GgpoBegin; callbacks.save_game_state = GgpoSave; callbacks.load_game_state = GgpoLoad;
+	callbacks.log_game_state = GgpoLog; callbacks.free_buffer = GgpoFree; callbacks.advance_frame = GgpoAdvance; callbacks.on_event = GgpoEvent;
+	char host[] = "127.0.0.1";
+	CHECK(ggpo_start_spectating(&sf4e::Game::Battle::System::ggpo, &callbacks, "unscored-end", 2, 2, 0, host, 9) == GGPO_OK);
+}
+
+// A game the room ends with no result tells this PC so, from the room's
+// outcome rather than from its session: with a live session, which is retired
+// first, or with none left. In a Practice room an Abort is only the end of the
+// practice, a passing note; anywhere else, or a host's Cancel, the game was
+// cancelled. A PC that had already left the game keeps the reason it gave.
+void TestUnscoredEndNotice() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	using fSystem = sf4e::Game::Battle::System;
+	WSADATA winsock{}; CHECK(WSAStartup(MAKEWORD(2, 2), &winsock) == 0);
+	struct Case { bool practice; room::MatchResult result; bool session; const char* notice; sf4e::NoticeSeverity severity; };
+	const Case cases[] = {
+		{true, room::MatchResult::Abort, true, "runtime.practice_ended", sf4e::NoticeSeverity::Info},
+		{true, room::MatchResult::Abort, false, "runtime.practice_ended", sf4e::NoticeSeverity::Info},
+		{false, room::MatchResult::Abort, true, "runtime.table_game_cancelled", sf4e::NoticeSeverity::Error},
+		{false, room::MatchResult::Abort, false, "runtime.table_game_cancelled", sf4e::NoticeSeverity::Error},
+		{true, room::MatchResult::Cancel, false, "runtime.table_game_cancelled", sf4e::NoticeSeverity::Error},
+	};
+	for (const auto& test : cases) {
+		WatchedGame game(test.practice);
+		facade::ClearMatchNotice();
+		// A notice the session raised is replaced by the room's outcome.
+		facade::PushAlert("Connection unstable.", sf4e::NoticeSeverity::Error);
+		if (test.session) StartGgpoSession();
+		game.End(test.result);
+		const auto status = facade::GetStatus();
+		CHECK(!fSystem::ggpo && game.r.runtime->recoveringMatch);
+		CHECK(std::string(status.lastError) == sf4e::loc::T(test.notice) && status.lastErrorSeverity == test.severity);
+	}
+	{
+		// This PC had already left the game and said why: the room's end changes nothing.
+		WatchedGame game(true);
+		facade::ClearMatchNotice();
+		StartGgpoSession();
+		sf4e::NetplayFacade::internal::AbortLocalMatch("The spectator stream was dropped.");
+		CHECK(!fSystem::ggpo && std::string(facade::GetStatus().lastError) == "The spectator stream was dropped.");
+		game.End(room::MatchResult::Abort);
+		CHECK(std::string(facade::GetStatus().lastError) == "The spectator stream was dropped.");
+	}
+	facade::ClearMatchNotice();
+	std::cout << "TestUnscoredEndNotice passed\n";
+}
+
+// What an entered room match arms for its battle (its seed and Training rules)
+// reaches no later battle when the entry ends before the game prepares one:
+// the netplay session shut down, the game left, or the entry reset.
+void TestEnteredBattleRequestCancelled() {
+	namespace facade = sf4e::NetplayFacade;
+	auto& armed = sf4e::GameEvents::VsBattle::nextRequest;
+	const auto arm = [&] { armed = sf4e::battle::NextRequest::ForMatch(true, 1234); };
+	// What the next battle the game prepares would take.
+	const auto prepared = [&] { const auto next = armed.Take(); return next.training || next.overrideSeed; };
+	{
+		WatchedGame game(true);
+		arm();
+		sf4e::NetplayFacade::internal::AbortLocalMatch("");
+		CHECK(!prepared());
+	}
+	{
+		WatchedGame game(true);
+		arm();
+		sf4e::NetplayFacade::internal::ResetMatchEntry();
+		CHECK(!prepared());
+	}
+	{
+		// Closing the room shuts netplay down (room close, failure, Start offline).
+		WatchedGame game(true);
+		arm();
+		sf4e::NetplayFacade::internal::CloseRoom();
+		CHECK(!prepared());
+	}
+	arm();
+	facade::ShutdownNetplay(true);
+	CHECK(!prepared());
+	// An entry the game prepares keeps it for that battle alone.
+	arm();
+	CHECK(prepared() && !prepared());
+	std::cout << "TestEnteredBattleRequestCancelled passed\n";
+}
 }
 int main() {
 	TestEarlyConnectSameTick();
@@ -576,6 +724,8 @@ int main() {
 	for (const bool queued : {false, true})
 		for (const bool staged : {false, true}) TestFailedSetupThroughRuntime(queued, staged, false);
 	TestFailedSetupThroughRuntime(false, false, true);
+	TestUnscoredEndNotice();
+	TestEnteredBattleRequestCancelled();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

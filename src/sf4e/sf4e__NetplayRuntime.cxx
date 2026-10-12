@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
@@ -19,8 +20,10 @@ namespace internal {
 // and the launcher's owned job reaps the helper.
 Runtime* runtime = nullptr;
 
-// The battle of the granted match is no longer entered, or never was.
+// The battle of the granted match is no longer entered, or never was. What
+// the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
+	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
 	runtime->sessionlessCloseGeneration = 0;

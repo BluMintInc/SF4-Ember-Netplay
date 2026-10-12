@@ -337,6 +337,8 @@ void TickCreatedRules(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
+// The room ended this PC's game with no result: retire it and say so.
+void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();

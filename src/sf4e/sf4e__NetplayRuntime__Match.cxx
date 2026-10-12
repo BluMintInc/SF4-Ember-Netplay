@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -257,9 +258,28 @@ namespace internal {
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
 void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+	// A game this PC left before its battle was prepared gives that battle
+	// nothing of the match.
+	sf4e::GameEvents::VsBattle::nextRequest = {};
 	CancelDeferredGgpoClose();
 	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason, severity);
 	runtime->match->Abort(); runtime->recoveringMatch = true;
+}
+
+// The room ended the game this PC is in with no result (Abort or Cancel). The
+// notice follows from that outcome, not from the session: whatever is left of
+// the session is retired first, quietly, and the notice is published after,
+// also when no session was left (its setup never reached GGPO, or the battle
+// already closed it). A PC that had already left the game said why then.
+void EndUnscoredMatch(room::MatchResult result) {
+	const bool alreadyLeft = runtime->recoveringMatch;
+	AbortLocalMatch("");
+	if (alreadyLeft) return;
+	// A Practice room's game has no result to lose: a fighter ending it (End
+	// practice), or losing the link, only ends the practice.
+	if (result == room::MatchResult::Abort && UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice)
+		PushAlert(loc::T("runtime.practice_ended"), NoticeSeverity::Info);
+	else PushAlert(loc::T("runtime.table_game_cancelled"), NoticeSeverity::Error);
 }
 
 // The counterpart for a game that is already over: end it, and any spectator

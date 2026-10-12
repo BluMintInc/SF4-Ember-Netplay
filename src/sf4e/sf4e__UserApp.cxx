@@ -336,8 +336,6 @@ void fUserApp::Install() {
 
 void fUserApp::ShutdownNetplay(bool closeGgpo) {
     s_pendingMatchStart = false;
-    // A match entered but not yet prepared has no room left to play it for.
-    fVsBattle::nextRequest = {};
     sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
 }
 
