@@ -893,15 +893,14 @@ pub fn stable_voter_count(member_count: usize) -> usize {
     }
 }
 
-// RTT bands from players' experience: one frame through 100 ms, then one
-// more frame per 70 ms, capped at ten. Never 0: that is only a player's own
-// choice (InputDelay.hxx: RecommendedInputDelayMinimum).
-const DELAY_FIRST_BAND_MS: u64 = 100;
+// RTT bands from players' experience: one frame through 80 ms, then one
+// more frame per 70 ms, capped at ten.
+const DELAY_FIRST_BAND_MS: u64 = 80;
 const DELAY_BAND_STEP_MS: u64 = 70;
 
 fn delay_band(rtt_us: u64) -> u8 {
     // Round to the nearest whole millisecond, with half milliseconds up:
-    // 100.499 ms counts as 100, and 100.500 ms counts as 101. Avoid overflow.
+    // 80.499 ms counts as 80, and 80.500 ms counts as 81. Avoid overflow.
     let rtt_ms = rtt_us / 1_000 + u64::from(rtt_us % 1_000 >= 500);
     (1 + rtt_ms
         .saturating_sub(DELAY_FIRST_BAND_MS)
@@ -1147,21 +1146,19 @@ mod tests {
             (0, 1),
             (1_000, 1),
             (80_000, 1),
-            (81_000, 1),
-            (100_000, 1),
-            (101_000, 2),
-            (170_000, 2),
-            (171_000, 3),
-            (240_000, 3),
-            (241_000, 4),
-            (310_000, 4),
-            (311_000, 5),
-            (380_000, 5),
-            (381_000, 6),
-            (660_000, 9),
-            (661_000, 10),
-            (730_000, 10),
-            (731_000, 10),
+            (81_000, 2),
+            (150_000, 2),
+            (151_000, 3),
+            (220_000, 3),
+            (221_000, 4),
+            (290_000, 4),
+            (291_000, 5),
+            (360_000, 5),
+            (361_000, 6),
+            (640_000, 9),
+            (641_000, 10),
+            (710_000, 10),
+            (711_000, 10),
             (u64::MAX, 10),
         ] {
             let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
@@ -1172,15 +1169,15 @@ mod tests {
     #[test]
     fn probe_delay_rounds_half_milliseconds_up() {
         for (rtt_us, delay) in [
-            (100_400, 1),
-            (100_499, 1),
-            (100_500, 2),
-            (170_499, 2),
-            (170_500, 3),
-            (240_499, 3),
-            (240_500, 4),
-            (310_499, 4),
-            (310_500, 5),
+            (80_400, 1),
+            (80_499, 1),
+            (80_500, 2),
+            (150_499, 2),
+            (150_500, 3),
+            (220_499, 3),
+            (220_500, 4),
+            (290_499, 4),
+            (290_500, 5),
         ] {
             let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
             assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
@@ -1190,10 +1187,10 @@ mod tests {
     #[test]
     fn probe_delay_tolerates_one_worse_tail_band() {
         for (p50, p95, delay) in [
-            (100_000, 170_000, 1),
-            (100_000, 171_000, 2),
-            (100_000, 241_000, 3),
-            (171_000, 171_000, 3),
+            (80_000, 150_000, 1),
+            (80_000, 151_000, 2),
+            (80_000, 221_000, 3),
+            (151_000, 151_000, 3),
         ] {
             let mut samples = [p50; 100];
             samples[..10].fill(p95);
@@ -1206,15 +1203,15 @@ mod tests {
     #[test]
     fn probe_delay_median_uses_the_displayed_percentile_index() {
         // With an even sample count the displayed p50 selects the upper middle.
-        let result = summarize_probe(&[100_000, 171_000], PROBE_DURATION);
+        let result = summarize_probe(&[80_000, 151_000], PROBE_DURATION);
         assert_eq!(result.recommended_delay, 3);
     }
 
     #[test]
     fn datagram_probe_delay_uses_the_same_bands_for_checks_and_benchmarks() {
         for expected in [100, 600] {
-            let mut samples = vec![100_000; expected as usize];
-            samples[..expected as usize / 10].fill(170_000);
+            let mut samples = vec![80_000; expected as usize];
+            samples[..expected as usize / 10].fill(150_000);
             let result = summarize_datagram_probe(&samples, expected, expected);
             assert_eq!(result.status, "ready");
             assert_eq!(result.loss_count, 0);

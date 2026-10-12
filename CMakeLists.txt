@@ -640,6 +640,23 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME GgpoDisconnectBeforeInput SOURCES "src/tests/ggpo_disconnect_before_input_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports)
     sf4e_add_unit_test(NAME GgpoOutageTolerance SOURCES "src/tests/ggpo_outage_tolerance_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 45 LOCKS loopback_udp_ports)
     sf4e_add_unit_test(NAME GgpoSyncRetry SOURCES "src/tests/ggpo_sync_retry_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 45 LOCKS loopback_udp_ports)
+    # Rollback correctness under zero and unequal input delays (docs/validation/ZERO_DELAY_AUDIT.md).
+    # The arguments are P1 delay, P2 delay, one-way ms, jitter ms, drop every N, frames, input hold
+    # frames and the corrupt-restore control; the plain run is 0/5 under jitter and loss.
+    sf4e_add_unit_test(NAME GgpoDelayRollback SOURCES "src/tests/ggpo_delay_rollback_test.cxx" LIBS ggpo::GGPO "ws2_32" "winmm" STD 17 TIMEOUT 50 LOCKS loopback_udp_ports)
+    add_test(NAME GgpoDelayRollbackZeroZero COMMAND GgpoDelayRollbackTest 0 0 20 0 0 300 8)
+    set_tests_properties(GgpoDelayRollbackZeroZero PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackZeroZero loopback_udp_ports)
+    add_test(NAME GgpoDelayRollbackZeroOne COMMAND GgpoDelayRollbackTest 0 1 40 30 17 300 1)
+    set_tests_properties(GgpoDelayRollbackZeroOne PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackZeroOne loopback_udp_ports)
+    add_test(NAME GgpoDelayRollbackFiveZero COMMAND GgpoDelayRollbackTest 5 0 40 30 17 300 1)
+    set_tests_properties(GgpoDelayRollbackFiveZero PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackFiveZero loopback_udp_ports)
+    # The control restores a wrong digest, so the run must report passed:false.
+    add_test(NAME GgpoDelayRollbackCorruptRestore COMMAND GgpoDelayRollbackTest 0 0 25 0 0 180 8 1)
+    set_tests_properties(GgpoDelayRollbackCorruptRestore PROPERTIES TIMEOUT 50 PASS_REGULAR_EXPRESSION "\"passed\":false")
+    sf4e_test_locks(GgpoDelayRollbackCorruptRestore loopback_udp_ports)
     add_executable(GgpoSpectatorBacklogTest "src/tests/ggpo_spectator_backlog_test.cxx")
     target_link_libraries(GgpoSpectatorBacklogTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoSpectatorBacklog COMMAND GgpoSpectatorBacklogTest)
