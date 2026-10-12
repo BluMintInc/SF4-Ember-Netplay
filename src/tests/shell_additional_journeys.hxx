@@ -1,6 +1,7 @@
 #pragma once
 void RoomJourneys();
 void ButtonPromptJourneys();
+void ControllerJourneys();
 void KeyboardJourneys();
 void PresentationJourneys();
 void AppearanceGalleries();

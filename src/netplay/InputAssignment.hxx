@@ -26,6 +26,7 @@ class Assignment {
     Capture capture_ = Capture::Idle;
 public:
     const Device& Selected() const { return selected_; }
+    const Device& Candidate() const { return candidate_; }
     Capture State() const { return capture_; }
     void Adopt(const Device& device) { selected_ = device; }
     void Begin() { capture_ = Capture::ReleaseAll; }

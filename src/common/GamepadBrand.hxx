@@ -3,6 +3,15 @@
 #include "ButtonPrompts.hxx"
 
 namespace sf4e { namespace gamepads {
+inline const char* BrandName(Brand brand) {
+    switch (brand) {
+    case Brand::Xbox: return "Xbox";
+    case Brand::PlayStation: return "PlayStation";
+    case Brand::Nintendo: return "Nintendo";
+    case Brand::Stick: return "Stick";
+    default: return "Generic";
+    }
+}
 inline PromptBrand DetectBrand(const Pad& pad) {
     if (pad.hasEmberMapping) return {Brand::Stick};
     switch (pad.type) {

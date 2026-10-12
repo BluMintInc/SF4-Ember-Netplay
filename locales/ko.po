@@ -1002,11 +1002,7 @@ msgstr "더 빠른 화면 표시 (1프레임 지연 감소)"
 msgid "player.faster_display_detail"
 msgstr "게임이 각 프레임을 1프레임 늦게 표시하지 않고 준비되는 즉시 표시합니다. 이 PC에서 게임이 60fps 아래로 떨어지면 끄세요. 이 PC에서만 영향을 줍니다. 상대 플레이어는 켤 필요가 없습니다. 변경 사항은 다음에 게임을 시작할 때 적용됩니다."
 
-msgid "player.native_menus"
-msgstr "게임 메뉴 열기"
 
-msgid "player.native_menus_detail"
-msgstr "Ember가 닫힙니다. 게임 메뉴의 옵션에서 대전 버튼을 설정하세요."
 
 msgid "settings.interface_title"
 msgstr "화면"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "조작법"
 
 msgid "about.controls_detail"
-msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다. 패드에서는 View 또는 Select를 누른 채 Start를 누릅니다."
+msgstr "Xbox: A로 선택하고 B로 돌아갑니다. PlayStation: 크로스로 선택하고 서클로 돌아갑니다. Switch: 게임 메뉴와 같이 B로 선택하고 A로 돌아갑니다. Ember에서 설정한 컨트롤러: 약한 발차기로 선택하고 중간 발차기로 돌아갑니다. 키보드: 방향키, Enter, Escape. 방향 패드로 이동하고 왼쪽과 오른쪽으로 값을 바꿉니다. 홈에서 돌아가면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10 또는 컨트롤러의 Start를 누르면 다시 열립니다.\n\n방에서는 테이블에서 A를 눌러 자리를 고르고 자기 자리에서 A를 눌러 준비합니다. B를 누르면 자리나 대기열에서 나갑니다. 다른 컨트롤러에서는 같은 위치의 버튼을 사용합니다. Xbox에서 X는 파이터, Y는 옵션, View는 채팅을 엽니다. 다시 누르면 방으로 돌아갑니다. PlayStation은 스퀘어, 트라이앵글, Share 또는 Create를 사용하고 Switch는 Y, X, Minus를 사용합니다.\n\n훈련에서 F6은 조작을 열고 F5는 HUD를 숨기며 F7은 녹화하고 F8은 재생합니다. 컨트롤러에서는 View(Share, Create 또는 Minus)를 누른 채 Start를 누르세요."
 
 msgid "about.controls_keyboard"
 msgstr "키보드에서는 Space로도 선택하고 Backspace로도 돌아갑니다. 방에서는 F로 캐릭터, T로 옵션, C로 채팅을 엽니다. Esc는 내 자리에서도 항상 돌아가며, Delete로 자리나 대기열에서 나갑니다."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "테이블 닫힘"
 
 msgid "controller.disconnected"
-msgstr "컨트롤러 연결이 끊겼습니다. 다시 연결하거나 직접 지정하세요."
+msgstr "컨트롤러 연결이 끊겼습니다. 다시 연결하거나 설정 > 플레이어 및 컨트롤러에서 다른 컨트롤러를 선택하세요."
 
 msgid "controller.none"
 msgstr "게임플레이 장치를 선택하세요"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "게임플레이 장치의 연결이 끊겼습니다. 다음 대전 전에 다시 연결하세요."
 
 msgid "runtime.match_input_blocked"
-msgstr "대전 입력이 차단되었습니다. {0}을(를) 다시 연결하세요. 슬롯이 바뀌었다면 방으로 돌아가 다시 지정하세요."
+msgstr "{0} 연결이 끊겼습니다. 다시 연결할 때까지 파이터에 입력이 전달되지 않습니다."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "대전에서 사용할 컨트롤러 지정을 확인하지 못했습니다. 다시 지정한 뒤 시도하세요."
@@ -4599,8 +4595,6 @@ msgstr "Ember에 표시되는 버튼 그림입니다. 자동은 플레이에 사
 msgid "player.prompts_auto"
 msgstr "자동"
 
-msgid "player.prompts_auto_with"
-msgstr "자동 ({0})"
 
 msgid "controller.brand.stick"
 msgstr "전투 버튼"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} 연결됨."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} 연결됨. 키보드로 플레이 중입니다. 바꾸려면 설정 > 플레이어 및 컨트롤러에서 컨트롤러 변경을 사용하세요."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} 연결됨. Ember를 열어 버튼을 설정하세요."
+
+msgid "controller.connected_full"
+msgstr "{0} 연결됨. 하지만 이미 컨트롤러 네 개를 사용 중입니다. 하나를 분리하면 이 컨트롤러를 사용할 수 있습니다."
+
+msgid "controller.disconnected_named"
+msgstr "{0} 연결 끊김."
+
+msgid "controller.reconnected"
+msgstr "{0} 다시 연결됨."
+
+msgid "controller.release_to_use"
+msgstr "버튼을 놓으면 {0}로 플레이합니다."
+
+msgid "player.controllers"
+msgstr "컨트롤러"
+
+msgid "player.controllers_value"
+msgstr "{0}개 연결됨"
+
+msgid "player.controllers_detail"
+msgstr "{0}로 플레이합니다. 연결된 모든 컨트롤러를 확인하고 버튼을 시험하며 Ember가 아직 모르는 컨트롤러를 설정하세요."
+
+msgid "player.fight_buttons"
+msgstr "대전 버튼"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember가 닫힙니다. 게임 메뉴에서 옵션을 선택한 뒤 컨트롤러 설정으로 이동하세요. Ember가 표시하는 모든 컨트롤러는 Xbox 버튼 이름을 사용하는 Xbox 패드로 표시됩니다. 모든 동작에 버튼이 지정되어야 게임이 배치를 저장합니다."
+
+msgid "player.game_reads"
+msgstr "게임이 컨트롤러를 읽게 하기"
+
+msgid "player.game_reads_detail"
+msgstr "끄기: Ember가 모든 컨트롤러를 읽고 게임은 각각을 Xbox 패드로 인식합니다. 켜기: Ember가 없을 때처럼 게임이 직접 읽으며 PlayStation 및 Switch 패드에는 Steam Input이 필요합니다. 변경 사항은 다음 게임 실행 시 적용됩니다."
+
+msgid "player.game_reads_pending"
+msgstr "적용하려면 게임을 다시 시작하세요."
+
+msgid "player.prompts_showing"
+msgstr "{0} 버튼을 표시합니다."
+
+msgid "controllers.title"
+msgstr "컨트롤러"
+
+msgid "controllers.unavailable"
+msgstr "컨트롤러 지원이 꺼져 있습니다"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember가 컨트롤러 지원을 시작하지 못해 이번에는 게임이 직접 컨트롤러를 읽습니다. Xbox 패드는 평소대로 작동하며 다른 패드는 Steam Input이 필요할 수 있습니다. 자세한 내용은 sf4e.log에 있습니다."
+
+msgid "controllers.game_reads"
+msgstr "게임이 컨트롤러를 읽습니다"
+
+msgid "controllers.game_reads_detail"
+msgstr "게임이 컨트롤러를 읽게 하기가 켜져 있어 Ember에서 컨트롤러를 설정하거나 시험하지 않습니다. 플레이어 및 컨트롤러에서 끄고 게임을 다시 시작하세요."
+
+msgid "controllers.none"
+msgstr "연결된 컨트롤러 없음"
+
+msgid "controllers.none_detail"
+msgstr "컨트롤러를 연결하면 여기에 표시됩니다. 키보드는 컨트롤러 없이도 작동합니다."
+
+msgid "controllers.value_yours"
+msgstr "사용 중"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "미설정"
+
+msgid "controllers.value_full"
+msgstr "사용하지 않음"
+
+msgid "controllers.value_absent"
+msgstr "연결되지 않음"
+
+msgid "controllers.detail_yours"
+msgstr "이 컨트롤러로 플레이합니다. 게임 슬롯 {0}. 버튼을 눌러 시험하세요."
+
+msgid "controllers.detail_other"
+msgstr "게임 슬롯 {0}. 버튼을 눌러 시험하세요. 선택하면 이 컨트롤러로 플레이하거나 버튼을 설정할 수 있습니다."
+
+msgid "controllers.detail_custom"
+msgstr "저장한 버튼 설정을 사용합니다."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input이 이 컨트롤러를 처리하므로 버튼은 Steam 설정을 따릅니다. Ember가 처리하게 하려면 Steam 밖에서 Ember를 실행하거나 Steam에서 Ultra Street Fighter IV의 Steam Input을 끄세요."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember는 아직 이 컨트롤러의 버튼을 모릅니다. 설정하기 전에는 게임이 직접 읽으며 Ember 메뉴에서는 LP와 LK에 지정된 버튼을 사용합니다. 선택하여 설정하세요."
+
+msgid "controllers.detail_full"
+msgstr "게임은 컨트롤러 네 개를 지원합니다. 다른 하나를 분리하면 이 컨트롤러를 사용할 수 있습니다."
+
+msgid "controllers.detail_absent"
+msgstr "저장한 컨트롤러입니다. 연결하면 다시 사용할 수 있습니다."
+
+msgid "controllers.detail_game_read"
+msgstr "게임이 이 컨트롤러를 직접 읽습니다."
+
+msgid "controllers.steam_name"
+msgstr "Steam 컨트롤러"
+
+msgid "controllers.test_heading"
+msgstr "버튼을 눌러 시험하세요"
+
+msgid "controllers.test_raw"
+msgstr "입력 중: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "입력 중: 없음"
+
+msgid "controllers.choice_play"
+msgstr "이 컨트롤러로 플레이"
+
+msgid "controllers.choice_play_detail"
+msgstr "온라인 플레이와 Ember 메뉴에서 사용합니다."
+
+msgid "controllers.choice_play_current"
+msgstr "이미 이 컨트롤러로 플레이하고 있습니다."
+
+msgid "controllers.choice_setup"
+msgstr "버튼 설정"
+
+msgid "controllers.choice_setup_detail"
+msgstr "각 버튼을 차례로 눌러 Ember에 기능을 알려주세요."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input이 이 컨트롤러의 버튼을 설정합니다."
+
+msgid "controllers.choice_forget"
+msgstr "버튼 설정 지우기"
+
+msgid "controllers.choice_forget_detail"
+msgstr "이 컨트롤러를 설정 전 작동 방식으로 되돌립니다. 다음 게임 실행 시 적용됩니다."
+
+msgid "controllers.now_playing"
+msgstr "{0}로 플레이합니다."
+
+msgid "controllers.forgotten"
+msgstr "버튼 설정을 지웠습니다. 다음 게임 실행 시 적용됩니다."
+
+msgid "pad_setup.input.button"
+msgstr "버튼 {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "햇 위"
+
+msgid "pad_setup.input.hat_right"
+msgstr "햇 오른쪽"
+
+msgid "pad_setup.input.hat_down"
+msgstr "햇 아래"
+
+msgid "pad_setup.input.hat_left"
+msgstr "햇 왼쪽"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "축 {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "축 {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "트리거 축 {0}"
+
+msgid "controller.disconnected_room"
+msgstr "컨트롤러 연결이 끊겼습니다. 다시 연결하거나 방을 나가서 다른 컨트롤러를 선택하세요."
+
+msgid "runtime.match_input_moved"
+msgstr "{0}가 돌아왔지만 다른 게임 슬롯에 있습니다. 다음 게임부터 다시 작동합니다."

@@ -191,6 +191,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true},
+        {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
@@ -268,6 +269,24 @@ static void ButtonPromptRoundTrips(const Path& root) {
     netplay::PlayerPreferences invalid; invalid.buttonPrompts=static_cast<gamepads::ButtonPrompts>(4); CHECK(!invalid.Valid());
 }
 
+static void ControllerLayerRoundTrip(const Path& root) {
+    SettingsStore store((root / L"controller-layer").wstring());
+    std::string error; Json saved;
+    CHECK(store.SaveOverlay({{"controllerLayer", false}}, error));
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerLayer"] == false);
+    sf4e::netplay::PlayerPreferences preferences;
+    sf4e::netplay::ReadBoolPreferences(saved, preferences);
+    CHECK(!preferences.controllerLayer);
+    CHECK(store.SaveLauncher({{"controllerLayer", true}, {"controllerMappings", {{"guid", "mapping"}}}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true);
+    // A delayed overlay edit cannot overwrite Player's canonical choice.
+    CHECK(store.SaveOverlay({{"controllerLayer", false}, {"stageID", 4}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true && saved["stageID"] == 4);
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"]["guid"] == "mapping");
+    CHECK(store.SaveLauncher({{"controllerLayer", false}, {"controllerMappings", Json::object()}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == false);
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"].empty());
+}
 int main() {
     // Each run owns a fresh temporary subtree; never consult real AppData.
     const auto root = MakeTempRoot(L"sf4e-settings-test-");
@@ -542,6 +561,7 @@ int main() {
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);
+    ControllerLayerRoundTrip(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

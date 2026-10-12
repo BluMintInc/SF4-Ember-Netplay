@@ -218,6 +218,9 @@ void StartHelper() {
         try {
             netplay::ReadBoolPreferences(saved, runtime->preferences);
             runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
+            if (saved.contains("controllerMappings") && saved["controllerMappings"].is_object())
+                for (const auto& entry : saved["controllerMappings"].items())
+                    if (entry.value().is_string()) runtime->preferences.controllerMappings.emplace(entry.key(), entry.value().get<std::string>());
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
@@ -390,7 +393,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
+	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
 		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&

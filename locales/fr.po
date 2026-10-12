@@ -1002,11 +1002,7 @@ msgstr "Affichage plus rapide (1 trame en moins)"
 msgid "player.faster_display_detail"
 msgstr "Le jeu affiche chaque trame dès qu'elle est prête, au lieu d'une trame plus tard. Désactivez-le si le jeu descend sous 60 fps sur ce PC. Cela ne touche que ce PC : l'autre joueur n'a pas besoin de l'activer. Les changements s'appliquent au prochain lancement du jeu."
 
-msgid "player.native_menus"
-msgstr "Ouvrir les menus du jeu"
 
-msgid "player.native_menus_detail"
-msgstr "Ember se fermera. Choisissez Options dans le menu du jeu pour configurer les boutons de combat."
 
 msgid "settings.interface_title"
 msgstr "INTERFACE"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Commandes"
 
 msgid "about.controls_detail"
-msgstr "Manette Xbox : A sélectionne et B revient, quels que soient les boutons de combat. Autres manettes : le LP associé sélectionne et le LK revient. Clavier : flèches, Enter et Esc. Le D-pad déplace ; gauche et droite changent une valeur. Retour à l'Accueil masque Ember. F10, ou Start sur la manette, le rouvre au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre propre place passe à Prêt, et B quitte votre place ou la file. Sur une manette Xbox, X ouvre Combattant, Y ouvre Options et View ouvre Chat ; appuyez de nouveau pour revenir au salon.\n\nÀ l'entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. À la manette, maintenez View ou Select et appuyez sur Start."
+msgstr "Xbox : A sélectionne et B revient en arrière. PlayStation : Croix sélectionne et Rond revient en arrière. Switch : B sélectionne et A revient en arrière, comme dans les menus du jeu. Manette configurée dans Ember : Pied léger sélectionne et Pied moyen revient en arrière. Clavier : flèches, Entrée et Échap. La croix directionnelle déplace ; Gauche et Droite changent une valeur. Revenir en arrière à l'Accueil masque Ember. F10, ou Start sur une manette, l'ouvre à nouveau au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre place vous déclare prêt et B quitte votre place ou la file (sur les autres manettes, les boutons aux mêmes positions). Sur Xbox, X ouvre Combattant, Y Options et View Chat ; appuyez à nouveau pour revenir au salon. PlayStation utilise Carré, Triangle et Share ou Create ; Switch utilise Y, X et Minus.\n\nEn entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. Sur une manette, maintenez View (Share, Create ou Minus) et appuyez sur Start."
 
 msgid "about.controls_keyboard"
 msgstr "Au clavier, Espace sélectionne aussi et Retour arrière revient aussi. Dans un salon, F ouvre Combattant, T ouvre Options et C ouvre Chat. Échap revient toujours, même sur votre propre place ; Suppr quitte votre place ou votre file."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Table fermée"
 
 msgid "controller.disconnected"
-msgstr "Manette déconnectée. Reconnectez-la ou réattribuez-la."
+msgstr "Manette déconnectée. Reconnectez-la ou choisissez-en une autre dans Paramètres > Joueur et manette."
 
 msgid "controller.none"
 msgstr "Choisissez un appareil de jeu"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Manette de jeu déconnectée. Reconnectez-la avant le prochain combat."
 
 msgid "runtime.match_input_blocked"
-msgstr "Commandes du combat bloquées : reconnectez {0}. Si son emplacement a changé, retournez au salon pour le réattribuer."
+msgstr "{0} est déconnecté. Votre combattant ne reçoit aucune commande tant que vous ne le reconnectez pas."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Impossible de vérifier l'attribution de la manette au combat. Réattribuez-la et réessayez."
@@ -4599,8 +4595,6 @@ msgstr "Les images de boutons affichées par Ember. Automatique les adapte à la
 msgid "player.prompts_auto"
 msgstr "Automatique"
 
-msgid "player.prompts_auto_with"
-msgstr "Automatique ({0})"
 
 msgid "controller.brand.stick"
 msgstr "Boutons de combat"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} est connecté."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} est connecté. Vous jouez au clavier ; pour changer, utilisez Changer de manette dans Paramètres > Joueur et manette."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} est connecté. Ouvrez Ember pour configurer ses boutons."
+
+msgid "controller.connected_full"
+msgstr "{0} est connecté, mais quatre manettes sont déjà utilisées. Déconnectez-en une pour utiliser celle-ci."
+
+msgid "controller.disconnected_named"
+msgstr "{0} est déconnecté."
+
+msgid "controller.reconnected"
+msgstr "{0} est reconnecté."
+
+msgid "controller.release_to_use"
+msgstr "Relâchez le bouton pour jouer avec {0}."
+
+msgid "player.controllers"
+msgstr "Manettes"
+
+msgid "player.controllers_value"
+msgstr "{0} connectées"
+
+msgid "player.controllers_detail"
+msgstr "Vous jouez avec {0}. Voyez toutes les manettes connectées, testez leurs boutons et configurez celles qu'Ember ne connaît pas encore."
+
+msgid "player.fight_buttons"
+msgstr "Boutons de combat"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember se ferme. Dans le menu du jeu, choisissez Options, puis les paramètres de manette. Chaque manette répertoriée par Ember y apparaît comme une manette Xbox avec les noms des boutons Xbox. Le jeu conserve une configuration uniquement si chaque action a un bouton."
+
+msgid "player.game_reads"
+msgstr "Laisser le jeu lire les manettes"
+
+msgid "player.game_reads_detail"
+msgstr "Désactivé : Ember lit toutes les manettes et le jeu voit chacune comme une manette Xbox. Activé : le jeu lit les manettes lui-même, comme sans Ember ; les manettes PlayStation et Switch ont alors besoin de Steam Input. Les changements s'appliquent au prochain démarrage du jeu."
+
+msgid "player.game_reads_pending"
+msgstr "Redémarrez le jeu pour appliquer ce changement."
+
+msgid "player.prompts_showing"
+msgstr "Affichage des boutons {0}."
+
+msgid "controllers.title"
+msgstr "MANETTES"
+
+msgid "controllers.unavailable"
+msgstr "Prise en charge des manettes désactivée"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember n'a pas pu démarrer sa prise en charge des manettes, donc le jeu les lit lui-même cette fois. Les manettes Xbox fonctionnent comme d'habitude ; les autres peuvent nécessiter Steam Input. Les détails sont dans sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Le jeu lit les manettes"
+
+msgid "controllers.game_reads_detail"
+msgstr "Laisser le jeu lire les manettes est activé, donc Ember ne configure ni ne teste les manettes. Désactivez-le dans Joueur et manette et redémarrez le jeu."
+
+msgid "controllers.none"
+msgstr "Aucune manette connectée"
+
+msgid "controllers.none_detail"
+msgstr "Connectez une manette pour la voir ici. Le clavier fonctionne sans manette."
+
+msgid "controllers.value_yours"
+msgstr "La vôtre"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Non configurée"
+
+msgid "controllers.value_full"
+msgstr "Non utilisée"
+
+msgid "controllers.value_absent"
+msgstr "Non connectée"
+
+msgid "controllers.detail_yours"
+msgstr "Vous jouez avec cette manette. Emplacement de jeu {0}. Appuyez sur ses boutons pour les tester."
+
+msgid "controllers.detail_other"
+msgstr "Emplacement de jeu {0}. Appuyez sur ses boutons pour les tester. Sélectionnez-la pour jouer avec ou configurer ses boutons."
+
+msgid "controllers.detail_custom"
+msgstr "Utilise la configuration de boutons enregistrée."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input gère cette manette, donc ses boutons suivent vos paramètres Steam. Pour laisser Ember la gérer, lancez Ember hors de Steam ou désactivez Steam Input pour Ultra Street Fighter IV dans Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember ne connaît pas encore les boutons de cette manette. Jusqu'à sa configuration, le jeu la lit directement et les menus d'Ember utilisent les boutons affectés à LP et LK. Sélectionnez-la pour la configurer."
+
+msgid "controllers.detail_full"
+msgstr "Le jeu peut accueillir quatre manettes. Déconnectez-en une autre pour utiliser celle-ci."
+
+msgid "controllers.detail_absent"
+msgstr "Votre manette enregistrée. Connectez-la pour jouer à nouveau avec."
+
+msgid "controllers.detail_game_read"
+msgstr "Le jeu lit cette manette lui-même."
+
+msgid "controllers.steam_name"
+msgstr "Manette Steam"
+
+msgid "controllers.test_heading"
+msgstr "Appuyez sur les boutons pour les tester"
+
+msgid "controllers.test_raw"
+msgstr "Appuyé : {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Appuyé : rien"
+
+msgid "controllers.choice_play"
+msgstr "Jouer avec cette manette"
+
+msgid "controllers.choice_play_detail"
+msgstr "Utilisez-la pour jouer en ligne et dans les menus d'Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Vous jouez déjà avec cette manette."
+
+msgid "controllers.choice_setup"
+msgstr "Configurer les boutons"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Appuyez sur chaque bouton à tour de rôle pour indiquer à Ember sa fonction."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input définit les boutons de cette manette."
+
+msgid "controllers.choice_forget"
+msgstr "Oublier la configuration des boutons"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Revenir au fonctionnement de cette manette avant sa configuration. S'applique au prochain démarrage du jeu."
+
+msgid "controllers.now_playing"
+msgstr "Vous jouez avec {0}."
+
+msgid "controllers.forgotten"
+msgstr "Configuration des boutons oubliée. Cela s'applique au prochain démarrage du jeu."
+
+msgid "pad_setup.input.button"
+msgstr "Bouton {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Croix haut"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Croix droite"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Croix bas"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Croix gauche"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Axe {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Axe {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Axe de gâchette {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Manette déconnectée. Reconnectez-la ou quittez le salon pour en choisir une autre."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} est de retour, mais dans un autre emplacement de jeu. Il fonctionnera à nouveau à partir de la prochaine partie."

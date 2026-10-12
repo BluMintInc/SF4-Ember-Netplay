@@ -1003,11 +1003,7 @@ msgstr "Быстрый вывод кадров (на 1 кадр раньше)"
 msgid "player.faster_display_detail"
 msgstr "Игра показывает каждый кадр сразу, как он готов, а не на кадр позже. Выключите это, если игра на этом ПК опускается ниже 60 кадров/с. Влияет только на этот ПК: другому игроку включать не нужно. Изменение вступит в силу при следующем запуске игры."
 
-msgid "player.native_menus"
-msgstr "Открыть меню игры"
 
-msgid "player.native_menus_detail"
-msgstr "Ember закроется. Чтобы настроить кнопки боя, выберите «Настройки» в меню игры."
 
 msgid "settings.interface_title"
 msgstr "ИНТЕРФЕЙС"
@@ -1157,7 +1153,7 @@ msgid "about.controls"
 msgstr "Управление"
 
 msgid "about.controls_detail"
-msgstr "Геймпад Xbox: A выбирает, B возвращает назад, независимо от кнопок боя. Другие геймпады: назначенная кнопка LP выбирает, LK возвращает назад. Клавиатура: стрелки, Enter и Escape. D-pad перемещает, влево и вправо меняют значение. Кнопка «Назад» на экране «Главная» скрывает Ember. F10 (или Start на геймпаде) снова открывает его в главном меню игры.\n\nВ лобби A на столе позволяет выбрать место, A на своём месте отмечает «Готов», а B освобождает место или выходит из очереди. На геймпаде Xbox X открывает «Боец», Y открывает «Опции», View открывает «Чат»; повторное нажатие возвращает в лобби.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На геймпаде удерживайте View или Select и нажмите Start."
+msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Слабый удар ногой выбирает, Средний удар ногой возвращает назад. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на столе позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
 
 msgid "about.controls_keyboard"
 msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В лобби F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
@@ -1268,7 +1264,7 @@ msgid "room.table_closed"
 msgstr "Стол закрыт"
 
 msgid "controller.disconnected"
-msgstr "Контроллер отключён. Подключите его или назначьте вручную."
+msgstr "Контроллер отключён. Подключите его снова или выберите другой в Настройки > Игрок и контроллер."
 
 msgid "controller.none"
 msgstr "Выберите игровое устройство"
@@ -2984,7 +2980,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Игровое устройство отключилось. Подключите его до следующего матча."
 
 msgid "runtime.match_input_blocked"
-msgstr "Ввод в матче заблокирован: подключите {0} снова. Если слот изменился, вернитесь в лобби и назначьте устройство заново."
+msgstr "{0} отключён. Ваш боец не получает ввод, пока вы не подключите его снова."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Не удалось проверить назначение контроллера для матча. Назначьте его снова."
@@ -4600,8 +4596,6 @@ msgstr "Изображения кнопок, которые показывает
 msgid "player.prompts_auto"
 msgstr "Автоматически"
 
-msgid "player.prompts_auto_with"
-msgstr "Автоматически ({0})"
 
 msgid "controller.brand.stick"
 msgstr "Боевые кнопки"
@@ -4614,3 +4608,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} подключён."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} подключён. Вы играете с клавиатурой; для смены используйте Сменить контроллер в Настройки > Игрок и контроллер."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} подключён. Откройте Ember, чтобы настроить его кнопки."
+
+msgid "controller.connected_full"
+msgstr "{0} подключён, но уже используются четыре контроллера. Отключите один, чтобы использовать этот."
+
+msgid "controller.disconnected_named"
+msgstr "{0} отключён."
+
+msgid "controller.reconnected"
+msgstr "{0} снова подключён."
+
+msgid "controller.release_to_use"
+msgstr "Отпустите кнопку, чтобы играть с {0}."
+
+msgid "player.controllers"
+msgstr "Контроллеры"
+
+msgid "player.controllers_value"
+msgstr "Подключено: {0}"
+
+msgid "player.controllers_detail"
+msgstr "Вы играете с {0}. Посмотрите все подключённые контроллеры, проверьте их кнопки и настройте те, которые Ember ещё не знает."
+
+msgid "player.fight_buttons"
+msgstr "Кнопки боя"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember закроется. В меню игры выберите Настройки, затем настройки контроллера. Каждый контроллер в списке Ember отображается там как контроллер Xbox с названиями кнопок Xbox. Игра сохраняет раскладку, только если каждому действию назначена кнопка."
+
+msgid "player.game_reads"
+msgstr "Разрешить игре читать контроллеры"
+
+msgid "player.game_reads_detail"
+msgstr "Выкл.: Ember читает все контроллеры, и игра видит каждый как контроллер Xbox. Вкл.: игра читает контроллеры сама, как без Ember; контроллерам PlayStation и Switch тогда нужен Steam Input. Изменения применяются при следующем запуске игры."
+
+msgid "player.game_reads_pending"
+msgstr "Перезапустите игру, чтобы применить изменение."
+
+msgid "player.prompts_showing"
+msgstr "Показаны кнопки {0}."
+
+msgid "controllers.title"
+msgstr "КОНТРОЛЛЕРЫ"
+
+msgid "controllers.unavailable"
+msgstr "Поддержка контроллеров выключена"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember не смог запустить поддержку контроллеров, поэтому в этот раз игра читает их сама. Контроллеры Xbox работают как обычно; другим может понадобиться Steam Input. Подробности в sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Игра читает контроллеры"
+
+msgid "controllers.game_reads_detail"
+msgstr "Разрешить игре читать контроллеры включено, поэтому Ember не настраивает и не проверяет контроллеры. Выключите эту опцию в Игрок и контроллер и перезапустите игру."
+
+msgid "controllers.none"
+msgstr "Нет подключённых контроллеров"
+
+msgid "controllers.none_detail"
+msgstr "Подключите контроллер, и он появится здесь. Клавиатура работает и без него."
+
+msgid "controllers.value_yours"
+msgstr "Ваш"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Не настроен"
+
+msgid "controllers.value_full"
+msgstr "Не используется"
+
+msgid "controllers.value_absent"
+msgstr "Не подключён"
+
+msgid "controllers.detail_yours"
+msgstr "Вы играете с этим контроллером. Игровой слот {0}. Нажимайте его кнопки для проверки."
+
+msgid "controllers.detail_other"
+msgstr "Игровой слот {0}. Нажимайте кнопки для проверки. Выберите, чтобы играть с ним или настроить его кнопки."
+
+msgid "controllers.detail_custom"
+msgstr "Использует сохранённую настройку кнопок."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input управляет этим контроллером, поэтому его кнопки следуют настройкам Steam. Чтобы им управлял Ember, запустите Ember вне Steam или выключите Steam Input для Ultra Street Fighter IV в Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember ещё не знает кнопки этого контроллера. До настройки игра читает его напрямую, а меню Ember используют кнопки, назначенные на LP и LK. Выберите для настройки."
+
+msgid "controllers.detail_full"
+msgstr "В игре есть место для четырёх контроллеров. Отключите другой, чтобы использовать этот."
+
+msgid "controllers.detail_absent"
+msgstr "Ваш сохранённый контроллер. Подключите его, чтобы снова играть с ним."
+
+msgid "controllers.detail_game_read"
+msgstr "Игра сама читает этот контроллер."
+
+msgid "controllers.steam_name"
+msgstr "Контроллер Steam"
+
+msgid "controllers.test_heading"
+msgstr "Нажимайте кнопки для проверки"
+
+msgid "controllers.test_raw"
+msgstr "Нажато: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Нажато: ничего"
+
+msgid "controllers.choice_play"
+msgstr "Играть с этим контроллером"
+
+msgid "controllers.choice_play_detail"
+msgstr "Используйте его для игры онлайн и меню Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Вы уже играете с этим контроллером."
+
+msgid "controllers.choice_setup"
+msgstr "Настроить кнопки"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Нажимайте каждую кнопку по очереди, чтобы сообщить Ember её назначение."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input задаёт кнопки этого контроллера."
+
+msgid "controllers.choice_forget"
+msgstr "Забыть настройку кнопок"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Вернуть работу контроллера до настройки. Применяется при следующем запуске игры."
+
+msgid "controllers.now_playing"
+msgstr "Вы играете с {0}."
+
+msgid "controllers.forgotten"
+msgstr "Настройка кнопок забыта. Это применится при следующем запуске игры."
+
+msgid "pad_setup.input.button"
+msgstr "Кнопка {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Крестовина вверх"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Крестовина вправо"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Крестовина вниз"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Крестовина влево"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Ось {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Ось {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Ось триггера {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Контроллер отключён. Подключите его снова или выйдите из комнаты, чтобы выбрать другой."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} вернулся, но в другом игровом слоте. Он снова заработает со следующей игры."

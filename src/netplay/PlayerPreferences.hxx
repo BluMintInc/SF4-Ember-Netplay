@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <map>
 #include "../common/ButtonPrompts.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/InputDelay.hxx"
@@ -69,6 +70,8 @@ struct PlayerPreferences {
     // the next launch. It changes only how this PC draws, never the match.
     bool fasterDisplay = true;
     gamepads::ButtonPrompts buttonPrompts = gamepads::ButtonPrompts::Automatic;
+    bool controllerLayer = true;
+    std::map<std::string, std::string> controllerMappings;
     // A match this PC only watches is recorded too, like one it plays
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;

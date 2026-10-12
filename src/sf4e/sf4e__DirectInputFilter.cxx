@@ -1,6 +1,7 @@
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "../common/DirectInputState.hxx"
+#include "../platform/Utf8.hxx"
 #include <spdlog/spdlog.h>
 #include <mutex>
 #include <new>
@@ -9,6 +10,14 @@
 namespace sf4e { namespace DirectInputFilter {
 std::atomic<void*> originalCreate{nullptr};
 namespace {
+bool ServesDevice(const GUID& instance, DWORD product);
+std::mutex controllersMutex;
+struct EnumeratedController { GUID instance; gamepads::NativeController controller; };
+std::vector<EnumeratedController> nativeControllers;
+std::string Utf8(const char* text) { return text; }
+std::string Utf8(const wchar_t* text) {
+    return platform::WideToUtf8(text);
+}
 struct Ansi {
     using Input = IDirectInput8A;
     using Device = IDirectInputDevice8A;
@@ -170,6 +179,13 @@ public:
     HRESULT STDMETHODCALLTYPE CreateDevice(REFGUID guid, typename Api::Device** out, IUnknown* outer) override {
         const HRESULT result = inner_->CreateDevice(guid, out, outer);
         if (FAILED(result) || !out || !*out || outer) return result;
+        if (serves_ == ServesDevice) {
+            DIPROPGUIDANDPATH path{}; path.diph = {sizeof(path), sizeof(path.diph), 0, DIPH_DEVICE};
+            if (SUCCEEDED((*out)->GetProperty(DIPROP_GUIDANDPATH, &path.diph))) {
+                std::lock_guard lock(controllersMutex);
+                for (auto& entry : nativeControllers) if (entry.instance == guid) entry.controller.path = platform::WideToUtf8(path.wszPath);
+            }
+        }
         auto* wrapped = new(std::nothrow) Device<Api>(*out, serves_);
         if (!wrapped) { (*out)->Release(); *out = nullptr; return E_OUTOFMEMORY; }
         *out = wrapped;
@@ -177,6 +193,9 @@ public:
     }
     HRESULT STDMETHODCALLTYPE EnumDevices(DWORD type, typename Api::EnumDevices callback, void* context, DWORD flags) override {
         if (!callback) return inner_->EnumDevices(type, callback, context, flags);
+        if (serves_ == ServesDevice && type == DI8DEVCLASS_GAMECTRL) {
+            std::lock_guard lock(controllersMutex); nativeControllers.clear();
+        }
         Enumeration enumeration{serves_, callback, context};
         return inner_->EnumDevices(type, Enumerate, &enumeration, flags);
     }
@@ -190,8 +209,13 @@ private:
     struct Enumeration { Serves serves; typename Api::EnumDevices callback; void* context; };
     static BOOL CALLBACK Enumerate(const typename Api::Instance* device, void* context) {
         auto& enumeration = *static_cast<Enumeration*>(context);
-        return enumeration.serves(device->guidInstance, device->guidProduct.Data1) ? DIENUM_CONTINUE :
-            enumeration.callback(device, enumeration.context);
+        if (enumeration.serves(device->guidInstance, device->guidProduct.Data1)) return DIENUM_CONTINUE;
+        if (enumeration.serves == ServesDevice && GET_DIDEVICE_TYPE(device->dwDevType) >= DI8DEVTYPE_JOYSTICK) {
+            std::lock_guard lock(controllersMutex);
+            nativeControllers.push_back({device->guidInstance, {4 + static_cast<int>(nativeControllers.size()),
+                Utf8(device->tszInstanceName), Utf8(device->tszProductName), {}}});
+        }
+        return enumeration.callback(device, enumeration.context);
     }
     const Serves serves_;
 };
@@ -231,6 +255,13 @@ HRESULT Wrap(REFIID iid, void** object, Serves serves) {
     if (iid == IID_IDirectInputDevice8A) return WrapOwned<Device<Ansi>, Ansi::Device>(object, serves);
     if (iid == IID_IDirectInputDevice8W) return WrapOwned<Device<Wide>, Wide::Device>(object, serves);
     return E_NOINTERFACE;
+}
+
+std::vector<gamepads::NativeController> ReadControllers() {
+    std::lock_guard lock(controllersMutex);
+    std::vector<gamepads::NativeController> result;
+    for (const auto& entry : nativeControllers) result.push_back(entry.controller);
+    return result;
 }
 
 HRESULT WINAPI Create(HINSTANCE instance, DWORD version, REFIID iid, void** out, IUnknown* outer) {

@@ -1002,11 +1002,7 @@ msgstr "更快显示（减少 1 帧延迟）"
 msgid "player.faster_display_detail"
 msgstr "游戏在每一帧准备好后立即显示，而不是晚 1 帧显示。如果游戏在这台电脑上低于 60 fps，请关闭此选项。只影响这台电脑：对方玩家无需开启。更改将在下次启动游戏时生效。"
 
-msgid "player.native_menus"
-msgstr "打开游戏菜单"
 
-msgid "player.native_menus_detail"
-msgstr "Ember 将关闭。请在游戏菜单的选项中设置格斗按钮。"
 
 msgid "settings.interface_title"
 msgstr "界面"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox 手柄：按 A 选择，按 B 返回，不受格斗按键设置影响。其他手柄：按已映射的 LP 选择，LK 返回。键盘：方向键、Enter 和 Escape。D-pad 移动，左／右调整数值。在主页按返回会隐藏 Ember；在游戏主菜单按 F10（手柄按 Start）可再次打开。\n\n在房间里，在牌桌上按 A 可选择席位，在自己的席位上按 A 表示准备，按 B 离开席位或队列。Xbox 手柄上，X 打开角色，Y 打开选项，View 打开聊天，再按一次返回房间。\n\n训练中，F6 打开控制面板，F5 隐藏 HUD，F7 录制，F8 回放。手柄上按住 View 或 Select 再按 Start。"
+msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：轻踢选择，中踢返回。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
 
 msgid "about.controls_keyboard"
 msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "对战席已关闭"
 
 msgid "controller.disconnected"
-msgstr "控制器已断开。请重新连接或明确分配。"
+msgstr "控制器已断开。重新连接，或在设置 > 玩家与控制器中选择另一个。"
 
 msgid "controller.none"
 msgstr "请选择对战设备"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "对战设备已断开连接。请在下一场对战前重新连接。"
 
 msgid "runtime.match_input_blocked"
-msgstr "对战输入已被阻止：请重新连接 {0}。如果其槽位已变更，请返回房间重新分配。"
+msgstr "{0} 已断开。在你重新连接前，斗士不会收到任何输入。"
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "无法验证控制器在对战中的分配。请重新分配后再试。"
@@ -4599,8 +4595,6 @@ msgstr "Ember 显示的按钮图案。自动会匹配你游玩时使用的控制
 msgid "player.prompts_auto"
 msgstr "自动"
 
-msgid "player.prompts_auto_with"
-msgstr "自动（{0}）"
 
 msgid "controller.brand.stick"
 msgstr "战斗按钮"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} 已连接。"
+
+msgid "controller.connected_keyboard"
+msgstr "{0} 已连接。你正在使用键盘；要切换，请在设置 > 玩家与控制器中使用更换控制器。"
+
+msgid "controller.connected_unmapped"
+msgstr "{0} 已连接。打开 Ember 来设置它的按钮。"
+
+msgid "controller.connected_full"
+msgstr "{0} 已连接，但已有四个控制器正在使用。断开其中一个才能使用它。"
+
+msgid "controller.disconnected_named"
+msgstr "{0} 已断开。"
+
+msgid "controller.reconnected"
+msgstr "{0} 已重新连接。"
+
+msgid "controller.release_to_use"
+msgstr "松开按钮即可使用 {0} 游玩。"
+
+msgid "player.controllers"
+msgstr "控制器"
+
+msgid "player.controllers_value"
+msgstr "已连接 {0} 个"
+
+msgid "player.controllers_detail"
+msgstr "你正在使用 {0} 游玩。查看所有已连接的控制器，测试按钮，并设置 Ember 尚未识别的控制器。"
+
+msgid "player.fight_buttons"
+msgstr "格斗按钮"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember 将关闭。在游戏菜单中选择选项，然后进入控制器设置。Ember 列出的每个控制器都会在那里显示为使用 Xbox 按钮名称的 Xbox 手柄。只有每项操作都分配了按钮，游戏才会保存布局。"
+
+msgid "player.game_reads"
+msgstr "让游戏读取控制器"
+
+msgid "player.game_reads_detail"
+msgstr "关闭：Ember 读取所有控制器，游戏将它们识别为 Xbox 手柄。开启：游戏像没有 Ember 时一样自行读取控制器，PlayStation 和 Switch 手柄此时需要 Steam Input。更改在下次启动游戏时生效。"
+
+msgid "player.game_reads_pending"
+msgstr "重启游戏以应用此更改。"
+
+msgid "player.prompts_showing"
+msgstr "正在显示 {0} 按钮。"
+
+msgid "controllers.title"
+msgstr "控制器"
+
+msgid "controllers.unavailable"
+msgstr "控制器支持已关闭"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember 无法启动控制器支持，因此本次由游戏自行读取控制器。Xbox 手柄照常工作，其他手柄可能需要 Steam Input。详情见 sf4e.log。"
+
+msgid "controllers.game_reads"
+msgstr "游戏正在读取控制器"
+
+msgid "controllers.game_reads_detail"
+msgstr "让游戏读取控制器已开启，因此 Ember 不会设置或测试控制器。在玩家与控制器中将其关闭，然后重启游戏。"
+
+msgid "controllers.none"
+msgstr "未连接控制器"
+
+msgid "controllers.none_detail"
+msgstr "连接控制器后会在这里显示。不接控制器也能使用键盘。"
+
+msgid "controllers.value_yours"
+msgstr "你的"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "未设置"
+
+msgid "controllers.value_full"
+msgstr "未使用"
+
+msgid "controllers.value_absent"
+msgstr "未连接"
+
+msgid "controllers.detail_yours"
+msgstr "你正在使用此控制器游玩。游戏插槽 {0}。按下按钮来测试。"
+
+msgid "controllers.detail_other"
+msgstr "游戏插槽 {0}。按下按钮来测试。选择后可使用它游玩或设置按钮。"
+
+msgid "controllers.detail_custom"
+msgstr "使用你保存的按钮设置。"
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input 正在处理此控制器，因此按钮遵循你的 Steam 设置。要让 Ember 处理它，请在 Steam 外启动 Ember，或在 Steam 中关闭 Ultra Street Fighter IV 的 Steam Input。"
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember 尚未识别此控制器的按钮。设置前，游戏会直接读取它，Ember 菜单使用分配为 LP 和 LK 的按钮。选择以进行设置。"
+
+msgid "controllers.detail_full"
+msgstr "游戏最多支持四个控制器。断开另一个才能使用此控制器。"
+
+msgid "controllers.detail_absent"
+msgstr "你保存的控制器。连接它即可再次使用。"
+
+msgid "controllers.detail_game_read"
+msgstr "游戏自行读取此控制器。"
+
+msgid "controllers.steam_name"
+msgstr "Steam 控制器"
+
+msgid "controllers.test_heading"
+msgstr "按下按钮进行测试"
+
+msgid "controllers.test_raw"
+msgstr "正在按下：{0}"
+
+msgid "controllers.test_nothing"
+msgstr "正在按下：无"
+
+msgid "controllers.choice_play"
+msgstr "使用此控制器游玩"
+
+msgid "controllers.choice_play_detail"
+msgstr "用于在线游玩和 Ember 菜单。"
+
+msgid "controllers.choice_play_current"
+msgstr "你已经在使用此控制器游玩。"
+
+msgid "controllers.choice_setup"
+msgstr "设置按钮"
+
+msgid "controllers.choice_setup_detail"
+msgstr "依次按下各按钮，告诉 Ember 它们的作用。"
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input 设置此控制器的按钮。"
+
+msgid "controllers.choice_forget"
+msgstr "忘记按钮设置"
+
+msgid "controllers.choice_forget_detail"
+msgstr "恢复此控制器在设置前的工作方式。下次启动游戏时生效。"
+
+msgid "controllers.now_playing"
+msgstr "你正在使用 {0} 游玩。"
+
+msgid "controllers.forgotten"
+msgstr "已忘记按钮设置。下次启动游戏时生效。"
+
+msgid "pad_setup.input.button"
+msgstr "按钮 {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "方向帽上"
+
+msgid "pad_setup.input.hat_right"
+msgstr "方向帽右"
+
+msgid "pad_setup.input.hat_down"
+msgstr "方向帽下"
+
+msgid "pad_setup.input.hat_left"
+msgstr "方向帽左"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "轴 {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "轴 {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "扳机轴 {0}"
+
+msgid "controller.disconnected_room"
+msgstr "控制器已断开。重新连接，或离开房间后选择另一个。"
+
+msgid "runtime.match_input_moved"
+msgstr "{0} 已恢复，但位于另一个游戏插槽。下场游戏起才能再次使用。"

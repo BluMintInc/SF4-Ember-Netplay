@@ -1002,11 +1002,7 @@ msgstr "Imagen más rápida (1 fotograma menos)"
 msgid "player.faster_display_detail"
 msgstr "El juego muestra cada fotograma en cuanto está listo, en lugar de un fotograma después. Desactívalo si el juego baja de 60 fps en este PC. Solo afecta a este PC: el otro jugador no necesita activarlo. Los cambios se aplican la próxima vez que inicies el juego."
 
-msgid "player.native_menus"
-msgstr "Abrir menús nativos"
 
-msgid "player.native_menus_detail"
-msgstr "Ember se cerrará. Elige Opciones en el menú del juego para configurar los botones de combate."
 
 msgid "settings.interface_title"
 msgstr "INTERFAZ"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Mando Xbox: A selecciona y B vuelve, con independencia de los botones de combate. Otros mandos: el LP asignado selecciona y el LK vuelve. Teclado: flechas, Enter y Escape. El D-pad desplaza; Izquierda y Derecha cambian un valor. Atrás en Inicio oculta Ember. F10, o Start en el mando, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A en una mesa permite elegir asiento, A en tu propio asiento marca Listo y B deja tu asiento o tu puesto en la cola. En un mando Xbox, X abre Luchador, Y abre Opciones y View abre Chat; púlsalo otra vez para volver a la sala.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En el mando, mantén View o Select y pulsa Start."
+msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un mando configurado en Ember: Patada ligera selecciona y Patada media vuelve atrás. Teclado: flechas, Intro y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un mando, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A sobre una mesa permite elegir asiento, A en tu asiento te marca como listo y B abandona tu asiento o lugar en la cola (en otros mandos, los botones en las mismas posiciones). En Xbox, X abre Luchador, Y Opciones y View Chat; pulsa de nuevo para volver a la sala. PlayStation usa Cuadrado, Triángulo y Share o Create; Switch usa Y, X y Minus.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un mando, mantén View (Share, Create o Minus) y pulsa Start."
 
 msgid "about.controls_keyboard"
 msgstr "En el teclado, Espacio también selecciona y Retroceso también vuelve atrás. En una sala, F abre Luchador, T abre Opciones y C abre Chat. Escape siempre vuelve atrás, incluso en tu propio asiento; Supr deja tu asiento o tu puesto en la cola."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Mesa cerrada"
 
 msgid "controller.disconnected"
-msgstr "Mando desconectado. Reconéctalo o asigna otro."
+msgstr "Mando desconectado. Vuelve a conectarlo o elige otro en Ajustes > Jugador y mando."
 
 msgid "controller.none"
 msgstr "Elige un dispositivo de juego"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "El mando de juego se ha desconectado. Reconéctalo antes de la próxima partida."
 
 msgid "runtime.match_input_blocked"
-msgstr "Entrada de la partida bloqueada: reconecta {0}. Si ha cambiado de posición, vuelve a la sala para reasignarlo."
+msgstr "{0} desconectado. Tu luchador no recibe entradas hasta que lo vuelvas a conectar."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "No se pudo verificar la asignación del mando para la partida. Vuelve a asignarlo antes de intentarlo de nuevo."
@@ -4599,8 +4595,6 @@ msgstr "Las imágenes de botones que muestra Ember. Automático usa las del mand
 msgid "player.prompts_auto"
 msgstr "Automático"
 
-msgid "player.prompts_auto_with"
-msgstr "Automático ({0})"
 
 msgid "controller.brand.stick"
 msgstr "Botones de combate"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} conectado."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} conectado. Juegas con el teclado; para cambiar, usa Cambiar mando en Ajustes > Jugador y mando."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} conectado. Abre Ember para configurar sus botones."
+
+msgid "controller.connected_full"
+msgstr "{0} conectado, pero ya se usan cuatro mandos. Desconecta uno para usar este."
+
+msgid "controller.disconnected_named"
+msgstr "{0} desconectado."
+
+msgid "controller.reconnected"
+msgstr "{0} reconectado."
+
+msgid "controller.release_to_use"
+msgstr "Suelta el botón para jugar con {0}."
+
+msgid "player.controllers"
+msgstr "Mandos"
+
+msgid "player.controllers_value"
+msgstr "{0} conectados"
+
+msgid "player.controllers_detail"
+msgstr "Juegas con {0}. Consulta todos los mandos conectados, prueba sus botones y configura los que Ember aún no conoce."
+
+msgid "player.fight_buttons"
+msgstr "Botones de combate"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember se cierra. En el menú del juego, elige Opciones y luego los ajustes del mando. Cada mando que muestra Ember aparece allí como un mando Xbox con nombres de botones Xbox. El juego solo conserva una configuración si cada acción tiene un botón."
+
+msgid "player.game_reads"
+msgstr "Dejar que el juego lea los mandos"
+
+msgid "player.game_reads_detail"
+msgstr "Desactivado: Ember lee todos los mandos y el juego ve cada uno como un mando Xbox. Activado: el juego lee los mandos por sí mismo, como sin Ember; los mandos PlayStation y Switch necesitan entonces Steam Input. Los cambios se aplican la próxima vez que se inicie el juego."
+
+msgid "player.game_reads_pending"
+msgstr "Reinicia el juego para aplicar esto."
+
+msgid "player.prompts_showing"
+msgstr "Se muestran los botones de {0}."
+
+msgid "controllers.title"
+msgstr "MANDOS"
+
+msgid "controllers.unavailable"
+msgstr "Compatibilidad con mandos desactivada"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember no pudo iniciar su compatibilidad con mandos, así que esta vez el juego los lee por sí mismo. Los mandos Xbox funcionan como siempre; otros pueden necesitar Steam Input. Los detalles están en sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "El juego lee los mandos"
+
+msgid "controllers.game_reads_detail"
+msgstr "Dejar que el juego lea los mandos está activado, así que Ember no los configura ni los prueba. Desactívalo en Jugador y mando y reinicia el juego."
+
+msgid "controllers.none"
+msgstr "No hay mandos conectados"
+
+msgid "controllers.none_detail"
+msgstr "Conecta un mando y aparecerá aquí. El teclado funciona sin uno."
+
+msgid "controllers.value_yours"
+msgstr "El tuyo"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Sin configurar"
+
+msgid "controllers.value_full"
+msgstr "Sin usar"
+
+msgid "controllers.value_absent"
+msgstr "No conectado"
+
+msgid "controllers.detail_yours"
+msgstr "Juegas con este mando. Ranura de juego {0}. Pulsa sus botones para probarlos."
+
+msgid "controllers.detail_other"
+msgstr "Ranura de juego {0}. Pulsa sus botones para probarlos. Selecciónalo para jugar con él o configurar sus botones."
+
+msgid "controllers.detail_custom"
+msgstr "Usa la configuración de botones que guardaste."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input gestiona este mando, por lo que sus botones siguen tus ajustes de Steam. Para que Ember lo gestione, inicia Ember fuera de Steam o desactiva Steam Input para Ultra Street Fighter IV en Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember aún no conoce los botones de este mando. Hasta que lo configures, el juego lo lee directamente y los menús de Ember usan los botones asignados a LP y LK. Selecciónalo para configurarlo."
+
+msgid "controllers.detail_full"
+msgstr "El juego tiene espacio para cuatro mandos. Desconecta otro para usar este."
+
+msgid "controllers.detail_absent"
+msgstr "Tu mando guardado. Conéctalo para volver a jugar con él."
+
+msgid "controllers.detail_game_read"
+msgstr "El juego lee este mando por sí mismo."
+
+msgid "controllers.steam_name"
+msgstr "Mando Steam"
+
+msgid "controllers.test_heading"
+msgstr "Pulsa botones para probarlos"
+
+msgid "controllers.test_raw"
+msgstr "Pulsando: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Pulsando: nada"
+
+msgid "controllers.choice_play"
+msgstr "Jugar con este mando"
+
+msgid "controllers.choice_play_detail"
+msgstr "Úsalo para jugar en línea y en los menús de Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Ya juegas con este mando."
+
+msgid "controllers.choice_setup"
+msgstr "Configurar botones"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Pulsa cada botón por turnos para indicar a Ember qué hace."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input configura los botones de este mando."
+
+msgid "controllers.choice_forget"
+msgstr "Olvidar configuración de botones"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Vuelve a cómo funcionaba este mando antes de configurarlo. Se aplica la próxima vez que se inicie el juego."
+
+msgid "controllers.now_playing"
+msgstr "Juegas con {0}."
+
+msgid "controllers.forgotten"
+msgstr "Configuración de botones olvidada. Se aplica la próxima vez que se inicie el juego."
+
+msgid "pad_setup.input.button"
+msgstr "Botón {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Cruceta arriba"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Cruceta derecha"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Cruceta abajo"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Cruceta izquierda"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Eje {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Eje {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Eje de gatillo {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Mando desconectado. Vuelve a conectarlo o sal de la sala para elegir otro."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} ha vuelto, pero en otra ranura de juego. Volverá a funcionar a partir de la próxima partida."

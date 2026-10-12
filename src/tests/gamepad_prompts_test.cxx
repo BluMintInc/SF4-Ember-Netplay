@@ -51,10 +51,10 @@ static void Resolution() {
     CHECK(ResolvePrompts(ButtonPrompts::Automatic,input::PadXInput,GameplayBrand(input::PadXInput))==PromptBrand{Brand::Xbox});
     CHECK(Valid(ButtonPrompts::Automatic)&&Valid(ButtonPrompts::Nintendo));
     CHECK(!Valid(static_cast<ButtonPrompts>(-1))&&!Valid(static_cast<ButtonPrompts>(4)));
-    CHECK(ui::ButtonPromptValue(ButtonPrompts::Automatic,input::PadKeyboard,{})=="Automatic");
-    CHECK(ui::ButtonPromptValue(ButtonPrompts::Automatic,input::PadDirectInput,{})=="Automatic");
-    CHECK(ui::ButtonPromptValue(ButtonPrompts::Automatic,input::PadXInput,{})=="Automatic (Xbox)");
-    CHECK(ui::ButtonPromptValue(ButtonPrompts::Automatic,input::PadXInput,{Brand::Stick})=="Automatic (Fight buttons)");
+    CHECK(ui::ButtonPromptValue(ButtonPrompts::Automatic)=="Automatic");
+    CHECK(ui::ButtonPromptValue(ButtonPrompts::Xbox)=="Xbox");
+    CHECK(ui::ButtonPromptValue(ButtonPrompts::PlayStation)=="PlayStation");
+    CHECK(ui::ButtonPromptValue(ButtonPrompts::Nintendo)=="Nintendo");
 }
 static void Glyphs() {
     const struct { const char* id; const char* xbox; const char* ps; const char* nintendo; const char* stick; const char* name; } cases[] = {

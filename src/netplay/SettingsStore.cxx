@@ -25,7 +25,7 @@ void RetireLegacy(Json& document) {
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);
 }
 // With the on/off preferences (BoolPreferences), the keys kept in the netplay section.
-const char* NetplayKeys[] = { "inputDelay", "buttonPrompts", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults" };
+const char* NetplayKeys[] = { "inputDelay", "buttonPrompts", "controllerMappings", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults" };
 
 void MergeLauncher(Json& document, const Json& launcher) {
     // Only durable preferences enter the new store. Originals/backups retain
@@ -134,11 +134,18 @@ bool SettingsStore::Access(bool overlay, const Json* update, Json* output, std::
             RetireLegacy(document);
             return Publish(directory, L"settings.json", document, error);
         }
-        if (overlay) *output = document["overlay"];
+        if (overlay) {
+            *output = document["overlay"];
+            // Player autosave owns this setting once edited. Preserve P1's
+            // overlay startup contract without a second write or stale overwrite.
+            if (document["netplay"].contains("controllerLayer")) (*output)["controllerLayer"] = document["netplay"]["controllerLayer"];
+        }
         else {
             *output = document["legacyLauncher"];
             output->update(document["netplay"]);
             output->update(document["profile"]);
+            if (!output->contains("controllerLayer") && document["overlay"].contains("controllerLayer"))
+                (*output)["controllerLayer"] = document["overlay"]["controllerLayer"];
         }
         return true;
     } catch (...) {

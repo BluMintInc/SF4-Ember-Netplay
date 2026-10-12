@@ -1002,11 +1002,7 @@ msgstr "Sneller beeld (1 frame minder)"
 msgid "player.faster_display_detail"
 msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
-msgid "player.native_menus"
-msgstr "Spelmenu's openen"
 
-msgid "player.native_menus_detail"
-msgstr "Ember wordt gesloten. Kies Opties in het spelmenu om de vechtknoppen in te stellen."
 
 msgid "settings.interface_title"
 msgstr "INTERFACE"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Op een controller: houd View of Select vast en druk op Start."
+msgstr "Xbox: A selecteert en B gaat terug. PlayStation: Kruis selecteert en Cirkel gaat terug. Switch: B selecteert en A gaat terug, zoals in de menu's van het spel. Een in Ember ingestelde controller: Lichte trap selecteert en middelzware trap gaat terug. Toetsenbord: pijlen, Enter en Escape. Het richtingspad beweegt; Links en Rechts veranderen een waarde. Teruggaan op Home verbergt Ember. F10, of Start op een controller, opent het weer in het hoofdmenu van het spel.\n\nIn een kamer laat A op een tafel je een plek kiezen, maakt A op je eigen plek je gereed en verlaat B je plek of de wachtrij (op andere controllers de knoppen op dezelfde posities). Op Xbox opent X Vechter, Y Opties en View Chat; druk nogmaals om terug te keren naar de kamer. PlayStation gebruikt Vierkant, Driehoek en Share of Create; Switch gebruikt Y, X en Minus.\n\nIn training opent F6 de bediening, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Houd op een controller View (Share, Create of Minus) vast en druk op Start."
 
 msgid "about.controls_keyboard"
 msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Tafel gesloten"
 
 msgid "controller.disconnected"
-msgstr "Controller niet verbonden. Sluit hem opnieuw aan of wijs hem zelf toe."
+msgstr "Controller losgekoppeld. Verbind hem opnieuw of kies een andere in Instellingen > Speler en controller."
 
 msgid "controller.none"
 msgstr "Kies een spelcontroller"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Spelcontroller niet verbonden. Sluit hem opnieuw aan vóór de volgende match."
 
 msgid "runtime.match_input_blocked"
-msgstr "Matchinvoer geblokkeerd: sluit {0} opnieuw aan. Is de slot veranderd, ga dan terug naar de kamer om hem opnieuw toe te wijzen."
+msgstr "{0} is losgekoppeld. Je vechter krijgt geen invoer totdat je hem weer verbindt."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Kon de controllertoewijzing voor de match niet controleren. Wijs hem opnieuw toe en probeer het weer."
@@ -4599,8 +4595,6 @@ msgstr "De knopafbeeldingen die Ember toont. Automatisch past ze aan de controll
 msgid "player.prompts_auto"
 msgstr "Automatisch"
 
-msgid "player.prompts_auto_with"
-msgstr "Automatisch ({0})"
 
 msgid "controller.brand.stick"
 msgstr "Gevechtsknoppen"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} is verbonden."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} is verbonden. Je speelt met het toetsenbord; gebruik Controller wijzigen in Instellingen > Speler en controller om te wisselen."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} is verbonden. Open Ember om de knoppen in te stellen."
+
+msgid "controller.connected_full"
+msgstr "{0} is verbonden, maar er zijn al vier controllers in gebruik. Koppel er één los om deze te gebruiken."
+
+msgid "controller.disconnected_named"
+msgstr "{0} is losgekoppeld."
+
+msgid "controller.reconnected"
+msgstr "{0} is opnieuw verbonden."
+
+msgid "controller.release_to_use"
+msgstr "Laat de knop los om met {0} te spelen."
+
+msgid "player.controllers"
+msgstr "Controllers"
+
+msgid "player.controllers_value"
+msgstr "{0} verbonden"
+
+msgid "player.controllers_detail"
+msgstr "Je speelt met {0}. Bekijk alle verbonden controllers, test hun knoppen en stel de controllers in die Ember nog niet kent."
+
+msgid "player.fight_buttons"
+msgstr "Vechtknoppen"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember sluit. Kies in het spelmenu Opties en daarna de controllerinstellingen. Elke controller die Ember vermeldt, verschijnt daar als Xbox-controller met Xbox-knopnamen. Het spel bewaart een indeling alleen als elke actie een knop heeft."
+
+msgid "player.game_reads"
+msgstr "Laat het spel controllers lezen"
+
+msgid "player.game_reads_detail"
+msgstr "Uit: Ember leest alle controllers en het spel ziet ze elk als Xbox-controller. Aan: het spel leest controllers zelf, zoals zonder Ember; PlayStation- en Switch-controllers hebben dan Steam Input nodig. Wijzigingen gelden bij de volgende spelstart."
+
+msgid "player.game_reads_pending"
+msgstr "Start het spel opnieuw om dit toe te passen."
+
+msgid "player.prompts_showing"
+msgstr "{0}-knoppen worden getoond."
+
+msgid "controllers.title"
+msgstr "CONTROLLERS"
+
+msgid "controllers.unavailable"
+msgstr "Controllerondersteuning is uit"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember kon de controllerondersteuning niet starten, dus het spel leest controllers deze keer zelf. Xbox-controllers werken zoals gewoonlijk; andere hebben mogelijk Steam Input nodig. Details staan in sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Het spel leest controllers"
+
+msgid "controllers.game_reads_detail"
+msgstr "Laat het spel controllers lezen staat aan, dus Ember stelt controllers niet in en test ze niet. Zet het uit in Speler en controller en start het spel opnieuw."
+
+msgid "controllers.none"
+msgstr "Geen controllers verbonden"
+
+msgid "controllers.none_detail"
+msgstr "Verbind een controller en deze verschijnt hier. Het toetsenbord werkt ook zonder."
+
+msgid "controllers.value_yours"
+msgstr "Van jou"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Niet ingesteld"
+
+msgid "controllers.value_full"
+msgstr "Niet in gebruik"
+
+msgid "controllers.value_absent"
+msgstr "Niet verbonden"
+
+msgid "controllers.detail_yours"
+msgstr "Je speelt met deze controller. Spelslot {0}. Druk op de knoppen om ze te testen."
+
+msgid "controllers.detail_other"
+msgstr "Spelslot {0}. Druk op de knoppen om ze te testen. Selecteer om ermee te spelen of de knoppen in te stellen."
+
+msgid "controllers.detail_custom"
+msgstr "Gebruikt je opgeslagen knopinstelling."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input beheert deze controller, dus de knoppen volgen je Steam-instellingen. Start Ember buiten Steam of schakel Steam Input voor Ultra Street Fighter IV in Steam uit om Ember de controller te laten beheren."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember kent de knoppen van deze controller nog niet. Tot de instelling leest het spel hem rechtstreeks en gebruiken Embers menu's de knoppen die als LP en LK zijn ingesteld. Selecteer om hem in te stellen."
+
+msgid "controllers.detail_full"
+msgstr "Het spel biedt ruimte voor vier controllers. Koppel een andere los om deze te gebruiken."
+
+msgid "controllers.detail_absent"
+msgstr "Je opgeslagen controller. Verbind hem om er weer mee te spelen."
+
+msgid "controllers.detail_game_read"
+msgstr "Het spel leest deze controller zelf."
+
+msgid "controllers.steam_name"
+msgstr "Steam-controller"
+
+msgid "controllers.test_heading"
+msgstr "Druk op knoppen om ze te testen"
+
+msgid "controllers.test_raw"
+msgstr "Ingedrukt: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Ingedrukt: niets"
+
+msgid "controllers.choice_play"
+msgstr "Speel met deze controller"
+
+msgid "controllers.choice_play_detail"
+msgstr "Gebruik hem voor online spelen en Embers menu's."
+
+msgid "controllers.choice_play_current"
+msgstr "Je speelt al met deze controller."
+
+msgid "controllers.choice_setup"
+msgstr "Knoppen instellen"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Druk elke knop om de beurt in om Ember te vertellen wat deze doet."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input stelt de knoppen van deze controller in."
+
+msgid "controllers.choice_forget"
+msgstr "Knopinstelling vergeten"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Ga terug naar hoe deze controller werkte voordat je hem instelde. Geldt bij de volgende spelstart."
+
+msgid "controllers.now_playing"
+msgstr "Je speelt met {0}."
+
+msgid "controllers.forgotten"
+msgstr "Knopinstelling vergeten. Dit geldt bij de volgende spelstart."
+
+msgid "pad_setup.input.button"
+msgstr "Knop {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Richtingspad omhoog"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Richtingspad rechts"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Richtingspad omlaag"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Richtingspad links"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "As {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "As {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Triggeras {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controller losgekoppeld. Verbind hem opnieuw of verlaat de kamer om een andere te kiezen."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} is terug, maar in een ander spelslot. Hij werkt weer vanaf het volgende spel."

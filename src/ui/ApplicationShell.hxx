@@ -23,6 +23,8 @@
 #include <optional>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
+#include "../common/ControllerView.hxx"
+#include "../common/ControllerRequest.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "ReplaysPanel.hxx"
@@ -84,6 +86,11 @@ struct ShellView {
     platform::ServiceSnapshot services;
     std::string controller;
     std::string padHint;
+    std::uint64_t padHintUntil = 0;
+    gamepads::Layer padLayer = gamepads::Layer::Active;
+    bool padLayerPending = false, runningControllerLayer = true;
+    std::vector<gamepads::PadView> pads;
+    unsigned captureCandidate = 0;
     // gameplayBrand is detected; promptBrand is resolved by the runtime.
     // The local unsaved setting can resolve against gameplayBrand immediately.
     gamepads::PromptBrand gameplayBrand, promptBrand;
@@ -148,6 +155,7 @@ struct ShellAction {
     std::string servicePath;
     reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
+    gamepads::ControllerRequest padAction;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
     netplay::PlayerPreferences preferences;

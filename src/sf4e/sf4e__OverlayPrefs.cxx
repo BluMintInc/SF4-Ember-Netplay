@@ -265,6 +265,7 @@ namespace OverlayPrefs {
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         netplay::WriteBoolPreferences(preferences, values);
         netplay::WriteButtonPrompts(preferences, values);
+        values["controllerMappings"] = preferences.controllerMappings;
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));
 	}

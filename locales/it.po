@@ -1002,11 +1002,7 @@ msgstr "Immagine più rapida (1 frame in meno)"
 msgid "player.faster_display_detail"
 msgstr "Il gioco mostra ogni frame appena è pronto, invece di un frame dopo. Disattivalo se il gioco scende sotto i 60 fps su questo PC. Riguarda solo questo PC: l'altro giocatore non deve attivarlo. Le modifiche valgono dal prossimo avvio del gioco."
 
-msgid "player.native_menus"
-msgstr "Apri menu del gioco"
 
-msgid "player.native_menus_detail"
-msgstr "Ember si chiuderà. Scegli Opzioni nel menu del gioco per configurare i pulsanti di combattimento."
 
 msgid "settings.interface_title"
 msgstr "INTERFACCIA"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Comandi"
 
 msgid "about.controls_detail"
-msgstr "Controller Xbox: A seleziona e B torna indietro, indipendentemente dai tasti di combattimento. Altri controller: l'LP assegnato seleziona e l'LK torna indietro. Tastiera: frecce, Enter e Escape. Il D-pad si muove; Sinistra e Destra cambiano un valore. Indietro nella Home nasconde Ember. F10, o Start sul controller, lo riapre nel menu principale del gioco.\n\nIn una sala, A su un tavolo permette di scegliere un posto, A sul tuo posto ti mette pronto e B lascia il posto o la coda. Su un controller Xbox, X apre Lottatore, Y apre Opzioni e View apre Chat; premilo di nuovo per tornare alla sala.\n\nNell'allenamento, F6 apre i comandi, F5 nasconde l'HUD, F7 registra e F8 riproduce. Sul controller, tieni View o Select e premi Start."
+msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Calcio leggero seleziona e Calcio medio torna indietro. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nIn una stanza, A su un tavolo permette di scegliere un posto, A sul proprio posto segnala che si è pronti e B lascia il posto o la coda (sugli altri controller, i pulsanti nelle stesse posizioni). Su Xbox, X apre Combattente, Y Opzioni e View Chat; premi di nuovo per tornare alla stanza. PlayStation usa Quadrato, Triangolo e Share o Create; Switch usa Y, X e Minus.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start."
 
 msgid "about.controls_keyboard"
 msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Tavolo chiuso"
 
 msgid "controller.disconnected"
-msgstr "Controller scollegato. Ricollegalo o assegnane uno."
+msgstr "Controller disconnesso. Riconnettilo o scegline un altro in Impostazioni > Giocatore e controller."
 
 msgid "controller.none"
 msgstr "Scegli un dispositivo di gioco"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Periferica di gioco scollegata. Ricollegala prima della prossima partita."
 
 msgid "runtime.match_input_blocked"
-msgstr "Input della partita bloccato: ricollega {0}. Se lo slot è cambiato, torna alla sala per riassegnarlo."
+msgstr "{0} disconnesso. Il tuo combattente non riceve input finché non lo riconnetti."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Impossibile verificare l'assegnazione del controller per la partita. Riassegnalo e riprova."
@@ -4599,8 +4595,6 @@ msgstr "Le immagini dei pulsanti mostrate da Ember. Automatico usa quelle del co
 msgid "player.prompts_auto"
 msgstr "Automatico"
 
-msgid "player.prompts_auto_with"
-msgstr "Automatico ({0})"
 
 msgid "controller.brand.stick"
 msgstr "Pulsanti di combattimento"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} connesso."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} connesso. Giochi con la tastiera; per cambiare, usa Cambia controller in Impostazioni > Giocatore e controller."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} connesso. Apri Ember per configurare i suoi pulsanti."
+
+msgid "controller.connected_full"
+msgstr "{0} connesso, ma quattro controller sono già in uso. Scollegane uno per usare questo."
+
+msgid "controller.disconnected_named"
+msgstr "{0} disconnesso."
+
+msgid "controller.reconnected"
+msgstr "{0} riconnesso."
+
+msgid "controller.release_to_use"
+msgstr "Rilascia il pulsante per giocare con {0}."
+
+msgid "player.controllers"
+msgstr "Controller"
+
+msgid "player.controllers_value"
+msgstr "{0} connessi"
+
+msgid "player.controllers_detail"
+msgstr "Giochi con {0}. Vedi tutti i controller connessi, prova i loro pulsanti e configura quelli che Ember non conosce ancora."
+
+msgid "player.fight_buttons"
+msgstr "Pulsanti di combattimento"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember si chiude. Nel menu del gioco, scegli Opzioni, poi le impostazioni del controller. Ogni controller elencato da Ember appare lì come un controller Xbox con nomi dei pulsanti Xbox. Il gioco conserva una configurazione solo quando ogni azione ha un pulsante."
+
+msgid "player.game_reads"
+msgstr "Lascia leggere i controller al gioco"
+
+msgid "player.game_reads_detail"
+msgstr "Disattivato: Ember legge tutti i controller e il gioco vede ciascuno come un controller Xbox. Attivato: il gioco legge i controller da solo, come senza Ember; i controller PlayStation e Switch richiedono quindi Steam Input. Le modifiche si applicano al prossimo avvio del gioco."
+
+msgid "player.game_reads_pending"
+msgstr "Riavvia il gioco per applicare questa modifica."
+
+msgid "player.prompts_showing"
+msgstr "Sono mostrati i pulsanti {0}."
+
+msgid "controllers.title"
+msgstr "CONTROLLER"
+
+msgid "controllers.unavailable"
+msgstr "Supporto controller disattivato"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember non ha potuto avviare il supporto controller, quindi questa volta il gioco li legge da solo. I controller Xbox funzionano come al solito; gli altri potrebbero richiedere Steam Input. I dettagli sono in sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Il gioco legge i controller"
+
+msgid "controllers.game_reads_detail"
+msgstr "Lascia leggere i controller al gioco è attivato, quindi Ember non configura né prova i controller. Disattivalo in Giocatore e controller e riavvia il gioco."
+
+msgid "controllers.none"
+msgstr "Nessun controller connesso"
+
+msgid "controllers.none_detail"
+msgstr "Connetti un controller e apparirà qui. La tastiera funziona anche senza."
+
+msgid "controllers.value_yours"
+msgstr "Il tuo"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Non configurato"
+
+msgid "controllers.value_full"
+msgstr "Non in uso"
+
+msgid "controllers.value_absent"
+msgstr "Non connesso"
+
+msgid "controllers.detail_yours"
+msgstr "Giochi con questo controller. Slot di gioco {0}. Premi i suoi pulsanti per provarli."
+
+msgid "controllers.detail_other"
+msgstr "Slot di gioco {0}. Premi i suoi pulsanti per provarli. Seleziona per giocare con esso o configurare i suoi pulsanti."
+
+msgid "controllers.detail_custom"
+msgstr "Usa la configurazione dei pulsanti che hai salvato."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input gestisce questo controller, quindi i suoi pulsanti seguono le tue impostazioni Steam. Per farlo gestire a Ember, avvia Ember fuori da Steam o disattiva Steam Input per Ultra Street Fighter IV in Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember non conosce ancora i pulsanti di questo controller. Finché non viene configurato, il gioco lo legge direttamente e i menu di Ember usano i pulsanti assegnati a LP e LK. Seleziona per configurarlo."
+
+msgid "controllers.detail_full"
+msgstr "Il gioco ha spazio per quattro controller. Scollegane un altro per usare questo."
+
+msgid "controllers.detail_absent"
+msgstr "Il tuo controller salvato. Connettilo per tornare a giocare con esso."
+
+msgid "controllers.detail_game_read"
+msgstr "Il gioco legge questo controller da solo."
+
+msgid "controllers.steam_name"
+msgstr "Controller Steam"
+
+msgid "controllers.test_heading"
+msgstr "Premi i pulsanti per provarli"
+
+msgid "controllers.test_raw"
+msgstr "Premuti: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Premuti: nessuno"
+
+msgid "controllers.choice_play"
+msgstr "Gioca con questo controller"
+
+msgid "controllers.choice_play_detail"
+msgstr "Usalo per giocare online e nei menu di Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Giochi già con questo controller."
+
+msgid "controllers.choice_setup"
+msgstr "Configura pulsanti"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Premi ciascun pulsante a turno per indicare a Ember la sua funzione."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input imposta i pulsanti di questo controller."
+
+msgid "controllers.choice_forget"
+msgstr "Dimentica configurazione pulsanti"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Torna al funzionamento di questo controller prima della configurazione. Si applica al prossimo avvio del gioco."
+
+msgid "controllers.now_playing"
+msgstr "Giochi con {0}."
+
+msgid "controllers.forgotten"
+msgstr "Configurazione pulsanti dimenticata. Si applica al prossimo avvio del gioco."
+
+msgid "pad_setup.input.button"
+msgstr "Pulsante {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Croce su"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Croce destra"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Croce giù"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Croce sinistra"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Asse {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Asse {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Asse grilletto {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controller disconnesso. Riconnettilo o lascia la stanza per sceglierne un altro."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} è tornato, ma in un altro slot di gioco. Funzionerà di nuovo dalla prossima partita."

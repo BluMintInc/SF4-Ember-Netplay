@@ -12,7 +12,7 @@ inline const char* MenuScreenName(const std::string& screen) {
     // lists, so add a new screen there too.
     const std::pair<const char*,const char*> names[]={
         {"home",loc::T("screen.home")},{"online",loc::T("screen.online")},{"selection",loc::T("screen.selection")},
-        {"player",loc::T("screen.player")},{"defaults",loc::T("screen.defaults")},
+        {"player",loc::T("screen.player")},{"controllers",loc::T("player.controllers")},{"defaults",loc::T("screen.defaults")},
         {"main-character",loc::T("screen.main_character")},{"about",loc::T("screen.about")},
         {"profile",loc::T("home.profile")},{"settings",loc::T("home.settings")},{"interface",loc::T("settings.interface")},
         {"training-replays",loc::T("settings.training_replays")},{"problem-reports",loc::T("reports.settings_title")},{"sent-reports",loc::T("reports.sent_list")},{"discord",loc::T("screen.discord")},{"discord-invitation",loc::T("screen.discord_invitation")},

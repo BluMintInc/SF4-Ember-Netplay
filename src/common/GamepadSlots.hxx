@@ -21,14 +21,15 @@ struct Pad {
     Type type = Type::Unknown;
     bool mapped = false;
     bool hasEmberMapping = false;
+    bool arcadeStick = false;
     bool available = true;
     int slot = -1;
     Status status = Status::NotInUse;
     Id steamPad = 0;
     bool operator==(const Pad& other) const {
-        return std::tie(id, identity, vid, pid, type, mapped, hasEmberMapping, available, slot, status, steamPad) ==
+        return std::tie(id, identity, vid, pid, type, mapped, hasEmberMapping, arcadeStick, available, slot, status, steamPad) ==
             std::tie(other.id, other.identity, other.vid, other.pid, other.type,
-                other.mapped, other.hasEmberMapping, other.available, other.slot, other.status, other.steamPad);
+                other.mapped, other.hasEmberMapping, other.arcadeStick, other.available, other.slot, other.status, other.steamPad);
     }
 };
 

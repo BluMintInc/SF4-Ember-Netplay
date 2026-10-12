@@ -8,6 +8,8 @@
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
+#include "../common/ControllerRequest.hxx"
+#include "../common/ControllerView.hxx"
 
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/NetworkRoute.hxx"
@@ -85,6 +87,7 @@ namespace sf4e {
             std::string servicePath;
             reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
+            gamepads::ControllerRequest padAction;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
 			std::string displayName;
@@ -118,6 +121,11 @@ namespace sf4e {
             ui::ControllerSample menuController;
             // Retain the detected brand to preview Automatic before autosave.
             gamepads::PromptBrand gameplayBrand, promptBrand;
+            gamepads::Layer padLayer = gamepads::Layer::Failed;
+            bool padLayerPending = false, runningControllerLayer = true;
+            std::vector<gamepads::PadView> pads;
+            unsigned captureCandidate = 0;
+            std::uint64_t padHintUntil = 0;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
 			netplay::Snapshot session;

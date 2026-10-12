@@ -297,6 +297,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.inputDevice = snapshot.inputDevice;
     view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
     view.padHint = snapshot.padHint;
+    view.padHintUntil = snapshot.padHintUntil; view.padLayer = snapshot.padLayer;
+    view.padLayerPending = snapshot.padLayerPending; view.runningControllerLayer = snapshot.runningControllerLayer;
+    view.pads = snapshot.pads; view.captureCandidate = snapshot.captureCandidate;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
     view.canChangeController = snapshot.canChangeController;
@@ -353,6 +356,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.replay = std::move(action.replay);
         request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
+        request.padAction = action.padAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
 		request.preferences = std::move(action.preferences);

@@ -80,22 +80,35 @@ inline std::string PromptLabel(const char* glyph,const std::string& label,gamepa
 // One prompt in a size-by-size square at `at`: a key cap with its name, the
 // prompt art, or, with neither, the glyph's name. `s` is the caller's scale; `keyFont`,
 // when given, sizes a key cap's name.
-inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size,SelectionArt* art,float s,float keyFont=0,gamepads::PromptBrand brand=MenuPromptBrand()) {
+inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size,SelectionArt* art,float s,float keyFont=0,gamepads::PromptBrand brand=MenuPromptBrand(),float alpha=1) {
+    auto textColor=ImGui::ColorConvertU32ToFloat4(palette::Ivory);textColor.w*=alpha;
+    const auto ivory=ImGui::GetColorU32(textColor);
     if(KeyCapGlyph(glyph)){
         const ImVec2 capTop(at.x+2*s,at.y+3*s),capBottom(at.x+size-2*s,at.y+size-3*s);
-        d->AddRectFilled(capTop,capBottom,IM_COL32(40,38,36,235),5*s);
-        d->AddRect(capTop,capBottom,palette::Ivory,5*s,0,1.5f*s);
+        d->AddRectFilled(capTop,capBottom,IM_COL32(40,38,36,static_cast<int>(235*alpha)),5*s);
+        d->AddRect(capTop,capBottom,ivory,5*s,0,1.5f*s);
         // 12 and 16 at the legend's 32-pixel prompts, and in step at other sizes.
         if(keyFont<=0)keyFont=(std::strlen(glyph)>1?12:16)*size/32;
         const ImVec2 text=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,glyph);
-        d->AddText(ImGui::GetFont(),keyFont,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),palette::Ivory,glyph);
+        d->AddText(ImGui::GetFont(),keyFont,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),ivory,glyph);
         return;
     }
     const auto icon=art?art->InputPrompt(PromptAsset(glyph,brand)):SelectionImage{};
-    if(icon.texture)d->AddImage(icon.texture,at,ImVec2(at.x+size,at.y+size),icon.uvMin,icon.uvMax);
+    const auto tint=ImGui::GetColorU32(ImVec4(1,1,1,alpha));
+    if(icon.texture){
+        d->AddImage(icon.texture,at,ImVec2(at.x+size,at.y+size),icon.uvMin,icon.uvMax,tint);
+        const auto name=BrandGlyph(glyph,brand).name;
+        if(brand.brand==gamepads::Brand::Stick&&*name){
+            const float base=12*size/32;
+            const float measured=ImGui::GetFont()->CalcTextSizeA(base,FLT_MAX,0,name).x;
+            const float font=base*(std::min)(1.f,(size-8*size/32)/(std::max)(1.f,measured));
+            const auto text=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,name);
+            d->AddText(ImGui::GetFont(),font,ImVec2(at.x+(size-text.x)*.5f,at.y+(size-text.y)*.5f),ImGui::GetColorU32(ImVec4(.12f,.11f,.1f,alpha)),name);
+        }
+    }
     else {
         const char* name=BrandGlyph(glyph,brand).name;
-        d->AddText(ImGui::GetFont(),12*size/32,ImVec2(at.x,at.y+8*size/32),palette::Ivory,*name?name:glyph);
+        d->AddText(ImGui::GetFont(),12*size/32,ImVec2(at.x,at.y+8*size/32),ivory,*name?name:glyph);
     }
 }
 // A screen's own button, shown after the standard ones.

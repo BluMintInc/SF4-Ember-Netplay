@@ -1002,11 +1002,7 @@ msgstr "Schnellere Anzeige (1 Frame weniger)"
 msgid "player.faster_display_detail"
 msgstr "Das Spiel zeigt jeden Frame, sobald er fertig ist, statt einen Frame später. Schalten Sie es aus, wenn das Spiel auf diesem PC unter 60 fps fällt. Es betrifft nur diesen PC: Der andere Spieler muss es nicht einschalten. Änderungen gelten ab dem nächsten Spielstart."
 
-msgid "player.native_menus"
-msgstr "Native Menüs öffnen"
 
-msgid "player.native_menus_detail"
-msgstr "Ember wird geschlossen. Wählen Sie im Spielmenü OPTIONEN, um die Kampftasten zu belegen."
 
 msgid "settings.interface_title"
 msgstr "OBERFLÄCHE"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Steuerung"
 
 msgid "about.controls_detail"
-msgstr "Xbox-Controller: A wählt aus, B geht zurück, unabhängig von der Kampfbelegung. Andere Controller: das zugewiesene LP wählt aus, LK geht zurück. Tastatur: Pfeiltasten, Enter und Escape. Das D-pad bewegt; Links und Rechts ändern einen Wert. Zurück auf der Startseite blendet Ember aus. F10, oder Start am Controller, öffnet es wieder im Hauptmenü des Spiels.\n\nIn einem Raum wählen Sie mit A auf einem Tisch einen Platz, A auf Ihrem eigenen Platz setzt Sie auf Bereit und B verlässt Ihren Platz oder die Warteliste. Am Xbox-Controller öffnet X Kämpfer, Y Optionen und View Chat; erneutes Drücken führt zurück in den Raum.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Am Controller: View oder Select halten und Start drücken."
+msgstr "Xbox: A wählt aus und B geht zurück. PlayStation: Kreuz wählt aus und Kreis geht zurück. Switch: B wählt aus und A geht zurück, wie in den Menüs des Spiels. Ein in Ember eingerichteter Controller: Leichter Tritt wählt aus und mittlerer Tritt geht zurück. Tastatur: Pfeile, Enter und Escape. Das Steuerkreuz bewegt; Links und Rechts ändern einen Wert. Zurück auf Home blendet Ember aus. F10 oder Start am Controller öffnet es wieder im Hauptmenü des Spiels.\n\nIm Raum lässt dich A auf einem Tisch einen Platz wählen, A auf deinem eigenen Platz meldet dich bereit und B verlässt deinen Platz oder die Warteschlange (auf anderen Controllern die Tasten an denselben Positionen). Auf Xbox öffnet X Kämpfer, Y Optionen und View Chat; erneut drücken kehrt zum Raum zurück. PlayStation nutzt Quadrat, Dreieck und Share oder Create; Switch nutzt Y, X und Minus.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Halte am Controller View (Share, Create oder Minus) und drücke Start."
 
 msgid "about.controls_keyboard"
 msgstr "Auf der Tastatur wählt auch die Leertaste und Rücktaste geht ebenfalls zurück. Im Raum öffnet F den Kämpfer, T die Optionen und C den Chat. Escape geht immer zurück, auch auf dem eigenen Platz; Entf verlässt deinen Platz oder die Warteschlange."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Tisch geschlossen"
 
 msgid "controller.disconnected"
-msgstr "Controller getrennt. Erneut verbinden oder zuweisen."
+msgstr "Controller getrennt. Verbinde ihn erneut oder wähle einen anderen unter Einstellungen > Spieler & Controller."
 
 msgid "controller.none"
 msgstr "Spielgerät wählen"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Spielgerät getrennt. Verbinden Sie es vor dem nächsten Kampf erneut."
 
 msgid "runtime.match_input_blocked"
-msgstr "Kampfeingabe blockiert: {0} erneut verbinden. Hat sich der Slot geändert, kehren Sie in den Raum zurück und weisen Sie ihn neu zu."
+msgstr "{0} wurde getrennt. Dein Kämpfer erhält keine Eingaben, bis du ihn wieder verbindest."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Controller-Zuweisung für Kämpfe konnte nicht geprüft werden. Weisen Sie ihn erneut zu."
@@ -4599,8 +4595,6 @@ msgstr "Die Tastenbilder, die Ember zeigt. Automatisch passt sie an den Controll
 msgid "player.prompts_auto"
 msgstr "Automatisch"
 
-msgid "player.prompts_auto_with"
-msgstr "Automatisch ({0})"
 
 msgid "controller.brand.stick"
 msgstr "Kampftasten"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} ist verbunden."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} ist verbunden. Du spielst mit der Tastatur; zum Wechseln nutze Controller wechseln unter Einstellungen > Spieler & Controller."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} ist verbunden. Öffne Ember, um seine Tasten einzurichten."
+
+msgid "controller.connected_full"
+msgstr "{0} ist verbunden, aber vier Controller werden bereits genutzt. Trenne einen, um diesen zu nutzen."
+
+msgid "controller.disconnected_named"
+msgstr "{0} wurde getrennt."
+
+msgid "controller.reconnected"
+msgstr "{0} ist wieder verbunden."
+
+msgid "controller.release_to_use"
+msgstr "Lass die Taste los, um mit {0} zu spielen."
+
+msgid "player.controllers"
+msgstr "Controller"
+
+msgid "player.controllers_value"
+msgstr "{0} verbunden"
+
+msgid "player.controllers_detail"
+msgstr "Du spielst mit {0}. Sieh alle verbundenen Controller, teste ihre Tasten und richte die ein, die Ember noch nicht kennt."
+
+msgid "player.fight_buttons"
+msgstr "Kampftasten"
+
+msgid "player.fight_buttons_detail"
+msgstr "Ember wird geschlossen. Wähle im Spielmenü Optionen und dann die Controller-Einstellungen. Jeder von Ember gelistete Controller erscheint dort als Xbox-Controller mit Xbox-Tastennamen. Das Spiel behält eine Belegung nur, wenn jede Aktion eine Taste hat."
+
+msgid "player.game_reads"
+msgstr "Controller vom Spiel lesen lassen"
+
+msgid "player.game_reads_detail"
+msgstr "Aus: Ember liest alle Controller und das Spiel sieht jeden als Xbox-Controller. Ein: Das Spiel liest Controller selbst, wie ohne Ember; PlayStation- und Switch-Controller benötigen dann Steam Input. Änderungen gelten beim nächsten Spielstart."
+
+msgid "player.game_reads_pending"
+msgstr "Starte das Spiel neu, um dies anzuwenden."
+
+msgid "player.prompts_showing"
+msgstr "Es werden {0}-Tasten angezeigt."
+
+msgid "controllers.title"
+msgstr "CONTROLLER"
+
+msgid "controllers.unavailable"
+msgstr "Controller-Unterstützung ist aus"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember konnte seine Controller-Unterstützung nicht starten, daher liest das Spiel Controller diesmal selbst. Xbox-Controller funktionieren wie gewohnt; andere benötigen eventuell Steam Input. Details stehen in sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Das Spiel liest Controller"
+
+msgid "controllers.game_reads_detail"
+msgstr "Controller vom Spiel lesen lassen ist eingeschaltet, daher richtet Ember Controller weder ein noch testet es sie. Schalte es unter Spieler & Controller aus und starte das Spiel neu."
+
+msgid "controllers.none"
+msgstr "Keine Controller verbunden"
+
+msgid "controllers.none_detail"
+msgstr "Verbinde einen Controller und er erscheint hier. Die Tastatur funktioniert auch ohne."
+
+msgid "controllers.value_yours"
+msgstr "Deiner"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Nicht eingerichtet"
+
+msgid "controllers.value_full"
+msgstr "Nicht genutzt"
+
+msgid "controllers.value_absent"
+msgstr "Nicht verbunden"
+
+msgid "controllers.detail_yours"
+msgstr "Du spielst mit diesem Controller. Spielslot {0}. Drücke seine Tasten, um sie zu testen."
+
+msgid "controllers.detail_other"
+msgstr "Spielslot {0}. Drücke seine Tasten, um sie zu testen. Wähle ihn aus, um damit zu spielen oder seine Tasten einzurichten."
+
+msgid "controllers.detail_custom"
+msgstr "Nutzt deine gespeicherte Tastenbelegung."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input steuert diesen Controller, daher folgen seine Tasten deinen Steam-Einstellungen. Damit Ember ihn steuert, starte Ember außerhalb von Steam oder schalte Steam Input für Ultra Street Fighter IV in Steam aus."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember kennt die Tasten dieses Controllers noch nicht. Bis zur Einrichtung liest das Spiel ihn direkt und Embers Menüs nutzen die als LP und LK belegten Tasten. Wähle ihn zum Einrichten aus."
+
+msgid "controllers.detail_full"
+msgstr "Das Spiel hat Platz für vier Controller. Trenne einen anderen, um diesen zu nutzen."
+
+msgid "controllers.detail_absent"
+msgstr "Dein gespeicherter Controller. Verbinde ihn, um wieder damit zu spielen."
+
+msgid "controllers.detail_game_read"
+msgstr "Das Spiel liest diesen Controller selbst."
+
+msgid "controllers.steam_name"
+msgstr "Steam-Controller"
+
+msgid "controllers.test_heading"
+msgstr "Drücke Tasten, um sie zu testen"
+
+msgid "controllers.test_raw"
+msgstr "Gedrückt: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Gedrückt: nichts"
+
+msgid "controllers.choice_play"
+msgstr "Mit diesem Controller spielen"
+
+msgid "controllers.choice_play_detail"
+msgstr "Nutze ihn für Online-Spiele und Embers Menüs."
+
+msgid "controllers.choice_play_current"
+msgstr "Du spielst bereits mit diesem Controller."
+
+msgid "controllers.choice_setup"
+msgstr "Tasten einrichten"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Drücke jede Taste nacheinander, um Ember ihre Funktion mitzuteilen."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input legt die Tasten dieses Controllers fest."
+
+msgid "controllers.choice_forget"
+msgstr "Tastenbelegung vergessen"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Kehre zur Funktion dieses Controllers vor der Einrichtung zurück. Gilt beim nächsten Spielstart."
+
+msgid "controllers.now_playing"
+msgstr "Du spielst mit {0}."
+
+msgid "controllers.forgotten"
+msgstr "Tastenbelegung vergessen. Dies gilt beim nächsten Spielstart."
+
+msgid "pad_setup.input.button"
+msgstr "Taste {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Steuerkreuz oben"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Steuerkreuz rechts"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Steuerkreuz unten"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Steuerkreuz links"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Achse {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Achse {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Triggerachse {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controller getrennt. Verbinde ihn erneut oder verlasse den Raum, um einen anderen zu wählen."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} ist wieder da, aber in einem anderen Spielslot. Er funktioniert ab dem nächsten Spiel wieder."

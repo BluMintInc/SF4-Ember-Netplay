@@ -11,10 +11,9 @@ inline const char* PromptBrandWord(gamepads::Brand brand) {
     default: return loc::T("controller.brand.xbox");
     }
 }
-inline std::string ButtonPromptValue(gamepads::ButtonPrompts setting, int device, gamepads::PromptBrand detected) {
+inline std::string ButtonPromptValue(gamepads::ButtonPrompts setting) {
     if (setting != gamepads::ButtonPrompts::Automatic)
-        return PromptBrandWord(gamepads::ResolvePrompts(setting, input::PadXInput, detected).brand);
-    return device == input::PadXInput ? loc::Tf("player.prompts_auto_with", PromptBrandWord(detected.brand)) :
-        std::string(loc::T("player.prompts_auto"));
+        return PromptBrandWord(gamepads::ResolvePrompts(setting, input::PadXInput, {}).brand);
+    return loc::T("player.prompts_auto");
 }
 } }

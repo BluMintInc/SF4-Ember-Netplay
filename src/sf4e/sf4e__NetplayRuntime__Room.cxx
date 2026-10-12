@@ -116,17 +116,19 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if (runtime->room) runtime->room->RequestShortInvitation();
         return DispatchOutcome::Dropped;
     }
+    if (command.padAction.kind != gamepads::ControllerRequest::Kind::None) {
+        HandleControllerRequest(command.padAction); return DispatchOutcome::Dropped;
+    }
     if (command.inputAction != input::Action::None) {
         if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
-        const auto current = runtime->controller.GetSnapshot();
-        if (!AtMainMenu() || !GetRuntimeSnapshotShared()->canChangeController || runtime->readyIntent.Parked() ||
-            current.readyPending || (current.match != netplay::MatchState::None && current.match != netplay::MatchState::PostMatch)) return DispatchOutcome::Dropped;
+        if (!CanChooseControllerNow()) return DispatchOutcome::Dropped;
         if (command.inputAction == input::Action::BeginCapture) runtime->input.Begin();
         else if (command.inputAction == input::Action::UseKeyboard) {
             runtime->input.Cancel();
             for (const auto& device : runtime->inputDevices) if (device.type == Dimps::Pad::PADTYPE_RAWINPUT) {
                 runtime->input.Adopt(device); runtime->inputInitialized = true;
                 runtime->padHint.clear();
+                runtime->padHints.Selected(device.identity);
                 OverlayPrefs::SaveGameplayDevice(device.type, device.index, {});
                 LogGameplayController(device, "list");
                 input::AssignToSide(device, 0, false); break;

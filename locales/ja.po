@@ -1002,11 +1002,7 @@ msgstr "表示の高速化（遅延1フレーム減）"
 msgid "player.faster_display_detail"
 msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
 
-msgid "player.native_menus"
-msgstr "ゲーム本体のメニューを開く"
 
-msgid "player.native_menus_detail"
-msgstr "Emberを閉じます。ゲームメニューのオプションで対戦ボタンを設定してください。"
 
 msgid "settings.interface_title"
 msgstr "表示"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。パッドではViewかSelectを押したままStartを押します。"
+msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キックで選択、中キックで戻ります。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "対戦席は閉鎖されました"
 
 msgid "controller.disconnected"
-msgstr "コントローラーの接続が切れました。再接続するか、明示的に割り当ててください。"
+msgstr "コントローラーが切断されました。再接続するか、設定 > プレイヤーとコントローラーで別のものを選んでください。"
 
 msgid "controller.none"
 msgstr "対戦用デバイスを選んでください"
@@ -2983,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "対戦用デバイスの接続が切れました。次の対戦前に再接続してください。"
 
 msgid "runtime.match_input_blocked"
-msgstr "対戦入力がブロックされています。{0}を再接続してください。スロットが変わった場合は、ルームに戻って割り当て直してください。"
+msgstr "{0} が切断されました。再接続するまでファイターに入力は届きません。"
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "対戦側のコントローラー割り当てを確認できませんでした。再度割り当ててください。"
@@ -4599,8 +4595,6 @@ msgstr "Emberに表示するボタンの画像です。自動は、プレイに�
 msgid "player.prompts_auto"
 msgstr "自動"
 
-msgid "player.prompts_auto_with"
-msgstr "自動（{0}）"
 
 msgid "controller.brand.stick"
 msgstr "対戦用ボタン"
@@ -4613,3 +4607,183 @@ msgstr "PlayStation"
 
 msgid "controller.brand.nintendo"
 msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} が接続されました。"
+
+msgid "controller.connected_keyboard"
+msgstr "{0} が接続されました。キーボードでプレイしています。変更するには、設定 > プレイヤーとコントローラーの「コントローラーを変更」を使ってください。"
+
+msgid "controller.connected_unmapped"
+msgstr "{0} が接続されました。Emberを開いてボタンを設定してください。"
+
+msgid "controller.connected_full"
+msgstr "{0} が接続されましたが、すでに4台のコントローラーが使われています。1台を外すと使えます。"
+
+msgid "controller.disconnected_named"
+msgstr "{0} が切断されました。"
+
+msgid "controller.reconnected"
+msgstr "{0} が再接続されました。"
+
+msgid "controller.release_to_use"
+msgstr "ボタンを離すと {0} でプレイします。"
+
+msgid "player.controllers"
+msgstr "コントローラー"
+
+msgid "player.controllers_value"
+msgstr "接続中: {0} 台"
+
+msgid "player.controllers_detail"
+msgstr "{0} でプレイしています。接続中のコントローラーを確認し、ボタンをテストして、Emberがまだ認識していないものを設定できます。"
+
+msgid "player.fight_buttons"
+msgstr "対戦ボタン"
+
+msgid "player.fight_buttons_detail"
+msgstr "Emberを閉じます。ゲームメニューのオプションからコントローラー設定を選んでください。Emberに表示されるコントローラーは、そこでXboxパッドとしてXboxのボタン名で表示されます。すべての操作にボタンを割り当てた場合のみ、ゲームは配置を保存します。"
+
+msgid "player.game_reads"
+msgstr "ゲームにコントローラーを読ませる"
+
+msgid "player.game_reads_detail"
+msgstr "オフ: Emberがすべてのコントローラーを読み、ゲームにはXboxパッドとして見えます。オン: Emberなしの場合と同様にゲームが直接読み、PlayStationとSwitchのパッドにはSteam Inputが必要になります。変更は次回のゲーム起動時に適用されます。"
+
+msgid "player.game_reads_pending"
+msgstr "適用するにはゲームを再起動してください。"
+
+msgid "player.prompts_showing"
+msgstr "{0} のボタンを表示しています。"
+
+msgid "controllers.title"
+msgstr "コントローラー"
+
+msgid "controllers.unavailable"
+msgstr "コントローラー対応はオフです"
+
+msgid "controllers.unavailable_detail"
+msgstr "Emberのコントローラー対応を開始できなかったため、今回はゲームが直接読みます。Xboxパッドは通常どおり使えます。他のパッドにはSteam Inputが必要な場合があります。詳細はsf4e.logにあります。"
+
+msgid "controllers.game_reads"
+msgstr "ゲームがコントローラーを読みます"
+
+msgid "controllers.game_reads_detail"
+msgstr "「ゲームにコントローラーを読ませる」がオンのため、Emberではコントローラーの設定やテストができません。プレイヤーとコントローラーでオフにして、ゲームを再起動してください。"
+
+msgid "controllers.none"
+msgstr "コントローラー未接続"
+
+msgid "controllers.none_detail"
+msgstr "コントローラーを接続するとここに表示されます。キーボードはコントローラーなしで使えます。"
+
+msgid "controllers.value_yours"
+msgstr "使用中"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "未設定"
+
+msgid "controllers.value_full"
+msgstr "未使用"
+
+msgid "controllers.value_absent"
+msgstr "未接続"
+
+msgid "controllers.detail_yours"
+msgstr "このコントローラーでプレイしています。ゲームスロット {0}。ボタンを押してテストしてください。"
+
+msgid "controllers.detail_other"
+msgstr "ゲームスロット {0}。ボタンを押してテストしてください。選択すると、このコントローラーでプレイしたり、ボタンを設定したりできます。"
+
+msgid "controllers.detail_custom"
+msgstr "保存したボタン設定を使っています。"
+
+msgid "controllers.detail_steam"
+msgstr "Steam Inputがこのコントローラーを扱うため、ボタンはSteamの設定に従います。Emberに扱わせるには、Steamの外からEmberを起動するか、SteamでUltra Street Fighter IVのSteam Inputをオフにしてください。"
+
+msgid "controllers.detail_unmapped"
+msgstr "Emberはこのコントローラーのボタンをまだ認識していません。設定するまではゲームが直接読み、EmberのメニューではLPとLKに設定されたボタンを使います。選択すると設定できます。"
+
+msgid "controllers.detail_full"
+msgstr "ゲームで使えるコントローラーは4台までです。他の1台を外すと使えます。"
+
+msgid "controllers.detail_absent"
+msgstr "保存したコントローラーです。接続するとまたプレイできます。"
+
+msgid "controllers.detail_game_read"
+msgstr "ゲームがこのコントローラーを直接読みます。"
+
+msgid "controllers.steam_name"
+msgstr "Steamコントローラー"
+
+msgid "controllers.test_heading"
+msgstr "ボタンを押してテスト"
+
+msgid "controllers.test_raw"
+msgstr "入力中: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "入力中: なし"
+
+msgid "controllers.choice_play"
+msgstr "このコントローラーでプレイ"
+
+msgid "controllers.choice_play_detail"
+msgstr "オンラインプレイとEmberのメニューで使います。"
+
+msgid "controllers.choice_play_current"
+msgstr "すでにこのコントローラーでプレイしています。"
+
+msgid "controllers.choice_setup"
+msgstr "ボタンを設定"
+
+msgid "controllers.choice_setup_detail"
+msgstr "各ボタンを順番に押して、Emberに役割を伝えます。"
+
+msgid "controllers.choice_setup_steam"
+msgstr "このコントローラーのボタンはSteam Inputが設定します。"
+
+msgid "controllers.choice_forget"
+msgstr "ボタン設定を忘れる"
+
+msgid "controllers.choice_forget_detail"
+msgstr "このコントローラーを設定前の動作に戻します。次回のゲーム起動時に適用されます。"
+
+msgid "controllers.now_playing"
+msgstr "{0} でプレイしています。"
+
+msgid "controllers.forgotten"
+msgstr "ボタン設定を削除しました。次回のゲーム起動時に適用されます。"
+
+msgid "pad_setup.input.button"
+msgstr "ボタン {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "ハット上"
+
+msgid "pad_setup.input.hat_right"
+msgstr "ハット右"
+
+msgid "pad_setup.input.hat_down"
+msgstr "ハット下"
+
+msgid "pad_setup.input.hat_left"
+msgstr "ハット左"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "軸 {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "軸 {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "トリガー軸 {0}"
+
+msgid "controller.disconnected_room"
+msgstr "コントローラーが切断されました。再接続するか、ルームを退出して別のものを選んでください。"
+
+msgid "runtime.match_input_moved"
+msgstr "{0} が戻りましたが、別のゲームスロットにあります。次の試合からまた使えます。"

@@ -400,6 +400,18 @@ PostPublishState Publish() {
     snapshot.inputDevice = runtime->input.Selected();
     snapshot.gameplayBrand = Gamepads::BrandForDevice(snapshot.inputDevice.type, snapshot.inputDevice.index);
     snapshot.promptBrand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, snapshot.inputDevice.type, snapshot.gameplayBrand);
+    snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
+    snapshot.runningControllerLayer = runtime->runningControllerLayer;
+    snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
+    snapshot.padHintUntil = runtime->padHintUntil;
+    const auto& candidate = runtime->input.Candidate();
+    for (auto& pad : snapshot.pads) {
+        if (pad.state != gamepads::RowState::Absent && candidate.type == input::PadXInput && pad.slot == candidate.index)
+            snapshot.captureCandidate = pad.id;
+        if ((pad.state == gamepads::RowState::Unmapped || pad.state == gamepads::RowState::GameRead) &&
+            candidate.type == input::PadDirectInput && pad.directInputIndex == candidate.index) snapshot.captureCandidate = pad.id;
+        pad.customMapping = pad.customMapping && runtime->preferences.controllerMappings.count(pad.identity.guid) != 0;
+    }
     snapshot.controller = snapshot.inputDevice.name;
     snapshot.inputCapture = runtime->input.State();
     snapshot.controllerReady = runtime->input.Ready();
@@ -456,7 +468,10 @@ PostPublishState Publish() {
 	snapshot.settingsError = OverlayPrefs::PersistenceError();
 	snapshot.helperError = runtime->error;
     snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
-        loc::Tf("runtime.match_input_blocked",DeviceName(runtime->matchInput)):std::string();
+        loc::Tf(std::any_of(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
+            return pad.state != gamepads::RowState::Absent && !runtime->matchInput.identity.guid.empty() &&
+                gamepads::Same(pad.identity, runtime->matchInput.identity) && pad.slot != runtime->matchInput.index;
+        }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;

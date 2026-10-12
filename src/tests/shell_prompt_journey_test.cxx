@@ -16,7 +16,7 @@ void ButtonPromptJourneys() {
  const auto prompts=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="button-prompts";});
  Check(prompts!=rows.begin()&&(prompts-1)->id=="keyboard"&&(prompts+1)->id=="controls","Button prompts row is not between Keyboard and Fighting buttons");
  Check(row().adjustable&&row().enabled&&row().choices.empty()&&row().label=="Button prompts","Button prompts is not a standard enabled Value");
- Check(row().value=="Automatic (PlayStation)"&&MenuPromptBrand()==h.view.gameplayBrand,"Automatic did not detect the gameplay pad");
+ Check(row().value=="Automatic"&&row().detail.find("Showing PlayStation buttons.")!=std::string::npos&&MenuPromptBrand()==h.view.gameplayBrand,"Automatic did not detect the gameplay pad");
  const auto beforeSelect=h.actions.size(); h.Choose("button-prompts");Check(h.actions.size()==beforeSelect,"Select activated Button prompts");
  const ButtonPrompts choices[]={ButtonPrompts::Xbox,ButtonPrompts::PlayStation,ButtonPrompts::Nintendo};
  const PromptBrand brands[]={{Brand::Xbox},{Brand::PlayStation,PlayStationArt::PS4},{Brand::Nintendo}};
@@ -41,7 +41,7 @@ void ButtonPromptJourneys() {
  Check(!row().enabled&&row().detail==loc::T("settings.leave_room_to_edit"),"Locked Button prompts has the wrong rule or detail");
  const auto count=h.actions.size();h.Press(MenuInput::Right);h.Frame(0,45);Check(h.actions.size()==count,"Locked Button prompts changed preferences");
  h.view.canEditPreferences=true;h.view.gameplayBrand={Brand::Stick};h.Frame();
- Check(row().value=="Automatic (Fight buttons)","Automatic Stick has the wrong value");
+ Check(row().value=="Automatic"&&row().detail.find("Showing Fight buttons buttons.")!=std::string::npos,"Automatic Stick has the wrong value");
  h.FocusOn("controls");
  std::set<std::string> legend;
  SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
