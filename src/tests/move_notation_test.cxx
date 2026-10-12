@@ -234,6 +234,12 @@ int main() {
             CHECK(Synthesize(Steps("[2]30f > [4] > 5MK@-2"), true, compiled, error) && compiled.offset == -2 && compiled.frames[30].wait == sf4e::training::WaitReply &&
                 compiled.frames[30].offset == 0);
             CHECK(Synthesize(Steps("5MK@+2 > 5LP@+1"), true, compiled, error) && compiled.offset == 2 && compiled.frames[0].raw == MK);
+            // Where the first move takes effect: its button; with none, its last
+            // direction (a jump, a dash); a jumping attack, its jump. And the leading hold.
+            const std::pair<const char*, std::pair<int, int>> anchors[] = {{"5MK", {0, -1}}, {"[2]30f > 8", {30, -1}}, {"[2]30f > 66 > 5HP", {34, -1}},
+                {"[2]30f > [4] > 5MK", {31, 30}}, {"[1] > 623HP", {10, 0}}, {"j.HK", {0, -1}}, {"[2]3f > j.HK", {3, -1}}, {"5LP > 5MK", {0, -1}}};
+            for (const auto& expected : anchors)
+                CHECK(Synthesize(Steps(expected.first), true, compiled, error) && compiled.anchor == expected.second.first && compiled.hold == expected.second.second);
             // "#N": a frame of the reply, counted from its first played frame, reached
             // only through frames of a known length; a hold with no count before it
             // holds through the frames up to the move.

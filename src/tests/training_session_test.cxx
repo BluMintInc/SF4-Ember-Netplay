@@ -708,11 +708,15 @@ int main() {
             Command load; load.action = Action::Load; load.generation = drive.GetView().generation; load.frames = {{0x10, 0x10, 0, 0}}; load.side = 0;
             Require(drive.Apply(load) && send(Action::Play) && !DrivesDummy(drive.GetView()), "A playback on Player 1's side played Player 2");
             send(Action::Stop);
-            Require(drive.Reply(std::vector<Input>{{0x10, 0x10, 0, 0}}) && DrivesDummy(drive.GetView()), "A reply did not play Player 2");
+            // The reply keeps the schedule it began with until it ends.
+            ReplySchedule schedule; schedule.start = 0; schedule.anchor = 0; schedule.timing = 4;
+            Require(drive.Reply(std::vector<Input>{{0x10, 0x10, 0, 0}}, schedule) && DrivesDummy(drive.GetView()) && drive.Schedule().timing == 4,
+                "A reply did not play Player 2 by its schedule");
             // A save and a reset leave a recording running; a reset ends a reply.
             drive.SetCheckpoint(true);
             Require(send(Action::Save) && drive.Replying(), "A save ended a reply");
-            Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle, "A reset left a reply playing");
+            Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle && drive.Schedule().anchor == -1,
+                "A reset left a reply playing, or its schedule");
             Require(send(Action::Record) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Recording,
                 "A save or a reset stopped a recording");
         }
@@ -830,8 +834,8 @@ int main() {
                     const bool pressed = replies.Replying();
                     replies.Commit(replies.Prepare(Frame{}));
                     if (stop) replies.StopReply();
-                    if (decide) Require(replies.Reply(move), "The reply did not start");
-                    const bool done = trace.Observe(replies.Replies(), replies.Replying(), pressed, seen, moving, timing);
+                    if (decide) Require(replies.Reply(move, ReplySchedule{}), "The reply did not start");
+                    const bool done = trace.Observe(replies.Replies(), replies.Replying(), pressed, seen, moving, 3, timing);
                     reports += done;
                     return done;
                 };
@@ -842,7 +846,7 @@ int main() {
                 frame(stun(2, 0, 7), false, true); frame(stun(2, 0, 7), false);
                 Require(frame(stun(0, 2, 7), true) && timing.sent == 1 && timing.freed == 2 && timing.move == 2, "A reply's button, free frame or move was misplaced");
                 // The log's differences: on time, the move starts on the free frame and the frame the button is acted on.
-                Require(FramesBetween(timing.freed, timing.move) == "0" && FramesBetween(timing.Acted(), timing.move) == "0",
+                Require(FramesBetween(timing.freed, timing.move) == "0" && FramesBetween(timing.Acted(), timing.move) == "0" && timing.timing == 3,
                     "A traced reply's timing was misreported");
                 // The reply plays on after its report, the dummy in its move: no second report.
                 idle(2 * ReplyTrace::Grace, true);
@@ -899,33 +903,36 @@ int main() {
             // 623HP: three directions of three frames, then the button.
             std::vector<Input> dragon;
             for (unsigned bits : {8u, 8u, 8u, 2u, 2u, 2u, 10u, 10u, 10u, 0x40au, 10u, 0u}) dragon.push_back({bits, bits, 0, 0});
-            Require(ReplyStart(dragon) == 0 && ReplyLead(dragon) == 9 && ReplyStart({}) == -1 && ReplyLead({{8, 8, 0, 0}}) == 0, "A reply's start or lead misread");
+            // A recording lands from its first attack button, from its first pressed frame.
+            const auto recorded = RecordingSchedule(dragon, 2);
+            Require(ReplyStart(dragon) == 0 && recorded.anchor == 9 && recorded.hold == -1 && recorded.timing == 2 && ReplyLead(recorded) == 9 &&
+                ReplyStart({}) == -1 && ReplyLead(RecordingSchedule({{8, 8, 0, 0}}, 0)) == 0, "A reply's start or lead misread");
 
             Session reply; reply.Enter(); reply.SetReady(true);
             Command command; command.generation = reply.GetView().generation;
-            Require(!reply.Reply(2), "An empty slot replied");
+            Require(!reply.Reply(2, ReplySchedule{}), "An empty slot replied");
             command.action = Action::Select; command.slot = 2; reply.Apply(command);
             command.action = Action::Record; reply.Apply(command);
             // Two idle frames, as a player leaves before pressing, then two presses.
             for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
             command.action = Action::Stop; reply.Apply(command);
             command.action = Action::Select; command.slot = 5; reply.Apply(command);
-            Require(reply.Reply(2) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
-            Require(!reply.Reply(2), "A reply started over a playback");
+            Require(reply.Reply(2, ReplySchedule{}) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
+            Require(!reply.Reply(2, ReplySchedule{}), "A reply started over a playback");
             Require(reply.Prepare(Frame{})[1].raw == 0x10 && reply.Prepare(Frame{})[0].raw == 0, "The reply did not start on its first press, on Player 2");
             reply.Commit(reply.Prepare(Frame{}));
             Require(reply.Prepare(Frame{})[1].raw == 0x20, "The reply did not advance");
             reply.Commit(reply.Prepare(Frame{}));
             Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5, "The reply looped or kept the selection");
             // The typed reply has a slot of its own; hit again, it is dropped.
-            Require(reply.Reply(dragon) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
+            Require(reply.Reply(dragon, ReplySchedule{}) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
             reply.StopReply();
             Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
             command.action = Action::Select; command.slot = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
             // Play stops a reply before checking the restored selection.
             for (bool typed : {false, true}) {
-                Require(typed ? reply.Reply(dragon) : reply.Reply(2), "The reply did not start over an empty selection");
+                Require(typed ? reply.Reply(dragon, ReplySchedule{}) : reply.Reply(2, ReplySchedule{}), "The reply did not start over an empty selection");
                 command.action = Action::Play;
                 Require(!reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Idle &&
                     reply.GetView().selected == 5 && reply.GetView().cursor == 0, "Play started on an empty restored slot");
@@ -936,7 +943,7 @@ int main() {
             command.action = Action::Select; command.slot = 2;
             Require(reply.Apply(command), "The recorded slot could not be selected");
             command.action = Action::Load; command.side = 0; command.frames = {{0x40, 0x40, 0, 0}};
-            Require(reply.Apply(command) && reply.Reply(dragon), "The reply did not start over a loaded selection");
+            Require(reply.Apply(command) && reply.Reply(dragon, ReplySchedule{}), "The reply did not start over a loaded selection");
             command.action = Action::Play;
             Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback &&
                 reply.GetView().selected == 2 && reply.GetView().playbackSide == 0 && reply.GetView().cursor == 0,

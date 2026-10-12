@@ -45,7 +45,7 @@ int main() {
         // Neither fighter has moved: the dummy starts on the right, facing left.
         Session typed; typed.Enter(); typed.SetReady(true);
         Require(!typed.FacingRight(1) && typed.FacingRight(0), "The fighters did not start facing each other");
-        Require(typed.Reply(hcf), "The typed reply did not start");
+        Require(typed.Reply(hcf, ReplySchedule{}), "The typed reply did not start");
         auto played = play(typed, -1);
         Require(played.size() == hcfLeft.size(), "The typed reply did not play whole");
         // Turned once, for the dummy facing left: 41236P comes out as it
@@ -56,7 +56,7 @@ int main() {
         // The sides swap in the middle of the reply (a cross-up on wake-up):
         // each frame plays for the facing it is played in.
         Session swapped; swapped.Enter(); swapped.SetReady(true); swapped.SetPositions(0, 100);
-        Require(swapped.Reply(hcf), "The typed reply did not start again");
+        Require(swapped.Reply(hcf, ReplySchedule{}), "The typed reply did not start again");
         played = play(swapped, 6);
         Require(played.size() == hcf.size(), "The turned reply did not play whole");
         for (std::size_t frame = 0; frame < played.size(); ++frame)
@@ -112,7 +112,7 @@ int main() {
             Require((recorded.Slot(1)[frame].raw & (L | R)) == R, "A side change in a recording was not held as forward throughout");
         Require(playSlot(0, 100) == std::vector<unsigned>{L, L | LP, L, L | LP}, "A recording with a side change did not play forward on the right");
         // A reply from a slot plays for the way the dummy faces too.
-        Require(recorded.Reply(1) && recorded.Prepare(Frame{})[1].raw == L, "A reply from a slot did not turn for the dummy facing left");
+        Require(recorded.Reply(1, ReplySchedule{}) && recorded.Prepare(Frame{})[1].raw == L, "A reply from a slot did not turn for the dummy facing left");
         recorded.StopReply();
         // Mirror swaps the selected slot's Left and Right, once per press,
         // and never while it plays or when it is empty.

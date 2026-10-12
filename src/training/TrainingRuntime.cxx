@@ -451,7 +451,7 @@ void AfterUpdate(Native* system) {
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
-                session.Replying() && ReplyFirstMoveDue(session.Slot(session.GetView().selected), seen, FirstMoveTiming(dummyPlan)));
+                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
             playbackSeen = fighters;
         }
         // Recorded for the facing the input was prepared with, then the new positions.
@@ -469,12 +469,13 @@ void AfterUpdate(Native* system) {
             // Typed or recorded, the reply is played for the way the dummy faces on each frame (Session::Prepare).
             const bool typed = !dummyPlan.moves.empty();
             const auto& frames = typed ? dummyPlan.moves : session.Slot(dummyPlan.slot);
+            const ReplySchedule schedule = PlanSchedule(dummyPlan, session.Slot(dummyPlan.slot));
             const int cause = seen.held ? seen.held : seen.out;
-            if (cause && seen.stretch != decidedStretch && ReplyBegins(frames, seen, FirstMoveTiming(dummyPlan))) {
+            if (cause && seen.stretch != decidedStretch && ReplyBegins(schedule, seen)) {
                 decidedStretch = seen.stretch;
                 if (DummyReplies(dummyPlan, cause, dummyRandom())) {
                     // Ember plays the reply from the next update, and the dummy from the pad (FollowDummy).
-                    if (!(typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && !typed && frames.empty())
+                    if (!(typed ? session.Reply(frames, schedule) : session.Reply(dummyPlan.slot, schedule)) && !typed && frames.empty())
                         spdlog::info("Training: no reply, slot {} is empty", dummyPlan.slot + 1);
                 }
             }
@@ -487,10 +488,11 @@ void AfterUpdate(Native* system) {
             // (ReplyTiming::Acted), so both differences are timing.
             ReplyTiming timing;
             const bool pressed = playing.reply && commitInput && (output[1].raw & AttackButtons);
-            if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
+            if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill,
+                    session.Schedule().timing, timing))
                 spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; "
                     "Lower input lag {}, timing {}; move {} after free, {} after the button was acted on",
-                    SeenAt(timing.sent), SeenAt(timing.freed), SeenAt(timing.move), sf4e::InputLag::BattleInputLowered() ? "on" : "off", FirstMoveTiming(dummyPlan),
+                    SeenAt(timing.sent), SeenAt(timing.freed), SeenAt(timing.move), sf4e::InputLag::BattleInputLowered() ? "on" : "off", timing.timing,
                     FramesBetween(timing.freed, timing.move), FramesBetween(timing.Acted(), timing.move));
         }
         if (!capture) capture = new TrainingCapture();

@@ -134,38 +134,54 @@ inline bool ValidDummyState(const DummyState& s) {
 // empty it replies with the recording in slot. chance:
 // percent of the times it replies. timing: frames the reply's first attack
 // button lands after the dummy's first free frame. varyStance: it stands or
-// crouches at random each time. offset: the typed moves' first move's own
-// offset ("5MK@+3"), added to timing; 0 with no typed moves.
-struct DummyPlan { int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves; int offset = 0; };
+// crouches at random each time. The typed moves' schedule, as synthesis
+// gives it (Compiled), with no typed moves 0, -1 and -1: offset, the first
+// move's own ("5MK@+3"), added to timing; anchor, the frame of moves its
+// input takes effect on; hold, the frame of its leading hold, -1 for none.
+struct DummyPlan {
+    int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves;
+    int offset = 0, anchor = -1, hold = -1;
+};
 constexpr int MaxReplyTiming = 5;
 inline bool ValidDummyPlan(const DummyPlan& plan) {
+    const int frames = static_cast<int>(plan.moves.size());
+    const bool schedule = frames ? plan.offset >= MinOffset && plan.offset <= MaxOffset && plan.anchor >= 0 && plan.anchor < frames &&
+        plan.hold < plan.anchor && (plan.hold < 0 || plan.moves[plan.hold].wait == WaitReply) : !plan.offset && plan.anchor < 0 && plan.hold < 0;
     return plan.when >= 0 && plan.when <= 4 && plan.slot >= 0 && plan.slot < SlotCount && plan.chance >= 0 && plan.chance <= 100 &&
-        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && plan.moves.size() <= std::size_t(MaxFrames) &&
-        plan.offset >= MinOffset && plan.offset <= MaxOffset && (!plan.moves.empty() || !plan.offset);
+        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && frames <= MaxFrames && schedule;
 }
-// Frames after the dummy is free the reply's first button lands: the
-// plan's timing and its first move's own offset.
-inline int FirstMoveTiming(const DummyPlan& plan) { return plan.timing + plan.offset; }
 // A reply starts on its first pressed frame; -1 when it presses nothing.
 inline int ReplyStart(const std::vector<Input>& frames) {
     const auto first = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & FightButtons) != 0; });
     return first == frames.end() ? -1 : static_cast<int>(first - frames.begin());
 }
-// Where a reply holds a direction until its first move is due ("[1] > 3HP",
-// "[2]30f > [4] > 5MK": WaitReply, before its first attack button), -1 for none.
-inline int ReplyHold(const std::vector<Input>& frames) {
-    for (std::size_t at = 0; at < frames.size() && !(frames[at].raw & AttackButtons); ++at)
-        if (frames[at].wait == WaitReply) return static_cast<int>(at);
-    return -1;
-}
-// Frames a reply plays before its first attack button, after its leading
-// hold if it has one: holds and waits leading into its first move and that
-// move's motion, which are done while the dummy is still held so the button
-// meets the free frame.
-inline int ReplyLead(const std::vector<Input>& frames) {
-    const int hold = ReplyHold(frames), start = hold >= 0 ? hold + 1 : ReplyStart(frames);
+// When a reply's first move lands, in frames of the reply as Session plays
+// it: start, its first played frame (ReplyStart); hold, the frame its
+// leading hold repeats on, -1 for none ("[1] > 3HP"); anchor, the frame its
+// first move's input takes effect on; timing, frames after the dummy's free
+// frame that frame is acted on. It goes with the frames it was made for
+// (Session::Reply), whatever the plan becomes after.
+struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0; };
+// Typed moves carry theirs from synthesis (DummyPlan). A recording's comes
+// from its frames: it lands from its first attack button, and has no hold.
+inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int timing) {
+    ReplySchedule schedule; schedule.start = ReplyStart(frames); schedule.timing = timing;
     const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & AttackButtons) != 0; });
-    return start < 0 || press == frames.end() ? 0 : static_cast<int>(press - frames.begin()) - start;
+    schedule.anchor = press == frames.end() ? schedule.start : static_cast<int>(press - frames.begin());
+    return schedule;
+}
+// The schedule of the reply a plan plays: its typed moves', else its slot's recording's.
+inline ReplySchedule PlanSchedule(const DummyPlan& plan, const std::vector<Input>& slot) {
+    if (plan.moves.empty()) return RecordingSchedule(slot, plan.timing);
+    ReplySchedule schedule; schedule.start = ReplyStart(plan.moves); schedule.hold = plan.hold; schedule.anchor = plan.anchor;
+    schedule.timing = plan.timing + plan.offset;
+    return schedule;
+}
+// Frames a reply plays before its first move takes effect, after its leading
+// hold if it has one: holds and waits leading into the move and its motion,
+// which are done while the dummy is still held so the move meets the free frame.
+inline int ReplyLead(const ReplySchedule& schedule) {
+    return schedule.anchor < 0 ? 0 : schedule.anchor - (schedule.hold >= 0 ? schedule.hold + 1 : schedule.start);
 }
 // freed: on the frame the dummy is free again, what it came out of, numbered
 // as DummyPlan::when (1 hit, 2 block, 3 knockdown; a hit that ends in a
@@ -246,15 +262,14 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     if (seen.held) return seen.until >= 0 && seen.until <= lead + 1 - timing;
     return seen.free >= 0 && -seen.free <= lead + 1 - timing;
 }
-// Whether the first move of a reply's frames is due. timing: frames after
-// the free frame its button lands (FirstMoveTiming).
-inline bool ReplyFirstMoveDue(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
-    return ReplyDue(seen, ReplyLead(frames) + DummyInputLag, timing);
+// Whether a reply's first move is due by its schedule.
+inline bool ReplyFirstMoveDue(const ReplySchedule& schedule, const DummySeen& seen) {
+    return ReplyDue(seen, ReplyLead(schedule) + DummyInputLag, schedule.timing);
 }
 // Whether a reply should begin after this frame's observation: one holding
 // first begins with the stun, any other when its first move is due.
-inline bool ReplyBegins(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
-    return (seen.held && ReplyHold(frames) >= 0) || ReplyFirstMoveDue(frames, seen, timing);
+inline bool ReplyBegins(const ReplySchedule& schedule, const DummySeen& seen) {
+    return (seen.held && schedule.hold >= 0) || ReplyFirstMoveDue(schedule, seen);
 }
 // Where one reply's button met the dummy, in frames after the one the reply
 // was decided in, NotSeen where not seen: the frame its first attack button
@@ -262,9 +277,10 @@ inline bool ReplyBegins(const std::vector<Input>& frames, const DummySeen& seen,
 // frame, before the decision (negative) when a later timing waited past it,
 // and the first frame of its move. A stun ends and a move starts in the same
 // game frame, so a button that meets the free frame shows the last two the same.
+// timing: the reply's own (ReplySchedule), as it began.
 struct ReplyTiming {
     static constexpr int NotSeen = -1000000;
-    int sent = NotSeen, freed = NotSeen, move = NotSeen;
+    int sent = NotSeen, freed = NotSeen, move = NotSeen, timing = 0;
     int Acted() const { return sent == NotSeen ? NotSeen : sent + DummyInputLag; }
 };
 // For the trace: a frame, or "none" when it was not seen.
@@ -285,11 +301,12 @@ public:
     // Each frame DummyWatch sees, after the reply's decision. reply:
     // Session::Replies; replying: Session::Replying; pressed: the frame
     // played the reply's attack button; moving: the dummy is in a move
-    // (Skill). True when done, with out set.
-    bool Observe(std::uint64_t reply, bool replying, bool pressed, const DummySeen& seen, bool moving, ReplyTiming& out) {
+    // (Skill); timing: the reply's, kept from the frame it begins. True when
+    // done, with out set.
+    bool Observe(std::uint64_t reply, bool replying, bool pressed, const DummySeen& seen, bool moving, int timing, ReplyTiming& out) {
         const bool begins = reply != reply_;
         if (begins) {
-            reply_ = reply; on_ = true; timing_ = {}; stretch_ = seen.stretch; frame_ = after_ = 0;
+            reply_ = reply; on_ = true; timing_ = {}; timing_.timing = timing; stretch_ = seen.stretch; frame_ = after_ = 0;
             // Decided after the free frame, by a later timing.
             if (seen.free > 0) timing_.freed = -seen.free;
         }
@@ -463,7 +480,7 @@ public:
     // What the fight showed this frame, for the waiting frames of a playback:
     // whether the fighter is free now, and whether a hit landed on the other one.
     // untilActionable: frames until the fighter's script says it can act again, -1 when unknown.
-    // replyDue: a reply's leading hold gives way (ReplyFirstMoveDue).
+    // replyDue: a reply's leading hold gives way (ReplyFirstMoveDue on Schedule).
     void Observe(bool actionable, bool hit, int untilActionable = -1, bool replyDue = false) {
         actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; replyDue_ = replyDue;
     }
@@ -539,22 +556,25 @@ public:
     // The dummy's reply: the slot once on Player 2, from its first pressed
     // frame, after which the selected slot is the selected one again. Never
     // over a recording or another playback.
-    bool Reply(int slot) {
+    // schedule: when its first move lands, kept with the reply (Schedule).
+    bool Reply(int slot, const ReplySchedule& schedule) {
         if (!view_.ready || view_.mode != Mode::Idle || slot < 0 || slot > ReplySlot) return false;
         const int first = ReplyStart(slots_[slot]);
         if (first < 0) return false;
         resume_ = view_.selected; resumeSide_ = view_.playbackSide;
         view_.selected = slot; view_.playbackSide = 1; view_.mode = Mode::Playback;
-        view_.cursor = first; ++replies_;
+        view_.cursor = first; ++replies_; schedule_ = schedule;
         return true;
     }
     // The same with made-up input, kept in a slot of its own.
-    bool Reply(std::vector<Input> frames) {
+    bool Reply(std::vector<Input> frames, const ReplySchedule& schedule) {
         if (!view_.ready || view_.mode != Mode::Idle || frames.size() > std::size_t(MaxFrames)) return false;
         slots_[ReplySlot] = std::move(frames); view_.lengths[ReplySlot] = static_cast<int>(slots_[ReplySlot].size());
-        return Reply(ReplySlot);
+        return Reply(ReplySlot, schedule);
     }
     bool Replying() const { return resume_ >= 0; }
+    // The schedule of the reply playing, as it began.
+    const ReplySchedule& Schedule() const { return schedule_; }
     // Replies started so far, never reset: each new reply changes it.
     std::uint64_t Replies() const { return replies_; }
     // The dummy was hit again, or what was seen of its stun went: the reply it had begun is dropped.
@@ -625,12 +645,13 @@ private:
     unsigned lastRaw_ = 0;
     // The selection a reply borrowed, -1 when none plays.
     int resume_ = -1, resumeSide_ = 1;
+    ReplySchedule schedule_;
     std::uint64_t replies_ = 0;
     // Player 1 stands on the left (SetPositions), as a battle starts.
     bool firstOnLeft_ = true;
     void Stop() {
         view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
-        if (resume_ >= 0) { view_.selected = resume_; view_.playbackSide = resumeSide_; resume_ = -1; }
+        if (resume_ >= 0) { view_.selected = resume_; view_.playbackSide = resumeSide_; resume_ = -1; schedule_ = {}; }
     }
     void ClearHistory() {
         for (auto& rows : view_.history) rows.clear();

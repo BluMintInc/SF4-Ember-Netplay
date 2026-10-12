@@ -17,7 +17,16 @@ sf4e::combo::Compiled Compile(const std::vector<std::string>& steps) {
     Require(sf4e::combo::Synthesize(steps, true, compiled, error), "A move did not synthesize");
     return compiled;
 }
-std::vector<Input> Synth(const std::vector<std::string>& steps) { return Compile(steps).frames; }
+// A typed reply's plan as BuildReplyPlan makes it (PracticeSettings.hxx).
+DummyPlan Plan(const std::vector<std::string>& steps) {
+    const auto compiled = Compile(steps);
+    DummyPlan plan; plan.when = 4; plan.moves = compiled.frames;
+    plan.offset = compiled.offset; plan.anchor = compiled.anchor; plan.hold = compiled.hold;
+    Require(ValidDummyPlan(plan), "A typed reply made no plan");
+    return plan;
+}
+// Frames a typed reply plays before its first move takes effect.
+int Lead(const DummyPlan& plan) { return ReplyLead(PlanSchedule(plan, {})); }
 int main() {
     try {
         {
@@ -129,9 +138,9 @@ int main() {
                     "The held recording stopped or recorded the held updates");
 
                 Bench reply;
-                Require(reply.session.Reply(moves) && reply.Update(), "The reply's first input was not read from the pad");
+                Require(reply.session.Reply(moves, ReplySchedule{}) && reply.Update(), "The reply's first input was not read from the pad");
                 Require(reply.Reset() && !reply.Finish() && !reply.Update(), "A reset after the reply's first update left the dummy on the pad");
-                Require(reply.session.Reply(moves) && reply.Run({false, false, false}) == std::vector<bool>{true, true, true}, "The reply did not play from the pad");
+                Require(reply.session.Reply(moves, ReplySchedule{}) && reply.Run({false, false, false}) == std::vector<bool>{true, true, true}, "The reply did not play from the pad");
                 Require(reply.Reset() && !reply.Finish(), "A reset during the reply left the dummy on the pad for the old timeline");
 
                 Bench playback;
@@ -203,13 +212,18 @@ int main() {
                 DummyWatch watch; Session session; unsigned decided = ~0u;
                 Dummy() { session.Enter(); session.SetReady(true); session.SetPositions(1, 0); }
             };
-            // statuses: the dummy's, one per frame; it is free from the first
-            // one after the stun that holds it in none. gap: an update that
-            // moved the battle more than a frame on, which the runtime does not
-            // observe (TrainingRuntime.cxx, AfterUpdate), -1 for none.
-            const auto play = [](Dummy& dummy, const std::vector<Input>& frames, int timing, const std::vector<unsigned>& statuses, unsigned charge,
-                                 int gap = -1) {
+            // reply: the plan, played with the timing given. statuses: the
+            // dummy's, one per frame; it is free from the first one after the
+            // stun that holds it in none. gap: an update that moved the battle
+            // more than a frame on, which the runtime does not observe
+            // (TrainingRuntime.cxx, AfterUpdate), -1 for none. next: a plan
+            // that replaces it from the frame given (a DummyPlan command).
+            const auto play = [](Dummy& dummy, DummyPlan reply, int timing, const std::vector<unsigned>& statuses, unsigned charge,
+                                 int gap = -1, const DummyPlan* next = nullptr, int nextAt = -1) {
                 DummyWatch& watch = dummy.watch; Session& session = dummy.session; unsigned& decided = dummy.decided;
+                reply.timing = timing;
+                // The reply's frames, typed or recorded, for the game's side to find its button in.
+                const std::vector<Input> frames = reply.moves.empty() ? session.Slot(reply.slot) : reply.moves;
                 Run run; bool held = false, began = false;
                 DummyControl control; Game game;
                 const auto sample = [&](int frame) {
@@ -224,6 +238,7 @@ int main() {
                 const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& input) { return (input.raw & AttackButtons) != 0; });
                 const unsigned buttons = press == frames.end() ? 0u : press->raw & AttackButtons;
                 for (int frame = 0; frame < static_cast<int>(statuses.size()); ++frame) {
+                    if (frame == nextAt) reply = *next;
                     const bool replying = session.Replying();
                     if (began && !replying && run.ended < 0) run.ended = frame;
                     const auto step = control.Follow(PlanInput(session.GetView(), false).suppliesDummy, 0);
@@ -237,14 +252,18 @@ int main() {
                     // As the runtime observes the fight before committing the update (TrainingRuntime.cxx).
                     const DummySeen seen = watch.Observe(sample(frame), 100);
                     session.Observe(ClassifyStatus(statuses[frame]) == Phase::Neutral, false, -1,
-                        session.Replying() && ReplyFirstMoveDue(frames, seen, timing));
+                        session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
                     session.Commit(output);
                     if (replying && run.button < 0 && (output[1].raw & AttackButtons)) run.button = frame;
                     if (seen.held) held = true;
                     else if (held && run.free < 0) run.free = frame;
                     if (seen.held && seen.stretch != decided && session.Replying()) { session.StopReply(); run.dropped = true; }
                     const int cause = seen.held ? seen.held : seen.out;
-                    if (cause && seen.stretch != decided && ReplyBegins(frames, seen, timing)) { decided = seen.stretch; began = session.Reply(frames); }
+                    const ReplySchedule schedule = PlanSchedule(reply, session.Slot(reply.slot));
+                    if (cause && seen.stretch != decided && ReplyBegins(schedule, seen)) {
+                        decided = seen.stretch;
+                        began = reply.moves.empty() ? session.Reply(reply.slot, schedule) : session.Reply(reply.moves, schedule);
+                    }
                 }
                 run.read = game.read;
                 return run;
@@ -261,9 +280,10 @@ int main() {
             // none the frame before, so each is a new press of them all.
             const std::pair<const char*, unsigned> presses[] = {{"5MK", MK}, {"LP+LK", LP | LK}, {"MP+MK", MP | MK}, {"PPP", Punches}, {"KKK", Kicks}};
             for (const auto& pressed : presses) {
-                const auto frames = Synth({pressed.first});
+                const auto reply = Plan({pressed.first});
+                const auto& frames = reply.moves;
                 const int start = ReplyStart(frames);
-                Require(start >= 0 && frames[start].raw == pressed.second && ReplyLead(frames) == 0, "A press was not all its buttons on the reply's first frame");
+                Require(start >= 0 && frames[start].raw == pressed.second && Lead(reply) == 0, "A press was not all its buttons on the reply's first frame");
                 for (int timing = 0; timing <= MaxReplyTiming; ++timing) {
                     // Blockstun, seen first: replied to as it ends, later by
                     // timing. Seen again: at timing 0 the press is a reversal,
@@ -271,10 +291,10 @@ int main() {
                     // waits past it.
                     Dummy dummy;
                     const auto block = statuses(ActorStatus::DamageGuard, 18, 0u, 0);
-                    const Run first = play(dummy, frames, timing, block, 0);
+                    const Run first = play(dummy, reply, timing, block, 0);
                     Require(first.free == 23 && first.move == first.free + (std::max)(2, timing) && !first.dropped,
                         "A press after a blockstun not seen before did not come out as the reply began");
-                    const Run timed = play(dummy, frames, timing, block, 0);
+                    const Run timed = play(dummy, reply, timing, block, 0);
                     Require(timed.button + 1 == timed.free + timing && timed.move == timed.free + timing && !timed.dropped,
                         "A press after a timed blockstun did not start its move on the free frame, plus timing");
                 }
@@ -286,22 +306,22 @@ int main() {
                 // frame plus timing, the plan's and the move's own, whatever
                 // the dummy does once free.
                 for (const char* move : {"3HP", "623P", "236P", "22LK", "3HP@+3", "3HP@-2", "[HP]", "P(mash)"}) {
-                    const auto frames = Synth({"[1]", move});
+                    const auto reply = Plan({"[1]", move});
                     Step step; std::string error;
-                    Require(ParseStep(move, step, error) && ReplyHold(frames) == 0 && ReplyStart(frames) == 0, "A reply did not begin with its hold");
+                    Require(ParseStep(move, step, error) && reply.hold == 0 && ReplyStart(reply.moves) == 0 && reply.offset == step.offset,
+                        "A reply did not begin with its hold");
                     for (const unsigned after : {0u, guardCrouch}) for (int timing = -MaxReplyTiming; timing <= MaxReplyTiming; ++timing) {
                         const int at = timing + step.offset;
                         Dummy dummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 18, after, 20);
-                        // As the runtime plays it: the plan's timing with the move's own offset (FirstMoveTiming).
-                        const Run first = play(dummy, frames, at, block, 0);
+                        const Run first = play(dummy, reply, timing, block, 0);
                         // Not timed, the hold gives way once the dummy is seen free, later by timing.
                         Require(first.read[6] == (Down | Left) && first.read[22] == (Down | Left) &&
-                            first.button + 1 == first.free + (std::max)(ReplyLead(frames) + 2, at) && !first.dropped,
+                            first.button + 1 == first.free + (std::max)(Lead(reply) + 2, at) && !first.dropped,
                             "A hold over a blockstun not seen before did not begin with it, or gave way at the wrong frame");
-                        const Run timed = play(dummy, frames, at, block, 0);
+                        const Run timed = play(dummy, reply, timing, block, 0);
                         bool heldThrough = true;
-                        for (int frame = 6; frame < timed.button - ReplyLead(frames); ++frame) heldThrough = heldThrough && timed.read[frame] == (Down | Left);
+                        for (int frame = 6; frame < timed.button - Lead(reply); ++frame) heldThrough = heldThrough && timed.read[frame] == (Down | Left);
                         Require(heldThrough && timed.button + 1 == timed.free + at && (at < 0 || timed.move == timed.free + at) && !timed.dropped,
                             "A hold over a timed blockstun did not give way so its move's button met the free frame plus timing");
                     }
@@ -312,13 +332,13 @@ int main() {
                 // giving way the same, whatever the dummy does once free. The
                 // stun is long enough to hold them all in.
                 for (const auto& line : std::vector<std::vector<std::string>>{{"[2]30f", "5MK"}, {"[4]30f", "[4]", "5MK"}, {"[2]30f", "[4]", "623P"}}) {
-                    const auto frames = Synth(line);
-                    Require(ReplyLead(frames) == (line.size() == 2 ? 33 : line[2] == "5MK" ? 0 : 9), "A reply's lead did not count its leading input");
+                    const auto reply = Plan(line);
+                    Require(Lead(reply) == (line.size() == 2 ? 33 : line[2] == "5MK" ? 0 : 9), "A reply's lead did not count its leading input");
                     for (const unsigned after : {0u, walkBack, guardCrouch}) for (const int timing : {0, 2, MaxReplyTiming}) {
                         Dummy dummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 90, after, 40);
-                        play(dummy, frames, timing, block, 0);
-                        const Run run = play(dummy, frames, timing, block, 0);
+                        play(dummy, reply, timing, block, 0);
+                        const Run run = play(dummy, reply, timing, block, 0);
                         Require(run.free == 95 && run.button + 1 == 95 + timing && run.move == 95 + timing && !run.dropped, "A reply with input leading into its first move did not press on the free frame plus timing");
                         // "[2]30f > 5MK": the 30 frames of down, then the move's 3.
                         bool led = true;
@@ -330,15 +350,15 @@ int main() {
                 // timing, whatever leads into it.
                 for (const auto& line : std::vector<std::vector<std::string>>{{"[2]30f", "5MK@+3"}, {"[2]30f", "5MK@-2"}, {"[2]30f", "[4]", "5MK@+3"},
                          {"[2]30f", "[4]", "5MK@-2"}}) {
-                    const auto compiled = Compile(line);
+                    DummyPlan reply = Plan(line);
                     for (const unsigned after : {0u, walkBack}) for (const int timing : {0, 2}) {
-                        DummyPlan plan; plan.timing = timing; plan.moves = compiled.frames; plan.offset = compiled.offset;
-                        const int at = FirstMoveTiming(plan);
+                        reply.timing = timing;
+                        const int at = PlanSchedule(reply, {}).timing;
                         Require(at == timing + (line.back().back() == '3' ? 3 : -2), "A reply's first move's offset was not in its timing");
                         Dummy dummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 90, after, 40);
-                        play(dummy, plan.moves, at, block, 0);
-                        const Run run = play(dummy, plan.moves, at, block, 0);
+                        play(dummy, reply, timing, block, 0);
+                        const Run run = play(dummy, reply, timing, block, 0);
                         Require(run.button + 1 == 95 + at && (at < 0 || run.move == 95 + at) && !run.dropped,
                             "A reply's first move did not keep its own offset");
                     }
@@ -346,39 +366,84 @@ int main() {
                 // A later move on a frame of the reply: the hold before it lasts
                 // up to its motion, and its button lands on that frame.
                 for (const char* move : {"3HP#60", "623HP#60"}) {
-                    const auto frames = Synth({"5LP", "[4]", move});
+                    const auto reply = Plan({"5LP", "[4]", move});
                     const int motion = move[1] == '2' ? 9 : 3;
                     Dummy dummy;
                     const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 120);
-                    play(dummy, frames, 0, block, 0);
-                    const Run run = play(dummy, frames, 0, block, 0);
+                    play(dummy, reply, 0, block, 0);
+                    const Run run = play(dummy, reply, 0, block, 0);
                     bool held = true;
                     for (int frame = run.button + 2; frame < run.button + 60 - motion; ++frame) held = held && run.read[frame] == Left;
                     Require(run.move == 95 && held && (run.read[run.button + 60] & HP), "A move on a frame of the reply did not land there, or the hold before it broke");
+                }
+                // A move with no button, a jump or a dash, takes effect on its
+                // last direction, which meets the free frame plus timing after
+                // the input leading into it, alone or before a later attack.
+                for (const auto& line : std::vector<std::vector<std::string>>{{"[2]30f", "8"}, {"[2]30f", "66"}, {"[2]30f", "8", "5HP"}, {"[2]30f", "66", "5HP"}}) {
+                    const auto reply = Plan(line);
+                    const bool jump = line[1] == "8";
+                    Require(Lead(reply) == (jump ? 30 : 34), "A move with no button was not timed from its last direction");
+                    for (const int timing : {0, 2}) {
+                        Dummy dummy;
+                        const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 40);
+                        play(dummy, reply, timing, block, 0);
+                        const Run run = play(dummy, reply, timing, block, 0);
+                        const int acted = 95 + timing - DummyInputLag;
+                        Require(run.read[acted] == (jump ? Up : Right) && run.read[acted - 1] == (jump ? Down : 0u) && (jump || run.read[acted - 2] == Right),
+                            "A jump or a dash did not take effect on the free frame plus timing");
+                    }
+                }
+                // A recording replies from its own frames: from its first pressed
+                // frame, its first attack button on the free frame plus timing.
+                for (const int timing : {0, 2}) {
+                    Dummy dummy;
+                    Command select; select.action = Action::Select; select.generation = dummy.session.GetView().generation; select.slot = 3;
+                    Command load = select; load.action = Action::Load; load.side = 1;
+                    load.frames = {{0, 0, 0, 0}, {0, 0, 0, 0}, {Down, Down, 0, 0}, {Down, Down, 0, 0}, {Down | MK, Down | MK, 0, 0}, {0, 0, 0, 0}};
+                    Require(dummy.session.Apply(select) && dummy.session.Apply(load), "The recording was not loaded");
+                    DummyPlan recording; recording.when = 4; recording.slot = 3;
+                    const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 40);
+                    play(dummy, recording, timing, block, 0);
+                    const Run run = play(dummy, recording, timing, block, 0);
+                    Require(run.button + 1 == 95 + timing && run.move == 95 + timing && run.read[run.button - 1] == Down && run.read[run.button - 3] == 0,
+                        "A recording did not reply from its own frames");
+                }
+                // A reply keeps the schedule it began with: the plan changed to other
+                // moves, or to a recording, while its hold waits does not move it.
+                {
+                    const auto reply = Plan({"[1]", "3HP@+5"});
+                    DummyPlan recording; recording.when = 4; recording.slot = 3;
+                    for (const DummyPlan& next : {Plan({"5MK"}), recording}) {
+                        Dummy dummy;
+                        const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 40);
+                        play(dummy, reply, 0, block, 0);
+                        const Run run = play(dummy, reply, 0, block, 0, -1, &next, 30);
+                        Require(run.button + 1 == 100 && run.move == 100 && !run.dropped, "A reply's hold gave way by a plan that replaced it");
+                    }
                 }
                 // A gap in the frames takes what was seen of the stun, and the
                 // hold waiting on it goes too: over the free frame, and in the
                 // frames a later timing waits past it.
                 for (const int gap : {23, 24}) {
                     Dummy dummy;
-                    const auto frames = Synth({"[1]", "3HP"});
+                    const auto reply = Plan({"[1]", "3HP"});
                     const auto block = statuses(ActorStatus::DamageGuard, 18, 0u, 0);
-                    play(dummy, frames, MaxReplyTiming, block, 0);
-                    const Run run = play(dummy, frames, MaxReplyTiming, block, 0, gap);
+                    play(dummy, reply, MaxReplyTiming, block, 0);
+                    const Run run = play(dummy, reply, MaxReplyTiming, block, 0, gap);
                     Require(run.ended == gap + 1 && run.padOff == gap + 2 && run.move < 0, "A gap in the frames left a hold waiting on the pad");
                 }
                 // A stun longer than any recovery, a dizzy: the hold waits it out.
-                const auto frames = Synth({"[1]", "3HP"});
+                const auto reply = Plan({"[1]", "3HP"});
                 {
                     Dummy dummy;
                     const auto dizzy = statuses(ActorStatus::Stun, 150, 0u, 0);
-                    play(dummy, frames, 0, dizzy, 0);
-                    Require(play(dummy, frames, 0, dizzy, 0).move == 155, "A hold gave up before a long stun ended");
+                    play(dummy, reply, 0, dizzy, 0);
+                    Require(play(dummy, reply, 0, dizzy, 0).move == 155, "A hold gave up before a long stun ended");
                 }
                 // A hold later in a reply waits as any link does: walking back
                 // or in guard stance the dummy is never seen neutral, and the
                 // wait gives up rather than keep it on the pad.
-                const auto later = Synth({"5LP", "[4]120f", "[4]", "6P"});
+                const auto later = Plan({"5LP", "[4]120f", "[4]", "6P"});
                 for (const unsigned after : {walkBack, guardCrouch}) {
                     Dummy dummy;
                     const auto walking = statuses(ActorStatus::DamageGuard, 18, after, 400);
@@ -389,7 +454,7 @@ int main() {
                 }
                 // The hold is the charge only when the stun is long enough to
                 // charge in: after a short blockstun "[1] > 6P" comes out uncharged.
-                const auto charge = Synth({"[1]", "6P"});
+                const auto charge = Plan({"[1]", "6P"});
                 Dummy longDummy;
                 const auto longBlock = statuses(ActorStatus::DamageGuard, 80, 0u, 0);
                 play(longDummy, charge, 0, longBlock, Left);
@@ -400,11 +465,12 @@ int main() {
                 Require(play(shortDummy, charge, 0, shortBlock, Left).move < 0, "A short blockstun charged a hold");
             }
             for (const char* move : {"[4]6P", "[2]8K"}) {
-                const auto frames = Synth({move});
+                const auto reply = Plan({move});
+                const auto& frames = reply.moves;
                 const unsigned back = move[1] == '4' ? Left : Down;
                 int hold = 0;
                 while (hold < static_cast<int>(frames.size()) && frames[hold].raw == back) ++hold;
-                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && ReplyLead(frames) == ChargeFrames + 3,
+                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && Lead(reply) == ChargeFrames + 3,
                     "A charge was held too briefly for some fighter, or its lead misread");
                 for (const int timing : {-1, 0, 2}) {
                     // Getting up, and a blockstun with the charge held back
@@ -416,10 +482,10 @@ int main() {
                         const int length = stun.second;
                         Dummy dummy;
                         const auto held = statuses(stun.first, length, 0u, 0);
-                        const Run first = play(dummy, frames, timing, held, back);
+                        const Run first = play(dummy, reply, timing, held, back);
                         Require(first.free == 5 + length && first.button == first.free + 1 + ChargeFrames + 3 && first.move == first.button + 1 &&
                             !first.dropped, "A charge reply to a stun not seen before was not played as it ended");
-                        const Run timed = play(dummy, frames, timing, held, back);
+                        const Run timed = play(dummy, reply, timing, held, back);
                         Require(timed.button + 1 == timed.free + timing && !timed.dropped,
                             "A charge reply's button did not land on the free frame, plus timing");
                         Require(timing < 0 || timed.move == timed.button + 1, "A charge held through the stun did not come out on its button");
@@ -429,8 +495,8 @@ int main() {
                     for (const unsigned guard : {static_cast<unsigned>(ActorStatus::GuardStand), static_cast<unsigned>(ActorStatus::GuardCrouch)}) {
                         Dummy blockDummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 18, guard, 80);
-                        play(blockDummy, frames, timing, block, back);
-                        const Run blocked = play(blockDummy, frames, timing, block, back);
+                        play(blockDummy, reply, timing, block, back);
+                        const Run blocked = play(blockDummy, reply, timing, block, back);
                         Require(blocked.free == 23 && blocked.button == 5 + 1 + ChargeFrames + 3 && blocked.move == blocked.button + 1 && !blocked.dropped,
                             "A charge reply over a short blockstun was dropped in guard stance, started late or came out uncharged");
                     }

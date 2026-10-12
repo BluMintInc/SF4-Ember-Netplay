@@ -34,15 +34,18 @@ inline unsigned ChosenButtons(const Step& step) {
     for (int i = 0; i < step.need && i < 3; ++i) mask |= order[step.buttons == Kicks][i];
     return mask;
 }
-// Typed moves as the dummy plays them for its reply. frames: as a slot holds
-// them, from the reply's first played frame. offset: the first move's own
-// "@N", frames after the dummy is free its button lands, added to the
-// reply's timing (DummyPlan::offset).
+// Typed moves as the dummy plays them for its reply, and when their first
+// move lands (DummyPlan, ReplySchedule). frames: as a slot holds them, from
+// the reply's first played frame. offset: the first move's own "@N", frames
+// after the dummy is free it lands, added to the reply's timing. anchor: the
+// frame the first move's input takes effect on: its button; for a move with
+// none (a jump, a dash), its last direction; for a jumping attack, its jump.
+// hold: the frame of its leading hold (WaitReply), -1 for none.
 //
 // How the reply is laid out in time, the reply anchored at the dummy's free
 // frame (ReplyDue): holds and waits with a count before the first move lead
 // into it; a hold with no count there is its leading hold (WaitReply), its
-// length the stun's; the first move's button meets the free frame plus the
+// length the stun's; the first move's anchor meets the free frame plus the
 // timing and its "@N". Each later move waits on the one before (a link for
 // the dummy to be free, a cancel for the hit, a follow-up a few frames), its
 // "@N" counted from that cue, or lands on a frame of the reply ("#N", a later
@@ -51,7 +54,7 @@ inline unsigned ChosenButtons(const Step& step) {
 // on the fight is refused, as on the first move with nothing before it. A
 // first move pressed and let go ("]HP[") comes out on the release, which the
 // reply cannot time, so it is refused (ParseSteps).
-struct Compiled { std::vector<training::Input> frames; int offset = 0; };
+struct Compiled { std::vector<training::Input> frames; int offset = 0, anchor = -1, hold = -1; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
 // a step is not a move, a "#N" cannot be laid out, or the input would not
@@ -100,7 +103,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // its frames before its own input hold.
         const bool after = follows, afterLead = pending && !after;
         const unsigned idle = after ? pending : 0;
-        if (afterLead) wait(training::WaitReply, pending, 0);
+        if (afterLead) { compiled.hold = static_cast<int>(out.size()); wait(training::WaitReply, pending, 0); }
         if (!after) compiled.offset = timing;
         pending = 0;
         follows = true;
@@ -119,6 +122,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
             if (timed) reach(landing);
             else if (after) wait(training::WaitHit, idle, timing);
+            if (!after) compiled.anchor = static_cast<int>(out.size());
             push(step.buttons, 2); push(0, 2);
             if (red) wait(training::WaitHit, 0, 0);
             push(dash, 2); push(0, 2); push(dash, 2);
@@ -131,6 +135,8 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // the hit lands, so the motion is fresh.
         std::string motion = step.motion;
         if (motion == "360" || motion == "720") { motion.clear(); for (int turn = step.motion == "720" ? 2 : 1; turn > 0; --turn) motion += "63214789"; }
+        // A jumping move takes effect on its jump.
+        if (step.air && !after) compiled.anchor = static_cast<int>(out.size());
         if (step.air) { push(DirectionBits('8', facingRight), 2); push(0, 10); }
         unsigned last = 0;
         const bool link = after && !step.cancel && !timed;
@@ -151,16 +157,23 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         const bool lone = motion.size() == 1 && buttons;
         const bool firstHeld = (link && !idle) || ((link || afterLead) && lone);
         const bool finish = step.cancel && !step.follow && after && !timed && buttons && !motion.empty();
+        int lastAt = static_cast<int>(out.size());
         for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
             // The same direction again is a new tap: a neutral frame between (a "66" dash).
             if (i && motion[i] == motion[i - 1]) push(0, 1);
             last = DirectionBits(motion[i], facingRight);
+            lastAt = static_cast<int>(out.size());
             const bool held = firstHeld && i == 0;
             push(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
         }
-        if (!buttons) continue;
+        if (!buttons) {
+            // A move with no button takes effect on its last direction.
+            if (!after && !step.air) compiled.anchor = lastAt;
+            continue;
+        }
         if (step.cancel && !step.follow && after && !timed) wait(training::WaitHit, last, timing);
         if (finish) last = DirectionBits(motion.back(), facingRight);
+        if (!after && !step.air) compiled.anchor = static_cast<int>(out.size());
         if (step.edge == Edge::Hold) push(last | buttons, 30);
         else if (step.edge == Edge::Release) { push(last | buttons, 30); push(last, 2); }
         else if (step.mash) {
