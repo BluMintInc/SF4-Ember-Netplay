@@ -1,3 +1,4 @@
+#include "network_completion.hxx"
 #include "../session/IrohRoom.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionServer.hxx"
@@ -171,6 +172,7 @@ int wmain(int argc, wchar_t** argv) {
 			CHECK(guestHelper.Send("{\"type\":\"shutdown\"}"));
 			wait([&]() {return !hostProcess.IsRunning() && !guestProcess.IsRunning();});
 			std::cout << "192 identical terminal retries retained one queued action; distinct generation and Chat survived in order. No SF4 gameplay tested.\n";
+			sf4e::test::CompleteNetworkCase("queue-acks");
 			return 0;
 		}
 		if(roomCycle==0) {
@@ -439,4 +441,5 @@ int wmain(int argc, wchar_t** argv) {
 	std::cout << "C++ SessionClient/SessionServer over two Iroh helpers passed: " << (quick?1:3)
 		<< " rooms, " << (quick?0:90) << " committed Ready/Unready cycles, neutral Leave, relay-only="
 		<< relayOnly << ". No SF4 gameplay tested.\n";
+    sf4e::test::CompleteNetworkCase(rejoin ? "rejoin" : quick ? "room-quick" : "room");
 }

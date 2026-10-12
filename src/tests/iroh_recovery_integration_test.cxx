@@ -1,3 +1,4 @@
+#include "network_completion.hxx"
 #include "iroh_integration_fixture.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../netplay/SessionController.hxx"
@@ -1089,4 +1090,5 @@ int wmain(int argc,wchar_t** argv) {
     CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
     for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";
+    sf4e::test::CompleteNetworkCase(scenario == L"all" ? "recovery" : "recovery-subset");
 }

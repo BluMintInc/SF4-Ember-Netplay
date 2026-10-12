@@ -9,6 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+. (Join-Path $PSScriptRoot 'NetworkCompletion.ps1')
 $target = Get-EmberBuildTarget $repo
 $build = Join-Path $repo $target.buildDirectory
 $helper = Join-Path $build 'sf4-net.exe'
@@ -37,17 +38,6 @@ $hashes = foreach ($artifact in $artifacts) {
     [ordered]@{path=$artifact;sha256=(Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash}
 }
 $hashes | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'artifacts.json')
-$completionMarkers=@{
-    'room'='C++ SessionClient/SessionServer over two Iroh helpers passed:'
-    'rejoin'='Rejoined the same room through the same Discord ticket after four departures'
-    'queue-acks'='192 identical terminal retries retained one queued action'
-    'game'='C++ raw UDP bridge:'
-    'authorized'='Four participants, three fresh authorized GGPO matches'
-    'terminal-recovery'='Four participants, three fresh authorized GGPO matches'
-    'recovery'='Helper recovery integration passed.'
-    'four-tables'='six games without automatic rotation and spectator input verification passed.'
-    'spectators'='six games without automatic rotation and spectator input verification passed.'
-}
 $results = @()
 foreach ($case in $plan) {
     foreach ($route in ($Routes | Select-Object -Unique)) {
@@ -70,7 +60,7 @@ foreach ($case in $plan) {
             $ErrorActionPreference = $nativeErrorPreference
         }
         $changed = @($hashes | Where-Object { (Get-FileHash -LiteralPath $_.path -Algorithm SHA256).Hash -ne $_.sha256 })
-        $completed=Select-String -LiteralPath $log -SimpleMatch -Quiet -Pattern $completionMarkers[$case.name]
+        $completed=Test-NetworkCompletion (Get-Content -LiteralPath $log) $case.name $exitCode ($changed.Count -eq 0)
         $result = [pscustomobject]@{test=$case.name;executable=$case.executable;routePolicy=$route;
             exitCode=$exitCode;completed=[bool]$completed;artifactsUnchanged=($changed.Count -eq 0);startedUtc=$started.ToString('o');
             elapsedSeconds=([DateTime]::UtcNow-$started).TotalSeconds;log=$log}

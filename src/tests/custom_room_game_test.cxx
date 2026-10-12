@@ -1,3 +1,4 @@
+#include "network_completion.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/sf4e__SessionServer.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
@@ -786,4 +787,5 @@ int wmain(int argc, wchar_t** argv) {
 	wait([&]() { return std::all_of(processes.begin(), processes.end(), [](const platform::HelperProcess& process) { return !process.IsRunning(); }); });
 	std::cout << Count << " members; " << tableCount << " concurrent match(es) with " << (perTable - 2) << " spectator(s) each; "
 		<< rematchCycles << " games without automatic rotation and spectator input verification passed. No SF4 simulation tested.\n";
+    sf4e::test::CompleteNetworkCase(singleTable ? "spectators" : "four-tables");
 }
