@@ -65,8 +65,8 @@ choice. Each fighter's own delay is kept for the next game.
 
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It follows the median round-trip time, the ping the check
-shows: up to 100 ms is one frame, 101 to 170 ms two, 171 to 240 ms three, and
-241 ms and up four, with one more frame for each further 70 ms, up to ten.
+shows: up to 80 ms is one frame, 81 to 150 ms two, 151 to 220 ms three, and
+221 ms and up four, with one more frame for each further 70 ms, up to ten.
 If the 95th percentile round trip lands more than one step worse than the
 median's, the recommendation rises to one step below it. These are tuning
 assumptions, not a guarantee about frame timing or network quality.

@@ -894,7 +894,8 @@ pub fn stable_voter_count(member_count: usize) -> usize {
 }
 
 // RTT bands from players' experience: one frame through 80 ms, then one
-// more frame per 70 ms, capped at ten.
+// more frame per 70 ms, capped at ten. Never 0: that is only a player's own
+// choice (InputDelay.hxx: RecommendedInputDelayMinimum).
 const DELAY_FIRST_BAND_MS: u64 = 80;
 const DELAY_BAND_STEP_MS: u64 = 70;
 
