@@ -62,6 +62,15 @@ if(WIN32)
                     "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS}
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember")
             set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
+            sf4e_test_locks(EmberRust ember_processes)
+            find_program(SF4E_NPM_EXECUTABLE NAMES npm.cmd npm REQUIRED)
+            add_test(NAME BridgeSdk
+                COMMAND ${CMAKE_COMMAND} "-DSOURCE=${CMAKE_SOURCE_DIR}" "-DBUILD=${CMAKE_BINARY_DIR}"
+                    "-DCARGO=${SF4E_CARGO_EXECUTABLE}" "-DNPM=${SF4E_NPM_EXECUTABLE}"
+                    "-DBRIDGE=${CMAKE_BINARY_DIR}/rust-ember-target/debug/ember-bridge.exe"
+                    -P "${CMAKE_SOURCE_DIR}/cmake/RunSdkTests.cmake")
+            set_tests_properties(BridgeSdk PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
+            sf4e_test_locks(BridgeSdk ember_processes)
         endif()
     endif()
 endif()
