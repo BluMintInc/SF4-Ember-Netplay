@@ -4589,3 +4589,27 @@ msgstr "Impossibile attivare Invia sempre, quindi questa segnalazione non è sta
 
 msgid "reports.automatic_unavailable"
 msgstr "Le segnalazioni automatiche di oggi sono esaurite o lo storico delle segnalazioni inviate è illeggibile, quindi questa non è stata inviata. Scegli Invia questa segnalazione per inviarla dall'anteprima."
+
+msgid "player.button_prompts"
+msgstr "Simboli dei pulsanti"
+
+msgid "player.button_prompts_detail"
+msgstr "Le immagini dei pulsanti mostrate da Ember. Automatico usa quelle del controller con cui giochi. La funzione di ogni pulsante resta la stessa."
+
+msgid "player.prompts_auto"
+msgstr "Automatico"
+
+msgid "player.prompts_auto_with"
+msgstr "Automatico ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Pulsanti di combattimento"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

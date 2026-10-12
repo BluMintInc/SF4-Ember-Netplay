@@ -50,13 +50,14 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     std::vector<Group> groups;
     const bool pad = device == input::PadXInput || device == input::PadDirectInput;
     // A DirectInput pad's labels are unknown, so its Back is named Select.
-    const std::string back = device == input::PadXInput ? "Back" : "Select";
+    const auto names = gamepads::ButtonPositionNames(device, MenuPromptBrand());
+    const std::string back = names.view;
     const auto hint = [&](Piece::Kind kind, std::string key, const char* label, bool shortens = false) {
         groups.push_back({{{kind, std::move(key), Between * unit}, {Piece::Label, label, Gap * unit}}, shortens});
     };
     if (shortcuts) {
         Group controls{{}, true};
-        if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, "Start", 2 * unit}};
+        if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, names.start, 2 * unit}};
         else controls.pieces = {{Piece::Key, "F6", 0}};
         controls.pieces.push_back({Piece::Chip, loc::T("training.controls_chip"), Gap * unit});
         groups.push_back(controls);

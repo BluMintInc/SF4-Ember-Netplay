@@ -20,14 +20,15 @@ struct Pad {
     std::uint16_t vid = 0, pid = 0;
     Type type = Type::Unknown;
     bool mapped = false;
+    bool hasEmberMapping = false;
     bool available = true;
     int slot = -1;
     Status status = Status::NotInUse;
     Id steamPad = 0;
     bool operator==(const Pad& other) const {
-        return std::tie(id, identity, vid, pid, type, mapped, available, slot, status, steamPad) ==
+        return std::tie(id, identity, vid, pid, type, mapped, hasEmberMapping, available, slot, status, steamPad) ==
             std::tie(other.id, other.identity, other.vid, other.pid, other.type,
-                other.mapped, other.available, other.slot, other.status, other.steamPad);
+                other.mapped, other.hasEmberMapping, other.available, other.slot, other.status, other.steamPad);
     }
 };
 
@@ -52,10 +53,11 @@ inline void Classify(std::vector<Pad>& pads, const std::set<std::string>& savedE
     for (auto& pad : pads) {
         pad.slot = -1;
         pad.steamPad = 0;
+        pad.hasEmberMapping = savedEmberMappingGuids.count(pad.identity.guid) != 0;
         const bool native = std::any_of(NativeProfiles.begin(), NativeProfiles.end(), [&](const NativeProfile& profile) {
             return pad.vid == profile.vid && pad.pid == profile.pid;
         });
-        pad.status = native && !savedEmberMappingGuids.count(pad.identity.guid) ? Status::GameRead :
+        pad.status = native && !pad.hasEmberMapping ? Status::GameRead :
             pad.mapped ? Status::NotInUse : Status::Unmapped;
     }
     for (const auto& steam : pads) if (SteamVirtual(steam)) {

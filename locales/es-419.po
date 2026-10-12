@@ -4129,3 +4129,27 @@ msgstr "No se pudo activar Enviar siempre, así que este reporte no se envió. E
 
 msgid "reports.automatic_unavailable"
 msgstr "Los reportes automáticos de hoy se agotaron o no se puede leer el historial de reportes enviados, así que este reporte no se envió. Elige Enviar este reporte para enviarlo desde su vista previa."
+
+msgid "player.button_prompts"
+msgstr "Símbolos de botones"
+
+msgid "player.button_prompts_detail"
+msgstr "Las imágenes de botones que muestra Ember. Automático usa las del control con el que juegas. La función de cada botón sigue siendo la misma."
+
+msgid "player.prompts_auto"
+msgstr "Automático"
+
+msgid "player.prompts_auto_with"
+msgstr "Automático ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Botones de combate"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

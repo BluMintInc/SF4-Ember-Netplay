@@ -29,6 +29,15 @@ void ShootReplayControls(sf4e::training::View& training,sf4e::ui::OverlayLayersV
         Require(strip->Pos.x>=vp->Pos.x&&strip->Pos.x+strip->Size.x<=vp->Pos.x+vp->Size.x&&strip->Pos.y+strip->Size.y<=vp->Pos.y+vp->Size.y,"Replay strip left the screen");
         Require(!ImGui::GetIO().WantCaptureKeyboard&&!ImGui::GetIO().WantCaptureMouse,"Replay strip captured gameplay input");
     };
+    const auto savedBrand=MenuPromptBrand();
+    replay.pad=true;
+    for(const auto brand:{gamepads::PromptBrand{gamepads::Brand::PlayStation,gamepads::PlayStationArt::PS5},
+                          gamepads::PromptBrand{gamepads::Brand::Nintendo},gamepads::PromptBrand{gamepads::Brand::Stick}}) {
+        SetMenuPromptBrand(brand);
+        draw(brand.brand==gamepads::Brand::PlayStation?"replay-prompts-ps5":brand.brand==gamepads::Brand::Nintendo?"replay-prompts-nintendo":"replay-prompts-stick");
+        checkStrip("Branded replay strip missing");
+    }
+    SetMenuPromptBrand(savedBrand);
     replay.pad=false;draw("replay-strip-keyboard");checkStrip("Replay strip missing at 1x");
     replay.paused=true;draw("replay-strip-paused");checkStrip("Replay strip missing while paused");
     replay.paused=false;replay.divisor=2;replay.pad=true;draw("replay-strip-half-pad");checkStrip("Replay strip missing at 1/2");

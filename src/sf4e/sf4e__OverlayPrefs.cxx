@@ -5,6 +5,7 @@
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
 
 #include <fstream>
 #include <climits>
@@ -263,6 +264,7 @@ namespace OverlayPrefs {
             {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         netplay::WriteBoolPreferences(preferences, values);
+        netplay::WriteButtonPrompts(preferences, values);
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));
 	}

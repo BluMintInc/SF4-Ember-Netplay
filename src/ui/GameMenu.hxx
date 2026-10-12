@@ -14,7 +14,7 @@ void SetMenuArt(SelectionArt* art);
 SelectionArt* MenuArt();
 // The fallbacks name a button with no known glyph: the game's LP/LK binding,
 // or the recovery window's stick buttons "1"/"2". They must outlive the call.
-void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LP",const char* backFallback="LK");
+void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LP",const char* backFallback="LK",gamepads::PromptBrand brand={});
 struct PlayerCardView {
     std::string name, fighterName;
     int fighter=0, inputDelay=0, members=0, activeTables=0;

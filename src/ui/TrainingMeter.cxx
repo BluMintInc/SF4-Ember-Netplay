@@ -311,7 +311,8 @@ void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
     const float size = vp->Size.y * .075f;
     const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0, text);
     const float small = size * .4f, glyph = small * 1.4f, gap = small * 1.5f;
-    const char* goNow = call.goNowGlyph ? loc::T("training.go_now") : nullptr;
+    const auto goLabel = call.goNowGlyph ? PromptLabel(call.goNowGlyph, loc::T("training.go_now"), MenuPromptBrand()) : std::string();
+    const char* goNow = call.goNowGlyph ? goLabel.c_str() : nullptr;
     const float goWidth = goNow ? glyph + small * .35f + font->CalcTextSizeA(small, FLT_MAX, 0, goNow).x : 0;
     if (goNow) ReportMenuText("challenger-go-now", small, glyph, goWidth, vp->Size.x * .9f);
     std::string who = call.opponent;

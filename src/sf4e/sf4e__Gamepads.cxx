@@ -314,6 +314,13 @@ std::optional<Identity> IdentityForSlot(int slot) {
     return {};
 }
 
+PromptBrand BrandForDevice(int deviceType, int slot) {
+    std::shared_lock lock(mutex);
+    if (active && deviceType == input::PadXInput && slot >= 0 && slot < static_cast<int>(snapshots.size()))
+        for (const auto& pad : inventory.pads) if (pad.slot == slot) return GameplayBrand(deviceType, &pad);
+    return GameplayBrand(deviceType);
+}
+
 std::vector<Pad> ReadPads() {
     std::shared_lock lock(mutex);
     return inventory.pads;

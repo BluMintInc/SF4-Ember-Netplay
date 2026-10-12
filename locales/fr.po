@@ -4589,3 +4589,27 @@ msgstr "Toujours envoyer n'a pas pu être activé, donc ce rapport n'a pas été
 
 msgid "reports.automatic_unavailable"
 msgstr "Les rapports automatiques du jour sont épuisés ou l'historique des rapports envoyés est illisible, donc ce rapport n'a pas été envoyé. Choisissez Envoyer ce rapport pour l'envoyer depuis son aperçu."
+
+msgid "player.button_prompts"
+msgstr "Symboles des boutons"
+
+msgid "player.button_prompts_detail"
+msgstr "Les images de boutons affichées par Ember. Automatique les adapte à la manette avec laquelle vous jouez. La fonction de chaque bouton reste la même."
+
+msgid "player.prompts_auto"
+msgstr "Automatique"
+
+msgid "player.prompts_auto_with"
+msgstr "Automatique ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Boutons de combat"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

@@ -116,6 +116,8 @@ namespace sf4e {
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
+            // Retain the detected brand to preview Automatic before autosave.
+            gamepads::PromptBrand gameplayBrand, promptBrand;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
 			netplay::Snapshot session;

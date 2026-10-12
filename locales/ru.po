@@ -4590,3 +4590,27 @@ msgstr "Не удалось включить «Отправлять всегда
 
 msgid "reports.automatic_unavailable"
 msgstr "Сегодняшние автоматические отчёты исчерпаны, или история отправленных отчётов не читается, поэтому отчёт не отправлен. Выберите «Отправить этот отчёт», чтобы отправить его из предпросмотра."
+
+msgid "player.button_prompts"
+msgstr "Значки кнопок"
+
+msgid "player.button_prompts_detail"
+msgstr "Изображения кнопок, которые показывает Ember. Автоматически подбирает их для контроллера, которым вы играете. Функции кнопок остаются прежними."
+
+msgid "player.prompts_auto"
+msgstr "Автоматически"
+
+msgid "player.prompts_auto_with"
+msgstr "Автоматически ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Боевые кнопки"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

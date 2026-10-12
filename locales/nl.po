@@ -4589,3 +4589,27 @@ msgstr "Altijd versturen kon niet worden aangezet, dus dit rapport is niet verst
 
 msgid "reports.automatic_unavailable"
 msgstr "De automatische rapporten van vandaag zijn op, of het overzicht van verzonden rapporten is onleesbaar, dus dit rapport is niet verstuurd. Kies Dit rapport versturen om het vanuit het voorbeeld te versturen."
+
+msgid "player.button_prompts"
+msgstr "Knopsymbolen"
+
+msgid "player.button_prompts_detail"
+msgstr "De knopafbeeldingen die Ember toont. Automatisch past ze aan de controller aan waarmee je speelt. Wat elke knop doet, blijft hetzelfde."
+
+msgid "player.prompts_auto"
+msgstr "Automatisch"
+
+msgid "player.prompts_auto_with"
+msgstr "Automatisch ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Gevechtsknoppen"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

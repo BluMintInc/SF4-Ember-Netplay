@@ -84,6 +84,9 @@ struct ShellView {
     platform::ServiceSnapshot services;
     std::string controller;
     std::string padHint;
+    // gameplayBrand is detected; promptBrand is resolved by the runtime.
+    // The local unsaved setting can resolve against gameplayBrand immediately.
+    gamepads::PromptBrand gameplayBrand, promptBrand;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;

@@ -1,6 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../netplay/PublishCadence.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -306,6 +307,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
+    mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
     mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
@@ -396,6 +398,8 @@ PostPublishState Publish() {
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
+    snapshot.gameplayBrand = Gamepads::BrandForDevice(snapshot.inputDevice.type, snapshot.inputDevice.index);
+    snapshot.promptBrand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, snapshot.inputDevice.type, snapshot.gameplayBrand);
     snapshot.controller = snapshot.inputDevice.name;
     snapshot.inputCapture = runtime->input.State();
     snapshot.controllerReady = runtime->input.Ready();

@@ -75,6 +75,13 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
     layers.challenger.goNowGlyph="Enter";draw("training-call-go-now-keyboard");
     Require(ImGui::GetForegroundDrawList()->VtxBuffer.Size>0,"The challenger banner was not drawn");
     layers.challenger.goNowGlyph="View";draw("training-call-go-now-pad");
+    const auto savedBrand=MenuPromptBrand();
+    for(const auto brand:{gamepads::PromptBrand{gamepads::Brand::PlayStation,gamepads::PlayStationArt::PS5},
+                          gamepads::PromptBrand{gamepads::Brand::Nintendo},gamepads::PromptBrand{gamepads::Brand::Stick}}) {
+        SetMenuPromptBrand(brand);
+        draw(brand.brand==gamepads::Brand::PlayStation?"challenger-prompts-ps5":brand.brand==gamepads::Brand::Nintendo?"challenger-prompts-nintendo":"challenger-prompts-stick");
+    }
+    SetMenuPromptBrand(savedBrand);
     Require(!ImGui::GetIO().WantCaptureKeyboard&&!ImGui::GetIO().WantCaptureMouse,"The challenger banner captured input");
     // Go now is not offered under an open window: the banner alone.
     layers.challenger.goNowGlyph=nullptr;layers.shellVisible=true;draw();

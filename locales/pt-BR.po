@@ -4129,3 +4129,27 @@ msgstr "Não foi possível ligar Sempre enviar, então este relatório não foi 
 
 msgid "reports.automatic_unavailable"
 msgstr "Os relatórios automáticos de hoje acabaram ou o histórico de relatórios enviados não pode ser lido, então este relatório não foi enviado. Escolha Enviar este relatório para enviá-lo pela prévia."
+
+msgid "player.button_prompts"
+msgstr "Símbolos dos botões"
+
+msgid "player.button_prompts_detail"
+msgstr "As imagens dos botões que o Ember mostra. Automático usa as do controle com que você joga. A função de cada botão continua a mesma."
+
+msgid "player.prompts_auto"
+msgstr "Automático"
+
+msgid "player.prompts_auto_with"
+msgstr "Automático ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Botões de luta"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

@@ -4589,3 +4589,27 @@ msgstr "Immer senden ließ sich nicht einschalten, daher wurde dieser Bericht ni
 
 msgid "reports.automatic_unavailable"
 msgstr "Die automatischen Berichte für heute sind aufgebraucht oder der Verlauf ist unlesbar, daher wurde dieser Bericht nicht gesendet. Wählen Sie Diesen Bericht senden, um ihn aus der Vorschau zu senden."
+
+msgid "player.button_prompts"
+msgstr "Tastensymbole"
+
+msgid "player.button_prompts_detail"
+msgstr "Die Tastenbilder, die Ember zeigt. Automatisch passt sie an den Controller an, mit dem du spielst. Welche Taste was macht, bleibt gleich."
+
+msgid "player.prompts_auto"
+msgstr "Automatisch"
+
+msgid "player.prompts_auto_with"
+msgstr "Automatisch ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Kampftasten"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

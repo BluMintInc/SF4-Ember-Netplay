@@ -295,6 +295,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.discordRevision=snapshot.discordRevision;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
     view.inputDevice = snapshot.inputDevice;
+    view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
     view.padHint = snapshot.padHint;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
@@ -476,7 +477,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
-    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
+    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical,"LP","LK",snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();
     // The game's battle log was opened from the Replays screen: Ember's menu
     // gets out of the way, and comes back on that screen when the replay

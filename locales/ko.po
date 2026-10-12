@@ -4589,3 +4589,27 @@ msgstr "항상 보내기를 켜지 못해 이 보고서를 보내지 않았습�
 
 msgid "reports.automatic_unavailable"
 msgstr "자동 보고서 한도에 도달했거나 보낸 보고서 기록을 읽을 수 없어 이 보고서를 보내지 않았습니다. 이 보고서 보내기를 선택하면 미리보기에서 보낼 수 있습니다."
+
+msgid "player.button_prompts"
+msgstr "버튼 표시"
+
+msgid "player.button_prompts_detail"
+msgstr "Ember에 표시되는 버튼 그림입니다. 자동은 플레이에 사용하는 컨트롤러에 맞춥니다. 각 버튼의 기능은 그대로입니다."
+
+msgid "player.prompts_auto"
+msgstr "자동"
+
+msgid "player.prompts_auto_with"
+msgstr "자동 ({0})"
+
+msgid "controller.brand.stick"
+msgstr "전투 버튼"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

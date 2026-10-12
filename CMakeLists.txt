@@ -255,12 +255,13 @@ if(BUILD_TESTING)
     add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
     target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME GamepadPrompts SOURCES src/tests/gamepad_prompts_test.cxx LIBS sf4e_ui STD 17)
     sf4e_add_unit_test(NAME GamepadSlots SOURCES src/tests/gamepad_slots_test.cxx STD 17)
     sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
     sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
-        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx
+        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx
         src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx

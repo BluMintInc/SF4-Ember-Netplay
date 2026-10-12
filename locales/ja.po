@@ -4589,3 +4589,27 @@ msgstr "「常に送信」をオンにできなかったため、このレポー
 
 msgid "reports.automatic_unavailable"
 msgstr "本日の自動レポートの上限に達したか、送信済みレポートの記録を読み取れないため、このレポートは送信されませんでした。「このレポートを送信」を選ぶと、プレビューから送信できます。"
+
+msgid "player.button_prompts"
+msgstr "ボタンの表示"
+
+msgid "player.button_prompts_detail"
+msgstr "Emberに表示するボタンの画像です。自動は、プレイに使うコントローラーに合わせます。各ボタンの機能は変わりません。"
+
+msgid "player.prompts_auto"
+msgstr "自動"
+
+msgid "player.prompts_auto_with"
+msgstr "自動（{0}）"
+
+msgid "controller.brand.stick"
+msgstr "対戦用ボタン"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

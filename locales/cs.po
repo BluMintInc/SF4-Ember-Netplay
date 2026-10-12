@@ -4589,3 +4589,27 @@ msgstr "Odesílat vždy se nepodařilo zapnout, proto se toto hlášení neodesl
 
 msgid "reports.automatic_unavailable"
 msgstr "Dnešní automatická hlášení jsou vyčerpána nebo záznam odeslaných hlášení nelze přečíst, proto se toto hlášení neodeslalo. Zvolte Odeslat toto hlášení a odešlete ho z náhledu."
+
+msgid "player.button_prompts"
+msgstr "Zobrazení tlačítek"
+
+msgid "player.button_prompts_detail"
+msgstr "Obrázky tlačítek, které Ember ukazuje. Automaticky odpovídá ovladači, se kterým hrajete. Funkce tlačítek zůstávají stejné."
+
+msgid "player.prompts_auto"
+msgstr "Automaticky"
+
+msgid "player.prompts_auto_with"
+msgstr "Automaticky ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Bojová tlačítka"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

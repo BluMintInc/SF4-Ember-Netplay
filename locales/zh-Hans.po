@@ -4589,3 +4589,27 @@ msgstr "无法开启“始终发送”，因此未发送此报告。选择“发
 
 msgid "reports.automatic_unavailable"
 msgstr "当天的自动报告已用完，或无法读取已发送报告的记录，因此未发送此报告。选择“发送此报告”即可从预览中发送。"
+
+msgid "player.button_prompts"
+msgstr "按钮提示"
+
+msgid "player.button_prompts_detail"
+msgstr "Ember 显示的按钮图案。自动会匹配你游玩时使用的控制器。各按钮的功能保持不变。"
+
+msgid "player.prompts_auto"
+msgstr "自动"
+
+msgid "player.prompts_auto_with"
+msgstr "自动（{0}）"
+
+msgid "controller.brand.stick"
+msgstr "战斗按钮"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

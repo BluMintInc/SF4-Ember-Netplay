@@ -6,6 +6,7 @@
 #include "../netplay/JsonFileStore.hxx"
 #include "../platform/DurableFile.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -238,6 +239,33 @@ static void BoolPreferenceRoundTrips(const Path& root) {
     bool threw = false;
     try { sf4e::netplay::ReadBoolPreferences({{"readySound", 1}}, odd); } catch (const nlohmann::json::exception&) { threw = true; }
     CHECK(threw);
+}
+
+static void ButtonPromptRoundTrips(const Path& root) {
+    using namespace sf4e;
+    for (int choice=0;choice<4;++choice) {
+        const auto folder=root/(L"prompts-"+std::to_wstring(choice));
+        CHECK(std::filesystem::create_directory(folder));
+        SettingsStore store(folder.wstring()); std::string error;
+        netplay::PlayerPreferences prefs; prefs.buttonPrompts=static_cast<gamepads::ButtonPrompts>(choice);
+        Json saved; netplay::WriteButtonPrompts(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        const Json document=Json::parse(Read(folder/L"settings.json"));
+        CHECK(document["netplay"]["buttonPrompts"]==choice);
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadButtonPrompts(loaded)==prefs.buttonPrompts);
+    }
+    const auto oldFolder=root/L"prompts-migration";
+    CHECK(std::filesystem::create_directory(oldFolder));
+    SettingsStore oldStore(oldFolder.wstring()); std::string error;
+    CHECK(oldStore.SaveLauncher({{"fasterDisplay",false}},error));
+    Json old; CHECK(oldStore.LoadLauncher(old,error));
+    CHECK(!old.contains("buttonPrompts")&&!old["fasterDisplay"].get<bool>());
+    CHECK(netplay::ReadButtonPrompts(old)==gamepads::ButtonPrompts::Automatic);
+    for (const Json& bad : {Json(-1),Json(4),Json(4294967296ULL),Json(18446744073709551615ULL),Json(-4294967296LL),
+            Json(1.5),Json("Xbox"),Json(false),Json(nullptr),Json::array({1})})
+        CHECK(netplay::ReadButtonPrompts({{"buttonPrompts",bad}})==gamepads::ButtonPrompts::Automatic);
+    netplay::PlayerPreferences invalid; invalid.buttonPrompts=static_cast<gamepads::ButtonPrompts>(4); CHECK(!invalid.Valid());
 }
 
 int main() {
@@ -513,6 +541,7 @@ int main() {
     InputDelayMigrations(root);
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);
+    ButtonPromptRoundTrips(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

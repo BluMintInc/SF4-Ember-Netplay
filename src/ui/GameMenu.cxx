@@ -14,6 +14,7 @@ namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
 const char* selectGlyph="LP";const char* backGlyph="LK";PlayerCardView playerCard;
 int menuDeviceType=0;
+gamepads::PromptBrand promptBrand;
 MenuTextProbe textProbe;
 MenuCardProbe cardProbe;
 MenuStatusProbe statusProbe;
@@ -150,12 +151,15 @@ void ApplyMenuGlyphs(){
     selectGlyph=keys?"Enter":padSelectGlyph;
     backGlyph=keys?"Esc":padBackGlyph;
 }
-void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback){
+void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback,gamepads::PromptBrand brand){
     menuDeviceType=type;
+    promptBrand=brand;
     padSelectGlyph=PhysicalGlyph(type,select,selectFallback);
     padBackGlyph=PhysicalGlyph(type,back,backFallback);
     ApplyMenuGlyphs();
 }
+gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
+void SetMenuPromptBrand(gamepads::PromptBrand brand){ promptBrand=brand; }
 bool KeyboardPrompts(){ return !std::strcmp(selectGlyph,"Enter"); }
 void NoteMenuDevice(unsigned padHeld){
     const unsigned keys=KeyboardMenuBits();

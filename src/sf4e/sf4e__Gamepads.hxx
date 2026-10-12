@@ -1,5 +1,5 @@
 #pragma once
-#include "../common/GamepadSlots.hxx"
+#include "../common/GamepadBrand.hxx"
 
 namespace sf4e { namespace Gamepads {
 
@@ -11,6 +11,7 @@ void Update();
 void Shutdown();
 void LogInventory();
 std::optional<gamepads::Identity> IdentityForSlot(int slot);
+gamepads::PromptBrand BrandForDevice(int deviceType, int slot);
 // A copied inventory, safe for the overlay's rendering thread to read.
 std::vector<gamepads::Pad> ReadPads();
 

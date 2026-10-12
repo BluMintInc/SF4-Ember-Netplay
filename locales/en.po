@@ -4245,3 +4245,27 @@ msgstr "Always send could not be turned on, so this report was not sent. Choose 
 
 msgid "reports.automatic_unavailable"
 msgstr "Today's automatic reports are used up, or the record of sent reports cannot be read, so this report was not sent. Choose Send this report to send it from its preview."
+
+msgid "player.button_prompts"
+msgstr "Button prompts"
+
+msgid "player.button_prompts_detail"
+msgstr "The button pictures Ember shows. Automatic matches the controller you play with. Which button does what stays the same."
+
+msgid "player.prompts_auto"
+msgstr "Automatic"
+
+msgid "player.prompts_auto_with"
+msgstr "Automatic ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Fight buttons"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"

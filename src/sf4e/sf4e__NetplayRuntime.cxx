@@ -217,6 +217,7 @@ void StartHelper() {
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             netplay::ReadBoolPreferences(saved, runtime->preferences);
+            runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;

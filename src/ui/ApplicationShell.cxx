@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "ButtonPromptSetting.hxx"
 #include "Theme.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
@@ -364,11 +365,13 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
    ConfirmRow("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
+   Value("button-prompts",loc::T("player.button_prompts"),ButtonPromptValue(preferences_.buttonPrompts,v.inputDevice.type,v.gameplayBrand),
+    loc::T(v.canEditPreferences?"player.button_prompts_detail":"settings.leave_room_to_edit"),v.canEditPreferences),
+   Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle),
    Value("background-play",loc::T("player.background_play"),preferences_.backgroundPlay?loc::T("common.on"):loc::T("common.off"),loc::T("player.background_play_detail"),v.canEditPreferences),
    Value("lower-input-lag",loc::T("player.lower_input_lag"),preferences_.lowerInputLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_input_lag_detail"),v.canEditPreferences),
    Value("lower-keyboard-lag",loc::T("player.lower_keyboard_lag"),preferences_.lowerKeyboardLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_keyboard_lag_detail"),v.canEditPreferences),
-   Value("faster-display",loc::T("player.faster_display"),preferences_.fasterDisplay?loc::T("common.on"):loc::T("common.off"),loc::T("player.faster_display_detail"),v.canEditPreferences),
-   Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
+   Value("faster-display",loc::T("player.faster_display"),preferences_.fasterDisplay?loc::T("common.on"):loc::T("common.off"),loc::T("player.faster_display_detail"),v.canEditPreferences)};
  }else if(screen=="interface"){
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
@@ -633,6 +636,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
   else if(a.id=="lower-input-lag")preferences_.lowerInputLag=a.delta>0;
   else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
+  else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
@@ -832,6 +836,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
+ SetMenuPromptBrand(gamepads::ResolvePrompts(preferences_.buttonPrompts,v.inputDevice.type,v.gameplayBrand));
  const bool keys=KeyboardPrompts();
  std::vector<LegendHint> roomHints=keys?std::vector<LegendHint>{{"F",loc::T("room.legend_fighter")},{"T",loc::T("room.legend_options")},{"C",loc::T("room.chat")}}:
   std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"View",loc::T("room.chat")}};

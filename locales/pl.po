@@ -4589,3 +4589,27 @@ msgstr "Nie udało się włączyć opcji Zawsze wysyłaj, więc to zgłoszenie n
 
 msgid "reports.automatic_unavailable"
 msgstr "Dzisiejsze automatyczne zgłoszenia zostały wykorzystane albo nie można odczytać historii wysłanych zgłoszeń, więc to zgłoszenie nie zostało wysłane. Wybierz Wyślij to zgłoszenie, aby wysłać je z podglądu."
+
+msgid "player.button_prompts"
+msgstr "Symbole przycisków"
+
+msgid "player.button_prompts_detail"
+msgstr "Obrazki przycisków wyświetlane przez Ember. Automatycznie dopasowuje je do kontrolera, którym grasz. Funkcje przycisków pozostają takie same."
+
+msgid "player.prompts_auto"
+msgstr "Automatycznie"
+
+msgid "player.prompts_auto_with"
+msgstr "Automatycznie ({0})"
+
+msgid "controller.brand.stick"
+msgstr "Przyciski walki"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
