@@ -199,6 +199,17 @@ static void TestCheckpoint() {
 	auto forged = checkpoint;
 	forged["snapshot"]["tournament"] = nlohmann::json::object();
 	CHECK(!restored.RestoreCheckpoint(forged));
+	// A tournament's room is never a Practice room, also when its checkpoint
+	// says so, and the room it would restore into is left as it was. Nor does
+	// a member read such a room from the wire.
+	auto practice = checkpoint;
+	practice["snapshot"]["practice"] = true;
+	RoomAuthority untouched("Other", 8, 1);
+	CHECK(!untouched.RestoreCheckpoint(practice));
+	CHECK(!untouched.SnapshotView().practice && !untouched.SnapshotView().tournament.Active() && untouched.SnapshotView().members.empty());
+	bool refused = false;
+	try { (void)practice.at("snapshot").get<Snapshot>(); } catch (const std::exception&) { refused = true; }
+	CHECK(refused);
 }
 
 // A bound room whose fighters readied at 1000 and whose first fighter gave its

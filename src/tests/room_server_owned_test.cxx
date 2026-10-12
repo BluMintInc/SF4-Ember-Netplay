@@ -283,6 +283,13 @@ static void TestCheckpointRoundTrip() {
 	auto privateWithAccounts = checkpoint;
 	privateWithAccounts["snapshot"].erase("server_owned");
 	CHECK(!RoomAuthority("Other").RestoreCheckpoint(privateWithAccounts));
+	// A public room is never a Practice room, also when its checkpoint says so;
+	// the room it would restore into is left as it was.
+	auto practice = checkpoint;
+	practice["snapshot"]["practice"] = true;
+	RoomAuthority untouched("Other");
+	CHECK(!untouched.RestoreCheckpoint(practice));
+	CHECK(!untouched.SnapshotView().practice && !untouched.SnapshotView().serverOwned && untouched.SnapshotView().members.empty());
 }
 
 static bool Mentions(const nlohmann::json& value, const char* text) {

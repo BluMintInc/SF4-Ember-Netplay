@@ -418,6 +418,13 @@ struct Snapshot {
 	TournamentBinding tournament;
 };
 
+// Only a player creates a Practice room, so it is never public (server
+// owned) or a tournament's. Every snapshot read from the wire or a
+// checkpoint holds to it, as the actions that make the other kinds do.
+inline bool PracticeKindValid(const Snapshot& room) {
+	return !room.practice || (!room.serverOwned && !room.tournament.Active());
+}
+
 // The round time a table's games are played at: its rules', or in a Practice
 // room the longest, since its games end only when the time runs out.
 inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {

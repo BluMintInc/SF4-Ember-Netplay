@@ -533,6 +533,7 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	}
 	ReadMemberList(json, "chat", value.chat, MaximumChatMessages);
 	value.tournament = json.contains("tournament") ? json.at("tournament").get<TournamentBinding>() : TournamentBinding();
+	if (!PracticeKindValid(value)) throw std::invalid_argument("room practice kind");
 	if (value.host && !memberIds.count(value.host)) throw std::invalid_argument("room host member"); if (value.localMember && !memberIds.count(value.localMember)) throw std::invalid_argument("room local member");
 	// Older owners kept a departed member's chat. Drop those lines rather than
 	// reject the whole room state; the sender cannot be named anyway.
