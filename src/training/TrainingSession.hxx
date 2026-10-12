@@ -146,17 +146,19 @@ inline int ReplyStart(const std::vector<Input>& frames) {
     const auto first = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & FightButtons) != 0; });
     return first == frames.end() ? -1 : static_cast<int>(first - frames.begin());
 }
-// Whether a reply begins by holding a direction until its first move is due
-// ("[1] > 3HP", WaitReply).
-inline bool ReplyHolds(const std::vector<Input>& frames) {
-    const int start = ReplyStart(frames);
-    return start >= 0 && frames[start].wait == WaitReply;
+// Where a reply holds a direction until its first move is due ("[1] > 3HP",
+// "[2]30f > [4] > 5MK": WaitReply, before its first attack button), -1 for none.
+inline int ReplyHold(const std::vector<Input>& frames) {
+    for (std::size_t at = 0; at < frames.size() && !(frames[at].raw & AttackButtons); ++at)
+        if (frames[at].wait == WaitReply) return static_cast<int>(at);
+    return -1;
 }
-// Frames a reply plays before its first attack button, after a leading hold:
-// its motion, which is done while the dummy is still held so the button
+// Frames a reply plays before its first attack button, after its leading
+// hold if it has one: holds and waits leading into its first move and that
+// move's motion, which are done while the dummy is still held so the button
 // meets the free frame.
 inline int ReplyLead(const std::vector<Input>& frames) {
-    const int start = ReplyStart(frames) + (ReplyHolds(frames) ? 1 : 0);
+    const int hold = ReplyHold(frames), start = hold >= 0 ? hold + 1 : ReplyStart(frames);
     const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & AttackButtons) != 0; });
     return start < 0 || press == frames.end() ? 0 : static_cast<int>(press - frames.begin()) - start;
 }
@@ -242,13 +244,13 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
 // Whether the first move of a reply's frames is due, its own offset (carried
 // by a leading hold) added to the plan's timing.
 inline bool ReplyFirstMoveDue(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
-    const int start = ReplyStart(frames);
-    return ReplyDue(seen, ReplyLead(frames) + DummyInputLag, timing + (ReplyHolds(frames) ? frames[start].offset : 0));
+    const int hold = ReplyHold(frames);
+    return ReplyDue(seen, ReplyLead(frames) + DummyInputLag, timing + (hold >= 0 ? frames[hold].offset : 0));
 }
 // Whether a reply should begin after this frame's observation: one holding
 // first begins with the stun, any other when its first move is due.
 inline bool ReplyBegins(const std::vector<Input>& frames, const DummySeen& seen, int timing) {
-    return (seen.held && ReplyHolds(frames)) || ReplyFirstMoveDue(frames, seen, timing);
+    return (seen.held && ReplyHold(frames) >= 0) || ReplyFirstMoveDue(frames, seen, timing);
 }
 // Where one reply's button met the dummy, in frames after the one the reply
 // was decided in, NotSeen where not seen: the frame its first attack button

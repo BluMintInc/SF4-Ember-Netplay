@@ -76,7 +76,7 @@ int main() {
     // erase a typed reply and silently switch the command to its slot.
     DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
     // A reply plays from its first pressed frame, so one starting with a wait is refused.
-    for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP", "10f > 5MK", "[1]", "[2]7197f > 5MK", "[4] > 10f > 5MK"}) {
+    for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP", "10f > 5MK", "[1]", "[2]7195f > 5MK", "[4] > 10f > 5MK"}) {
         error.clear();
         CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
         CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);

@@ -186,10 +186,12 @@ int main() {
             return seen;
         };
         const auto text = [](unsigned bits) { return std::to_string(bits); };
+        // Holds and waits with a count before the first move lead into it: no
+        // move to recover from, so it plays straight after them.
         CHECK(runs(Synth(Steps("[1]4f > 3HP"), true)) ==
-            (std::vector<std::string>{text(Down | Left), "free:" + text(Down | Right), text(Down | Right | HP), text(Down | Right), "0"}));
+            (std::vector<std::string>{text(Down | Left), text(Down | Right), text(Down | Right | HP), text(Down | Right), "0"}));
         const auto fixed = Synth(Steps("[1]4f > 3HP"), true);
-        CHECK(fixed.size() == 8 && fixed[3].raw == (Down | Left) && fixed[4].wait == sf4e::training::WaitActionable);
+        CHECK(fixed.size() == 10 && fixed[3].raw == (Down | Left) && std::none_of(fixed.begin(), fixed.end(), [](const sf4e::training::Input& frame) { return frame.wait; }));
         CHECK(runs(Synth(Steps("[1] > 3HP"), true)) ==
             (std::vector<std::string>{"hold:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
         CHECK(runs(Synth(Steps("[1] > 623P"), true)) ==
@@ -203,16 +205,17 @@ int main() {
         const auto follow = Synth(Steps("236P > [4] > ~ LP"), true);
         const auto press = std::find_if(follow.begin(), follow.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });
         CHECK(press != follow.end() && std::count_if(follow.begin(), press, [](const sf4e::training::Input& frame) { return frame.raw == Left; }) == FollowDelay + 1);
-        // Holds and waits play in the order typed.
+        // Holds and waits play in the order typed; a hold with no count after
+        // ones with a count is still the reply's leading hold.
         CHECK(runs(Synth(Steps("[2]3f > [4] > 5MK"), true)) ==
-            (std::vector<std::string>{text(Down), "free:" + text(Left), text(MK), "0"}));
+            (std::vector<std::string>{text(Down), "hold:" + text(Left), text(MK), "0"}));
         CHECK(runs(Synth(Steps("[2]3f > 2f > [4]2f > 5MK"), true)) ==
-            (std::vector<std::string>{text(Down), "0", text(Left), "free:0", text(MK), "0"}));
+            (std::vector<std::string>{text(Down), "0", text(Left), "0", text(MK), "0"}));
         // The moves come out whole or not at all: the most that fits a slot, one frame more, and holds that add up past it.
         {
             std::vector<sf4e::training::Input> frames;
-            CHECK(Synthesize(Steps("[2]7196f > 5MK"), true, frames, error) && frames.size() == sf4e::training::MaxFrames && frames[7197].raw == MK);
-            CHECK(!Synthesize(Steps("[2]7197f > 5MK"), true, frames, error) && frames.empty() && !error.empty());
+            CHECK(Synthesize(Steps("[2]7194f > 5MK"), true, frames, error) && frames.size() == sf4e::training::MaxFrames && frames[7197].raw == MK);
+            CHECK(!Synthesize(Steps("[2]7195f > 5MK"), true, frames, error) && frames.empty() && !error.empty());
             CHECK(!Synthesize(Steps("[2]3000f > [4]3000f > [1]1500f > 5MK"), true, frames, error) && frames.empty());
         }
         const auto spaced = Synth(Steps("5LP > 10f > 5MK"), true);

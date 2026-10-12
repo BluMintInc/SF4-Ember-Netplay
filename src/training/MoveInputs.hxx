@@ -51,23 +51,25 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
     };
     // A direction held until the next move begins ("[1]", ParseSteps puts a
     // move after it): that move's frames before its own input carry it, its
-    // wait included. Held before anything played, it is a reply's leading
-    // hold (WaitReply), given way when the move is due, the move's offset its own.
+    // wait included. Held before the first move, it is a reply's leading hold
+    // (WaitReply), given way when the move is due, the move's offset its own.
     unsigned pending = 0;
-    // Whether a step so far played input.
+    // Whether a move has played, so a move now waits on it. Holds and waits
+    // with a count before the first move are input leading into it, not a
+    // move to recover from: the first move plays straight after them.
     bool follows = false;
     for (const auto& text : steps) {
         Step step;
         if (!ParseStep(text, step, error)) { out.clear(); return false; }
         if (step.hold) {
             const unsigned held = DirectionBits(step.motion[0], facingRight);
-            if (step.frames) { push(held, step.frames); follows = true; }
+            if (step.frames) push(held, step.frames);
             else pending = held;
             continue;
         }
         const int timing = step.offset;
-        // after: an earlier step played input, so this one waits on it; idle:
-        // what its frames before its own input hold.
+        // after: an earlier move played, so this one waits on it; idle: what
+        // its frames before its own input hold.
         const bool after = follows, afterLead = pending && !after;
         const unsigned idle = after ? pending : 0;
         if (afterLead) wait(training::WaitReply, pending, timing);

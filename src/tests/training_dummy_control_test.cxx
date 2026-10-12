@@ -287,7 +287,7 @@ int main() {
                 for (const char* move : {"3HP", "623P", "236P", "22LK", "3HP@+3", "3HP@-2"}) {
                     const auto frames = Synth({"[1]", move});
                     Step step; std::string error;
-                    Require(ParseStep(move, step, error) && ReplyHolds(frames) && ReplyStart(frames) == 0, "A reply did not begin with its hold");
+                    Require(ParseStep(move, step, error) && ReplyHold(frames) == 0 && ReplyStart(frames) == 0, "A reply did not begin with its hold");
                     for (const unsigned after : {0u, guardCrouch}) for (int timing = -MaxReplyTiming; timing <= MaxReplyTiming; ++timing) {
                         const int at = timing + step.offset;
                         Dummy dummy;
@@ -302,6 +302,26 @@ int main() {
                         for (int frame = 6; frame < timed.button - ReplyLead(frames); ++frame) heldThrough = heldThrough && timed.read[frame] == (Down | Left);
                         Require(heldThrough && timed.button + 1 == timed.free + at && (at < 0 || timed.move == timed.free + at) && !timed.dropped,
                             "A hold over a timed blockstun did not give way so its move's button met the free frame plus timing");
+                    }
+                }
+                // Holds and waits with a count lead into the first move: the
+                // reply starts so they and the move's motion end with its button
+                // on the free frame plus timing, a hold with no count after them
+                // giving way the same, whatever the dummy does once free. The
+                // stun is long enough to hold them all in.
+                for (const auto& line : std::vector<std::vector<std::string>>{{"[2]30f", "5MK"}, {"[4]30f", "[4]", "5MK"}, {"[2]30f", "[4]", "623P"}}) {
+                    const auto frames = Synth(line);
+                    Require(ReplyLead(frames) == (line.size() == 2 ? 33 : line[2] == "5MK" ? 0 : 9), "A reply's lead did not count its leading input");
+                    for (const unsigned after : {0u, walkBack, guardCrouch}) for (const int timing : {0, 2, MaxReplyTiming}) {
+                        Dummy dummy;
+                        const auto block = statuses(ActorStatus::DamageGuard, 90, after, 40);
+                        play(dummy, frames, timing, block, 0);
+                        const Run run = play(dummy, frames, timing, block, 0);
+                        Require(run.free == 95 && run.button + 1 == 95 + timing && run.move == 95 + timing && !run.dropped, "A reply with input leading into its first move did not press on the free frame plus timing");
+                        // "[2]30f > 5MK": the 30 frames of down, then the move's 3.
+                        bool led = true;
+                        for (int frame = run.button - 33; frame < run.button - 3 && line.size() == 2; ++frame) led = led && run.read[frame] == Down;
+                        Require(led, "A reply's leading hold was not played before its move");
                     }
                 }
                 // A gap in the frames takes what was seen of the stun, and the
