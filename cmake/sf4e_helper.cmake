@@ -44,7 +44,10 @@ if(WIN32)
             # SF4E_CARGO_TEST_JOBS processors, the number CTest counts for the
             # test. The tests themselves mostly wait on timers, so they keep
             # one thread per processor, as Cargo runs them by default.
-            set(SF4E_CARGO_TEST_JOBS 8)
+            set(SF4E_CARGO_TEST_JOBS 2 CACHE STRING "Concurrent Cargo jobs per registered Rust test suite")
+            if(NOT SF4E_CARGO_TEST_JOBS MATCHES "^[1-9][0-9]*$")
+                message(FATAL_ERROR "SF4E_CARGO_TEST_JOBS must be a positive integer")
+            endif()
             add_test(NAME HelperRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-test-target"
                     "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
