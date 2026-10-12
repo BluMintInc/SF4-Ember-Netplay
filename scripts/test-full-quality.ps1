@@ -13,6 +13,8 @@ $OutputDirectory = (New-Item -ItemType Directory -Path $OutputDirectory).FullNam
 $receipt = [ordered]@{sourceRoot=$repo; branch=(& git -C $repo branch --show-current); commit=(& git -C $repo rev-parse HEAD);
     sourceFingerprint=(Get-SourceFingerprint $repo); startedUtc=[DateTime]::UtcNow.ToString('o'); components=@();
     linuxComponents=@();
+    coverageNotes=@('DPAPI and Windows bridge-process fixtures run only on Windows. Linux validates its passphrase backend and DPAPI refusal.',
+        'Explicitly ignored Rust tests remain unexecuted; their counts and names are retained in each Cargo log.');
     exclusions=@('Game launch and gameplay','Live Discord and external provider acceptance','Package installation and deployment')}
 $linuxNames=@('rooms-signals','posix-helper','room-host-build','rooms-deployment-mocks','reports-deployment-mocks','shell-syntax')
 foreach ($crate in @('helper','ember','rooms','short','reports')) {
