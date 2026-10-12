@@ -58,6 +58,14 @@ public:
         requested_ = startup; applied_ = true; enforced_ = fasterDisplay;
         if (enforced_) startup = 0;
     }
+    // Applies the override to the startup parameters' flag, then runs the
+    // game's startup routine, which copies the flag into Main and lets the
+    // graphics device latch it. The order is the point: the override must be
+    // in place before the routine reads the flag, never after.
+    template <typename Original> decltype(auto) ApplyThenStart(bool fasterDisplay, int& startup, Original&& original) {
+        Apply(fasterDisplay, startup);
+        return original();
+    }
     // Runs the game's config write with the player's value in the flag and
     // puts the enforced one back after. Unenforced, the flag is the game's.
     template <typename Write> void WriteRequested(int& live, Write&& write) const {

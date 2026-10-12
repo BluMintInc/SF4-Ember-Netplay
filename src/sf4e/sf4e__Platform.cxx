@@ -427,9 +427,9 @@ int fMain::Initialize(void* a, void* b, void* c) {
 }
 
 int fMain::ApplyStartupParams(void* params) {
-    s_renderingThread.Apply(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.fasterDisplay,
-        *rMain::StartupRenderingThread(params));
-    return (this->*rMain::privateMethods.ApplyStartupParams)(params);
+    return s_renderingThread.ApplyThenStart(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.fasterDisplay,
+        *rMain::StartupRenderingThread(params),
+        [&] { return (this->*rMain::privateMethods.ApplyStartupParams)(params); });
 }
 
 void fMain::Destroy() {
