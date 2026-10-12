@@ -263,6 +263,11 @@ static void TestUpdaterArguments() {
 }
 int wmain(int argc, wchar_t** argv) {
     std::string error;
+    if (argc == 3 && std::wstring(argv[1]) == L"--validate") {
+        // Read-only developer mode: no recovery or installation is invoked.
+        if (sf4e::launcher::ValidatePackageFolder(argv[2], error)) return 0;
+        std::cerr << error << '\n'; return 2;
+    }
     // Files these tests hold open fail their step at once; one test below
     // gives the wait back.
     sf4e::launcher::testing::InUseWaitMilliseconds=0;
