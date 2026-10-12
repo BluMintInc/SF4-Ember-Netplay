@@ -13,6 +13,18 @@ int main() {
             AutoInputDelay(recommended) > 0);
     // No recommendation, or one outside the delay range, is a new profile's two frames.
     CHECK(AutoInputDelay(-1) == DefaultInputDelay && AutoInputDelay(MaximumInputDelay + 1) == DefaultInputDelay && DefaultInputDelay == 2);
+    // The round trip bands are the connection check's (recovery.rs, tests
+    // probe_delay_uses_player_bands and probe_delay_tolerates_one_worse_tail_band
+    // pin these edges in microseconds): change them together.
+    struct Edge { int rttMs, delay; };
+    for (const Edge edge : {Edge{0, 1}, Edge{1, 1}, Edge{80, 1}, Edge{81, 2}, Edge{150, 2}, Edge{151, 3}, Edge{220, 3},
+        Edge{221, 4}, Edge{290, 4}, Edge{291, 5}, Edge{360, 5}, Edge{361, 6}, Edge{640, 9}, Edge{641, 10}, Edge{710, 10},
+        Edge{711, 10}, Edge{1000, 10}, Edge{1000000, 10}})
+        CHECK(InputDelayBand(edge.rttMs) == edge.delay);
+    for (const Edge edge : {Edge{150, 1}, Edge{151, 2}, Edge{221, 3}})
+        CHECK(RecommendedInputDelay(80, edge.rttMs) == edge.delay);
+    CHECK(RecommendedInputDelay(151, 151) == 3 && RecommendedInputDelay(80, 80) == RecommendedInputDelayMinimum);
+    static_assert(InputDelayBand(80) == 1 && InputDelayBand(81) == 2 && RecommendedInputDelay(80, 221) == 3, "constant expressions");
     // The delay row: Auto, then 0 to MaximumInputDelay, stopping at either end.
     CHECK(MinimumInputDelay == 0);
     CHECK(StepInputDelay(false, 2, -1) == 1 && StepInputDelay(false, 2, 1) == 3);

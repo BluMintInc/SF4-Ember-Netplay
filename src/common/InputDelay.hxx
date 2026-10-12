@@ -26,6 +26,27 @@ constexpr int AutoInputDelay(int recommended) {
         recommended > AutoInputDelayMaximum ? AutoInputDelayMaximum : recommended;
 }
 
+// The delay a round trip of `rttMs` asks for: one frame through 80 ms, then
+// one more frame per 70 ms, up to MaximumInputDelay. This is the connection
+// check's band function in whole milliseconds (recovery.rs: delay_band). The
+// game runs apart from the helper that owns that function, so the edges are
+// kept in both places and pinned by the same table in each one's tests.
+constexpr int InputDelayFirstBandMs = 80;
+constexpr int InputDelayBandStepMs = 70;
+constexpr int InputDelayFramesFor(int rttMs) {
+    return rttMs <= InputDelayFirstBandMs ? RecommendedInputDelayMinimum :
+        RecommendedInputDelayMinimum + (rttMs - InputDelayFirstBandMs + InputDelayBandStepMs - 1) / InputDelayBandStepMs;
+}
+constexpr int InputDelayBand(int rttMs) {
+    return InputDelayFramesFor(rttMs) > MaximumInputDelay ? MaximumInputDelay : InputDelayFramesFor(rttMs);
+}
+// The recommendation for a median and a 95th percentile round trip: the
+// median's band, raised to one below the tail's when the tail is more than
+// one band worse (recovery.rs: recommended_delay).
+constexpr int RecommendedInputDelay(int medianMs, int p95Ms) {
+    return InputDelayBand(medianMs) > InputDelayBand(p95Ms) - 1 ? InputDelayBand(medianMs) : InputDelayBand(p95Ms) - 1;
+}
+
 // Where a delay command carries a number, this asks for Auto. It is never
 // stored as a delay: preferences keep Auto in its own autoInputDelay flag.
 constexpr int AutoInputDelayChoice = -2;

@@ -201,6 +201,8 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	if (getsockname(reservedPort_, reinterpret_cast<sockaddr*>(&address), &size) != 0) return Fail("local_port_unavailable");
 	client_._ggpoPort = ntohs(address.sin_port);
 	generation_ = generation; slot_ = slot; roster_ = std::move(roster);
+	const auto opponent = std::find_if(links_.begin(), links_.end(), [&](const Link& link) { return slot < 2 && link.slot == 1 - slot; });
+	opponentPeer_ = opponent == links_.end() ? std::string() : opponent->peer;
 	client_.SetGameplayGeneration(generation_);
 	pendingGrantTerm_ = room_ && room_->Coordination().active ? room_->Coordination().term : 0;
 	readySent_ = mappingsPrepared_ = endSent_ = false;

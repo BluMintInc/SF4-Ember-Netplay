@@ -542,6 +542,24 @@ static bool RequestAutoCheck(const std::string& peer, std::uint64_t revision) {
     return true;
 }
 
+// The game that just ended, taken once and logged once per game: old -> new
+// delay Auto readies with. It stays local to this PC, like the check's: the
+// room commits the higher of the two seats' Ready delays. The game names its
+// own opponent, so it cannot be credited to whoever sits down after it.
+static void TakeFinishedGame() {
+    if(!runtime->finishedGame) return;
+    const auto game=*runtime->finishedGame;
+    runtime->finishedGame.reset();
+    auto& check=runtime->autoDelayCheck;
+    const int before=check.Delay(game.opponent);
+    if(check.Played(runtime->preferences.autoInputDelay,game))
+        spdlog::info("Auto delay: game {} ping median={} ms p95={} ms samples={}: delay {} -> {}",
+            game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples,before,check.Delay(game.opponent));
+    else
+        spdlog::info("Auto delay: game {} ping median={} ms p95={} ms samples={}: delay kept",
+            game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples);
+}
+
 // Follows the seated opponent and their check results. With Auto on, a due
 // check is asked for once the table has settled and this PC holds the pair;
 // one that ends without a recommendation is asked for once more.
@@ -553,6 +571,7 @@ void TickAutoDelay(bool helperReady) {
     const auto peer=coordinated ? CurrentProbePeer(revision,&tableIndex) : std::string();
     const auto now=GetTickCount64();
     auto& check=runtime->autoDelayCheck;
+    TakeFinishedGame();
     check.Seat(peer,revision,runtime->nextProbeRequest,now);
     if(peer.empty()) return;
     const auto& probe=runtime->room->Probe();
