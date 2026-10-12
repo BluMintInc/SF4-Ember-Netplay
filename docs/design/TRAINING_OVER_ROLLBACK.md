@@ -35,7 +35,7 @@ they watch. Only that player sees it.
   frame goes to the meter once `statehash::IsConfirmedCheckpoint` says every
   input in it is confirmed. The meter therefore trails the fight by the
   frames still predicted, and what it showed is never taken back.
-- The calls sit beside `CaptureHashCheckpoint`: after a played frame in
+- The calls sit beside `CaptureSnapshot`: after a played frame in
   `PlayGgpoFrame`, where the confirmed boundary is asked for, and after a
   resimulated frame in `ggpo_advance_frame_callback`, where the frame is only
   captured.

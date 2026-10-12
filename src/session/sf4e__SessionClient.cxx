@@ -143,6 +143,7 @@ static void ReportHashMismatch(
 	);
 	spdlog::error("Desync v2: local checkpoint ggpo={} engine={} flow={} substate={}",
 		local.ggpoStateFrame, local.engineFrame, local.flow, local.substate);
+	fSystem::LogFrameTrace(local.frameIdx);
 	for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
 		const fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
 		if (!cp.valid || cp.frameIdx == local.frameIdx) {
@@ -694,12 +695,11 @@ int SessionClient::Step()
 						cp.sent = true;
 					}
 				}
-				auto pendingIter = pendingRemoteHashes.find(cp.frameIdx);
-				if (pendingIter != pendingRemoteHashes.end()) {
-					ReportHashMismatch(this, cp, pendingIter->second);
-					pendingRemoteHashes.erase(pendingIter);
-				}
 			}
+			sf4e::statehash::ReconcileRemoteHashes(pendingRemoteHashes, confirmedInput, fSystem::FindHashCheckpoint,
+				[this](const fSystem::HashCheckpoint& local, const SessionProtocol::BattleHashV2& remote) {
+					ReportHashMismatch(this, local, remote);
+				});
 		}
 	}
 	TrySendPendingJoinRequest();

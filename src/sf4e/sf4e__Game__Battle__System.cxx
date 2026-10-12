@@ -112,7 +112,7 @@ int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
-int fSystem::lastGgpoSaveFrame = -1;
+sf4e::statehash::GgpoTimeline fSystem::ggpoTimeline;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
 // Zeroed (so disabled) until ResetPacerForSession initializes it.
@@ -370,29 +370,26 @@ static bool PlayGgpoFrame(rSystem* system) {
     // The game is never shown the reserved bits (TrainingRuntime.hxx).
     ggpoInputs[0].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[0].rawOn);
     ggpoInputs[1].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[1].rawOn);
-    {
-        PlaybackFrameScopeGuard _playbackGuard;
-        fPadSystem::playbackFrame = 0;
-        fPadSystem::playbackData[0][0] = ggpoInputs[0];
-        fPadSystem::playbackData[0][1] = ggpoInputs[1];
-        if (fSoundPlayerManager::bUsePureSounds) {
-            fSoundPlayerManager::SyncState();
-        }
-        {
+    const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
+        [&] {
+            // Playback mode is off again (the guard) before
+            // ggpo_advance_frame: the save callback and any nested GGPO work
+            // must not read the stale playback inputs.
+            PlaybackFrameScopeGuard _playbackGuard;
+            fPadSystem::playbackFrame = 0;
+            fPadSystem::playbackData[0][0] = ggpoInputs[0];
+            fPadSystem::playbackData[0][1] = ggpoInputs[1];
+            if (fSoundPlayerManager::bUsePureSounds) {
+                fSoundPlayerManager::SyncState();
+            }
             diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
             (system->*rSystem::publicMethods.BattleUpdate)();
-        }
-        // Playback mode must be off before ggpo_advance_frame: the
-        // save callback and any nested GGPO work must not read the
-        // stale playback inputs. The guard also restores on every
-        // early exit above.
-        fPadSystem::playbackFrame = -1;
-    }
-    GGPOErrorCode err;
-    {
-        diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
-        err = ggpo_advance_frame(fSystem::ggpo);
-    }
+        },
+        [&] { fSystem::CaptureSimulatedFrame(system, ggpoInputs); },
+        [&] {
+            diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+            return ggpo_advance_frame(fSystem::ggpo);
+        });
     if (diag::Enabled()) {
         diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
     }
@@ -412,7 +409,6 @@ static bool PlayGgpoFrame(rSystem* system) {
         fSoundPlayerManager::SyncState();
     }
     fSystem::CaptureSnapshot(system);
-    fSystem::CaptureHashCheckpoint(system);
     fSystem::CaptureMeterSample(system, true);
     PublishConfirmedNativeMatchResult();
     return true;
@@ -656,7 +652,7 @@ void fSystem::CloseBattle() {
             static_cast<int>(candidate.result),
             candidate.frame,
             confirmedInput,
-            lastGgpoSaveFrame
+            ggpoTimeline.Held()
         );
         simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot

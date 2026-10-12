@@ -376,6 +376,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game__Battle__Hud.cxx"
     "src/sf4e/sf4e__Game__Battle__System.hxx"
     "src/sf4e/sf4e__Game__Battle__System.cxx"
+    "src/sf4e/sf4e__Game__Battle__System__FrameTrace.cxx"
     "src/sf4e/sf4e__Game__Battle__System__Ggpo.cxx"
     "src/sf4e/sf4e__Game__Battle__System__RollbackStress.cxx"
     "src/sf4e/sf4e__Game__Battle__System__SaveState.cxx"
@@ -667,6 +668,7 @@ if(BUILD_TESTING)
 
     sf4e_add_unit_test(NAME RollbackDiagnostics SOURCES "src/tests/rollback_diagnostics_test.cxx" LIBS sf4e_common TIMEOUT 15)
     sf4e_add_unit_test(NAME StateHash SOURCES "src/tests/state_hash_test.cxx" TIMEOUT 15)
+    sf4e_add_unit_test(NAME FrameTrace SOURCES "src/tests/frame_trace_test.cxx" STD 14 TIMEOUT 15)
 endif()
 
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)

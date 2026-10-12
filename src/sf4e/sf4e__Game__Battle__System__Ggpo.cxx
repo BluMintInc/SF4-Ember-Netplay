@@ -380,7 +380,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     s_abortLatch.Reset();
     sf4e::memento::DiscardPendingAbort();
     localPlayerHandle = GGPO_INVALID_HANDLE;
-    lastGgpoSaveFrame = -1;
+    ggpoTimeline.Reset();
 
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -485,7 +485,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     // match must not classify the host stream's events.
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     localPlayerHandle = GGPO_INVALID_HANDLE;
-    lastGgpoSaveFrame = -1;
+    ggpoTimeline.Reset();
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
     cb.advance_frame = ggpo_advance_frame_callback;
@@ -639,12 +639,13 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // if it called fSystem::BattleUpdate, it'd be restricted to the same
     // update-halting that the detoured method is.
     rSystem* system = rSystem::staticMethods.GetSingleton();
-    {
-        diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-        (system->*rSystem::publicMethods.BattleUpdate)();
-    }
-
-    result = ggpo_advance_frame(ggpo);
+    result = sf4e::statehash::GgpoTimeline::Simulate(
+        [&] {
+            diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+            (system->*rSystem::publicMethods.BattleUpdate)();
+        },
+        [&] { CaptureSimulatedFrame(system, inputs); },
+        [&] { return ggpo_advance_frame(ggpo); });
     if (diag::Enabled()) {
         diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
     }
@@ -656,7 +657,6 @@ bool fSystem::ggpo_advance_frame_callback(int)
         ++s_window.resimFrames;
         s_window.maxDepth = (std::max)(s_window.maxDepth, ++s_window.depth);
         CaptureSnapshot(system);
-        CaptureHashCheckpoint(system);
         CaptureMeterSample(system, false);
     }
 
@@ -673,7 +673,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
     ++s_window.rollbacks;
     s_window.depth = 0;
     SaveState* state = (SaveState*)buffer;
-    if (!SaveState::Load(state)) {
+    if (!ggpoTimeline.Load(state->ggpoFrame, [&] { return SaveState::Load(state); })) {
         // The engine now holds a partly restored timeline; re-simulating
         // from it would desync, so end the match instead (ledger A-001).
         AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
@@ -685,7 +685,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int frame)
 {
     GgpoCallbackScope _callbackScope;
-    lastGgpoSaveFrame = frame;
+    ggpoTimeline.Saved(frame);
     // No GGPO callback allocates data, then hands ownership to GGPO-
     // sf4e preallocates and manages all its savestates, and the memory
     // allocation all happens internally. Consequently the memory
