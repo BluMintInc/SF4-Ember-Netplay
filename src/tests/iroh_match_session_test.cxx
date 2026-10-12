@@ -65,6 +65,8 @@ public:
 		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Closed;
 	}
 	void Leave(bool) override { ++leaveCalls; }
+	// The room's control is coordinated, so a leave waits for the session to retire.
+	void Coordinate() { coordination_.active = true; }
 private:
 	CoordinationSnapshot coordination_;
 	std::map<std::string, GameSnapshot> snapshots_;
@@ -570,12 +572,14 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 }
 
 // A room, as this PC's runtime watches its table 0, and the game it is in.
+// enter false: the game is begun and granted, but this PC's setup of it
+// fails (its port cannot be reserved) at the next TickMatch.
 struct WatchedGame {
 	sf4e::room::RoomAuthority authority;
 	sf4e::room::MemberId p1 = 0, p2 = 0, member = 0;
 	std::uint64_t generation = 0;
 	RuntimeRoom r;
-	explicit WatchedGame(bool practice) : authority("Watched", 16, 96, sf4e::room::Rules(), practice) {
+	explicit WatchedGame(bool practice, bool enter = true) : authority("Watched", 16, 96, sf4e::room::Rules(), practice) {
 		namespace room = sf4e::room;
 		const auto join = [&](int index, bool host) {
 			const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
@@ -590,8 +594,10 @@ struct WatchedGame {
 		CHECK(authority.BeginMatch(0, p1, p2).accepted);
 		generation = authority.SnapshotView().tables[0].matchGeneration;
 		r.Snapshot(authority.SnapshotFor(member));
+		if (!enter) r.Match().FailPortReservationForTest(true);
 		r.Projection(generation);
 		r.Deliver(r.Grant(generation));
+		if (!enter) return;
 		r.Deliver(Fixture::Connect(generation));
 		Tick(); Tick();
 		CHECK(r.Match().Generation() == generation);
@@ -690,6 +696,33 @@ void TestEnteredBattleRequestCancelled() {
 		arm();
 		sf4e::NetplayFacade::internal::AbortLocalMatch("");
 		CHECK(!prepared());
+	}
+	{
+		// This PC's setup of the game fails in TickMatch: cancelled at once,
+		// before its session is retired or the game is back at the main menu.
+		WatchedGame game(true, false);
+		arm();
+		sf4e::NetplayFacade::internal::TickMatch();
+		CHECK(game.r.runtime->recoveringMatch && game.r.Match().LastFailure() == "local_port_unavailable");
+		CHECK(!prepared());
+		game.r.Match().FailPortReservationForTest(false);
+	}
+	{
+		// The player leaves a coordinated room during the game: the room is
+		// left after the session retires, but the game is cancelled at once.
+		WatchedGame game(true);
+		auto* runtime = game.r.runtime;
+		game.r.room->Coordinate();
+		runtime->room = game.r.room;
+		arm();
+		sf4e::NetplayFacade::RuntimeCommand leave;
+		leave.command = {sf4e::netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}};
+		CHECK(facade::SubmitRuntimeCommand(std::move(leave)));
+		sf4e::NetplayFacade::internal::DrainCommands(true);
+		CHECK(runtime->leaveRequested && game.r.room->leaveCalls == 0);
+		CHECK(!prepared());
+		runtime->room.reset();
+		runtime->leaveRequested = false;
 	}
 	{
 		WatchedGame game(true);

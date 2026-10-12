@@ -90,9 +90,8 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	}
 	ReportMatchAbort();
 	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-	CancelDeferredGgpoClose();
-	runtime->match->Abort();
-	runtime->recoveringMatch = true;
+	// The battle already closed its session, so there is nothing to abort but the match.
+	internal::AbortLocalMatch("");
 }
 
 // The room's match is one the game cannot take, and nothing of it was
@@ -257,13 +256,19 @@ namespace internal {
 // Retire this client from the current game. The room-facing half of leaving a
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
-void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
-	// A game this PC left before its battle was prepared gives that battle
-	// nothing of the match.
+void CancelLocalMatch(GgpoEnd end) {
+	// A game this PC left before its battle was prepared gives that battle,
+	// or any later one, nothing of the match.
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	CancelDeferredGgpoClose();
-	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason, severity);
-	runtime->match->Abort(); runtime->recoveringMatch = true;
+	if (end.retire) Game::Battle::System::RetireGgpoSession(end.text);
+	else if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(end.text, end.severity);
+	if (runtime->match) runtime->match->Abort();
+}
+
+void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+	CancelLocalMatch(GgpoEnd::Abort(reason, severity));
+	runtime->recoveringMatch = true;
 }
 
 // The room ended the game this PC is in with no result (Abort or Cancel). The
@@ -465,15 +470,13 @@ void TickMatch() {
 					ReportMatchAbort();
 				}
 				runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-				CancelDeferredGgpoClose();
-				if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(runtime->error.c_str());
-				runtime->match->Abort();
 				if (teardownTimedOut) {
+					CancelLocalMatch(GgpoEnd::Abort(runtime->error.c_str()));
 					runtime->error = loc::T("runtime.teardown_timeout");
                     runtime->controller.Execute({netplay::CommandKind::LeaveRoom,
                         runtime->controller.GetSnapshot().generation, {}});
                     CloseRoom();
-				} else runtime->recoveringMatch = true;
+				} else AbortLocalMatch(runtime->error.c_str());
 			} else {
 				const auto matchState = runtime->controller.GetSnapshot().match;
 				Apply(matchState == netplay::MatchState::Playing || matchState == netplay::MatchState::Preparing ?

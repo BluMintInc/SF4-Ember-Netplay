@@ -371,9 +371,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
             UserApp::netplay->client.GetRoomSnapshot().localMember) {
             runtime->leaveRequested=true;
-            CancelDeferredGgpoClose();
-            Game::Battle::System::RetireGgpoSession("leave_room");
-            if(runtime->match) runtime->match->Abort();
+            CancelLocalMatch(GgpoEnd::Retire("leave_room"));
         } else CloseRoom();
         break;
     case netplay::Effect::ReplaceRoom:
