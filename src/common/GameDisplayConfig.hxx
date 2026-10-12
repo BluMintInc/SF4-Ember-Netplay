@@ -1,13 +1,15 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
+#include <optional>
 #include <string>
 #include <string_view>
 
 namespace sf4e { namespace gameconfig {
 
 // The settings of the game's own config.ini that rollback depends on and the
-// player must change. VSync is not here: the mod forces it off.
+// player must change. VSync and RenderingThread are not here: the mod forces
+// both off (RenderingThreadOverride below).
 // An empty value means the key was absent; it is not reported as a mismatch.
 struct DisplaySettings {
     std::string frameRate, msaa;
@@ -39,5 +41,30 @@ inline DisplaySettings ParseDisplaySettings(std::string_view ini) {
     }
     return out;
 }
+
+// SYSTEM/RenderingThread. ON draws each frame on a second thread while the
+// game thread simulates the next one, so the picture reaches the screen a
+// frame later. Ember keeps the game's live flag off, as it does VSync, and
+// leaves the player's file as it was: the game writes the flag back into
+// config.ini (on exit and from its display options), and that write is given
+// the player's own value (sf4e__Platform.cxx).
+class RenderingThreadOverride {
+public:
+    // The flag as config.ini set it: remembered, then turned off.
+    void Enforce(int& live) { requested_ = live; live = 0; }
+    // Runs the game's config write with the player's value in the flag and
+    // puts the enforced one back after. Before Enforce the flag is the game's.
+    template <typename Write> void WriteRequested(int& live, Write&& write) const {
+        if (!requested_) { write(); return; }
+        const int enforced = live;
+        live = *requested_;
+        write();
+        live = enforced;
+    }
+    // What config.ini asked for; empty before Enforce.
+    std::optional<int> Requested() const { return requested_; }
+private:
+    std::optional<int> requested_;
+};
 
 } }

@@ -31,6 +31,7 @@
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/FrameShiftMailbox.hxx"
 #include "../common/EnvFlag.hxx"
+#include "../common/GameDisplayConfig.hxx"
 
 namespace rPlatform = Dimps::Platform;
 using rD3D = rPlatform::D3D;
@@ -90,6 +91,18 @@ DWORD s_vsyncForcedFrom = 0;
 void LogVSyncForced() {
     if (s_vsyncForcedFrom) {
         spdlog::info("Display: VSync forced off (game setting asked for interval {:#x})", s_vsyncForcedFrom);
+    }
+}
+
+// The game's render thread draws a frame behind the simulation, so Ember runs
+// every game with it off. Enforced once Main::Initialize has applied
+// config.ini, before Main::Run reads the flag; the player's file keeps its own
+// value (WriteDisplayConfig).
+sf4e::gameconfig::RenderingThreadOverride s_renderingThread;
+
+void LogRenderingThreadForced() {
+    if (const auto requested = s_renderingThread.Requested()) {
+        spdlog::info("Display: rendering thread forced off (game setting asked for {})", *requested ? "ON" : "OFF");
     }
 }
 
@@ -292,8 +305,10 @@ void fGFxApp::RestoreFromAdditionalMemento(rGFxApp* a, const AdditionalMemento& 
 void fMain::Install() {
     int (fMain:: * _fInitialize)(void*, void*, void*) = &Initialize;
     void (fMain:: * _fDestroy)() = &Destroy;
+    void (fMain:: * _fWriteDisplayConfig)() = &WriteDisplayConfig;
     DetourAttach((PVOID*)&rMain::publicMethods.Initialize, *(PVOID*)&_fInitialize);
     DetourAttach((PVOID*)&rMain::publicMethods.Destroy, *(PVOID*)&_fDestroy);
+    DetourAttach((PVOID*)&rMain::privateMethods.WriteDisplayConfig, *(PVOID*)&_fWriteDisplayConfig);
     DetourAttach((PVOID*)&rMain::staticMethods.RunWindowFunc, &RunWindowFunc);
 }
 
@@ -312,6 +327,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
     }
 
     int rval = (this->*(rMain::publicMethods.Initialize))(a, b, c);
+    s_renderingThread.Enforce(*rMain::GetRenderingThread(this));
 
     BOOL hasConsole = false;
     if (sf4e::args.bShowConsole) {
@@ -364,6 +380,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             sf4e::crash::Install(logsDirectory);
             sf4e::crash::WatchGameExit();
             LogVSyncForced();
+            LogRenderingThreadForced();
             spdlog::info("Sidecar logging initialized; install hooks are active");
             spdlog::info("{}", Game::Battle::MatchReplayListNote());
         }
@@ -396,7 +413,15 @@ void fMain::Destroy() {
     spdlog::shutdown();
 }
 
+void fMain::WriteDisplayConfig() {
+    s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
+        [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
+}
+
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    // The overlay is done with the message before the game's procedure runs,
+    // which can update and draw a whole frame (WM_TIMER while the window is
+    // dragged or sized) and so reach DrawOverlay from in here.
     if (Overlay::OverlayWindowFunc(hwnd, uMsg, wParam, lParam)) {
         return;
     }

@@ -160,8 +160,32 @@ static void AFrameDuringAChangeIsSkipped() {
     Check(!drew, "a frame was drawn while the context was being replaced");
 }
 
+// With the game's render thread off, one thread pumps the messages, resets the
+// device and draws, in that order each frame, and sends messages from inside
+// a reset and a frame. Nothing may wait for itself, and the frame after a
+// reset draws.
+static void OneThreadRunsTheWholeFrame() {
+    OverlayLifecycle lifecycle;
+    for (int frame = 0; frame < 3; ++frame) {
+        {
+            const OverlayLifecycle::Message pumped(lifecycle);
+            Check(pumped.Locked(), "a pumped message did not take the lock");
+        }
+        {
+            OverlayLifecycle::Change reset(lifecycle);
+            const OverlayLifecycle::Message activated(lifecycle);
+            Check(!activated.Locked(), "a message inside the reset took the lock again");
+        }
+        OverlayLifecycle::Frame drawing(lifecycle);
+        Check(static_cast<bool>(drawing), "the frame after a reset on the same thread was skipped");
+        const OverlayLifecycle::Message sent(lifecycle);
+        Check(!sent.Locked(), "a message inside the frame took the lock again");
+    }
+}
+
 int main() {
     ThreeThreadsNeverSeeAFreedContext();
+    OneThreadRunsTheWholeFrame();
     AMessageDuringAChangeOnItsThreadPassesThrough();
     AChangeWaitsForTheFrameInProgress();
     ANestedMessagePassesAWaitingChange();

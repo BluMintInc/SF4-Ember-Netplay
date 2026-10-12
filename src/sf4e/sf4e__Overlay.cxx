@@ -63,7 +63,8 @@ static sf4e::selection::StageMask lobbyStageExcluded = 0;
 // The thread that draws the overlay (NoteMessageThread).
 static std::atomic<DWORD> s_drawThread{0};
 // SF4 can pump the window's messages on another thread than the one that
-// draws (sf4e.log then says "window messages arrive on thread"). The Win32
+// draws (sf4e.log then says "window messages arrive on thread"); with its
+// render thread off, as Ember runs it, both are the game thread. The Win32
 // backend hands their ImGui input to this bridge, which the drawing thread
 // applies, so a message and a frame never wait for each other. Each D3D Reset
 // frees and recreates the context on the game thread; s_lifecycle keeps that
