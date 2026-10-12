@@ -71,11 +71,11 @@ Add-Check 'python-syntax' 'windows' {
     if ($LASTEXITCODE) { throw 'Python syntax failed' }
 }
 Add-Check 'linux-suite' 'linux' {
-    $linuxSource = (& wsl -d $LinuxDistribution -- wslpath -a $repo).Trim()
+    $linuxSource = (& wsl -d $LinuxDistribution --exec wslpath -a $repo).Trim()
     if ($LASTEXITCODE) { throw 'Linux source path unavailable' }
-    $linuxOutput = (& wsl -d $LinuxDistribution -- wslpath -a $OutputDirectory).Trim()
+    $linuxOutput = (& wsl -d $LinuxDistribution --exec wslpath -a $OutputDirectory).Trim()
     if ($LASTEXITCODE) { throw 'Linux output path unavailable' }
-    & wsl -d $LinuxDistribution -- python3 "$linuxSource/scripts/test-full-quality-linux.py" $linuxSource "$linuxOutput/linux"
+    & wsl -d $LinuxDistribution --exec python3 "$linuxSource/scripts/test-full-quality-linux.py" $linuxSource "$linuxOutput/linux"
     if ($LASTEXITCODE) { throw 'Linux quality suite failed; see per-component receipt' }
 }
 Save-QualityReceipt
