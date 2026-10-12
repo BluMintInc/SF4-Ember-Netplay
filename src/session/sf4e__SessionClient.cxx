@@ -819,7 +819,7 @@ session::SendResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::V
 
 session::SendResult SessionClient::PreBattle_SetStage(int32_t stageID)
 {
-	if (!selection::FindStage(stageID)) return session::SendResult::InvalidPayload;
+	if (!selection::ValidStage(stageID)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetStage msg;
 	msg.stageID = stageID;
 	json j = msg;

@@ -14,7 +14,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_tests.cmake")
 
 option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Windows/game dependencies" OFF)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
-add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx")
+add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx" "src/common/InstalledContent.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 # Durable create-only and replacing file writes (platform/DurableFile.hxx), for
@@ -410,6 +410,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
     "src/sf4e/sf4e__UserApp.cxx"
+    "src/sf4e/sf4e__CustomContent.hxx"
+    "src/sf4e/sf4e__CustomContent.cxx"
     "src/sf4e/sf4e__NetplayFacade.hxx"
     "src/sf4e/sf4e__NetplayFacade.cxx"
     "src/sf4e/sf4e__NetplayRuntime.hxx"

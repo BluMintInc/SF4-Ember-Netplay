@@ -2,6 +2,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "../netplay/PublishCadence.hxx"
+#include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -422,6 +423,7 @@ PostPublishState Publish() {
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
+    snapshot.installedContent = custom::Installed();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
