@@ -436,6 +436,8 @@ void AfterUpdate(Native* system) {
     if (delta != 0) dummyControl.Simulated();
     if (sampling && delta == 1) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
+        // The dummy as its stun is timed, for a reply's wait now and its decision below.
+        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
@@ -447,7 +449,12 @@ void AfterUpdate(Native* system) {
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
-            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
+            // A stunned dummy's script says nothing: a reply's wait is timed by
+            // the stun, and when the stun is not timed the dummy is free as it
+            // ends, whatever it does then (guard stance, a walk).
+            const bool replying = session.Replying();
+            session.Observe((own.valid && ClassifyStatus(own.status) == Phase::Neutral) || (replying && seen.freed), hit,
+                until < 0 && replying ? ReplyWaitUntil(seen, dummyPlan.timing) : until);
             playbackSeen = fighters;
         }
         // Recorded for the facing the input was prepared with, then the new positions.
@@ -459,7 +466,6 @@ void AfterUpdate(Native* system) {
         // frame and its button land on it; a stun not seen before is replied
         // to as it ends.
         {
-            const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
             int* options = DummyOptions();
             // Hit again: a reply already begun is dropped, and this stretch decides anew.
             if (seen.held && seen.stretch != decidedStretch) session.StopReply();

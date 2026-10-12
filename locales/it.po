@@ -1513,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "Mosse di risposta"
 
 msgid "training.reply.moves.detail"
-msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. Vuoto usa lo slot di risposta."
+msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. [1] tiene una direzione fino alla mossa successiva, [1]20f la tiene 20 frame e 10f aspetta: [1] > 3HP para in basso finché il manichino è libero, poi preme 3HP. Vuoto usa lo slot di risposta."
 
 msgid "training.reply.move"
 msgstr "Risposta predefinita"

@@ -1513,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "Antwoordmoves"
 
 msgid "training.reply.moves.detail"
-msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. Leeg gebruikt het antwoordslot."
+msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg gebruikt het antwoordslot."
 
 msgid "training.reply.move"
 msgstr "Antwoordvoorkeuze"

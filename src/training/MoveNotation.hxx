@@ -45,6 +45,10 @@ enum class Range { Any, Close, Far };
 // offset: frames after this move's cue the press lands on, before it when negative ("cr.MK@+1").
 // at: the frame of the playback the press lands on, -1 when the move follows
 // the fight's cues instead ("cr.MK#45").
+// hold: the step holds the direction in motion and presses nothing, for
+// `frames` frames ("[1]20f"), or with frames 0 until the next move begins
+// its own input ("[1]"), through that move's wait. Holding 5 is a wait with
+// nothing held ("20f"), and needs its frames.
 struct Step {
     std::string motion;
     bool charge = false, air = false, cancel = false, mash = false;
@@ -59,6 +63,7 @@ struct Step {
     unsigned buttons = 0; int need = 0;
     Edge edge = Edge::Press; Range range = Range::Any;
     int offset = 0, at = -1;
+    bool hold = false; int frames = 0;
 };
 constexpr int MaxAtFrame = 7200;
 
@@ -72,6 +77,8 @@ constexpr int MaxAtFrame = 7200;
 //            "(mash 1MK-1MK-1MK)" with a direction for each press
 //   @N:      playback timing, -120..+120 frames ("@-1", "@+3")
 //   #N:      playback frame the press lands on, 0..7200 ("#45")
+// or a direction held with no button, alone: "[1]" until the next move
+// begins, "[1]20f" for 1..7200 frames; "20f" waits that long, nothing held.
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
 // RFADC is the red focus, LP+MP+MK tapped so the attack comes out and lands, then the dash on its hit.
 inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
@@ -105,6 +112,24 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
             seenFrame = true;
         }
         s.resize(mark);
+    }
+    {
+        // A hold or a wait: "[d]", "[d]Nf" or "Nf". The frame count is digits
+        // before an F, which no other move ends in.
+        std::size_t head = s.size();
+        if (head > 1 && s.back() == 'F') {
+            std::size_t digits = head - 1;
+            while (digits > 0 && s[digits - 1] >= '0' && s[digits - 1] <= '9') --digits;
+            if (digits < head - 1 && head - 1 - digits <= 4) { step.frames = std::atoi(s.c_str() + digits); head = digits; }
+        }
+        const bool held = head == 3 && s[0] == '[' && s[1] >= '1' && s[1] <= '9' && s[2] == ']';
+        if (held || (head == 0 && step.frames)) {
+            step.hold = true; step.motion = held ? s.substr(1, 1) : "5";
+            if (step.at >= 0 || step.offset || step.frames > MaxAtFrame || (head < s.size() && step.frames < 1) || (step.motion == "5" && !step.frames))
+                return fail();
+            return true;
+        }
+        step.frames = 0;
     }
     if (s.size() > 6 && s.compare(s.size() - 6, 6, "(MASH)") == 0) { step.mash = true; s.resize(s.size() - 6); }
     else if (s.rfind("(MASH") != std::string::npos && s.back() == ')') {
@@ -179,6 +204,7 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
 }
 // The one spelling of a step: what is stored, shared and compared.
 inline std::string Canonical(const Step& step) {
+    if (step.hold) return (step.motion == "5" ? "" : "[" + step.motion + "]") + (step.frames ? std::to_string(step.frames) + "f" : "");
     std::string out = step.follow ? "~ " : step.cancel ? "xx " : "";
     const std::string timing = (step.at >= 0 ? "#" + std::to_string(step.at) : "") +
         (step.offset ? (step.offset > 0 ? "@+" : "@") + std::to_string(step.offset) : "");
@@ -234,12 +260,13 @@ inline std::vector<std::string> Tokens(const std::string& line) {
 // Fails on the first step that is not a move.
 inline bool ParseSteps(const std::string& line, std::vector<std::string>& steps, std::string& error) {
     steps.clear();
+    Step step;
     for (const auto& token : Tokens(line)) {
-        Step step;
         if (!ParseStep(token, step, error)) { steps.clear(); return false; }
         steps.push_back(Canonical(step));
     }
     if (!steps.empty() && steps[0].compare(0, 3, "xx ") == 0) { error = "the first move cannot be a cancel"; steps.clear(); return false; }
+    if (!steps.empty() && step.hold && !step.frames) { error = "a hold with no frames needs a move after it"; steps.clear(); return false; }
     return true;
 }
 } }

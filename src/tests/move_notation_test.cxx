@@ -57,6 +57,18 @@ int main() {
     CHECK(ParseStep("5LP@+0", step, error) && step.offset == 0 && Canonical(step) == "5LP");
     // A frame to land on; kept before the offset.
     CHECK(ParseStep("2MK#45", step, error) && step.at == 45 && step.offset == 0 && Canonical(step) == "2MK#45");
+    // A direction held alone: until the next move, or for a count of frames;
+    // nothing held for a count is a wait. The count is digits before an F.
+    CHECK(ParseStep("[1]", step, error) && step.hold && step.motion == "1" && !step.frames && !step.buttons && Canonical(step) == "[1]");
+    CHECK(ParseStep("[2] 30F", step, error) && step.hold && step.motion == "2" && step.frames == 30 && Canonical(step) == "[2]30f");
+    CHECK(ParseStep("20f", step, error) && step.hold && step.motion == "5" && step.frames == 20 && Canonical(step) == "20f");
+    CHECK(ParseStep("[5]8f", step, error) && step.hold && Canonical(step) == "8f");
+    CHECK(ParseStep("qcf", step, error) && !step.hold && step.motion == "236" && ParseStep("[4]6P", step, error) && !step.hold && step.charge);
+    for (const char* bad : {"[5]", "[1]0f", "0f", "f", "[0]", "[12]", "[1]@+1", "20f#5", "xx [1]", "~ 20f", "[1]7201f", "[1]20fHP", "[HP]20f"})
+        CHECK(!ParseStep(bad, step, error));
+    // A hold kept until the next move needs one after it.
+    CHECK(ParseSteps("[1] > 3hp", steps, error) && steps == (std::vector<std::string>{"[1]", "3HP"}));
+    CHECK(!ParseSteps("2LK > [1]", steps, error) && steps.empty() && !error.empty() && ParseSteps("2LK > [1]10f", steps, error));
     {
         // A dash is two taps, not one hold.
         const auto dash = Synthesize({"66"}, true);
@@ -145,6 +157,37 @@ int main() {
         for (const auto& frame : timed) CHECK(!frame.wait);
         CHECK(timed[29].raw == Down && timed[31].raw == Down && timed[32].raw == 0 && timed[36].raw == Down);
         CHECK(timed.size() > 44 && timed.back().raw == 0);
+        // A hold for frames is that many frames. One kept until the next move
+        // is held through that move's wait: a lone direction's press follows
+        // it at once, a motion's first direction after it; through a
+        // follow-up's delay too. A wait is frames with nothing held.
+        const auto runs = [](const std::vector<sf4e::training::Input>& frames) {
+            std::vector<std::string> seen;
+            for (const auto& frame : frames) {
+                const std::string text = (frame.wait == sf4e::training::WaitActionable ? "free:" : "") + std::to_string(frame.raw);
+                if (seen.empty() || seen.back() != text) seen.push_back(text);
+            }
+            return seen;
+        };
+        const auto text = [](unsigned bits) { return std::to_string(bits); };
+        CHECK(runs(Synthesize(Steps("[1]4f > 3HP"), true)) ==
+            (std::vector<std::string>{text(Down | Left), "free:" + text(Down | Right), text(Down | Right | HP), text(Down | Right), "0"}));
+        const auto fixed = Synthesize(Steps("[1]4f > 3HP"), true);
+        CHECK(fixed.size() == 8 && fixed[3].raw == (Down | Left) && fixed[4].wait == sf4e::training::WaitActionable);
+        CHECK(runs(Synthesize(Steps("[1] > 3HP"), true)) ==
+            (std::vector<std::string>{"free:" + text(Down | Left), text(Down | Right | HP), text(Down | Right), "0"}));
+        CHECK(runs(Synthesize(Steps("[1] > 623P"), true)) ==
+            (std::vector<std::string>{"free:" + text(Down | Left), text(Right), text(Down), text(Down | Right), text(Down | Right | LP), text(Down | Right), "0"}));
+        CHECK(runs(Synthesize(Steps("[1] > 8"), true)) == (std::vector<std::string>{"free:" + text(Down | Left), text(Up), "0"}));
+        // Facing left, back is Right.
+        CHECK(Synthesize(Steps("[1] > 3HP"), false)[0].raw == (Down | Right));
+        const auto follow = Synthesize(Steps("236P > [4] > ~ LP"), true);
+        const auto press = std::find_if(follow.begin(), follow.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });
+        CHECK(press != follow.end() && std::count_if(follow.begin(), press, [](const sf4e::training::Input& frame) { return frame.raw == Left; }) == FollowDelay + 1);
+        const auto spaced = Synthesize(Steps("5LP > 10f > 5MK"), true);
+        const auto lp = std::find_if(spaced.begin(), spaced.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });
+        CHECK(lp != spaced.end() && std::all_of(lp + 1, lp + 12, [](const sf4e::training::Input& frame) { return frame.raw == 0 && !frame.wait; }) &&
+            (lp + 12)->wait == sf4e::training::WaitActionable);
     }
 
     // A recording slot as a file and back; bad files are refused.

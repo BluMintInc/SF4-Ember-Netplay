@@ -185,8 +185,9 @@ int main() {
                 }
             };
             // button: the update the reply's first attack button was read in;
-            // free: the dummy's first free frame; move: the frame its move starts.
-            struct Run { int button = -1, free = -1, move = -1; bool dropped = false; };
+            // free: the dummy's first free frame; move: the frame its move
+            // starts; read: Player 2's input as the game read it, per update.
+            struct Run { int button = -1, free = -1, move = -1; bool dropped = false; std::vector<unsigned> read; };
             // statuses: the dummy's, one per frame; it is free from the first
             // one after the stun that holds it in none.
             const auto play = [](DummyWatch& watch, Session& session, const std::vector<Input>& frames, int timing,
@@ -213,15 +214,19 @@ int main() {
                         run.move < 0)
                         run.move = frame;
                     control.Simulated();
+                    // A reply's wait for the dummy to be free is timed by its stun (TrainingRuntime.cxx).
+                    const DummySeen seen = watch.Observe(sample(frame), 100);
+                    session.Observe(ClassifyStatus(statuses[frame]) == Phase::Neutral || (session.Replying() && seen.freed), false,
+                        session.Replying() ? ReplyWaitUntil(seen, timing) : -1);
                     session.Commit(output);
                     if (replying && run.button < 0 && (output[1].raw & AttackButtons)) run.button = frame;
-                    const DummySeen seen = watch.Observe(sample(frame), 100);
                     if (seen.held) held = true;
                     else if (held && run.free < 0) run.free = frame;
                     if (seen.held && seen.stretch != decided && session.Replying()) { session.StopReply(); run.dropped = true; }
                     const int cause = seen.freed ? seen.freed : seen.held;
                     if (cause && seen.stretch != decided && ReplyDue(seen, lead, timing)) { decided = seen.stretch; session.Reply(frames); }
                 }
+                run.read = game.read;
                 return run;
             };
             // Idle, the stun, then what follows it, then idle until the reply is long over.
@@ -253,6 +258,45 @@ int main() {
                     Require(timed.button + 1 == timed.free + timing && timed.move == timed.free + timing && !timed.dropped,
                         "A press after a timed blockstun did not start its move on the free frame, plus timing");
                 }
+            }
+            {
+                // A direction held from the stun's first frame until the dummy
+                // is free, then the move: down-back through a blockstun, the
+                // wait giving way so the press is acted on the free frame.
+                const auto frames = Synthesize({"[1]", "3HP"}, true);
+                Require(ReplyLead(frames) == MaxFrames, "A reply holding until the dummy is free was given a lead");
+                // Guard stance after the stun, the dummy holding back as an attack
+                // comes, frees it as well.
+                for (const unsigned after : {0u, static_cast<unsigned>(ActorStatus::GuardCrouch)}) for (const int timing : {0, 1}) {
+                    DummyWatch watch; Session session; ready(session);
+                    const auto block = statuses(ActorStatus::DamageGuard, 18, after, 20);
+                    const Run first = play(watch, session, frames, timing, block, 0);
+                    Require(first.read[6] == (Down | Left) && first.read[22] == (Down | Left) && first.move == first.free + 2 && !first.dropped,
+                        "A hold over a blockstun not seen before did not begin with it, or its move did not follow the free frame");
+                    const Run timed = play(watch, session, frames, timing, block, 0);
+                    bool heldThrough = true;
+                    for (int frame = 6; frame < timed.button; ++frame) heldThrough = heldThrough && timed.read[frame] == (Down | Left);
+                    Require(heldThrough && timed.button + 1 == timed.free + timing && timed.move == timed.free + timing && !timed.dropped,
+                        "A hold over a timed blockstun did not last until its move was due on the free frame, plus timing");
+                }
+                // A stun longer than any recovery, a dizzy: the hold waits it out.
+                {
+                    DummyWatch watch; Session session; ready(session);
+                    const auto dizzy = statuses(ActorStatus::Stun, 150, 0u, 0);
+                    play(watch, session, frames, 0, dizzy, 0);
+                    Require(play(watch, session, frames, 0, dizzy, 0).move == 155, "A hold gave up before a long stun ended");
+                }
+                // The hold is the charge only when the stun is long enough to
+                // charge in: after a short blockstun "[1] > 6P" comes out uncharged.
+                const auto charge = Synthesize({"[1]", "6P"}, true);
+                DummyWatch longWatch; Session longSession; ready(longSession);
+                const auto longBlock = statuses(ActorStatus::DamageGuard, 80, 0u, 0);
+                play(longWatch, longSession, charge, 0, longBlock, Left);
+                Require(play(longWatch, longSession, charge, 0, longBlock, Left).move == 85, "A charge held through a long blockstun was no reversal");
+                DummyWatch shortWatch; Session shortSession; ready(shortSession);
+                const auto shortBlock = statuses(ActorStatus::DamageGuard, 18, 0u, 0);
+                play(shortWatch, shortSession, charge, 0, shortBlock, Left);
+                Require(play(shortWatch, shortSession, charge, 0, shortBlock, Left).move < 0, "A short blockstun charged a hold");
             }
             for (const char* move : {"[4]6P", "[2]8K"}) {
                 const auto frames = Synthesize({move}, true);

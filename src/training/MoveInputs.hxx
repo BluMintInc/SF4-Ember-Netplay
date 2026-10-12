@@ -41,15 +41,26 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
     const auto wait = [&](unsigned char on, unsigned held, int timing) {
         if (out.size() < training::MaxFrames) out.push_back({held, held, on, static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing)))});
     };
+    // A direction held until the next move begins ("[1]"): the frames before
+    // that move's own input carry it instead of nothing, its wait included.
+    unsigned idle = 0;
+    const auto gap = [&](int frames) { push(idle, frames); };
     for (std::size_t index = 0; index < steps.size(); ++index) {
         Step step; std::string error;
         if (!ParseStep(steps[index], step, error)) continue;
+        if (step.hold) {
+            const unsigned held = DirectionBits(step.motion[0], facingRight);
+            // A hold or wait of its own begins at once, ending one held until it.
+            idle = step.frames ? 0 : held;
+            push(held, step.frames);
+            continue;
+        }
         const int timing = step.offset;
         const unsigned buttons = ChosenButtons(step);
         // A move laid out on a frame ("#45") starts its input so the press
         // lands there, or at once when that frame has passed; it waits for no cue.
         const bool timed = step.at >= 0;
-        const auto reach = [&](int frame) { push(0, frame - static_cast<int>(out.size())); };
+        const auto reach = [&](int frame) { gap(frame - static_cast<int>(out.size())); };
         const bool red = step.buttons == (LP | MP | MK) && step.need == 3;
         const bool fadc = (step.buttons == (MP | MK) && step.need == 2) || red;
         if (fadc && (step.motion == "66" || step.motion == "44") && !step.charge && !step.air) {
@@ -58,7 +69,8 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
             // out and lands, and the dash cancels that hit.
             const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
             if (timed) reach(step.at);
-            else if (index) wait(training::WaitHit, 0, timing);
+            else if (index) wait(training::WaitHit, idle, timing);
+            idle = 0;
             push(step.buttons, 2); push(0, 2);
             if (red) wait(training::WaitHit, 0, 0);
             push(dash, 2); push(0, 2); push(dash, 2);
@@ -77,20 +89,24 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         // A follow-up goes into the move before it with no cue, far enough in
         // for the move to take it: El Fuerte's run takes its stop from about
         // its sixth frame, measured in play at this delay. "@" moves it.
-        if (step.follow && index && !timed) push(0, (std::max)(0, FollowDelay + timing));
+        if (step.follow && index && !timed) gap((std::max)(0, FollowDelay + timing));
         if (timed) {
             int lead = 0;
             for (std::size_t i = 0; i < motion.size(); ++i) lead += (step.charge && i == 0 ? ChargeFrames : step.cancel ? 2 : 3) + (i && motion[i] == motion[i - 1] ? 1 : 0);
-            if (index) push(0, 1);
+            if (index) gap(1);
             reach(step.at - lead);
-        } else if (link) wait(training::WaitActionable, motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
-        else if (index) push(0, 1);
+        } else if (link) wait(training::WaitActionable, idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
+        else if (index) gap(1);
+        // The wait held the motion's first direction, or a hold in its place;
+        // a lone direction goes in with the button either way.
+        const bool firstHeld = link && (!idle || (motion.size() == 1 && buttons));
+        idle = 0;
         const bool finish = step.cancel && !step.follow && index && !timed && buttons && !motion.empty();
         for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
             // The same direction again is a new tap: a neutral frame between (a "66" dash).
             if (i && motion[i] == motion[i - 1]) push(0, 1);
             last = DirectionBits(motion[i], facingRight);
-            const bool held = link && i == 0;
+            const bool held = firstHeld && i == 0;
             push(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
         }
         if (!buttons) continue;

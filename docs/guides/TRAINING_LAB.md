@@ -137,18 +137,22 @@ Moves are separated by `>` or `,`; `xx` before a move means it cancels the one b
 [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]
 [xx] FADC[66|44] [#N] [@N]
 [xx] RFADC[66|44] [#N] [@N]
+[d] | [d]Nf | Nf
 ```
 
 - motion: numpad digits, `[4]6` for charge, `360`, `720`, or a word: `qcf` (236), `qcb` (214), `dp` (623), `rdp` (421), `hcf` (41236), `hcb` (63214), with its button straight after, after a space or after `+` (`qcfP`, `dp HP`, `qcb+LK`). `cr.` is 2; `st.`, `cl.` and `far.` are 5.
 - buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` presses five times: `P(mash)`, `K(mash)` or several buttons cycle one per frame (a piano, five presses in five frames), a single button goes on and off (five in ten). `(mash HP-MP-LP-HP-MP)` sets the order and the count, one press per frame, up to 10; a digit before a button gives that press its own direction, `5K(mash 1MK-1MK-1MK-1MK)`.
 - `@N`: the move's own timing offset, -120 to +120 frames. `#N`: the frame of the reply the press lands on, 0 to 7200.
 - `FADC` is the focus cancel (MP+MK, then the dash at once). `RFADC` is the red focus: LP+MP+MK tapped and let go so the red focus attack comes out and lands, then the dash on that hit.
+- A direction held alone, read for the facing like any other: `[1]` holds down-back until the next move begins its own input, held through that move's wait for the dummy to be free or a follow-up's delay (`[1] > 3HP`); `[2]30f` holds down for 30 frames (1 to 7200); `10f` waits 10 frames with nothing held. A hold with no count needs a move after it, and a reply cannot start with a wait.
 
 Directions take a few frames each and a button two; between moves the input waits on the fight itself: a link waits for the dummy to be free again, a cancel for the hit to land. The game decides what comes out.
 
 The reply is timed to the stun. The game does not say how long a stun lasts, so each one is measured the first time it is seen, from the last hit or change of reaction to the free frame, per attacking move and reaction. The first time, the reply starts as the stun ends; from then on its motion goes in while the dummy is still held and its first attack button lands on the first free frame. **Reply timing** moves that frame by up to five either way. A counter hit's longer stun replaces the plain hit's until the plain hit is seen again. Hit again before it is free, the dummy drops the reply it had begun.
 
-While a reply plays the dummy takes its input from Ember, and before and after it the dummy follows its own Training-menu settings, so it blocks as its guard setting says. It cannot block during the frames its reply's motion is entered. The Dummy action row shows the chosen setting throughout. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
+A reply that starts with a held direction (`[1] > 3HP`) begins with the stun instead: the dummy holds the direction from the stun's first frame and lets go so the move after it lands on the first free frame, as a reversal when the stun was seen before. A charge held that way is only as long as the stun, so `[1] > 6P` comes out charged after a knockdown or a long blockstun, and uncharged after a short one; every charge in the game is longer than a normal blockstun. It waits out any stun, a dizzy too. Type the charge move without its charge after the hold: `[1] > [4]6P` would hold back for a whole charge again after the stun.
+
+While a reply plays the dummy takes its input from Ember, and before and after it the dummy follows its own Training-menu settings, so it blocks as its guard setting says. It cannot block during the frames its reply's motion is entered, and while it holds a direction its guard setting is set aside: it blocks by what it holds, low with `[1]`, high with `[4]`, and not at all with anything else, so a hit that comes then lands and drops the reply. The hit it is blocking when the reply begins stays blocked. The Dummy action row shows the chosen setting throughout. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
 
 Recordings last for the battle, so a reply slot has to be recorded again; reply moves need nothing.
 

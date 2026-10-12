@@ -1513,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "Golpes de respuesta"
 
 msgid "training.reply.moves.detail"
-msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. También sirven los nombres de movimientos: qcf, qcb, dp, rdp, hcf y hcb, como en qcfP o dp+HP. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. Vacío usa la ranura de respuesta."
+msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. También sirven los nombres de movimientos: qcf, qcb, dp, rdp, hcf y hcb, como en qcfP o dp+HP. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. [1] mantiene una dirección hasta el siguiente movimiento, [1]20f la mantiene 20 frames y 10f espera: [1] > 3HP bloquea abajo hasta que el muñeco queda libre y luego pulsa 3HP. Vacío usa la ranura de respuesta."
 
 msgid "training.reply.move"
 msgstr "Respuesta predefinida"

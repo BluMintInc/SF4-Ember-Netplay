@@ -37,7 +37,9 @@ inline Input ForFacing(const Input& input, bool facingRight) { return facingRigh
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
-// for its hit before the motion goes stale.
+// for its hit before the motion goes stale. A reply's wait for the dummy to
+// be free never gives up: the runtime cues it as the dummy's stun ends
+// however long it lasts (a dizzy), and a new stun drops the reply.
 constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
@@ -144,9 +146,13 @@ inline int ReplyStart(const std::vector<Input>& frames) {
     return first == frames.end() ? -1 : static_cast<int>(first - frames.begin());
 }
 // Frames a reply plays before its first attack button: its motion, which is
-// done while the dummy is still held so the button meets the free frame.
+// done while the dummy is still held so the button meets the free frame. A
+// reply that first holds a direction until the dummy is free ("[1] > 3HP")
+// leads by MaxFrames: it begins with the stun, and its wait gives way in
+// time (ReplyWaitUntil).
 inline int ReplyLead(const std::vector<Input>& frames) {
     const int start = ReplyStart(frames);
+    if (start >= 0 && frames[start].wait == WaitActionable) return MaxFrames;
     const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & AttackButtons) != 0; });
     return start < 0 || press == frames.end() ? 0 : static_cast<int>(press - frames.begin()) - start;
 }
@@ -217,9 +223,18 @@ inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
 }
 // Whether a reply should start after this frame's observation: its first
 // attack button, acted on lead frames in (its ReplyLead plus DummyInputLag),
-// then meets the free frame (plus timing).
+// then meets the free frame (plus timing). One leading by MaxFrames starts
+// on any frame of a stun, timed or not.
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
-    return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
+    return seen.freed || (seen.held && lead >= MaxFrames) || (seen.until >= 0 && seen.until <= lead + 1 - timing);
+}
+// For a reply waiting for the dummy to be free, whose own script says
+// nothing while it is stunned: the frames its wait has left, from the stun
+// as DummyWatch times it, so the frame after the wait is acted on as the
+// dummy is free (plus timing). -1 when the stun is not timed; the wait then
+// gives way once the dummy is seen free.
+inline int ReplyWaitUntil(const DummySeen& seen, int timing) {
+    return seen.held && seen.until >= 0 ? (std::max)(0, seen.until - DummyInputLag + timing) : -1;
 }
 // Where one reply's button met the dummy, in frames after the one the reply
 // was decided in, -1 where not seen: the frame its first attack button was
@@ -553,7 +568,8 @@ public:
             const int after = frame.wait == WaitActionable ? (std::max)(0, frame.offset - 1) : (std::max)(0, static_cast<int>(frame.offset));
             const bool met = (cued && (cued ? waitedPast_++ : 0) >= after) || predicted;
             // The wait gives up only on the cue; the offset's frames after it are always granted.
-            if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset))) return;
+            const bool replyFree = resume_ >= 0 && frame.wait == WaitActionable;
+            if (!met && (replyFree || ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset)))) return;
             // A hit is kept until the next press starts a move of its own, so
             // one landing while a cancel's motion is still going is not lost.
             // Limitation: a hit during a held button is dropped; track edges per button if it matters.

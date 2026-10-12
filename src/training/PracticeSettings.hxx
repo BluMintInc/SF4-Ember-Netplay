@@ -107,6 +107,11 @@ inline bool BuildReplyPlan(const std::string& text, const DummyPlan& settings, D
     std::vector<std::string> steps;
     if (!combo::ParseSteps(text, steps, error)) return false;
     if (!combo::Clean(text).empty() && steps.empty()) { error = "a reply needs a move"; return false; }
+    // A reply plays from its first pressed frame, so a wait before it would be lost.
+    combo::Step first;
+    if (!steps.empty() && combo::ParseStep(steps[0], first, error) && first.hold && first.motion == "5") {
+        error = "a reply cannot start with a wait"; return false;
+    }
     DummyPlan plan = settings;
     // Made for the dummy facing right, as a slot holds it; it is played for the way it faces.
     plan.moves = steps.empty() ? std::vector<Input>{} : combo::Synthesize(steps, true);

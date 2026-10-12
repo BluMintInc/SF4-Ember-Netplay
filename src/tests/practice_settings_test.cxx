@@ -74,12 +74,14 @@ int main() {
     // Invalid saved text (including a nonempty separator-only line) cannot
     // erase a typed reply and silently switch the command to its slot.
     DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
-    for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP"}) {
+    // A reply plays from its first pressed frame, so one starting with a wait is refused.
+    for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP", "10f > 5MK", "[1]"}) {
         error.clear();
         CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
         CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);
     }
     CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.slot == 3);
+    CHECK(BuildReplyPlan("[1] > 3HP", settings, result, error) && !result.moves.empty() && BuildReplyPlan("[2]30f > 5MK", settings, result, error));
 
     // Every reply preset, 214K and 236P included, is notation the parser and
     // the plan builder take as typed text, and reads back as itself however

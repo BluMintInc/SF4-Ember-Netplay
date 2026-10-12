@@ -1513,7 +1513,7 @@ msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. Prázdné pole použije pozici odpovědi."
+msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole použije pozici odpovědi."
 
 msgid "training.reply.move"
 msgstr "Předvolba odpovědi"
