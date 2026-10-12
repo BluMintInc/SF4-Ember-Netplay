@@ -178,7 +178,7 @@ void fSystem::CaptureMeterSample(rSystem* src, bool show) {
     int confirmed = -1;
     if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1); return; }
     if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
-    sf4e::training::ObserveMatch(src, lastGgpoSaveFrame, confirmed);
+    sf4e::training::ObserveMatch(src, ggpoTimeline.Held(), confirmed);
 }
 
 // The GGPO state frame the frame just simulated reaches. The engine counter is
@@ -187,7 +187,7 @@ void fSystem::CaptureMeterSample(rSystem* src, bool show) {
 // confirmed one it just consumed.
 static int SimulatedStateFrame() {
     if (fSystem::localPlayerHandle != GGPO_INVALID_HANDLE) {
-        return sf4e::statehash::StateFrameAfterInput(fSystem::lastGgpoSaveFrame);
+        return fSystem::ggpoTimeline.Next();
     }
     int confirmed = -1;
     return fSystem::ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))

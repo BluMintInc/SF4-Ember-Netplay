@@ -1,6 +1,6 @@
 // The per-frame trace a desync report logs (common/FrameTrace.hxx), the frame
-// identity its rows are sampled under, and the order mismatches reach it in
-// (common/ConfirmedCheckpoint.hxx).
+// identity and order its rows are sampled in (common/GgpoTimeline.hxx), and the
+// order mismatches reach it in (common/ConfirmedCheckpoint.hxx).
 
 #include <stdio.h>
 
@@ -9,6 +9,7 @@
 
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/FrameTrace.hxx"
+#include "../common/GgpoTimeline.hxx"
 
 using sf4e::statehash::FrameTrace;
 
@@ -64,47 +65,86 @@ static void UntracedFramesAreNotFound() {
 	CHECK(trace.Begin(4).passes == 1);
 }
 
-// GGPO as the battle drives it (sf4e__Game__Battle__System.cxx PlayGgpoFrame,
-// Ggpo.cxx callbacks): a frame is sampled right after it is simulated, under
-// the state frame after the held one; a save or a rollback's load sets the
-// held frame. Values stand for the engine state: the inputs played so far.
-struct ScriptedBattle {
-	int held = 0; // GGPO saves frame 0 before the first input
+// GGPO as the battle drives it, through the GgpoTimeline the battle uses
+// (PlayGgpoFrame, ggpo_advance_frame_callback, the save and load callbacks).
+// The engine's state is the sum of the inputs it played. An advance saves the
+// frame it reached and polls, as GGPO's IncrementFrame does. A poll that
+// learns an input GGPO had predicted loads the frame before it and
+// re-simulates back to where it was, as Sync::AdjustSimulation does; those
+// advances do not poll.
+struct FakeGgpo {
+	sf4e::statehash::GgpoTimeline timeline;
+	int frame = 0;               // GGPO's own frame count
 	int state = 0;
-	int saved[16] = {};
+	std::map<int, int> saves;    // state frame -> engine state
+	std::map<int, int> known;    // input frame -> real input
+	std::map<int, int> arriving; // inputs the next poll receives
+	int predicted = 1;           // the remote input GGPO repeats until the real one arrives
+	bool rollingBack = false;
 	FrameTrace<Row, 16> trace;
+	std::map<int, int> checkpoints; // state frame -> state, from the same sample
 
-	void Simulate(int input) {
-		state += input;
-		Row& row = trace.Begin(sf4e::statehash::StateFrameAfterInput(held)).row;
-		row.value = input * 1000 + state;
+	// GGPO saves frame 0 before the first input.
+	FakeGgpo() { Save(); }
+
+	bool PlayFrame() {
+		const auto it = known.find(frame);
+		const int input = it != known.end() ? it->second : predicted;
+		return sf4e::statehash::GgpoTimeline::Simulate(
+			[&] { state += input; },
+			[&] {
+				const int reached = timeline.Next();
+				trace.Begin(reached).row.value = input * 1000 + state;
+				checkpoints[reached] = state;
+			},
+			[&] { return Advance(); });
 	}
-	void Save() { saved[++held] = state; }
-	void Load(int frame) { state = saved[frame]; held = frame; }
+
+private:
+	void Save() {
+		saves[frame] = state;
+		timeline.Saved(frame);
+	}
+	bool Advance() {
+		++frame;
+		Save();
+		if (!rollingBack && !arriving.empty()) Poll();
+		return true;
+	}
+	void Poll() {
+		const int from = arriving.begin()->first, to = frame;
+		known.insert(arriving.begin(), arriving.end());
+		arriving.clear();
+		rollingBack = true;
+		frame = from;
+		CHECK(timeline.Load(from, [&] { state = saves[from]; return true; }));
+		while (frame < to) PlayFrame();
+		rollingBack = false;
+	}
 };
 
-// The advance that saves a frame may poll and roll back over it. The frames
-// it re-simulates with the real input replace the predicted samples, so the
-// frame keeps the corrected input with the state it made, and two passes.
+// The advance that saves a frame may poll and roll back over it. The frame
+// it re-simulates with the real input replaces the predicted sample, so the
+// frame keeps the corrected input with the state it made, two passes, and a
+// checkpoint from that same sample.
 static void ARollbackInsideTheAdvanceKeepsTheCorrectedSample() {
-	ScriptedBattle battle;
-	for (int frame = 0; frame < 4; frame++) { battle.Simulate(1); battle.Save(); }
-	// Frame 5 is simulated with the remote input predicted as 1...
-	battle.Simulate(1);
-	battle.Save();
-	// ...and that save's poll learns it was 2 from frame 5 on: roll back.
-	battle.Load(4);
-	battle.Simulate(2);
-	battle.Save();
-	CHECK(battle.held == 5);
-	const auto* entry = battle.trace.Find(5);
+	FakeGgpo ggpo;
+	for (int i = 0; i < 4; i++) ggpo.PlayFrame();
+	// Input 4 is played as predicted (1); its real value (2) arrives with
+	// the poll of the very advance that saves state 5.
+	ggpo.arriving[4] = 2;
+	ggpo.PlayFrame();
+	CHECK(ggpo.timeline.Held() == 5);
+	const auto* entry = ggpo.trace.Find(5);
 	CHECK(entry != nullptr);
+	if (!entry) return;
 	CHECK(entry->passes == 2);
 	CHECK(entry->row.value == 2 * 1000 + 6);
-	CHECK(battle.trace.Find(4)->passes == 1);
-	CHECK(battle.trace.Find(4)->row.value == 1 * 1000 + 4);
+	CHECK(ggpo.checkpoints[5] == 6);
+	CHECK(ggpo.trace.Find(4)->passes == 1);
+	CHECK(ggpo.trace.Find(4)->row.value == 1 * 1000 + 4);
+	CHECK(ggpo.trace.Find(6) == nullptr);
 }
-
 struct Checkpoint {
 	int frame;
 	int ggpoStateFrame;

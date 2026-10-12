@@ -122,7 +122,7 @@ namespace sf4e {
 		if (wasLost || !IsControlPlaneLost()) return;
 
         if (IsRuntimeRecoveryEnabled()) {
-            s_verificationLostAtFrame = fSystem::lastGgpoSaveFrame;
+            s_verificationLostAtFrame = fSystem::ggpoTimeline.Held();
             // Only a live match has a connection to keep.
             PushAlert(loc::T(IsRuntimeMatchLive() ? "runtime.room_recovering" : "runtime.room_control_recovering"),
                 NoticeSeverity::Warning);

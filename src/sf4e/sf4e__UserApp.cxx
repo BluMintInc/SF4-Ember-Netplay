@@ -533,7 +533,7 @@ void fUserApp::Steam_PostUpdate() {
                 wallMs,
                 outerTickMs,
                 simulationFrame,
-                fSystem::lastGgpoSaveFrame,
+                fSystem::ggpoTimeline.Held(),
                 sf4e::gate::PhaseName(fSystem::simGate.phase),
                 fSystem::simGate.predictionStalled,
                 fSystem::simGate.connectionWarningActive,

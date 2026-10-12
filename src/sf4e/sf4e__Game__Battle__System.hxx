@@ -14,6 +14,7 @@
 #include "../common/sf4e__GgpoGate.hxx"
 #include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
+#include "../common/GgpoTimeline.hxx"
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
@@ -265,10 +266,10 @@ namespace sf4e {
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
-				// The GGPO frame of the state the engine holds: set by each
-				// save, and by a rollback's load until its first re-simulated
-				// frame saves again.
-				static int lastGgpoSaveFrame;
+				// The GGPO frame of the state the engine holds (each save, and
+				// a rollback's load), and the order a frame is simulated,
+				// sampled and saved in.
+				static sf4e::statehash::GgpoTimeline ggpoTimeline;
 				static PlayerConnectionInfo players[room::MaxMatchParticipants];
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];
