@@ -653,7 +653,11 @@ void DrainRoomEvents() {
 				event.matchGeneration != runtime->match->Generation() ||
 				(event.result != room::MatchResult::Abort && event.result != room::MatchResult::Cancel)) continue;
 			runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-			AbortLocalMatch(loc::T("runtime.table_game_cancelled"));
+			// A Practice room's game has no result to lose: a fighter ending it
+			// (End practice), or losing the link, only ends the practice.
+			const bool practiceEnded = event.result == room::MatchResult::Abort && UserApp::netplay->client.GetRoomSnapshot().practice;
+			if (practiceEnded) AbortLocalMatch(loc::T("runtime.practice_ended"), NoticeSeverity::Info);
+			else AbortLocalMatch(loc::T("runtime.table_game_cancelled"));
 		}
 	}
 }
