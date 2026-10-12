@@ -130,6 +130,11 @@ namespace Dimps {
 				// the config.ini the game then saves: on exit (Destroy) and from
 				// its display options (0x77E680).
 				void (Main::* WriteDisplayConfig)();
+				// Copies the startup parameters into Main, the RenderingThread
+				// flag among them (0x780380). Initialize calls it once, after
+				// reading config.ini and before the app init that latches the
+				// flag (StartupRenderingThread).
+				int (Main::* ApplyStartupParams)(void* params);
 			} __privateMethods;
 
 			typedef struct __publicMethods {
@@ -164,6 +169,13 @@ namespace Dimps {
 			// (0x780600) starts the "Afx Rendering" thread when it is 1;
 			// otherwise each frame renders on the game thread.
 			static int* GetRenderingThread(Main* m);
+			// The startup parameters' copy of the flag, which ApplyStartupParams
+			// stores into Main. The rest of Initialize latches it: the graphics
+			// device's app init (0x405210) turns it into deferred resource
+			// releases (device+0xAA4), which only a frame with the flag still on
+			// drains (0x405580). Changing Main's flag after Initialize leaves the
+			// releases queued for good.
+			static int* StartupRenderingThread(void* params);
 		};
 
 		struct GFxApp

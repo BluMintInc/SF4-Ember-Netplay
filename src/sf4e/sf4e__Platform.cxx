@@ -96,8 +96,10 @@ void LogVSyncForced() {
 }
 
 // The game's render thread draws a frame behind the simulation; with the
-// player's Faster display on, Ember runs the game with it off. Applied once
-// Main::Initialize has applied config.ini, before Main::Run reads the flag;
+// player's Faster display on, Ember runs the game with it off. Applied to the
+// startup parameters just before the game copies them into Main
+// (ApplyStartupParams), so every part of the game that reads the flag sees
+// the same value all session, as with RenderingThread=OFF in config.ini.
 // StartHelper loaded the preferences before that. The player's file keeps its
 // own value (WriteDisplayConfig).
 sf4e::gameconfig::RenderingThreadOverride s_renderingThread;
@@ -325,7 +327,9 @@ void fMain::Install() {
     int (fMain:: * _fInitialize)(void*, void*, void*) = &Initialize;
     void (fMain:: * _fDestroy)() = &Destroy;
     void (fMain:: * _fWriteDisplayConfig)() = &WriteDisplayConfig;
+    int (fMain:: * _fApplyStartupParams)(void*) = &ApplyStartupParams;
     DetourAttach((PVOID*)&rMain::publicMethods.Initialize, *(PVOID*)&_fInitialize);
+    DetourAttach((PVOID*)&rMain::privateMethods.ApplyStartupParams, *(PVOID*)&_fApplyStartupParams);
     DetourAttach((PVOID*)&rMain::publicMethods.Destroy, *(PVOID*)&_fDestroy);
     DetourAttach((PVOID*)&rMain::privateMethods.WriteDisplayConfig, *(PVOID*)&_fWriteDisplayConfig);
     DetourAttach((PVOID*)&rMain::staticMethods.RunWindowFunc, &RunWindowFunc);
@@ -346,8 +350,6 @@ int fMain::Initialize(void* a, void* b, void* c) {
     }
 
     int rval = (this->*(rMain::publicMethods.Initialize))(a, b, c);
-    s_renderingThread.Apply(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.fasterDisplay,
-        *rMain::GetRenderingThread(this));
 
     BOOL hasConsole = false;
     if (sf4e::args.bShowConsole) {
@@ -422,6 +424,12 @@ int fMain::Initialize(void* a, void* b, void* c) {
     sf4e::NetplayFacade::NotifyGameReady();
 
     return rval;
+}
+
+int fMain::ApplyStartupParams(void* params) {
+    s_renderingThread.Apply(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.fasterDisplay,
+        *rMain::StartupRenderingThread(params));
+    return (this->*rMain::privateMethods.ApplyStartupParams)(params);
 }
 
 void fMain::Destroy() {

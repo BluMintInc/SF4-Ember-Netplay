@@ -71,6 +71,7 @@ void Main::Locate(HMODULE peRoot) {
     *(PVOID*)&publicMethods.Initialize = (PVOID)(peRootOffset + 0x37e3e0);
     *(PVOID*)&publicMethods.Destroy = (PVOID)(peRootOffset + 0x37e6c0);
     *(PVOID*)&privateMethods.WriteDisplayConfig = (PVOID)(peRootOffset + 0x37d5f0);
+    *(PVOID*)&privateMethods.ApplyStartupParams = (PVOID)(peRootOffset + 0x380380);
     staticMethods.GetSingleton = (Main*(*)())(peRootOffset + 0x37eab0);
     staticMethods.RunWindowFunc = (void(WINAPI*)(Main*, HWND, UINT, WPARAM, LPARAM))(peRootOffset + 0x37eb20);
     staticMethods.GetFocusStateSingleton = (void*(*)())(peRootOffset + 0x2b5fd0);
@@ -82,6 +83,10 @@ Main::Win32_WindowData** Main::GetWindowData(Main* m) {
 
 int* Main::GetRenderingThread(Main* m) {
     return (int*)((unsigned int)m + 0x110);
+}
+
+int* Main::StartupRenderingThread(void* params) {
+    return (int*)((unsigned int)params + 0x70);
 }
 
 void GFxApp::Locate(HMODULE peRoot) {

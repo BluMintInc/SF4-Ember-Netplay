@@ -43,19 +43,20 @@ inline DisplaySettings ParseDisplaySettings(std::string_view ini) {
 
 // SYSTEM/RenderingThread. ON draws each frame on a second thread while the
 // game thread simulates the next one, so the picture reaches the screen a
-// frame later. With the player's Faster display on, Ember turns the game's
-// live flag off; with it off, the game keeps what config.ini says. The
-// player's file is left as it was either way: the game writes the flag back
-// into config.ini (on exit and from its display options), and that write is
-// given the player's own value (sf4e__Platform.cxx). The game reads the flag
-// once, to start its render thread, so the choice holds for the session.
+// frame later. With the player's Faster display on, Ember turns the flag off
+// before the game first stores it; with it off, the game keeps what
+// config.ini says. The player's file is left as it was either way: the game
+// writes the flag back into config.ini (on exit and from its display
+// options), and that write is given the player's own value
+// (sf4e__Platform.cxx). Parts of the game latch the flag during startup, so
+// it holds for the session and must not change after.
 class RenderingThreadOverride {
 public:
-    // The flag as config.ini set it: remembered, and turned off when
-    // fasterDisplay is on.
-    void Apply(bool fasterDisplay, int& live) {
-        requested_ = live; applied_ = true; enforced_ = fasterDisplay;
-        if (enforced_) live = 0;
+    // The flag as config.ini set it, before the game stores it: remembered,
+    // and turned off when fasterDisplay is on.
+    void Apply(bool fasterDisplay, int& startup) {
+        requested_ = startup; applied_ = true; enforced_ = fasterDisplay;
+        if (enforced_) startup = 0;
     }
     // Runs the game's config write with the player's value in the flag and
     // puts the enforced one back after. Unenforced, the flag is the game's.
