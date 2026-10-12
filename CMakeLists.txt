@@ -22,8 +22,14 @@ target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 if(WIN32)
     add_library(sf4e_durable_file STATIC "src/platform/DurableFile.cxx")
     target_compile_features(sf4e_durable_file PUBLIC cxx_std_17)
+    add_library(sf4e_custom_content_files STATIC "src/platform/CustomContentFiles.cxx")
+    target_link_libraries(sf4e_custom_content_files PUBLIC sf4e_selection)
 endif()
 if(BUILD_TESTING)
+    if(WIN32)
+        sf4e_add_unit_test(NAME CustomContentFiles SOURCES "src/tests/custom_content_files_test.cxx"
+            STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
+    endif()
     sf4e_add_unit_test(NAME NativeRepairTiming SOURCES "src/tests/native_repair_timing_test.cxx" STD 17)
     find_package(Threads REQUIRED)
     sf4e_add_unit_test(NAME TrainingSession SOURCES "src/tests/training_session_test.cxx" STD 14)
@@ -432,7 +438,7 @@ if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_DEVELOPER_UI=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"

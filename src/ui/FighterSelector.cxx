@@ -357,7 +357,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    return;
   }
   if(compactAppearance){
-   ImGui::TextWrapped("%s",loc::Tf("selection.saved_appearance",CostumeLabel(pick),pick.color+1).c_str());return;
+   ImGui::TextWrapped("%s",loc::Tf("selection.saved_appearance",CostumeLabel(pick,installed),pick.color+1).c_str());return;
   }
   int focusFighter=pick.fighter,focusStage=stageId?*stageId:0,focusCostume=pick.costume,focusColor=pick.color;
   if(id.compare(0,8,"fighter-")==0)focusFighter=std::stoi(id.substr(8));
