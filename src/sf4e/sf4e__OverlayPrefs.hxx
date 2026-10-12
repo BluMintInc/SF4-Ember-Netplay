@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <optional>
+#include <tuple>
+#include "../common/GamepadIdentity.hxx"
 #include <nlohmann/json.hpp>
 #include "../common/FighterCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -28,6 +31,11 @@ namespace OverlayPrefs {
 		uint8_t ultraCombo = 0;
 		uint8_t handicap = 0;
 		uint8_t unc_edition = 14; // ED_USF4
+		bool operator==(const CharaPick& other) const {
+            return std::tie(charaID, costume, color, personalAction, winQuote, ultraCombo, handicap, unc_edition) ==
+                std::tie(other.charaID, other.costume, other.color, other.personalAction, other.winQuote,
+                    other.ultraCombo, other.handicap, other.unc_edition);
+        }
 	};
 
 	struct Data {
@@ -50,6 +58,16 @@ namespace OverlayPrefs {
 		// Device capture
 		uint8_t deviceIdx = 0xff;
 		uint8_t deviceType = 0xff;
+		std::optional<gamepads::Identity> deviceIdentity;
+		bool controllerLayer = true;
+		bool operator==(const Data& other) const {
+            return std::tie(lobby, fighters, stageID, randomStageExcluded, lobbyRoundCountIdx, lobbyRoundTimeIdx,
+                lobbyEditionSelect, deviceIdx, deviceType, deviceIdentity, controllerLayer) ==
+                std::tie(other.lobby, other.fighters, other.stageID, other.randomStageExcluded,
+                    other.lobbyRoundCountIdx, other.lobbyRoundTimeIdx, other.lobbyEditionSelect,
+                    other.deviceIdx, other.deviceType, other.deviceIdentity, other.controllerLayer);
+        }
+        bool operator!=(const Data& other) const { return !(*this == other); }
 	};
 
 	void FromConfirmed(
@@ -81,6 +99,8 @@ namespace OverlayPrefs {
 	bool PlayerPreferencesSaved(std::uint64_t revision);
 	// Accepts a copied snapshot; completion/errors belong to the settings worker.
 	bool Save(const Data& in);
+    // Game-thread choice, merged with overlay edits through the same settings writer.
+    bool SaveGameplayDevice(int type, int index, const std::optional<gamepads::Identity>& identity);
 
 
 } // namespace OverlayPrefs

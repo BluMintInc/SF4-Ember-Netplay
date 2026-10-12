@@ -670,7 +670,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     prefs.randomStageExcluded = lobbyStageExcluded;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
-    if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
+    if (prefs != s_prefs && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
     // An export takes its picture between the layers its video holds and
     // the rest of Ember, so the menu and the HUD are never in it.
     ImGui::Render();

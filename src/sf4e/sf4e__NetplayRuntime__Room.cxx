@@ -126,6 +126,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             runtime->input.Cancel();
             for (const auto& device : runtime->inputDevices) if (device.type == Dimps::Pad::PADTYPE_RAWINPUT) {
                 runtime->input.Adopt(device); runtime->inputInitialized = true;
+                OverlayPrefs::SaveGameplayDevice(device.type, device.index, {});
                 input::AssignToSide(device, 0, false); break;
             }
         }

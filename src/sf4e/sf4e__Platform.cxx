@@ -26,6 +26,7 @@
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -343,6 +344,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
 	rMain::staticMethods.GetFocusStateSingleton();
 	// This hook is outside DllMain: worker creation and named-pipe IPC are safe.
 	sf4e::NetplayFacade::StartHelper();
+	sf4e::Gamepads::Start();
     if (sf4e::hSyncEvent != NULL) {
         SetEvent(sf4e::hSyncEvent);
         CloseHandle(sf4e::hSyncEvent);
@@ -416,6 +418,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
     }
     CoTaskMemFree(path);
 
+    sf4e::Gamepads::LogInventory();
     Overlay::InitializeOverlay(
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
@@ -438,6 +441,7 @@ void fMain::Destroy() {
 
     (this->*rMain::publicMethods.Destroy)();
 	sf4e::OverlayPrefs::StopPersistence();
+	sf4e::Gamepads::Shutdown();
     spdlog::shutdown();
 }
 

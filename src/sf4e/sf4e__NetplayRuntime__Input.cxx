@@ -1,4 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__Gamepads.hxx"
+#include "../netplay/ControllerRestore.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -8,6 +10,7 @@ namespace internal {
 // compare it.
 std::string DeviceName(const input::Device& device) {
     if (device.type == input::PadKeyboard) return loc::T("controller.keyboard");
+    if (!device.identity.guid.empty()) return device.identity.name;
     if (device.name == "Controller " + std::to_string(device.index + 1)) return loc::Tf("controller.numbered", device.index + 1);
     return device.name;
 }
@@ -22,21 +25,38 @@ void CaptureMenuInput() {
         input::LogInventory(runtime->inputDevices);
         if (!runtime->inputInitialized && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) {
-            auto device = input::MenuDevice(runtime->inputDevices);
-            const auto& config = GetConfig();
-            for (const auto& candidate : runtime->inputDevices)
-                if (candidate.type == config.deviceType && candidate.index == config.deviceIdx) device = candidate;
+            OverlayPrefs::Data prefs;
+            if (!OverlayPrefs::Load(prefs)) {
+                prefs.deviceType = GetConfig().deviceType; prefs.deviceIdx = GetConfig().deviceIdx;
+            }
+            input::Device saved;
+            saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
+            if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;
+            const auto restored = input::RestoreController(runtime->inputDevices, input::MenuDevice(runtime->inputDevices), saved);
+            const auto& device = restored.device;
+            runtime->inputInitialized = !restored.provisional && device.connected;
             if (device.connected) {
-                runtime->input.Adopt(device);
-                // Keyboard fallback is provisional until explicitly chosen or
-                // used to enter a room. A later connected pad can be adopted.
-                runtime->inputInitialized=device.type!=Dimps::Pad::PADTYPE_RAWINPUT||config.deviceType==Dimps::Pad::PADTYPE_RAWINPUT;
-                if(device.type!=Dimps::Pad::PADTYPE_RAWINPUT&&!input::AssignToSide(device,0,false))
-                    runtime->input.Begin();
+                if (!prefs.deviceIdentity || !restored.provisional) {
+                    const auto identity = device.type == input::PadXInput ? Gamepads::IdentityForSlot(device.index) : std::nullopt;
+                    if (identity) OverlayPrefs::SaveGameplayDevice(device.type, device.index, identity);
+                }
+                if (!runtime->input.Selected().connected || !runtime->input.Selected().Same(device)) {
+                    runtime->input.Adopt(device);
+                    if(device.type!=Dimps::Pad::PADTYPE_RAWINPUT&&!input::AssignToSide(device,0,false))runtime->input.Begin();
+                }
             } else if(!runtime->inputDevices.empty())runtime->input.Begin();
         }
-        if (runtime->input.Tick(runtime->inputDevices)) {
-            runtime->inputInitialized=true;
+        const int previousIndex = runtime->input.Selected().index;
+        const bool captured = runtime->input.Tick(runtime->inputDevices);
+        const auto& chosen = runtime->input.Selected();
+        const bool moved = runtime->input.Ready() && chosen.index != previousIndex &&
+            runtime->controller.GetSnapshot().room == netplay::RoomState::Idle;
+        if (captured || moved) {
+            if (captured) runtime->inputInitialized=true;
+            if (runtime->inputInitialized && chosen.type == input::PadXInput) {
+                const auto identity = Gamepads::IdentityForSlot(chosen.index);
+                if (identity) OverlayPrefs::SaveGameplayDevice(chosen.type, chosen.index, identity);
+            }
             if(!input::AssignToSide(runtime->input.Selected(),0,false))runtime->input.Begin();
         }
         if (UserApp::netplay && runtime->input.Ready()) {
@@ -61,7 +81,7 @@ bool BindRuntimeInput(int localSlot) {
     runtime->matchInput=device;runtime->matchInputSide=localSlot;runtime->matchInputFault=false;
     spdlog::info("Input: P{} plays with {} {} '{}'", localSlot + 1,
         device.type == input::PadKeyboard ? "keyboard" : device.type == input::PadXInput ? "xinput" : "dinput",
-        device.index, device.name);
+        device.index, device.identity.guid.empty() ? device.name : device.identity.name);
     return true;
 }
 

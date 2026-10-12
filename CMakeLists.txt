@@ -103,10 +103,11 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 if(BUILD_TESTING)
     # Links Sidecar's own crash record, so the test runs the production handler.
     # It needs spdlog and GGPO, so it stays out of the core-only build.
-    add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx")
+    add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx" "src/sf4e/sf4e__ImportPatch.cxx")
     target_compile_features(HeapCorruptionCaptureTest PRIVATE cxx_std_17)
     target_link_libraries(HeapCorruptionCaptureTest PRIVATE spdlog::spdlog ggpo::GGPO "dbghelp" "psapi" "shlwapi")
     add_test(NAME HeapCorruptionCapture COMMAND HeapCorruptionCaptureTest)
@@ -254,6 +255,8 @@ if(BUILD_TESTING)
     add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
     target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME GamepadSlots SOURCES src/tests/gamepad_slots_test.cxx STD 17)
+    sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
         src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx
@@ -360,6 +363,8 @@ if(BUILD_TESTING)
 endif()
 
 add_library(sf4e STATIC
+    "src/sf4e/sf4e__Gamepads.cxx"
+    "src/sf4e/sf4e__ImportPatch.cxx"
     "src/sf4e/sf4e__InputDevices.cxx"
     "src/sf4e/sf4e.hxx"
     "src/sf4e/sf4e.cxx"
@@ -425,6 +430,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__RuntimeBridge.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
+target_link_libraries(sf4e PRIVATE SDL3::SDL3-static)
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
 if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")

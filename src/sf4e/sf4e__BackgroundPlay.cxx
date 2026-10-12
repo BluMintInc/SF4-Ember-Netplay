@@ -12,6 +12,7 @@
 #include "../common/FocusGate.hxx"
 #include "sf4e__CodePages.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__Gamepads.hxx"
 
 namespace rPad = Dimps::Pad;
 using rApp = Dimps::App;
@@ -96,6 +97,7 @@ struct PadPoll : rPad::System_XInput {
 };
 
 int PadPoll::Update() {
+    sf4e::Gamepads::Update();
     static bool readBehind = false;
     if (ready.load() && !WindowInFront()) {
         // What the native gate did: no poll while the window is behind.

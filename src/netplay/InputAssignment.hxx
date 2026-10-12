@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/PadKind.hxx"
+#include "../common/GamepadIdentity.hxx"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -12,7 +13,13 @@ struct Device {
     std::string name;
     bool connected = false;
     unsigned buttons = 0;
-    bool Same(const Device& other) const { return type == other.type && index == other.index && name == other.name; }
+    gamepads::Identity identity; // Empty GUID for devices the game reads itself.
+    bool Same(const Device& other) const {
+        if (type != other.type) return false;
+        if (type == PadXInput && (!identity.guid.empty() || !other.identity.guid.empty()))
+            return !identity.guid.empty() && !other.identity.guid.empty() && gamepads::Same(identity, other.identity);
+        return index == other.index && name == other.name;
+    }
 };
 class Assignment {
     Device selected_, candidate_;
