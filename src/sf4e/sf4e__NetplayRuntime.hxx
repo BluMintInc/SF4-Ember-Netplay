@@ -193,6 +193,8 @@ struct Runtime {
     platform::PublicRoomLinkMailbox publicRoomLinks;
     netplay::tournament::OpenedRoomLink openedRoomLink;
     netplay::AutoDelayCheck autoDelayCheck;
+    // The ping the game that just ended reported, until TickAutoDelay takes it.
+    std::optional<GamePing::Summary> finishedGame;
     // The table rules chosen when creating a public room, set on its tables
     // once the creator is in it as host (TickCreatedRules).
     netplay::CreatedRules createdRules;

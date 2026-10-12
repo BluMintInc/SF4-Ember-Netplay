@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../common/GamePing.hxx"
 #include "../common/InputDelay.hxx"
 
 #include <cstdint>
@@ -85,6 +86,18 @@ public:
             asked_ = false;
             if (recommended_ < 0) askAtMs_ = nowMs + RetryMs;
         }
+    }
+    // A game just played against `opponent`: its ping over the whole game
+    // says more about the link than the five second check did, so Auto
+    // follows it, up and down, until a check measures again. The ping does not
+    // depend on the delay played, so following it cannot oscillate. A fighter
+    // on a chosen delay, a game that reported too few pings, or one against
+    // anyone but the seated opponent leaves the recommendation as it was.
+    // Returns whether it was set.
+    bool Played(bool automatic, const std::string& opponent, const GamePing::Summary& ping) {
+        if (!automatic || opponent.empty() || opponent != opponent_ || ping.samples < GamePing::MinimumSamples) return false;
+        recommended_ = RecommendedInputDelay(ping.medianMs, ping.p95Ms);
+        return true;
     }
     // Auto asked for a check under this request number.
     void Asked(std::uint64_t request) { asked_ = true; askedRequest_ = request; ++attempts_; }

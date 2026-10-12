@@ -44,8 +44,10 @@ A new profile is on **Auto**: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
 twelve seconds at most. A check that fails is tried once more. You ready with
 its recommendation held between one and four frames, or with two frames if it
-produced none. A rematch, or a change of fighter, keeps the measurement;
-spectators and the queue are never checked or held. **Check
+produced none. A rematch, or a change of fighter, keeps the measurement, and
+after each game Auto follows the ping that game reported, up or down, by the
+same bands as below, when the game gave at least ten seconds of it; spectators
+and the queue are never checked or held. **Check
 connection** runs the same five-second measurement by hand. Left and Right
 choose a delay of your own instead, from zero to ten, with Auto one step below
 zero. Zero adds no delay and needs a steady, low ping; Auto and the

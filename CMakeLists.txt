@@ -60,6 +60,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SoakVerdict SOURCES "src/tests/soak/soak_verdict_test.cxx" "src/tests/soak/soak_verdict.cxx" STD 17 TIMEOUT 15)
     sf4e_add_unit_test(NAME InputDelay SOURCES "src/tests/input_delay_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME AutoDelayCheck SOURCES "src/tests/auto_delay_check_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME GamePing SOURCES "src/tests/game_ping_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplaySlots SOURCES "src/tests/replay_slots_test.cxx" STD 17 TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
         LIBS $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15)

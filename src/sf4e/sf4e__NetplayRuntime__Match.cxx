@@ -157,6 +157,8 @@ void NotifyRuntimeMatchEnded() {
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
 	runtime->matchEnded = true;
+	// Retiring the session next resets the telemetry the ping comes from.
+	runtime->finishedGame = Game::Battle::System::matchTelemetry.pings.Summarize();
 	if (!UserApp::netplay || runtime->match->Generation() == 0) return;
 	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 	if (!snapshot.roomEpoch || !snapshot.localMember) return;
