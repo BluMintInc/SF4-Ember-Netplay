@@ -1,0 +1,2 @@
+# Shell entry points must run from Windows checkouts, archives and containers.
+*.sh text eol=lf
