@@ -46,10 +46,90 @@ static void RenderingThreadWriteBeforeApplyIsTheGames() {
 	CHECK(written == 1 && live == 1);
 }
 
+// A stand-in for the game's side of the flag. The startup parameters hold the
+// player's config.ini value; the startup routine copies it into Main and the
+// graphics device latches the same value into its release policy. A policy
+// that disagrees with Main's flag later is the crash: releases queue forever
+// and the texture pool fills.
+struct FakeNative {
+	int startupFlag = 0;
+	int mainFlag = -1;
+	int devicePolicy = -1;
+	int calls = 0;
+	int seenAtStart = -1;
+
+	// The game's startup routine: reads only the parameters.
+	int ApplyStartupParams() {
+		++calls;
+		seenAtStart = startupFlag;
+		mainFlag = startupFlag;
+		devicePolicy = mainFlag;
+		return 7;
+	}
+	// The game's deferred-release pass; false is the crash condition.
+	bool Drain() const { return devicePolicy == mainFlag; }
+};
+
+// Faster display and the player's value, both ways each: the startup routine
+// observes the overridden parameter, and Main and the device end up with the
+// same effective value before it returns.
+static void StartupOrderLatchesTheSameValueInMainAndDevice() {
+	for (const bool faster : {true, false}) {
+		for (const int asked : {1, 0}) {
+			FakeNative game;
+			game.startupFlag = asked;
+			RenderingThreadOverride override_;
+			const int expected = faster ? 0 : asked;
+			const int result = override_.ApplyThenStart(faster, game.startupFlag, [&] { return game.ApplyStartupParams(); });
+			CHECK(result == 7 && game.calls == 1);
+			CHECK(game.seenAtStart == expected);
+			CHECK(game.mainFlag == expected);
+			CHECK(game.devicePolicy == expected);
+			CHECK(game.Drain());
+			CHECK(override_.Applied() && override_.RenderThread() == (expected != 0));
+		}
+	}
+}
+
+// Repeated config writes: each sees the player's own value, and afterwards
+// Main's effective flag is back, still agreeing with the device.
+static void RepeatedConfigWritesRestoreTheEffectiveFlag() {
+	for (const bool faster : {true, false}) {
+		for (const int asked : {1, 0}) {
+			FakeNative game;
+			game.startupFlag = asked;
+			RenderingThreadOverride override_;
+			override_.ApplyThenStart(faster, game.startupFlag, [&] { return game.ApplyStartupParams(); });
+			const int expected = faster ? 0 : asked;
+			for (int i = 0; i < 3; ++i) {
+				int written = -1;
+				override_.WriteRequested(game.mainFlag, [&] { written = game.mainFlag; });
+				CHECK(written == asked);
+				CHECK(game.mainFlag == expected);
+				CHECK(game.devicePolicy == expected);
+				CHECK(game.Drain());
+			}
+		}
+	}
+}
+
+// The fake must be able to tell the old order apart: clearing Main's flag
+// after the routine has latched the device leaves them disagreeing.
+static void ClearingMainAfterStartupLeavesTheDeviceLatchedOn() {
+	FakeNative game;
+	game.startupFlag = 1;
+	game.ApplyStartupParams();
+	game.mainFlag = 0;
+	CHECK(!game.Drain());
+}
+
 int main() {
 	FasterDisplayKeepsTheFlagOffButWritesItAsAsked();
 	FasterDisplayOffLeavesTheFlagToTheGame();
 	RenderingThreadWriteBeforeApplyIsTheGames();
+	StartupOrderLatchesTheSameValueInMainAndDevice();
+	RepeatedConfigWritesRestoreTheEffectiveFlag();
+	ClearingMainAfterStartupLeavesTheDeviceLatchedOn();
 	// The file as the game writes it, CRLF included.
 	const auto good = ParseDisplaySettings("[DISPLAY]\r\nRefreshRate=240Hz\r\nVSync=OFF\r\nFrameRate=FIXED\r\n[GRAPHICS]\r\nMSAA=NONE\r\n");
 	CHECK(good.Recommended() && good.frameRate == "FIXED");

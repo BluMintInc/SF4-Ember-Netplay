@@ -52,6 +52,7 @@ namespace sf4e {
 			static void Install();
 
 			int Initialize(void*, void*, void*);
+			int ApplyStartupParams(void* params);
 			void Destroy();
 			void WriteDisplayConfig();
 			static void WINAPI RunWindowFunc(Dimps::Platform::Main* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
