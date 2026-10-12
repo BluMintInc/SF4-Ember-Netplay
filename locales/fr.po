@@ -1522,7 +1522,7 @@ msgid "training.reply.moves"
 msgstr "Coups de riposte"
 
 msgid "training.reply.moves.detail"
-msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Les noms de mouvements marchent aussi : qcf, qcb, dp, rdp, hcf et hcb, comme qcfP ou dp+HP. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. Vide : l'emplacement de riposte est utilisé."
+msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Les noms de mouvements marchent aussi : qcf, qcb, dp, rdp, hcf et hcb, comme qcfP ou dp+HP. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. [1] maintient une direction jusqu'au mouvement suivant, [1]20f la maintient 20 frames et 10f attend : [1] > 3HP garde en bas jusqu'à ce que le mannequin soit libre, puis appuie 3HP. Vide : l'emplacement de riposte est utilisé."
 
 msgid "training.reply.move"
 msgstr "Riposte prédéfinie"

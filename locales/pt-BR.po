@@ -1693,7 +1693,7 @@ msgid "training.reply.moves"
 msgstr "Golpes de resposta"
 
 msgid "training.reply.moves.detail"
-msgstr "A resposta digitada em notação numérica, como 623HP ou 44, lida para o lado que o boneco encara. Nomes de movimentos também valem: qcf, qcb, dp, rdp, hcf e hcb, como qcfP ou dp+HP. O movimento entra enquanto o boneco ainda está preso, para o botão cair no primeiro frame livre. Vazio usa o espaço de resposta."
+msgstr "A resposta digitada em notação numérica, como 623HP ou 44, lida para o lado que o boneco encara. Nomes de movimentos também valem: qcf, qcb, dp, rdp, hcf e hcb, como qcfP ou dp+HP. O movimento entra enquanto o boneco ainda está preso, para o botão cair no primeiro frame livre. [1] segura uma direção até o próximo movimento, [1]20f a segura por 20 frames e 10f espera: [1] > 3HP defende embaixo até o boneco ficar livre e então aperta 3HP. Vazio usa o espaço de resposta."
 
 msgid "training.reply.move"
 msgstr "Resposta predefinida"

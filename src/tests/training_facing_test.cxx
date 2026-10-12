@@ -10,6 +10,11 @@
 #include <vector>
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
+std::vector<Input> Synth(const std::vector<std::string>& steps, bool facingRight) {
+    sf4e::combo::Compiled compiled; std::string error;
+    Require(sf4e::combo::Synthesize(steps, facingRight, compiled, error), "A move did not synthesize");
+    return compiled.frames;
+}
 int main() {
     try {
         Require(MirrorDirections(LeftBit | 2 | 0x10) == (RightBit | 2 | 0x10) && MirrorDirections(LeftBit | RightBit) == (LeftBit | RightBit) &&
@@ -17,7 +22,7 @@ int main() {
         // The two facings of a typed move differ by Left and Right alone,
         // so one held facing and the swap stand for both.
         for (const char* line : {"623HP", "41236LP", "[4]6HP", "2MK", "236P", "63214HK", "44", "MP+MK", "j.HK", "8"}) {
-            const auto right = sf4e::combo::Synthesize({line}, true), left = sf4e::combo::Synthesize({line}, false);
+            const auto right = Synth({line}, true), left = Synth({line}, false);
             Require(right.size() == left.size(), "The two facings of a typed move differ in length");
             for (std::size_t frame = 0; frame < right.size(); ++frame) {
                 const auto turned = Mirror(right[frame]);
@@ -25,7 +30,7 @@ int main() {
                     right[frame].offset == left[frame].offset, "The two facings of a typed move differ by more than Left and Right");
             }
         }
-        const auto hcf = sf4e::combo::Synthesize({"41236LP"}, true), hcfLeft = sf4e::combo::Synthesize({"41236LP"}, false);
+        const auto hcf = Synth({"41236LP"}, true), hcfLeft = Synth({"41236LP"}, false);
         const unsigned L = LeftBit, R = RightBit, D = 2, LP = 0x10;
         // Plays a whole reply on the dummy, which turns to face right before frame turnAt (-1 never).
         const auto play = [&](Session& session, int turnAt) {
@@ -40,7 +45,7 @@ int main() {
         // Neither fighter has moved: the dummy starts on the right, facing left.
         Session typed; typed.Enter(); typed.SetReady(true);
         Require(!typed.FacingRight(1) && typed.FacingRight(0), "The fighters did not start facing each other");
-        Require(typed.Reply(hcf), "The typed reply did not start");
+        Require(typed.Reply(hcf, ReplySchedule{}), "The typed reply did not start");
         auto played = play(typed, -1);
         Require(played.size() == hcfLeft.size(), "The typed reply did not play whole");
         // Turned once, for the dummy facing left: 41236P comes out as it
@@ -51,7 +56,7 @@ int main() {
         // The sides swap in the middle of the reply (a cross-up on wake-up):
         // each frame plays for the facing it is played in.
         Session swapped; swapped.Enter(); swapped.SetReady(true); swapped.SetPositions(0, 100);
-        Require(swapped.Reply(hcf), "The typed reply did not start again");
+        Require(swapped.Reply(hcf, ReplySchedule{}), "The typed reply did not start again");
         played = play(swapped, 6);
         Require(played.size() == hcf.size(), "The turned reply did not play whole");
         for (std::size_t frame = 0; frame < played.size(); ++frame)
@@ -107,7 +112,7 @@ int main() {
             Require((recorded.Slot(1)[frame].raw & (L | R)) == R, "A side change in a recording was not held as forward throughout");
         Require(playSlot(0, 100) == std::vector<unsigned>{L, L | LP, L, L | LP}, "A recording with a side change did not play forward on the right");
         // A reply from a slot plays for the way the dummy faces too.
-        Require(recorded.Reply(1) && recorded.Prepare(Frame{})[1].raw == L, "A reply from a slot did not turn for the dummy facing left");
+        Require(recorded.Reply(1, ReplySchedule{}) && recorded.Prepare(Frame{})[1].raw == L, "A reply from a slot did not turn for the dummy facing left");
         recorded.StopReply();
         // Mirror swaps the selected slot's Left and Right, once per press,
         // and never while it plays or when it is empty.

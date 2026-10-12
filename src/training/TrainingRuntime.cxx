@@ -150,7 +150,7 @@ bool RestoreCheckpoint(Native* system) {
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); dummyWatch.Reset(); replyTrace.Reset();
+    meter.Reset(); ForgetStun(dummyWatch, session); replyTrace.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -169,8 +169,6 @@ void LogPlaying(const Playing& what, const char* change) {
     if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
     else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
 }
-// Updates from the one an input is read in to the one the fighters act on it.
-int InputLag() { return sf4e::InputLag::BattleInputLowered() ? 0 : 1; }
 // At the start of each update, before its commands can reset the battle: a
 // different action picked in the pause menu while Ember plays Player 2
 // stands, and what Ember plays stops.
@@ -182,8 +180,9 @@ void ReconcileDummy(Native* system) {
     session.Apply({Action::Stop, session.GetView().generation});
 }
 // Each update, once its input is planned: Player 2 plays from the pad while
-// the fighters act on what Ember plays there (DummyControl), from its first
-// input to its last, and the dummy's own control is put back after.
+// the game reads what Ember plays there and the fighters act on it
+// (DummyControl), from the update that reads its first input to the one that
+// acts on its last, and the dummy's own control is put back after.
 // supplies: InputPlan::suppliesDummy.
 void FollowDummy(Native* system, bool supplies) {
     const auto& view = session.GetView();
@@ -192,11 +191,11 @@ void FollowDummy(Native* system, bool supplies) {
     int* options = DummyOptions();
     int* control = Native::GetPlayerControl(system, 1);
     if (!options || !control) return;
-    const int action = options[Manager::OPT_ACTION], lag = InputLag();
-    switch (dummyControl.Follow(supplies, lag, action)) {
+    const int action = options[Manager::OPT_ACTION];
+    switch (dummyControl.Follow(supplies, action)) {
     case DummyControl::Step::Begin:
-        spdlog::info("Training: Player 2 plays from the pad (control {} to {}, action {}, input lag {})",
-            *control, static_cast<int>(Native::PC_PAD), action, lag);
+        spdlog::info("Training: Player 2 plays from the pad (control {} to {}, action {})",
+            *control, static_cast<int>(Native::PC_PAD), action);
         *control = Native::PC_PAD;
         break;
     // The pause menu closing puts the menu's control back over it.
@@ -437,6 +436,8 @@ void AfterUpdate(Native* system) {
     if (delta != 0) dummyControl.Simulated();
     if (sampling && delta == 1) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
+        // The dummy as its stun is timed, for a reply's wait now and its decision below.
+        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
@@ -448,7 +449,9 @@ void AfterUpdate(Native* system) {
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
-            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
+            // A reply's leading hold gives way as its first move is due.
+            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
+                session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
             playbackSeen = fighters;
         }
         // Recorded for the facing the input was prepared with, then the new positions.
@@ -460,19 +463,19 @@ void AfterUpdate(Native* system) {
         // frame and its button land on it; a stun not seen before is replied
         // to as it ends.
         {
-            const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
             int* options = DummyOptions();
             // Hit again: a reply already begun is dropped, and this stretch decides anew.
             if (seen.held && seen.stretch != decidedStretch) session.StopReply();
             // Typed or recorded, the reply is played for the way the dummy faces on each frame (Session::Prepare).
             const bool typed = !dummyPlan.moves.empty();
             const auto& frames = typed ? dummyPlan.moves : session.Slot(dummyPlan.slot);
-            const int cause = seen.freed ? seen.freed : seen.held;
-            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames) + InputLag(), dummyPlan.timing)) {
+            const ReplySchedule schedule = PlanSchedule(dummyPlan, session.Slot(dummyPlan.slot));
+            const int cause = seen.held ? seen.held : seen.out;
+            if (cause && seen.stretch != decidedStretch && ReplyBegins(schedule, seen)) {
                 decidedStretch = seen.stretch;
                 if (DummyReplies(dummyPlan, cause, dummyRandom())) {
                     // Ember plays the reply from the next update, and the dummy from the pad (FollowDummy).
-                    if (!(typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && !typed && frames.empty())
+                    if (!(typed ? session.Reply(frames, schedule) : session.Reply(dummyPlan.slot, schedule)) && !typed && frames.empty())
                         spdlog::info("Training: no reply, slot {} is empty", dummyPlan.slot + 1);
                 }
             }
@@ -480,17 +483,22 @@ void AfterUpdate(Native* system) {
                 const int action = options[Manager::OPT_ACTION];
                 if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
             }
-            // Where the reply's button met the dummy, once per reply, to check timing 0 in the game.
+            // Where the reply's button met the dummy, once per reply, to check timing 0 in the game:
+            // a reversal's move starts on the free frame, the update its button is acted on
+            // (ReplyTiming::Acted), so both differences are timing.
             ReplyTiming timing;
             const bool pressed = playing.reply && commitInput && (output[1].raw & AttackButtons);
-            if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill, timing))
-                spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; input lag {}, timing {}",
-                    timing.sent, timing.freed, timing.move, InputLag(), dummyPlan.timing);
+            if (replyTrace.Observe(session.Replies(), session.Replying(), pressed, seen, fighters[1].valid && fighters[1].status == ActorStatus::Skill,
+                    session.Schedule().timing, timing))
+                spdlog::info("Training: reply trace, frames after the reply was decided: button sent {}, dummy free {}, in its move {}; "
+                    "Lower input lag {}, timing {}; move {} after free, {} after the button was acted on",
+                    SeenAt(timing.sent), SeenAt(timing.freed), SeenAt(timing.move), sf4e::InputLag::BattleInputLowered() ? "on" : "off", timing.timing,
+                    FramesBetween(timing.freed, timing.move), FramesBetween(timing.Acted(), timing.move));
         }
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        meter.Reset(); dummyWatch.Reset(); replyTrace.Reset();
+        meter.Reset(); ForgetStun(dummyWatch, session); replyTrace.Reset();
         ++gapResets;
     }
     sampling = false; following = false;

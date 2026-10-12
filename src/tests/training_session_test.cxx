@@ -708,11 +708,15 @@ int main() {
             Command load; load.action = Action::Load; load.generation = drive.GetView().generation; load.frames = {{0x10, 0x10, 0, 0}}; load.side = 0;
             Require(drive.Apply(load) && send(Action::Play) && !DrivesDummy(drive.GetView()), "A playback on Player 1's side played Player 2");
             send(Action::Stop);
-            Require(drive.Reply(std::vector<Input>{{0x10, 0x10, 0, 0}}) && DrivesDummy(drive.GetView()), "A reply did not play Player 2");
+            // The reply keeps the schedule it began with until it ends.
+            ReplySchedule schedule; schedule.start = 0; schedule.anchor = 0; schedule.timing = 4;
+            Require(drive.Reply(std::vector<Input>{{0x10, 0x10, 0, 0}}, schedule) && DrivesDummy(drive.GetView()) && drive.Schedule().timing == 4,
+                "A reply did not play Player 2 by its schedule");
             // A save and a reset leave a recording running; a reset ends a reply.
             drive.SetCheckpoint(true);
             Require(send(Action::Save) && drive.Replying(), "A save ended a reply");
-            Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle, "A reset left a reply playing");
+            Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle && drive.Schedule().anchor == -1,
+                "A reset left a reply playing, or its schedule");
             Require(send(Action::Record) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Recording,
                 "A save or a reset stopped a recording");
         }
@@ -745,167 +749,36 @@ int main() {
             Require(cued(), "The wait after the reset did not take its own cue and offset");
         }
         {
-            // The dummy's own reply: what it came out of, how long it stays there, and what it plays.
-            DummyWatch watch;
-            const auto sample = [](unsigned status, int action, float frame, float damage = 0) {
-                FighterSample dummy; dummy.valid = true; dummy.status = status; dummy.action = action; dummy.actionFrame = frame; dummy.comboDamage = damage; return dummy;
-            };
-            // Hit by move 100 for five frames: nothing is known the first time.
-            Require(!watch.Observe(sample(0, 0, 0), 100).freed, "An idle dummy was freed");
-            for (int frame = 0; frame < 5; ++frame) {
-                const auto seen = watch.Observe(sample(21, 300, static_cast<float>(frame), 10), 100);
-                Require(seen.held == 1 && seen.until == -1 && !seen.freed, "An unseen stun was timed");
-            }
-            const auto first = watch.Observe(sample(0, 0, 0), 0);
-            Require(first.freed == 1 && !watch.Observe(sample(0, 0, 1), 0).freed, "A hit's end was not reported once");
-            // The same hit again counts down to its free frame, and a second hit in it starts over.
-            auto seen = watch.Observe(sample(21, 300, 0, 10), 100);
-            Require(seen.until == 5 && seen.stretch != first.stretch, "A seen stun was not timed");
-            Require(watch.Observe(sample(21, 300, 1, 10), 100).until == 4, "The stun did not count down");
-            seen = watch.Observe(sample(21, 300, 2, 20), 100);
-            Require(seen.until == 5, "A second hit did not start the stun over");
-            // A reply whose button is three frames in starts when four are left, one fewer with timing +1, and at once when freed.
-            DummySeen left; left.held = 1; left.until = 5;
-            Require(!ReplyDue(left, 3, 0), "The reply started too early");
-            left.until = 4;
-            Require(ReplyDue(left, 3, 0) && !ReplyDue(left, 3, 1) && ReplyDue(first, 0, 0), "The reply was not due on its frame");
-            left.until = -1;
-            Require(!ReplyDue(left, 3, 0), "A reply was due in an untimed stun");
-            // Another move's hit is its own length; a knockdown is one whoever caused it.
-            Require(watch.Observe(sample(21, 300, 0, 30), 101).until == -1, "Another move's stun was taken as known");
-            watch.Reset();
-            watch.Observe(sample(19, 400, 0), 100); watch.Observe(sample(20, 401, 0), 100); watch.Observe(sample(20, 401, 1), 100);
-            Require(watch.Observe(sample(1, 0, 0), 0).freed == 3, "A knockdown was not reported as getting up");
-            watch.Observe(sample(19, 400, 0), 555);
-            Require(watch.Observe(sample(20, 401, 0), 777).until == 2, "Getting up was not timed across attackers");
-            watch.Reset();
-            watch.Observe(sample(22, 500, 0), 100);
-            Require(watch.Observe(sample(0, 0, 0), 0).freed == 2, "A block's end was not reported");
-            // Guard stance with nothing landed (the dummy held back while an
-            // attack is near) is no stun, standing or crouching.
-            for (unsigned guard : {14u, 15u}) {
-                watch.Reset();
-                Require(!watch.Observe(sample(0, 0, 0), 0).freed, "An idle dummy was freed");
-                for (int frame = 0; frame < 4; ++frame) {
-                    const auto near = watch.Observe(sample(guard, 600, static_cast<float>(frame)), 100);
-                    Require(!near.held && !near.freed, "Guard stance with no hit held the dummy");
-                }
-                Require(!watch.Observe(sample(0, 0, 0), 0).freed, "Guard stance with no hit was replied to as a block");
-            }
-            // Blockstun into guard stance: free when the blockstun ends, the
-            // stance after it neither delays that nor counts as a stun.
-            watch.Reset();
-            for (int frame = 0; frame < 3; ++frame) Require(watch.Observe(sample(22, 501, static_cast<float>(frame)), 100).held == 2, "Blockstun did not hold the dummy");
-            const auto blocked = watch.Observe(sample(14, 600, 0), 100);
-            Require(blocked.freed == 2 && !blocked.held, "The end of blockstun was not reported where guard stance followed");
-            Require(!watch.Observe(sample(14, 600, 1), 100).freed && !watch.Observe(sample(0, 0, 0), 0).freed, "Guard stance after blockstun reported it again");
-            const auto again = watch.Observe(sample(22, 501, 0), 100);
-            Require(again.held == 2 && again.until == 3 && again.stretch != blocked.stretch, "Blockstun was not timed to its own end");
-            // Hitstun into crouching guard stance, and a throw's sequence between frames, which neither ends nor starts a stun.
-            watch.Reset();
-            watch.Observe(sample(21, 300, 0, 10), 100);
-            Require(watch.Observe(sample(15, 600, 0), 100).freed == 1, "The end of hitstun was not reported where guard stance followed");
-            Require(!watch.Observe(sample(24, 0, 0), 100).held && !watch.Observe(sample(0, 0, 0), 0).freed, "A throw's sequence was taken for a stun");
-            watch.Observe(sample(23, 310, 0, 10), 100); watch.Observe(sample(24, 0, 0), 100);
-            Require(watch.Observe(sample(16, 700, 0), 0).freed == 1, "A launch did not reach its end across a sequence");
-            {
-                // Where a reply's button met the dummy: each reply traced once, from the frame
-                // it is decided in, in frames the trace counts itself.
-                Session replies; replies.Enter(); replies.SetReady(true);
-                ReplyTrace trace; ReplyTiming timing; int reports = 0;
-                const std::vector<Input> move(12, Input{0x10, 0x10, 0, 0});
-                const auto stun = [](int held, int freed, unsigned stretch) { DummySeen seen; seen.held = held; seen.freed = freed; seen.stretch = stretch; return seen; };
-                // One frame as the runtime runs it: the playback's input, then
-                // the dummy seen, a reply decided if asked, then the trace.
-                // stop: a new stun drops the reply playing first.
-                const auto frame = [&](DummySeen seen, bool moving, bool decide = false, bool stop = false) {
-                    const bool pressed = replies.Replying();
-                    replies.Commit(replies.Prepare(Frame{}));
-                    if (stop) replies.StopReply();
-                    if (decide) Require(replies.Reply(move), "The reply did not start");
-                    const bool done = trace.Observe(replies.Replies(), replies.Replying(), pressed, seen, moving, timing);
-                    reports += done;
-                    return done;
-                };
-                const auto idle = [&](int frames, bool moving) { for (int i = 0; i < frames; ++i) frame(stun(0, 0, 0), moving); };
-                idle(3, true);
-                Require(reports == 0, "A trace began with no reply");
-                // Decided in a timed stun, the button sent the frame after, the dummy free and in its move the frame after that.
-                frame(stun(2, 0, 7), false, true); frame(stun(2, 0, 7), false);
-                Require(frame(stun(0, 2, 7), true) && timing.sent == 1 && timing.freed == 2 && timing.move == 2, "A reply's button, free frame or move was misplaced");
-                // The reply plays on after its report, the dummy in its move: no second report.
-                idle(2 * ReplyTrace::Grace, true);
-                Require(reports == 1 && !replies.Replying(), "A reply was traced again after its report");
-                // A new stun stops a reply and another is decided in the same frame: what played in it was the old one's.
-                frame(stun(2, 0, 8), false, true);
-                frame(stun(2, 0, 9), false, true, true);
-                frame(stun(2, 0, 9), false);
-                // Freed with no move ever coming: reported Grace frames after the reply's last frame.
-                frame(stun(0, 2, 9), false);
-                int after = 3;
-                while (!frame(stun(0, 0, 0), false)) ++after;
-                Require(reports == 2 && after == static_cast<int>(move.size()) - 1 + ReplyTrace::Grace && timing.sent == 1 && timing.freed == 2 && timing.move == -1,
-                    "A reply whose move never came was not reported after its grace, or took the stopped reply's press");
-                // Hit again: dropped, and not traced again while the same reply plays on.
-                frame(stun(0, 1, 10), false, true);
-                frame(stun(1, 0, 11), false);
-                idle(2 * ReplyTrace::Grace, true);
-                Require(reports == 2, "A trace went on across a new stun, or began again for the same reply");
-                // A reset or a gap in the frames: dropped, and not traced again for the same reply.
-                frame(stun(0, 1, 12), false, true);
-                trace.Reset();
-                idle(2 * ReplyTrace::Grace, true);
-                Require(reports == 2, "A trace went on across a reset");
-                // The battle closes with a trace begun, and another is entered:
-                // nothing of it is reported there, and its first reply is its own.
-                frame(stun(2, 0, 13), false, true); frame(stun(2, 0, 13), false);
-                trace.Reset(); replies.Reset(); replies.Enter(); replies.SetReady(true);
-                frame(stun(0, 2, 1), true); idle(2 * ReplyTrace::Grace, true);
-                Require(reports == 2, "A trace begun in a closed battle was reported in the next");
-                frame(stun(0, 1, 1), false, true); frame(stun(0, 0, 1), false);
-                Require(frame(stun(0, 0, 1), true) && reports == 3 && timing.sent == 1 && timing.freed == 0 && timing.move == 2,
-                    "A reply in a new battle was not traced on its own");
-            }
-            DummyPlan plan;
-            Require(!DummyReplies(plan, 1, 0), "A dummy with no plan replied");
-            plan.when = 1; plan.chance = 50;
-            Require(DummyReplies(plan, 1, 49) && !DummyReplies(plan, 1, 50) && !DummyReplies(plan, 2, 0) && !DummyReplies(plan, 0, 0), "Reply chance or cause misjudged");
-            plan.when = 4;
-            Require(DummyReplies(plan, 3, 0) && ValidDummyPlan(plan), "A reply to anything missed a knockdown");
-            plan.timing = MaxReplyTiming + 1;
-            Require(!ValidDummyPlan(plan), "A reply timing beyond its range was accepted");
-            plan.timing = 0; plan.slot = SlotCount;
-            Require(!ValidDummyPlan(plan), "A reply slot beyond the slots was accepted");
+            // The dummy's own reply plays a slot or typed moves (its watch, schedule and trace: training_reply_test.cxx).
             // 623HP: three directions of three frames, then the button.
             std::vector<Input> dragon;
             for (unsigned bits : {8u, 8u, 8u, 2u, 2u, 2u, 10u, 10u, 10u, 0x40au, 10u, 0u}) dragon.push_back({bits, bits, 0, 0});
-            Require(ReplyStart(dragon) == 0 && ReplyLead(dragon) == 9 && ReplyStart({}) == -1 && ReplyLead({{8, 8, 0, 0}}) == 0, "A reply's start or lead misread");
 
             Session reply; reply.Enter(); reply.SetReady(true);
             Command command; command.generation = reply.GetView().generation;
-            Require(!reply.Reply(2), "An empty slot replied");
+            Require(!reply.Reply(2, ReplySchedule{}), "An empty slot replied");
             command.action = Action::Select; command.slot = 2; reply.Apply(command);
             command.action = Action::Record; reply.Apply(command);
             // Two idle frames, as a player leaves before pressing, then two presses.
             for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
             command.action = Action::Stop; reply.Apply(command);
             command.action = Action::Select; command.slot = 5; reply.Apply(command);
-            Require(reply.Reply(2) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
-            Require(!reply.Reply(2), "A reply started over a playback");
+            Require(reply.Reply(2, ReplySchedule{}) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
+            Require(!reply.Reply(2, ReplySchedule{}), "A reply started over a playback");
             Require(reply.Prepare(Frame{})[1].raw == 0x10 && reply.Prepare(Frame{})[0].raw == 0, "The reply did not start on its first press, on Player 2");
             reply.Commit(reply.Prepare(Frame{}));
             Require(reply.Prepare(Frame{})[1].raw == 0x20, "The reply did not advance");
             reply.Commit(reply.Prepare(Frame{}));
             Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5, "The reply looped or kept the selection");
             // The typed reply has a slot of its own; hit again, it is dropped.
-            Require(reply.Reply(dragon) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
+            Require(reply.Reply(dragon, ReplySchedule{}) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
             reply.StopReply();
             Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
             command.action = Action::Select; command.slot = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
             // Play stops a reply before checking the restored selection.
             for (bool typed : {false, true}) {
-                Require(typed ? reply.Reply(dragon) : reply.Reply(2), "The reply did not start over an empty selection");
+                Require(typed ? reply.Reply(dragon, ReplySchedule{}) : reply.Reply(2, ReplySchedule{}), "The reply did not start over an empty selection");
                 command.action = Action::Play;
                 Require(!reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Idle &&
                     reply.GetView().selected == 5 && reply.GetView().cursor == 0, "Play started on an empty restored slot");
@@ -916,7 +789,7 @@ int main() {
             command.action = Action::Select; command.slot = 2;
             Require(reply.Apply(command), "The recorded slot could not be selected");
             command.action = Action::Load; command.side = 0; command.frames = {{0x40, 0x40, 0, 0}};
-            Require(reply.Apply(command) && reply.Reply(dragon), "The reply did not start over a loaded selection");
+            Require(reply.Apply(command) && reply.Reply(dragon, ReplySchedule{}), "The reply did not start over a loaded selection");
             command.action = Action::Play;
             Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback &&
                 reply.GetView().selected == 2 && reply.GetView().playbackSide == 0 && reply.GetView().cursor == 0,

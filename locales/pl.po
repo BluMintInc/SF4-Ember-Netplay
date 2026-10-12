@@ -1522,7 +1522,7 @@ msgid "training.reply.moves"
 msgstr "Ciosy odpowiedzi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. Puste pole używa slotu odpowiedzi."
+msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. [1] trzyma kierunek do następnego ruchu, [1]20f trzyma go 20 klatek, a 10f czeka: [1] > 3HP blokuje nisko, aż manekin będzie wolny, potem wciska 3HP. Puste pole używa slotu odpowiedzi."
 
 msgid "training.reply.move"
 msgstr "Gotowa odpowiedź"

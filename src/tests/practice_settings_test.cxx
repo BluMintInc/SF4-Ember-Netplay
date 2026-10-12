@@ -60,7 +60,9 @@ int main() {
         CHECK(BuildReplyPlan(migrated, settings, plan, error));
         CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves.empty());
         // Made once, for the dummy facing right, as a slot holds it.
-        const auto expected = sf4e::combo::Synthesize({notation[i]}, true);
+        sf4e::combo::Compiled compiled;
+        CHECK(sf4e::combo::Synthesize({notation[i]}, true, compiled, error));
+        const auto& expected = compiled.frames;
         CHECK(plan.moves.size() == expected.size());
         for (std::size_t frame = 0; frame < expected.size() && frame < plan.moves.size(); ++frame) {
             const auto& got = plan.moves[frame]; const auto& want = expected[frame];
@@ -74,12 +76,26 @@ int main() {
     // Invalid saved text (including a nonempty separator-only line) cannot
     // erase a typed reply and silently switch the command to its slot.
     DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
-    for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP"}) {
+    // A reply plays from its first pressed frame, so one starting with a wait
+    // is refused, as are holds with no move to time the reply by and a
+    // neutral "5", which presses nothing.
+    for (const char* bad : {"Hadoken", "dash", "> ,", "2MK > nonsense", "xx 623HP", "10f > 5MK", "[1]", "[2]7195f > 5MK", "[4] > 10f > 5MK",
+             "[2]30f", "[2]30f > [4]10f", "[2]30f > [4]10f > [1]5f", "5", "[2]30f > 5",
+             "[2]30f > 3f > [4]10f > 5", "[2]30f > 5 > 5MK"}) {
         error.clear();
         CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
         CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);
     }
     CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.slot == 3);
+    CHECK(BuildReplyPlan("[1] > 3HP", settings, result, error) && !result.moves.empty() && BuildReplyPlan("[2]30f > 5MK", settings, result, error));
+    // The first move's own offset rides with the plan, and goes with typed moves.
+    CHECK(BuildReplyPlan("[2]30f > 5MK@+3", settings, result, error) && result.offset == 3 && ValidDummyPlan(result));
+    // A plan built is one the dummy takes: its frames and schedule agree.
+    for (const char* line : {"5MK", "[2]30f > 8#45", "[2]30f > 66#45@+2", "[2]30f > [4] > 5MK", "5LP > [4] > 66#60", "[1] > 623HP > xx 5MP+MK"}) {
+        DummyPlan built; error.clear();
+        CHECK(BuildReplyPlan(line, settings, built, error) && ValidDummyPlan(built));
+    }
+    CHECK(BuildReplyPlan("", settings, result, error) && result.offset == 0 && result.moves.empty());
 
     // Every reply preset, 214K and 236P included, is notation the parser and
     // the plan builder take as typed text, and reads back as itself however

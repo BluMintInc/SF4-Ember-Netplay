@@ -1522,7 +1522,7 @@ msgid "training.reply.moves"
 msgstr "Antwortzüge"
 
 msgid "training.reply.moves.detail"
-msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. Leer nutzt den Antwort-Slot."
+msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. [1] hält eine Richtung bis zum nächsten Zug, [1]20f hält sie 20 Frames und 10f wartet: [1] > 3HP blockt unten, bis der Dummy frei ist, dann kommt 3HP. Leer nutzt den Antwort-Slot."
 
 msgid "training.reply.move"
 msgstr "Antwortvorlage"

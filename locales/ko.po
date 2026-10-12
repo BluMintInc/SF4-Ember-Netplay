@@ -1522,7 +1522,7 @@ msgid "training.reply.moves"
 msgstr "반격 기술"
 
 msgid "training.reply.moves.detail"
-msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. 비워 두면 반격 슬롯을 씁니다."
+msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. [1]은 다음 기술까지 방향을 유지하고, [1]20f는 20프레임 유지하며, 10f는 기다립니다. 예: [1] > 3HP. 비워 두면 반격 슬롯을 씁니다."
 
 msgid "training.reply.move"
 msgstr "반격 프리셋"

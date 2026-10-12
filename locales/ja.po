@@ -1522,7 +1522,7 @@ msgid "training.reply.moves"
 msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
-msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。空なら反撃スロットを使います。"
+msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空なら反撃スロットを使います。"
 
 msgid "training.reply.move"
 msgstr "反撃のプリセット"

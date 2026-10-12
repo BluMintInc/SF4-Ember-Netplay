@@ -1522,7 +1522,7 @@ msgid "training.reply.moves"
 msgstr "Reply moves"
 
 msgid "training.reply.moves.detail"
-msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. Empty uses the reply slot."
+msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. [1] holds a direction until the next move, [1]20f holds it 20 frames and 10f waits: [1] > 3HP blocks low until the dummy is free, then presses 3HP. Empty uses the reply slot."
 
 msgid "training.reply.move"
 msgstr "Reply preset"
