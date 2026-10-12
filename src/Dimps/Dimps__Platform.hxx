@@ -126,7 +126,10 @@ namespace Dimps {
 		struct Main
 		{
 			typedef struct __privateMethods {
-				// TODO
+				// Puts the display keys, SYSTEM/RenderingThread among them, into
+				// the config.ini the game then saves: on exit (Destroy) and from
+				// its display options (0x77E680).
+				void (Main::* WriteDisplayConfig)();
 			} __privateMethods;
 
 			typedef struct __publicMethods {
@@ -156,6 +159,11 @@ namespace Dimps {
 			} Win32_WindowData;
 
 			static Win32_WindowData** GetWindowData(Main* m);
+			// SYSTEM/RenderingThread, set from config.ini inside Initialize
+			// (0x780380) and read only through the vtable's 0xA4 getter. Run
+			// (0x780600) starts the "Afx Rendering" thread when it is 1;
+			// otherwise each frame renders on the game thread.
+			static int* GetRenderingThread(Main* m);
 		};
 
 		struct GFxApp

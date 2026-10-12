@@ -366,6 +366,8 @@ void RoomJourneys() {
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.fasterDisplay&&h.actions.back().preferences.backgroundPlay,"Faster display did not save off");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("settings");h.Choose("training-replays");h.Choose("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");

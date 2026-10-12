@@ -62,6 +62,11 @@ struct PlayerPreferences {
     // Experimental: key presses become key states as the pad update reads
     // them, not a frame later. Only this PC's keyboard changes.
     bool lowerKeyboardLag = false;
+    // The game draws each frame on its own thread, a frame behind; on, Ember
+    // starts the game with that thread off (GameDisplayConfig.hxx:
+    // RenderingThreadOverride). Read at startup, so a change takes effect on
+    // the next launch. It changes only how this PC draws, never the match.
+    bool fasterDisplay = true;
     // A match this PC only watches is recorded too, like one it plays
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;

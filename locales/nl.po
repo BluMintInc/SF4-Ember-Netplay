@@ -1002,6 +1002,12 @@ msgstr "Toetsenbord sneller (experimenteel)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Experimenteel. Het spel leest het toetsenbord een frame later dan een controller; dit haalt dat frame weg. Het geldt alleen voor het toetsenbord, en alleen op deze pc: de andere speler hoeft het niet aan te zetten."
 
+msgid "player.faster_display"
+msgstr "Sneller beeld (1 frame minder)"
+
+msgid "player.faster_display_detail"
+msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
+
 msgid "player.native_menus"
 msgstr "Spelmenu's openen"
 

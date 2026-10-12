@@ -1002,6 +1002,12 @@ msgstr "降低键盘延迟（实验性）"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "实验性功能。游戏读取键盘比读取控制器晚 1 帧；此选项去掉这一帧。只影响键盘，且只影响这台电脑：对方玩家无需开启。"
 
+msgid "player.faster_display"
+msgstr "更快显示（减少 1 帧延迟）"
+
+msgid "player.faster_display_detail"
+msgstr "游戏在每一帧准备好后立即显示，而不是晚 1 帧显示。如果游戏在这台电脑上低于 60 fps，请关闭此选项。只影响这台电脑：对方玩家无需开启。更改将在下次启动游戏时生效。"
+
 msgid "player.native_menus"
 msgstr "打开游戏菜单"
 

@@ -1002,6 +1002,12 @@ msgstr "Weniger Tastaturlatenz (experimentell)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Experimentell. Das Spiel liest die Tastatur einen Frame später als einen Controller; das entfernt diesen Frame. Es betrifft nur die Tastatur und nur diesen PC: Der andere Spieler muss es nicht einschalten."
 
+msgid "player.faster_display"
+msgstr "Schnellere Anzeige (1 Frame weniger)"
+
+msgid "player.faster_display_detail"
+msgstr "Das Spiel zeigt jeden Frame, sobald er fertig ist, statt einen Frame später. Schalten Sie es aus, wenn das Spiel auf diesem PC unter 60 fps fällt. Es betrifft nur diesen PC: Der andere Spieler muss es nicht einschalten. Änderungen gelten ab dem nächsten Spielstart."
+
 msgid "player.native_menus"
 msgstr "Native Menüs öffnen"
 

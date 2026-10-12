@@ -1002,6 +1002,12 @@ msgstr "Réduire le délai du clavier (expérimental)"
 msgid "player.lower_keyboard_lag_detail"
 msgstr "Expérimental. Le jeu lit le clavier une trame plus tard qu'une manette ; ceci retire cette trame. Cela ne touche que le clavier, et seulement sur ce PC : l'autre joueur n'a pas besoin de l'activer."
 
+msgid "player.faster_display"
+msgstr "Affichage plus rapide (1 trame en moins)"
+
+msgid "player.faster_display_detail"
+msgstr "Le jeu affiche chaque trame dès qu'elle est prête, au lieu d'une trame plus tard. Désactivez-le si le jeu descend sous 60 fps sur ce PC. Cela ne touche que ce PC : l'autre joueur n'a pas besoin de l'activer. Les changements s'appliquent au prochain lancement du jeu."
+
 msgid "player.native_menus"
 msgstr "Ouvrir les menus du jeu"
 

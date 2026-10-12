@@ -31,6 +31,8 @@
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/FrameShiftMailbox.hxx"
 #include "../common/EnvFlag.hxx"
+#include "../common/GameDisplayConfig.hxx"
+#include "../common/FrameRateWindow.hxx"
 
 namespace rPlatform = Dimps::Platform;
 using rD3D = rPlatform::D3D;
@@ -93,6 +95,17 @@ void LogVSyncForced() {
     }
 }
 
+// The game's render thread draws a frame behind the simulation; with the
+// player's Faster display on, Ember runs the game with it off. Applied once
+// Main::Initialize has applied config.ini, before Main::Run reads the flag;
+// StartHelper loaded the preferences before that. The player's file keeps its
+// own value (WriteDisplayConfig).
+sf4e::gameconfig::RenderingThreadOverride s_renderingThread;
+
+void LogRenderingThread() {
+    if (s_renderingThread.Applied()) spdlog::info("Display: {}", s_renderingThread.Describe());
+}
+
 // Dev check for the limiter hook: SF4E_PACING_TEST_SHIFT_MS (2, -2, or 0 for a
 // baseline) replaces every pacing request with that shift and logs the
 // measured frame every 600 frames. Nothing reaches the pacing controller.
@@ -147,6 +160,18 @@ double QpcTickMs() {
     return tickMs;
 }
 
+// One line a minute with the frame rate the player saw, for field reports.
+void NoteFrame(unsigned long long previousExit, unsigned long long exit, float periodSeconds) {
+    static sf4e::pacing::FrameRateWindow window;
+    sf4e::pacing::FrameRateSummary minute;
+    if (!previousExit || exit <= previousExit) return;
+    if (window.Add((double)(exit - previousExit) * QpcTickMs(), periodSeconds * 1000.0, minute)) {
+        spdlog::info("Frame rate: {:.2f} fps over {:.0f} s, {} of {} frames late (over {:.1f} ms), longest {:.1f} ms; render thread {}",
+            minute.fps, minute.seconds, minute.late, minute.frames, minute.lateMs, minute.longestMs,
+            s_renderingThread.RenderThread() ? "on" : "off");
+    }
+}
+
 LimiterTest& Test() {
     static LimiterTest test = [] {
         LimiterTest t;
@@ -175,10 +200,17 @@ void fD3D::CancelFrameShift() {
     s_frameShift.Reset();
 }
 
+int fD3D::LimitFrame(float frameDelta) {
+    const unsigned long long previousExit = *rD3D::GetLastLimiterExit(this);
+    const int result = LimitPacedFrame(frameDelta);
+    NoteFrame(previousExit, *rD3D::GetLastLimiterExit(this), *rD3D::GetFramePeriodSeconds(this));
+    return result;
+}
+
 // The limiter waits until one period after its own previous exit, so a wait
 // anywhere else in the frame only eats into that spin and the frame rate never
 // changes. Rift pacing therefore moves the limiter's period for one frame.
-int fD3D::LimitFrame(float frameDelta) {
+int fD3D::LimitPacedFrame(float frameDelta) {
     LimiterTest& test = Test();
     const auto taken = s_frameShift.Take();
     const double shiftMs = test.enabled ? test.shiftMs : taken.requestUs / 1000.0;
@@ -292,8 +324,10 @@ void fGFxApp::RestoreFromAdditionalMemento(rGFxApp* a, const AdditionalMemento& 
 void fMain::Install() {
     int (fMain:: * _fInitialize)(void*, void*, void*) = &Initialize;
     void (fMain:: * _fDestroy)() = &Destroy;
+    void (fMain:: * _fWriteDisplayConfig)() = &WriteDisplayConfig;
     DetourAttach((PVOID*)&rMain::publicMethods.Initialize, *(PVOID*)&_fInitialize);
     DetourAttach((PVOID*)&rMain::publicMethods.Destroy, *(PVOID*)&_fDestroy);
+    DetourAttach((PVOID*)&rMain::privateMethods.WriteDisplayConfig, *(PVOID*)&_fWriteDisplayConfig);
     DetourAttach((PVOID*)&rMain::staticMethods.RunWindowFunc, &RunWindowFunc);
 }
 
@@ -312,6 +346,8 @@ int fMain::Initialize(void* a, void* b, void* c) {
     }
 
     int rval = (this->*(rMain::publicMethods.Initialize))(a, b, c);
+    s_renderingThread.Apply(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.fasterDisplay,
+        *rMain::GetRenderingThread(this));
 
     BOOL hasConsole = false;
     if (sf4e::args.bShowConsole) {
@@ -364,6 +400,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             sf4e::crash::Install(logsDirectory);
             sf4e::crash::WatchGameExit();
             LogVSyncForced();
+            LogRenderingThread();
             spdlog::info("Sidecar logging initialized; install hooks are active");
             spdlog::info("{}", Game::Battle::MatchReplayListNote());
         }
@@ -396,7 +433,15 @@ void fMain::Destroy() {
     spdlog::shutdown();
 }
 
+void fMain::WriteDisplayConfig() {
+    s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
+        [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
+}
+
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    // The overlay is done with the message before the game's procedure runs,
+    // which can update and draw a whole frame (WM_TIMER while the window is
+    // dragged or sized) and so reach DrawOverlay from in here.
     if (Overlay::OverlayWindowFunc(hwnd, uMsg, wParam, lParam)) {
         return;
     }
