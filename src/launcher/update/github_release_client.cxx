@@ -1,5 +1,6 @@
 #include "github_release_client_internal.hxx"
 #include "../../platform/Elevation.hxx"
+#include "ZipExtract.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -105,6 +106,13 @@ namespace launcher {
 			if (systemLength == 0 || systemLength >= MAX_PATH || FAILED(PathCchAppend(tarPath, MAX_PATH, L"tar.exe"))) {
 				AppendUpdateLog("tar path failed");
 				return false;
+			}
+			// Wine and Proton ship no tar.exe; extract in process there.
+			if (GetFileAttributesW(tarPath) == INVALID_FILE_ATTRIBUTES) {
+				AppendUpdateLog("tar.exe missing; extracting with zlib");
+				const std::string error = ExtractZip(zipPath, destDir, progress);
+				if (!error.empty()) AppendUpdateLog(("zlib extract failed: " + error).c_str());
+				return error.empty();
 			}
 			wchar_t cmdLine[4096] = { 0 };
 			swprintf_s(cmdLine, L"\"%s\" -xf \"%s\" -C \"%s\"", tarPath, zipPath, destDir);
