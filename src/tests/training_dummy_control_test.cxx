@@ -285,7 +285,7 @@ int main() {
                 // blockstun, given way so its button is acted on the free
                 // frame plus timing, the plan's and the move's own, whatever
                 // the dummy does once free.
-                for (const char* move : {"3HP", "623P", "236P", "22LK", "3HP@+3", "3HP@-2"}) {
+                for (const char* move : {"3HP", "623P", "236P", "22LK", "3HP@+3", "3HP@-2", "[HP]", "P(mash)"}) {
                     const auto frames = Synth({"[1]", move});
                     Step step; std::string error;
                     Require(ParseStep(move, step, error) && ReplyHold(frames) == 0 && ReplyStart(frames) == 0, "A reply did not begin with its hold");

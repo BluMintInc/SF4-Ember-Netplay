@@ -45,9 +45,12 @@ inline unsigned ChosenButtons(const Step& step) {
 // length the stun's; the first move's button meets the free frame plus the
 // timing and its "@N". Each later move waits on the one before (a link for
 // the dummy to be free, a cancel for the hit, a follow-up a few frames), its
-// "@N" counted from that cue, or lands on a frame of the reply ("#N"), counted
-// from its first played frame, which only frames of a known length before it
-// can reach: "#N" after a wait on the fight is refused, as on the first move.
+// "@N" counted from that cue, or lands on a frame of the reply ("#N", a later
+// move's "@N" counted from that frame), counted from the reply's first played frame,
+// which only frames of a known length before it can reach: "#N" after a wait
+// on the fight is refused, as on the first move with nothing before it. A
+// first move pressed and let go ("]HP[") comes out on the release, which the
+// reply cannot time, so it is refused (ParseSteps).
 struct Compiled { std::vector<training::Input> frames; int offset = 0; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
@@ -103,6 +106,9 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         follows = true;
         const auto gap = [&](int frames) { push(idle, frames); };
         const unsigned buttons = ChosenButtons(step);
+        // The frame a "#N" move presses on: its "@N" counts from it, but the
+        // first move's is the reply's own (the free frame its cue).
+        const int landing = step.at + (after ? timing : 0);
         const auto reach = [&](int frame) { gap(frame - static_cast<int>(out.size())); };
         const bool red = step.buttons == (LP | MP | MK) && step.need == 3;
         const bool fadc = (step.buttons == (MP | MK) && step.need == 2) || red;
@@ -111,7 +117,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             // The red focus is tapped and let go so the attack itself comes
             // out and lands, and the dash cancels that hit.
             const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
-            if (timed) reach(step.at);
+            if (timed) reach(landing);
             else if (after) wait(training::WaitHit, idle, timing);
             push(step.buttons, 2); push(0, 2);
             if (red) wait(training::WaitHit, 0, 0);
@@ -136,7 +142,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             int lead = 0;
             for (std::size_t i = 0; i < motion.size(); ++i) lead += (step.charge && i == 0 ? ChargeFrames : step.cancel ? 2 : 3) + (i && motion[i] == motion[i - 1] ? 1 : 0);
             if (after) gap(1);
-            reach(step.at - lead);
+            reach(landing - lead);
         } else if (link) wait(training::WaitActionable, idle ? idle : motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
         else if (after) gap(1);
         // The wait held the motion's first direction, or a hold in its place;

@@ -132,7 +132,8 @@ int main() {
     CHECK(!ParseSteps("cr.MK > shoryu", steps, error) && steps.empty() && error == "\"shoryu\" is not a move");
     CHECK(!ParseSteps("xx 236HP", steps, error) && error == "the first move cannot be a cancel");
     // Leading holds and waits are no move to cancel or follow up.
-    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP"}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
+    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP", "236]HP[", "[1] > ]HP[ > 5MK"}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
+    CHECK(ParseSteps("5LP > 236]HP[", steps, error) && ParseSteps("[1] > [HP]", steps, error));
     CHECK(!ParseSteps("2MK xx", steps, error));
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
@@ -238,6 +239,9 @@ int main() {
             // holds through the frames up to the move.
             for (const char* line : {"5MK#45", "[1] > 3HP#45", "[2]30f > [1] > 3HP#45", "5LP > 5MK > 2HP#40", "2LP > xx 236P > 5HP#80"})
                 CHECK(!Synthesize(Steps(line), true, compiled, error) && compiled.frames.empty() && !error.empty());
+            // A later "#N" move's "@N" counts from its frame; the first move's is the reply's.
+            CHECK(Synthesize(Steps("[2]2f > 5LP#10@+2 > 5MK#30@-3"), true, compiled, error) && compiled.offset == 2 && compiled.frames[10].raw == LP &&
+                compiled.frames[27].raw == MK && compiled.frames[9].raw == 0);
             for (const char* line : {"5LP > [4] > 3HP#60", "5LP > [4] > 623HP#60"}) {
                 CHECK(Synthesize(Steps(line), true, compiled, error));
                 const auto& frames = compiled.frames;
