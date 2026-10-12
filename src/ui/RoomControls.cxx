@@ -37,9 +37,7 @@ std::string ReadyBlocker(const ShellView& v, const room::Table& t) {
     return v.selectionError;
 }
 }
-bool GameLive(const ShellView& v) {
-    return v.session.match == netplay::MatchState::Preparing || v.session.match == netplay::MatchState::Playing;
-}
+bool GameLive(const ShellView& v) { return netplay::Fighting(v.session.match); }
 bool PostMatch(const ShellView& v) { return v.session.match == netplay::MatchState::PostMatch; }
 const char* LeaveBlockerKey(room::SeatHold hold) {
     switch (hold) {
@@ -113,6 +111,12 @@ PlaceExit ExitFromPlace(const ShellView& v) {
 }
 bool OnOwnPlace(const PlaceExit& place, const std::string& focus) {
     return place.table >= 0 && focus == "table-" + std::to_string(place.table);
+}
+AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t) {
+    const auto place = room::PlaceOf(v.room, v.room.localMember);
+    if (place.kind != room::Place::Kind::Seat || place.table != static_cast<int>(t.id)) return AbandonableGame::None;
+    if (t.phase == room::TablePhase::Paused) return AbandonableGame::Unresolved;
+    return t.phase == room::TablePhase::Playing && v.practiceFight ? AbandonableGame::Practice : AbandonableGame::None;
 }
 bool LeaveBlocked(const ShellView& v) {
     const auto exit = ExitFromPlace(v);

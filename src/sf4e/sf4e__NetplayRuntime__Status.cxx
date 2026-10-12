@@ -1,6 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "../netplay/PublishCadence.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -265,11 +266,19 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
     }
 }
 
-// Publish() deep-copies the room snapshot, preferences and member list. In a
-// menu it must run every tick (it samples the menu controller), but during a
-// fight nothing reads the snapshot except the match HUD and input fault
-// check, so republish only when an input to it changed, or every sixth tick
-// as a backstop for anything the fingerprint does not cover.
+// Where the game is for Ember's menu (input::MenuContext): what Publish
+// says, and what PublishThrottled schedules by.
+input::MenuContext MenuContextNow(bool atMainMenu) {
+    // A Practice match is this PC's to end only while it fights in it, under rollback.
+    const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
+    return atMainMenu ? input::MenuContext::MainMenu :
+        training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
+        replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
+        practiceFight ? input::MenuContext::PracticeMatch : input::MenuContext::Unavailable;
+}
+
+// What a throttled fight republishes on (netplay::PublishCadence): every input
+// to the snapshot the match HUD and the input fault check read.
 std::uint64_t PublishFingerprint() {
     std::uint64_t h = 1469598103934665603ULL;
     const auto mix = [&](std::uint64_t v) { h ^= v; h *= 1099511628211ULL; };
@@ -392,6 +401,7 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
+	snapshot.practiceMatch = training::MatchPracticeActive();
 	const replaystore::Status& replays = replaystore::GetStatus();
 	snapshot.replays.ready = snapshot.atMainMenu && replays.step == replaystore::Step::Idle && replaystore::Ready();
 	snapshot.replays.notice = replays.notice; snapshot.replays.noticeError = replays.noticeError;
@@ -409,15 +419,13 @@ PostPublishState Publish() {
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
-    snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
-        training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
-        snapshot.replays.exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport : input::MenuContext::Unavailable;
+    snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
-        snapshot.session.match != netplay::MatchState::Preparing && snapshot.session.match != netplay::MatchState::Playing) {
+        !input::FightKeepsMenuAway(netplay::Fighting(snapshot.session.match), snapshot.menuContext)) {
         auto& sample = snapshot.menuController;
         sample.deviceType = snapshot.inputDevice.type;
         sample.deviceIndex = snapshot.inputDevice.index;
@@ -482,18 +490,10 @@ PostPublishState Publish() {
 
 PostPublishState PublishThrottled() {
     static PostPublishState cached;
-    static std::uint64_t fingerprint = 0;
-    static unsigned ticksSincePublish = 0;
-    if (!Game::Battle::System::ggpo) {
-        fingerprint = 0; ticksSincePublish = 0;
-        cached = Publish();
-        return cached;
-    }
-    const auto now = PublishFingerprint();
-    if (now != fingerprint || ++ticksSincePublish >= 6) {
-        fingerprint = now; ticksSincePublish = 0;
-        cached = Publish();
-    }
+    static netplay::PublishCadence cadence;
+    // Every tick where the pad drives Ember's menu, since the snapshot carries its sample.
+    const bool padDrivesMenu = !Game::Battle::System::ggpo || input::ControllerMenuAvailable(MenuContextNow(AtMainMenu()));
+    if (cadence.Due(padDrivesMenu, PublishFingerprint)) cached = Publish();
     return cached;
 }
 

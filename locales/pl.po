@@ -1443,6 +1443,9 @@ msgstr "Sprawdź przytrzymywane przyciski obu graczy."
 msgid "training.match.checkpoint_disabled"
 msgstr "Wspólny zapis i przywracanie pozycji nie są dostępne w meczach z rollbackiem."
 
+msgid "training.match.end_hint"
+msgstr "Start lub F10 otwiera Ember, gdzie Zakończ trening kończy tę walkę."
+
 msgid "training.invalid"
 msgstr "Nie przyjęto: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Porzuć walkę"
 
 msgid "room.abandon_result.detail"
 msgstr "Wynik nie zostanie zapisany. Obaj gracze pozostaną przy stole i mogą ponownie zgłosić gotowość."
+
+msgid "room.end_practice"
+msgstr "Zakończ trening"
+
+msgid "room.end_practice.detail"
+msgstr "Kończy ten mecz treningowy od razu dla obu graczy. Wynik nie zostanie zapisany. Obaj gracze pozostaną przy stole i mogą ponownie zgłosić gotowość."
 
 msgid "room.leave_queue"
 msgstr "Opuść kolejkę"

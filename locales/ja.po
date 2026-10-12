@@ -1443,6 +1443,9 @@ msgstr "各プレイヤーが押しているボタンを確認します。"
 msgid "training.match.checkpoint_disabled"
 msgstr "ロールバック対戦では、共有の位置保存と位置リセットは使用できません。"
 
+msgid "training.match.end_hint"
+msgstr "StartかF10でEmberを開き、「練習を終了」でこの対戦を終了できます。"
+
 msgid "training.invalid"
 msgstr "受け付けられません：{0}"
 
@@ -2732,6 +2735,12 @@ msgstr "未確定の対戦を破棄"
 
 msgid "room.abandon_result.detail"
 msgstr "結果は記録されません。両者は着席したままで、再び準備完了にできます。"
+
+msgid "room.end_practice"
+msgstr "練習を終了"
+
+msgid "room.end_practice.detail"
+msgstr "この練習対戦を両者とも今すぐ終了します。結果は記録されません。両者は着席したままで、再び準備完了にできます。"
 
 msgid "room.leave_queue"
 msgstr "順番待ちをやめる"

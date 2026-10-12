@@ -1,5 +1,6 @@
 #pragma once
 #include "PlayerPreferences.hxx"
+#include <cstdint>
 #include <nlohmann/json.hpp>
 
 namespace sf4e { namespace netplay {
@@ -8,38 +9,47 @@ namespace sf4e { namespace netplay {
 // battle preferences; decoding is transactional so malformed data stays intact.
 // A public room's rules are kept apart, under "publicRules"; missing, they are
 // the public default.
+// One set of table rules, whole: ReadTableRules reads it back.
+inline nlohmann::json TableRulesJson(const room::Rules& rules) {
+    return {{"format", static_cast<int>(rules.format)}, {"rotation", static_cast<int>(rules.rotation)},
+        {"editionSelect", rules.editionSelect}, {"roundCount", rules.roundCount}, {"roundTime", rules.roundTime},
+        {"training", rules.training}, {"timeBeforePractice", rules.timeBeforePractice}};
+}
+// The private room's rules sit beside the room's own fields, the public room's under "publicRules".
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
-    const auto& open = value.publicTableRules;
-    return {{"name", value.roomName}, {"capacity", value.roomCapacity}, {"public", value.roomPublic},
-        {"format", static_cast<int>(value.tableRules.format)},
-        {"rotation", static_cast<int>(value.tableRules.rotation)},
-        {"editionSelect", value.tableRules.editionSelect},
-        {"roundCount", value.tableRules.roundCount}, {"roundTime", value.tableRules.roundTime},
-        {"training", value.tableRules.training},
-        {"publicRules", {{"format", static_cast<int>(open.format)}, {"rotation", static_cast<int>(open.rotation)},
-            {"editionSelect", open.editionSelect}, {"roundCount", open.roundCount}, {"roundTime", open.roundTime}}}};
+    auto json = TableRulesJson(value.tableRules);
+    json["name"] = value.roomName; json["capacity"] = value.roomCapacity; json["public"] = value.roomPublic;
+    json["publicRules"] = TableRulesJson(value.publicTableRules);
+    return json;
 }
 
 // One set of table rules from a roomDefaults object, over `rules`; false when
-// a value is the wrong type or out of range.
+// a value is the wrong type or the rules are not valid (room::Rules::Valid).
 inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
-    for (const char* key : {"format", "rotation", "roundCount", "roundTime"})
+    for (const char* key : {"format", "rotation", "roundCount", "roundTime", "timeBeforePractice"})
         if (object.contains(key) && !object[key].is_number_integer()) return false;
     for (const char* key : {"editionSelect", "training"})
         if (object.contains(key) && !object[key].is_boolean()) return false;
-    const auto format = object.value("format", static_cast<std::int64_t>(rules.format));
-    const auto rotation = object.value("rotation", static_cast<std::int64_t>(rules.rotation));
-    if (!room::ValidSetFormat(format) || rotation < 0 || rotation > 2) return false;
-    const auto rounds = object.value("roundCount", static_cast<std::int64_t>(rules.roundCount));
-    const auto time = object.value("roundTime", static_cast<std::int64_t>(rules.roundTime));
-    if (rounds < 1 || rounds > 99 || time < 30 || time > 9999) return false;
+    const auto number = [&](const char* key, std::int64_t current, std::int64_t largest, std::int64_t& read) {
+        read = object.value(key, current);
+        return read >= 0 && read <= largest;
+    };
+    // The bounds only keep the casts exact; Valid says what a table offers.
+    // A missing key keeps the value read over, so defaults saved before the
+    // time before Practice was kept read with none.
+    std::int64_t format = 0, rotation = 0, rounds = 0, time = 0, before = 0;
+    if (!number("format", static_cast<std::int64_t>(rules.format), UINT8_MAX, format) ||
+        !number("rotation", static_cast<std::int64_t>(rules.rotation), UINT8_MAX, rotation) ||
+        !number("roundCount", rules.roundCount, UINT8_MAX, rounds) || !number("roundTime", rules.roundTime, UINT16_MAX, time) ||
+        !number("timeBeforePractice", rules.timeBeforePractice, UINT16_MAX, before)) return false;
     rules.format = static_cast<room::SetFormat>(format);
     rules.rotation = static_cast<room::RotationMode>(rotation);
     rules.roundCount = static_cast<std::uint8_t>(rounds);
     rules.roundTime = static_cast<std::uint16_t>(time);
+    rules.timeBeforePractice = static_cast<std::uint16_t>(before);
     rules.editionSelect = object.value("editionSelect", rules.editionSelect);
     rules.training = object.value("training", rules.training);
-    return true;
+    return rules.Valid();
 }
 
 inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreferences& value) {

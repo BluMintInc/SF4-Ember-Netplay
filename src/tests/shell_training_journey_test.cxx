@@ -159,9 +159,11 @@ void TrainingInRoom() {
  Check(std::string(ui::GoNowGlyph(input::PadXInput))=="View","An Xbox pad was not offered View");
  Check(std::string(ui::GoNowGlyph(input::PadDirectInput))=="Enter","A DirectInput pad was offered a pad button");
  Check(std::string(ui::GoNowGlyph(input::PadKeyboard))=="Enter","A keyboard player was offered a pad button");
- // Practice match takes the longest round time with it; off, the time stays.
+ // Practice match takes the longest round time with it; off gives back the
+ // time from before it, whatever was chosen while it was on.
  {
-  room::Rules rules;rules.roundTime=99;
+  using room::PracticeRoundTime;
+  room::Rules rules;rules.roundTime=60;
   MenuAction adjust;adjust.kind=MenuAction::Adjust;adjust.id="training";adjust.delta=1;
   Check(AdjustRule(rules,adjust)&&rules.training&&rules.roundTime==PracticeRoundTime,"Practice match did not set round time 9999");
   rules.roundTime=300;
@@ -170,10 +172,13 @@ void TrainingInRoom() {
    return *std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="time";});};
   Check(time().detail==Tf("rules.round_time.practice",PracticeRoundTime)+"\nApplies on Apply rules.","A short Practice match time was not pointed out");
   adjust.delta=-1;
-  Check(AdjustRule(rules,adjust)&&!rules.training&&rules.roundTime==300,"Turning Practice match off changed the round time");
+  Check(AdjustRule(rules,adjust)&&!rules.training&&rules.roundTime==60&&!rules.timeBeforePractice,"Turning Practice match off did not give back the round time from before");
   Check(time().detail=="Applies on Apply rules.","A plain table's round time was told about Practice match");
+  // Off again changes nothing; rules from before the time was kept fall back to the default.
+  Check(AdjustRule(rules,adjust)&&rules.roundTime==60,"Turning Practice match off twice changed the round time");
   rules.training=true;rules.roundTime=PracticeRoundTime;
   Check(time().detail=="Applies on Apply rules.","Round time 9999 was still pointed out");
+  Check(AdjustRule(rules,adjust)&&rules.roundTime==room::DefaultRoundTime,"Practice match kept without a time from before stayed endless when turned off");
  }
 }
 void TrainingJourneys() {

@@ -1443,6 +1443,9 @@ msgstr "Consulta los comandos de cada jugador."
 msgid "training.match.checkpoint_disabled"
 msgstr "El guardado y restablecimiento compartidos de la posición no están disponibles en partidas con rollback."
 
+msgid "training.match.end_hint"
+msgstr "Start o F10 abre Ember, donde Terminar práctica termina esta partida."
+
 msgid "training.invalid"
 msgstr "No aceptado: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Abandonar partida pendiente"
 
 msgid "room.abandon_result.detail"
 msgstr "No se registrará resultado. Ambos jugadores conservarán el asiento y podrán marcar Listo."
+
+msgid "room.end_practice"
+msgstr "Terminar práctica"
+
+msgid "room.end_practice.detail"
+msgstr "Termina esta partida de práctica ahora para ambos jugadores. No se registrará resultado. Ambos jugadores conservarán el asiento y podrán marcar Listo."
 
 msgid "room.leave_queue"
 msgstr "Salir de la cola"

@@ -99,9 +99,9 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
 
-A game under the rule ends when the round time runs out or a fighter leaves the seat, so turning the rule on sets the round time to 9999; the Round time row points it out if the host shortens it again. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
+Nobody is knocked out, so turning the rule on sets the longest round time, 9999, and the game does not end on its own while you practise; the Round time row points it out if the host shortens it. To end the game, either fighter presses Start or F10 during the fight: Ember opens on the room board at **End practice**, and confirming it ends the game for both with no result. Both stay seated and can ready again. While Ember is open over the fight your fighter stands still; closing Ember (B back to Home and B again, or F10) returns you to the fight. The match HUD names those keys. Leaving the room also ends the game. Turning the rule off gives back the round time the table had before it was turned on. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
 
-There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
+There is no dummy and no recording at such a table: the other player is the dummy. A Practice match always shows the frame meter, to both players and everyone watching, whether **Frame meter in matches** is on or off; a public room still never shows it.
 
 ### Opt-in frame-meter capture
 

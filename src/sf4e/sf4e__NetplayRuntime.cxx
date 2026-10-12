@@ -375,7 +375,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
 		command.reportSubmission.comment.size() > 8000 ||
-		(command.createdRules && !netplay::PlayerPreferences::ValidRules(*command.createdRules))) return false;
+		(command.createdRules && !command.createdRules->Valid())) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
 		return bridge::PushCommand(std::move(command), bytes);

@@ -801,7 +801,6 @@ private:
 	static bool FightersOutstanding(const TerminalReceipt& receipt);
 	bool HasOutstandingTerminalReceipt(std::uint8_t table) const;
 	bool HasOutstandingTerminalReceiptForMember(MemberId member) const;
-	bool ValidRules(const Rules& rules) const;
 	bool ValidTable(std::uint8_t table) const;
 	// Server-owned rules, in RoomModelServerOwned.cxx. Join's account checks,
 	// the departure of the last member, and the checkpoint's account fields.

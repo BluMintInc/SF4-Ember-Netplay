@@ -1443,6 +1443,9 @@ msgstr "Voir les commandes maintenues par joueur."
 msgid "training.match.checkpoint_disabled"
 msgstr "L'enregistrement et le rétablissement partagés de la position ne sont pas disponibles dans les matchs à rollback."
 
+msgid "training.match.end_hint"
+msgstr "Start ou F10 ouvre Ember, où Finir l'entraînement termine ce combat."
+
 msgid "training.invalid"
 msgstr "Refusé : {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Abandonner sans résultat"
 
 msgid "room.abandon_result.detail"
 msgstr "Aucun résultat enregistré. Les deux combattants restent à leur place et peuvent repasser à Prêt."
+
+msgid "room.end_practice"
+msgstr "Finir l'entraînement"
+
+msgid "room.end_practice.detail"
+msgstr "Termine ce match d'entraînement tout de suite pour les deux combattants. Aucun résultat enregistré. Les deux combattants restent à leur place et peuvent repasser à Prêt."
 
 msgid "room.leave_queue"
 msgstr "Quitter la file"

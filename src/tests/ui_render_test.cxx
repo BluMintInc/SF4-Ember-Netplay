@@ -602,6 +602,7 @@ int main(int argc, char** argv) {
                     else if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
+                        if(mode==9)DrawMatchPracticeNotice();
                     }
                     if(overlayTooltip) {
                         ImGui::Begin("Open window tooltip");ImGui::TextUnformatted("Detail");
@@ -821,6 +822,10 @@ int main(int argc, char** argv) {
             Require(!shell.NoticeOpen(),"The opponent's new fighter opened a modal notice");
             view.opponentChangedFighter=-1;
             // The opponent waits in Training and is being called back.
+            // A fighter's own Practice match: Ember over the fight offers End practice on the board.
+            view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;view.practiceFight=true;
+            page("room");draw("room-practice-fight");
+            view.practiceFight=false;view.session.match=netplay::MatchState::None;view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
@@ -1002,6 +1007,11 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
+            // A Practice match's notice: no shared reset there, and how a fighter ends the game.
+            mode=9;draw("match-practice-notice");
+            const auto* practiceNotice=FindWindow("Match practice keys");
+            Require(WindowDrawn("Match practice keys")&&practiceNotice->Pos.x>=0&&practiceNotice->Pos.x+practiceNotice->Size.x<=size.w&&
+                practiceNotice->Pos.y+practiceNotice->Size.y<=size.h,"The Practice match notice left the screen");
             // The crash report's offer (ui_render_reports.hxx), then the launch window and the updater (ui_render_updates.hxx).
             mode=4;ShootCrashReportOffer(recoveryMenu,recoveryState,recoveryReport,recoveryMessage,draw);
             ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);

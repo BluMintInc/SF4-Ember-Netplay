@@ -1443,6 +1443,9 @@ msgstr "Comandi premuti da ogni giocatore."
 msgid "training.match.checkpoint_disabled"
 msgstr "Il salvataggio e il ripristino condivisi della posizione non sono disponibili nelle partite con rollback."
 
+msgid "training.match.end_hint"
+msgstr "Start o F10 apre Ember, dove Termina pratica chiude questa partita."
+
 msgid "training.invalid"
 msgstr "Non accettato: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Abbandona partita irrisolta"
 
 msgid "room.abandon_result.detail"
 msgstr "Nessun risultato sarà registrato. Entrambi restano seduti e possono rimettersi pronti."
+
+msgid "room.end_practice"
+msgstr "Termina pratica"
+
+msgid "room.end_practice.detail"
+msgstr "Termina subito questa partita di pratica per entrambi. Nessun risultato sarà registrato. Entrambi restano seduti e possono rimettersi pronti."
 
 msgid "room.leave_queue"
 msgstr "Esci dalla coda"

@@ -112,6 +112,9 @@ struct ShellView {
     int trainingReadySeconds = 0;
     bool canTrain = false;
     int selectedFighter = 0;
+    // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
+    // Ember's menu is open over the fight, and End practice ends the game.
+    bool practiceFight = false;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -402,6 +405,8 @@ private:
     // that arrived while the player was free joins by itself, for as long
     // as the runtime offers that.
     std::uint64_t joinLinkSeen_=0;
+    // Ember was hidden on the last frame (Background): the next drawn one opens it.
+    bool hidden_=true;
     // The training call's sequences as last acted on.
     std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;

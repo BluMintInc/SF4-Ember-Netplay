@@ -114,7 +114,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
     if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch) && localSeated) return false;
-    if (action.kind == room::ActionKind::AbortMatch && (!localSeated || table.phase != room::TablePhase::Paused)) return false;
+    if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
         // The same rule B and the Leave seat row read.
         const auto hold = room::LeavingSeatHold(table, mine.seat, GameLive(view), PostMatch(view));
@@ -213,6 +213,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     if(!leaveAsked_){if(nav.Ask("table-"+std::to_string(leaveAsk_),rows))leaveAsked_=true;else leaveAsk_=-1;}
     else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
    }
+   // Over a Practice match it fights in, a fighter can end the game.
+   if(mine.kind==Place::Kind::Seat&&AbandonableAt(v,s.tables[mine.table])==AbandonableGame::Practice)
+    rows.push_back(ConfirmRow("end-practice",loc::T("room.end_practice"),loc::T("room.end_practice.detail"),mutableRoom));
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
@@ -327,7 +330,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     }
     // The authority accepts AbortMatch from either fighter. Offer it only once
     // the result is Paused, so a fighter can never cut a live game short.
-    if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
+    if(AbandonableAt(v,t)==AbandonableGame::Unresolved)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
      loc::T("room.abandon_result.detail"),mutableRoom));
    }else{
     SelectionRows(rows,v);
@@ -852,6 +855,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(a.id=="options"){OpenTableOptions(v,OptionsTable(v,selectedTable_));return;}
+ // End practice is about the member's own table, wherever the board's focus is.
+ if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
  if(a.id=="leave-place"){
   const auto exit=ExitFromPlace(v);if(exit.table<0)return;
   selectedTable_=exit.table;
@@ -925,7 +930,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}
  else if(a.id=="cancel-result")request.kind=ActionKind::CancelResult;
- else if(a.id=="abandon-result")request.kind=ActionKind::AbortMatch;
+ else if(a.id=="abandon-result"||a.id=="end-practice")request.kind=ActionKind::AbortMatch;
  else if(a.id=="apply-rules"){
   // Applying clears Ready, so rules equal to the table's are never sent.
   if(tableRules_==v.room.tables[selectedTable_].rules){rulesDirty_=false;return;}

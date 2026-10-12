@@ -1443,6 +1443,9 @@ msgstr "Prohlédněte si držené vstupy obou hráčů."
 msgid "training.match.checkpoint_disabled"
 msgstr "Společné uložení a obnovení pozice není v zápasech s rollbackem k dispozici."
 
+msgid "training.match.end_hint"
+msgstr "Start nebo F10 otevře Ember, kde tuto hru ukončí volba Ukončit trénink."
+
 msgid "training.invalid"
 msgstr "Nepřijato: {0}"
 
@@ -2732,6 +2735,12 @@ msgstr "Vzdát nevyřešený zápas"
 
 msgid "room.abandon_result.detail"
 msgstr "Výsledek se nezaznamená. Oba hráči zůstanou u stolu a mohou se znovu připravit."
+
+msgid "room.end_practice"
+msgstr "Ukončit trénink"
+
+msgid "room.end_practice.detail"
+msgstr "Ukončí tento cvičný zápas hned pro oba hráče. Výsledek se nezaznamená. Oba hráči zůstanou u stolu a mohou se znovu připravit."
 
 msgid "room.leave_queue"
 msgstr "Opustit frontu"

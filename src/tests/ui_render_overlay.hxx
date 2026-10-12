@@ -43,6 +43,9 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
             Require(foreground()==passive,"Open window or native pause did not gate the match strip or split HUD");
             Require(!WindowDrawn("Match notice"),"Suppressed ordinary telemetry became a standalone alert");
         }
+        // The Ember shortcut never covers a fight's timer, even where the menu opens over it.
+        reset();layers.matchActive=layers.shellAvailable=true;draw();
+        Require(!WindowDrawn("Ember shortcut"),"The Ember shortcut was drawn over a fight");
         reset();training.leavingIn=120;layers.challenger.called=true;layers.challenger.opponent="Opponent";draw();
         Require(foreground(),"Open window or native pause hid challenger banner");
         // The banner is the call's: a countdown with no call standing draws none.

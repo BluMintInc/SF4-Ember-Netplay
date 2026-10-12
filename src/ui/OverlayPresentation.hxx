@@ -15,16 +15,21 @@ inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bo
 // capture input; rendering never changes session or simulation state.
 class OverlayPresentation {
 public:
-    void Update(bool atMenu, netplay::MatchState match, bool offline, bool focused) {
+    // context: where the game is (input::MenuContext). The menu is shown at
+    // the main menu, over an export and over a Practice match this PC fights.
+    void Update(input::MenuContext context, netplay::MatchState match, bool offline, bool focused) {
         reopened_ = false;
-        const bool fighting = match == netplay::MatchState::Preparing || match == netplay::MatchState::Playing;
+        const bool atMenu = input::MenuShownIn(context);
+        const bool fighting = input::FightKeepsMenuAway(netplay::Fighting(match), context);
         if (match == netplay::MatchState::PostMatch && previousMatch_ != match) reopen_ = true;
         if (offline && !previousOffline_) requested_ = false;
         if (fighting) requested_ = false;
         // The native foreground query drops for a frame or two during menu
         // transitions. Hiding the shell on each drop re-armed every input gate
         // and strobed the room controls, so availability falls only after a
-        // sustained absence. A fight or Play Offline still hides immediately.
+        // sustained absence. A fight or Play Offline still hides immediately,
+        // and so does a Practice match's end, once the fight is no longer one
+        // the menu is shown over.
         awayFrames_ = atMenu ? 0 : awayFrames_ + 1;
         available_ = !fighting && (atMenu || (available_ && awayFrames_ < AwayFrames));
         focused_ = focused;
@@ -59,8 +64,10 @@ private:
 // Network item its Play page; opens before the next frame coalesce, and Play
 // outranks Controls) and says, first in each pad update, where the game is.
 // The menu may hold the pads only where the presentation is available: never
-// while a match is prepared or played, nor after it until the game is back
-// at the main menu or over an export, and elsewhere only for AwayFrames,
+// while a match is prepared or played (but for a Practice match this PC
+// fights, whose fighter gives the game neutral input while the menu is
+// open), nor after it until the game is back at the main menu or over an
+// export, and elsewhere only for AwayFrames,
 // which ride out the native menu's brief drops. So what the drawing thread
 // last published never holds the pads once the menu has gone, even with no
 // frame drawn to say it hid.
@@ -81,10 +88,11 @@ public:
     }
     void Place(input::MenuContext context, bool fighting) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (fighting) away_ = OverlayPresentation::AwayFrames;
-        else if (context == input::MenuContext::MainMenu || context == input::MenuContext::ReplayExport) away_ = 0;
+        const bool away = input::FightKeepsMenuAway(fighting, context);
+        if (away) away_ = OverlayPresentation::AwayFrames;
+        else if (input::MenuShownIn(context)) away_ = 0;
         else if (away_ < OverlayPresentation::AwayFrames) ++away_;
-        startOpens_ = !fighting && input::ControllerOpensMenu(context);
+        startOpens_ = !away && input::ControllerOpensMenu(context);
     }
     // Start opens the menu where the game was last placed.
     bool StartOpens() const { std::lock_guard<std::mutex> lock(mutex_); return startOpens_; }

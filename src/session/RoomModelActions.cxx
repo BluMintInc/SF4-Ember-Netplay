@@ -127,7 +127,7 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
-	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Ready || table->phase == TablePhase::Paused || !ValidRules(action.rules)) return Reject(RejectReason::InvalidRules);
+	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Ready || table->phase == TablePhase::Paused || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	// A different set length or rotation starts a new set. Round count, time and
 	// edition apply from the next game and keep the score.
 	const bool newSet = action.rules.format != table->rules.format || action.rules.rotation != table->rules.rotation;

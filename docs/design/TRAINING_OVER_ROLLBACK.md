@@ -109,8 +109,14 @@ version is unchanged.
 
 - **Reset.** There is no shared position save/reset (step 3 below).
 - **End.** Nobody is knocked out, so a game ends when the round time runs out
-  or a fighter leaves. The result of a timed-out game is reported and scored
-  as any game is. The rule's text tells the host to set a long round time.
+  (turning the rule on sets the longest, 9999) or a fighter ends it. The
+  result of a timed-out game is reported and scored as any game is. A
+  fighter ends it with End practice: Start or F10 opens Ember over the
+  fight (`input::MenuContext::PracticeMatch`, from the rule as fixed when
+  the battle was prepared), and the row sends the room's `AbortMatch` for
+  the live generation. The room ends the game with no result and both
+  members tear it down from its `MatchEnded`. Turning the rule off gives
+  back the round time it replaced (`Rules::timeBeforePractice`).
 - **Public rooms.** The room server is built from the same sources and needs
   rebuilding to keep the rule; until then it drops the unknown field and the
   table plays as a match.
@@ -157,9 +163,10 @@ or verify. A drill partner is the other player.
 
 1. **A frame meter in real matches.** Step 1 shows frame data during play,
    to one player, about both. It gives no information the game hides, but it
-   is a training aid in a match. It can be kept to spectators, or to tables
-   under the Training rule; each is one condition where the
-   setting is read.
+   is a training aid in a match. Decided: it stays the player's setting in
+   private rooms, and a game under the Training rule always shows it
+   (`match_frame_meter::Wanted`, from the rule as fixed when the battle was
+   prepared). A public room never shows it.
 2. **Results at a training table.** A timed-out game is scored like any
    other. A table under the rule could report no result and count in no set;
    that is a change to the authority and was left out.

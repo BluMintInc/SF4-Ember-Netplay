@@ -130,7 +130,7 @@ int main() {
     // repro, followed by the same visibility policy and F10 edge as DrawOverlay.
     const auto keyboardOpen = [&] {
         sf4e::ui::OverlayPresentation menu;
-        menu.Update(true, sf4e::netplay::MatchState::None, false, Overlay::HasInputFocus());
+        menu.Update(sf4e::input::MenuContext::MainMenu, sf4e::netplay::MatchState::None, false, Overlay::HasInputFocus());
         menu.Close();
         Overlay::OverlayWindowFunc(window, WM_SYSKEYDOWN, VK_F10, 0);
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();

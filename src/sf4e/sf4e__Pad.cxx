@@ -60,10 +60,8 @@ void fSystem::UpdateInputs() {
     const auto& snapshot=*sharedSnapshot;
     // Where Ember's menu may hold the pads follows where the game is now,
     // whatever the drawing thread last published (ui::MenuPads).
-    const bool fighting=snapshot.session.match==sf4e::netplay::MatchState::Preparing||
-        snapshot.session.match==sf4e::netplay::MatchState::Playing;
     auto& menuPads=sf4e::Overlay::MenuPads();
-    menuPads.Place(snapshot.menuContext,fighting);
+    menuPads.Place(snapshot.menuContext,sf4e::netplay::Fighting(snapshot.session.match));
     // A replay exported as a video, and a room's match this PC only watches,
     // run on behind another window whatever the player's setting says. Ember's
     // menu reads the pads there too, while it holds them and where Start opens
@@ -87,11 +85,13 @@ void fSystem::UpdateInputs() {
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
     constexpr unsigned PhysicalStart=sf4e::input::NativeStart;
     const bool focused=focus.focused;
-    // Start opens Ember at the main menu with the window in front or behind:
-    // the pads are polled there for it.
+    // Start opens Ember at the main menu, and over a Practice match this PC
+    // fights in, with the window in front or behind: the pads are polled
+    // there for it. The request holds the pads at once, so the press is
+    // cleared below before the game or the fight reads it.
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
-    if(!connected||!snapshot.atMainMenu||snapshot.inputCapture!=sf4e::input::Capture::Idle||
+    if(!connected||!sf4e::input::ControllerOpensMenu(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||
         ownerType!=device.type||ownerIndex!=device.index) mainArmed=false;
     else if(!physical)mainArmed=true;
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {

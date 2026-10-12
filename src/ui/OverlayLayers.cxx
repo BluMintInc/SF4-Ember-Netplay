@@ -20,7 +20,9 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::TextUnformatted(loc::T(key)); ImGui::End();
     };
-    if (passive && view.shellAvailable) hint("Ember shortcut", "runtime.open_shortcut", 12);
+    // Never over a fight, where it would cover the timer; a Practice match's
+    // own notice names the keys there.
+    if (passive && view.shellAvailable && !view.matchActive) hint("Ember shortcut", "runtime.open_shortcut", 12);
     if (passive && view.matchWaitsForMenu) hint("Ember match waiting", "runtime.return_menu_to_join", 44);
     if (view.captionShown) DrawExportCaption(view.caption);
     // A replay has no GGPO session, so its meter is drawn here, not with the

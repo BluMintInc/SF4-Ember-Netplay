@@ -12,7 +12,7 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 		? std::move(name) : std::string("Private room");
 	snapshot_.capacity = InRange<std::uint8_t>(capacity, 2, static_cast<std::uint8_t>(MaximumMembers))
 		? capacity : static_cast<std::uint8_t>(MaximumMembers);
-	if (!ValidRules(defaults)) defaults = Rules();
+	if (!defaults.Valid()) defaults = Rules();
 	for (std::size_t i = 0; i < TableCount; ++i) { snapshot_.tables[i].id = static_cast<std::uint8_t>(i); snapshot_.tables[i].rules = defaults; }
 }
 
@@ -352,16 +352,6 @@ bool RoomAuthority::HasOutstandingTerminalReceiptForMember(MemberId member) cons
 			return !receipt.acknowledged && std::any_of(receipt.recipients.begin(), receipt.recipients.end(),
 				[&](const TerminalRecipient& recipient) { return recipient.member == member && !recipient.acknowledged; });
 		});
-}
-
-bool RoomAuthority::ValidRules(const Rules& rules) const {
-	const auto format = static_cast<std::uint8_t>(rules.format);
-	const bool validRounds = rules.roundCount == 1 || rules.roundCount == 3 || rules.roundCount == 5 ||
-		rules.roundCount == 7 || rules.roundCount == 15 || rules.roundCount == 99;
-	const bool validTime = rules.roundTime == 30 || rules.roundTime == 60 || rules.roundTime == 99 ||
-		rules.roundTime == 300 || rules.roundTime == 9999;
-	return ValidSetFormat(format) &&
-		static_cast<std::uint8_t>(rules.rotation) <= static_cast<std::uint8_t>(RotationMode::BothRotate) && validRounds && validTime;
 }
 
 Result RoomAuthority::Reject(RejectReason reason) {

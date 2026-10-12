@@ -56,6 +56,13 @@ PlaceExit ExitFromPlace(const ShellView& v);
 // The board's focus is on the card of the table where the member has a place.
 bool OnOwnPlace(const PlaceExit& place, const std::string& focus);
 bool LeaveBlocked(const ShellView& v);
+// The game at the member's own table that its fighter may end with no result
+// (AbortMatch): an unresolved one (Abandon unresolved game), or a Practice
+// match this PC fights in (End practice), which otherwise ends only when its
+// round time runs out. A live game of any other kind is never cut short by
+// its own fighter. The rows that offer it and dispatch read this one answer.
+enum class AbandonableGame { None, Unresolved, Practice };
+AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t);
 // The sentences a confirmed departure states, one per thing it gives up.
 std::string LeavingCostText(const room::LeavingCost& cost, const room::Table& t);
 // The Ready control, described once for the board (card strip and legend),

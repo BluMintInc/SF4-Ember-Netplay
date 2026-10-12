@@ -9,8 +9,8 @@ struct HWND__;
 // With or without the setting, a replay being exported as a video keeps
 // playing and keeps its sound while the window is behind or minimized, and
 // a room's match this PC only watches keeps playing there too. Ember's menu
-// keeps the pads behind another window too, while it is shown and at the
-// main menu, where Start opens it, and so does go now while a call back from
+// keeps the pads behind another window too, while it is shown and where
+// Start opens it (the main menu, a Practice match this PC fights), and so does go now while a call back from
 // Training offers it; without the setting the game is given none of them there.
 namespace sf4e {
 	namespace BackgroundPlay {
