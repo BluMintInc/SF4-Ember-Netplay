@@ -1,6 +1,8 @@
 // Real GGPO, synthetic state: this does not exercise USFIV's mementos or renderer.
 // Arguments: P1 delay, P2 delay, one-way ms, jitter ms, drop every N, frames,
 // input hold frames, corrupt restore (negative control). Both peers tick at 60 Hz.
+// Exit 0 means the run did what it was asked: matching digests, or, for the
+// control, a corrupt restore that was detected.
 #include <winsock2.h>
 #include <windows.h>
 #include <mmsystem.h>
@@ -177,13 +179,18 @@ int main(int argc, char** argv) {
             for (int side = 0; side < 2; ++side) inputs[side] = frame < delays[side] ? 0 : Input(frame - delays[side], side, hold);
             Mix(oracle, inputs);
         }
-        passed = confirmed[0] >= frames - 1 && confirmed[1] >= frames - 1 &&
-            peers[0].state.digest == oracle.digest && peers[1].state.digest == oracle.digest;
+        const bool confirmedAll = confirmed[0] >= frames - 1 && confirmed[1] >= frames - 1;
+        const bool digestsMatch = peers[0].state.digest == oracle.digest && peers[1].state.digest == oracle.digest;
+        // The control passes only when the corruption was seen for the right
+        // reason: both peers confirmed every frame, a restore really ran, and
+        // the digests then disagree with the oracle. A run that never finished
+        // confirming, or never rolled back, proves nothing about the check.
+        passed = corruptRestore ? confirmedAll && peers[0].loads + peers[1].loads > 0 && !digestsMatch : confirmedAll && digestsMatch;
         std::printf("{\"passed\":%s,\"native_gameplay\":false,\"delays\":[%d,%d],\"one_way_ms\":%d,\"jitter_ms\":%d,"
             "\"drop_every\":%d,\"frames\":%d,\"hold\":%d,\"corrupt_restore\":%s,\"ticks\":%d,\"overruns\":%d,"
-            "\"elapsed_ms\":%lld,\"received\":%u,\"dropped\":%u,\"oracle\":\"%llu\",\"peers\":[",
+            "\"confirmed_all\":%s,\"digests_match\":%s,\"elapsed_ms\":%lld,\"received\":%u,\"dropped\":%u,\"oracle\":\"%llu\",\"peers\":[",
             passed ? "true" : "false", delays[0], delays[1], latency, jitter, drop, frames, hold,
-            corruptRestore ? "true" : "false", ticks, overruns,
+            corruptRestore ? "true" : "false", ticks, overruns, confirmedAll ? "true" : "false", digestsMatch ? "true" : "false",
             static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started).count()),
             proxy.received, proxy.dropped, static_cast<unsigned long long>(oracle.digest));
         for (int side = 0; side < 2; ++side) {

@@ -654,9 +654,10 @@ if(BUILD_TESTING)
     add_test(NAME GgpoDelayRollbackFiveZero COMMAND GgpoDelayRollbackTest 5 0 40 30 17 300 1)
     set_tests_properties(GgpoDelayRollbackFiveZero PROPERTIES TIMEOUT 50)
     sf4e_test_locks(GgpoDelayRollbackFiveZero loopback_udp_ports)
-    # The control restores a wrong digest, so the run must report passed:false.
+    # The control restores a wrong digest and exits 0 only when every frame was confirmed, a restore
+    # ran and the digests then disagreed with the oracle.
     add_test(NAME GgpoDelayRollbackCorruptRestore COMMAND GgpoDelayRollbackTest 0 0 25 0 0 180 8 1)
-    set_tests_properties(GgpoDelayRollbackCorruptRestore PROPERTIES TIMEOUT 50 PASS_REGULAR_EXPRESSION "\"passed\":false")
+    set_tests_properties(GgpoDelayRollbackCorruptRestore PROPERTIES TIMEOUT 50)
     sf4e_test_locks(GgpoDelayRollbackCorruptRestore loopback_udp_ports)
     add_executable(GgpoSpectatorBacklogTest "src/tests/ggpo_spectator_backlog_test.cxx")
     target_link_libraries(GgpoSpectatorBacklogTest PRIVATE ggpo::GGPO "ws2_32")

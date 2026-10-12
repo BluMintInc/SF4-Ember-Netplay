@@ -1,18 +1,18 @@
 # Zero delay correctness and pacing audit
 
-Zero delay and separate player delays are supported by this GGPO integration at the input-queue level. The controlled tests below establish that those configurations can recover the correct synthetic state under delayed, reordered and lost packets. They do not establish that native USFIV always restores correctly or stays within its rendering budget.
+Zero delay and separate player delays are supported by GGPO at the input-queue level. The controlled tests below establish that those configurations can recover the correct synthetic state under delayed, reordered and lost packets. Custom rooms do not currently play separate delays: the room commits one shared value, the higher of the two fighters' Ready delays (`room::MatchDelay`, applied to both seats in `sf4e__SessionServer__Rooms.cxx`). The unequal cases below describe what the GGPO layer and the synthetic fixture exercise, and what the original measurements found, not what a room plays. They do not establish that native USFIV always restores correctly or stays within its rendering budget.
 
 The practical recommendation is to separate three decisions: repairing rollback correctness, allowing an optional zero setting, and choosing the default. The policy the audit led to at the time was a default of one frame with zero still selectable behind a warning. Nightly decides this differently: zero is selectable without a warning, a new profile chooses 2, and Auto stays between 1 and 4 (`src/common/InputDelay.hxx`). None of these policies establishes native acceptance or changes rollback mechanics.
 
-Audit date: 2026-10-09. Source baseline at measurement: `39b81157452c223a61f6bf7b7e4f051c99f76940`, with local test-only additions. The test and this document were then brought onto the nightly line, where `GgpoDelayRollbackTest` passes in CTest against the overlay GGPO port (`vcpkg-overlays/ports/ggpo`: `adanducci/ggpo@c88b667` plus this repository's patches), which has more patches than at the measurement. It is not an unmodified latest upstream checkout. Exact measured executable, DLL and fixture hashes are retained in `build/delay-audit/provenance.json`.
+Audit date: 2026-10-09. Source baseline at measurement: `39b81157452c223a61f6bf7b7e4f051c99f76940`, with local test-only additions. The native integration findings and the clock synchronization section describe that baseline unless they name the room policy. The test and this document were then brought onto the nightly line, where `GgpoDelayRollbackTest` passes in CTest against the overlay GGPO port (`vcpkg-overlays/ports/ggpo`: `adanducci/ggpo@c88b667` plus this repository's patches), which has more patches than at the measurement. It is not an unmodified latest upstream checkout. Exact measured executable, DLL and fixture hashes are retained in `build/delay-audit/provenance.json`.
 
 ## What the delay setting does
 
 An input sampled at simulation frame F is scheduled for F + D, where D is that player's configured delay. Zero removes this additional input buffering; it does not remove the game's own input, display or network latency. GGPO predicts missing remote inputs using the last known input, restores an earlier state when that prediction proves wrong, and replays to the current frame. Its input queue initializes delay to zero. The public API accepts a player handle when setting local delay. See the official [input queue](https://github.com/pond3r/ggpo/blob/master/src/lib/ggpo/input_queue.cpp), [API contract](https://github.com/pond3r/ggpo/blob/master/src/include/ggponet.h) and [synchronization implementation](https://github.com/pond3r/ggpo/blob/master/src/lib/ggpo/sync.cpp).
 
-In the pinned fork, `Sync::AddLocalInput` stamps the input, the local queue applies its delay, and `Peer2PeerBackend::AddLocalInput` sends the resulting frame number. The other peer receives an already scheduled input. Applying that remote player's delay again would double it. The current Ember startup code applies only the local seat's committed value before simulation begins; the remote queue keeps its zero offset. The two players do not need equal settings to agree on the resulting input history.
+In the pinned fork, `Sync::AddLocalInput` stamps the input, the local queue applies its delay, and `Peer2PeerBackend::AddLocalInput` sends the resulting frame number. The other peer receives an already scheduled input. Applying that remote player's delay again would double it. The Ember startup code applies only the local seat's committed value before simulation begins; the remote queue keeps its zero offset. GGPO does not need equal settings to agree on the resulting input history, which is what the unequal rows of the fixture show. A custom room commits the same value for both seats, so its two sessions start equal.
 
-These are independent input settings, not independent experiences. If P1 chooses zero, P2 has less advance notice of P1's actions. Raising only P2's delay does not buffer P1's inputs. At equal simulation clocks, it primarily gives P1 more notice of P2's inputs. The clock controller can subsequently redistribute the prediction burden.
+In a GGPO session started with unequal settings, these are independent input settings, not independent experiences. If P1 were at zero, P2 has less advance notice of P1's actions. Raising only P2's delay does not buffer P1's inputs. At equal simulation clocks, it primarily gives P1 more notice of P2's inputs. The clock controller can subsequently redistribute the prediction burden.
 
 At 60 simulation frames per second, one frame is about 16.67 ms. A reported 40 ms RTT is a round trip, not necessarily 40 ms in each direction. Even an approximately 20 ms one-way path depends on polling phase, jitter, scheduling and clock differences. There is no universal 16 ms ping boundary where zero becomes incorrect, and one frame at 40 ms RTT does not guarantee zero corrections. A correction may be visually harmless, especially when it affects little movement.
 
@@ -20,7 +20,7 @@ At 60 simulation frames per second, one frame is about 16.67 ms. A reported 40 m
 
 The relevant path is `StartRuntimeGgpo` in `sf4e__UserApp.cxx`, `StartGGPO` and callbacks in `sf4e__Game__Battle__System__Ggpo.cxx`, and `BattleUpdate` in `sf4e__Game__Battle__System.cxx`.
 
-* The committed seat delay reaches the local GGPO handle. It is not replaced with the opponent's maximum in this custom-room path.
+* The committed seat delay reaches the local GGPO handle. At the measured baseline each seat's own value was committed. Custom rooms now fill both seats with `room::MatchDelay`, the higher of the two Ready delays, so both handles get the same number; the native path itself would accept different values per seat.
 * The forward tick polls GGPO before sampling input, synchronizes inputs, runs one original engine update, then advances GGPO. Replay uses synchronized inputs and the original engine update rather than recapturing the controller.
 * The fork saves frame zero before accepting its first local input. Ember's save callback has no special rejection of zero or of a zero-delay session.
 * The prediction limit is eight frames. On a prediction-threshold refusal, the forward tick does not update the engine or advance GGPO. Recovery can therefore preserve correctness while visibly stalling.
@@ -59,7 +59,7 @@ In the impaired 0/5 case, P1 replayed 4 frames and P2 replayed 975. Reversing th
 
 The high-latency zero case stayed correct but took about 7.1 seconds for 300 frames, rather than the nominal five seconds. It is not evidence of smooth play at 300 ms RTT. Even the zero-added-latency case can predict in this fixture because packet forwarding and game polling have distinct phases.
 
-The negative control deliberately preserves the wrong digest when loading an earlier frame. It returned exit code 1 with `passed:false` despite both peers confirming input frame 179. The corresponding correct-restore control passed. This catches the false assurance of a frame-counter-only test. Receipts are in `build/delay-audit/`; all four selected CTest targets passed: the new fixture, confirmed-input, simulation-gate and pacing-controller tests.
+The negative control deliberately preserves the wrong digest when loading an earlier frame. At measurement it returned exit code 1 with `passed:false` despite both peers confirming input frame 179. It now exits 0 only when both peers confirmed every frame, at least one restore ran and the digests then disagree with the oracle, so an unfinished confirmation or a run that never rolled back fails instead of passing for the wrong reason. The corresponding correct-restore control passed. This catches the false assurance of a frame-counter-only test. Receipts are in `build/delay-audit/`; all four selected CTest targets passed: the new fixture, confirmed-input, simulation-gate and pacing-controller tests.
 
 This fixture does not execute the native game, render, play sounds, traverse the helper/Internet route, model two machines with different CPU costs, or enable Ember's continuous pacing. It isolates GGPO's input and state-recovery behavior. A separate pacing experiment examines the controller.
 
@@ -87,7 +87,7 @@ Do not remove the delay contribution from the controller solely because it looks
 
 ## Native acceptance still required
 
-Use matching game/mod hashes and keep the route, stage, characters and display settings fixed while comparing 0/0, 1/1, 0/1 and 1/0. Add 0/5 and 5/0 to expose pacing asymmetry. Repeat through round transitions, rematches, projectiles, supers, character state changes and brief recoverable network interruptions. Capture both clients' `sf4e.log` files, not only the helper session logs.
+Use matching game/mod hashes and keep the route, stage, characters and display settings fixed while comparing 0/0, 1/1, 0/1 and 1/0. Fighters who Ready with 0 and 5 play both at 5 in a room, so unequal pairs such as 0/5 and 5/0 can only be exercised by the fixture and the benchmark, or by a build that commits separate seat values; use them there to expose pacing asymmetry. Repeat through round transitions, rematches, projectiles, supers, character state changes and brief recoverable network interruptions. Capture both clients' `sf4e.log` files, not only the helper session logs.
 
 Enable `SF4E_ROLLBACK_DIAGNOSTICS=1` for timing evidence. Compare confirmed semantic checkpoints, engine/GGPO frame offsets, save/load failures, maximum rollback depth, replay counts, prediction stalls, frame overruns and pacing shifts. Record visible correction and audio behavior separately. A zero-desync result alone does not pass the smoothness comparison.
 
@@ -97,12 +97,12 @@ The next changes should be driven by this evidence: repair any reproducible rest
 
 ## Reproduction
 
-CTest runs the fixture as `GgpoDelayRollback` (0/5 under jitter and loss), `GgpoDelayRollbackZeroZero`, `GgpoDelayRollbackZeroOne`, `GgpoDelayRollbackFiveZero` and the negative control `GgpoDelayRollbackCorruptRestore`, which passes only when the run reports `"passed":false`. To run it by hand, build `GgpoDelayRollbackTest` (and `RecoveryBenchmark`, which needs the iroh helper build) in the configured development build, here `build/review`. The fixture's positional arguments are P1 delay, P2 delay, added one-way milliseconds, jitter milliseconds, drop interval, frame count, input hold interval and corrupt-restore switch. For example:
+CTest runs the fixture as `GgpoDelayRollback` (0/5 under jitter and loss), `GgpoDelayRollbackZeroZero`, `GgpoDelayRollbackZeroOne`, `GgpoDelayRollbackFiveZero` and the negative control `GgpoDelayRollbackCorruptRestore`, which exits 0 only when the corruption was detected for the reason above (`confirmed_all` true, `digests_match` false, a restore run). To run it by hand, build `GgpoDelayRollbackTest` (and `RecoveryBenchmark`, which needs the iroh helper build) in the configured development build, here `build/review`. The fixture's positional arguments are P1 delay, P2 delay, added one-way milliseconds, jitter milliseconds, drop interval, frame count, input hold interval and corrupt-restore switch. For example:
 
 ```powershell
 ./build/review/GgpoDelayRollbackTest.exe 0 0 20 0 0 300 8
 ./build/review/GgpoDelayRollbackTest.exe 0 5 40 30 17 300 1
-# Negative control: expected exit code 1 and passed:false, with confirmed inputs.
+# Negative control: exit code 0 with confirmed_all true and digests_match false.
 ./build/review/GgpoDelayRollbackTest.exe 0 0 25 0 0 180 8 1
 ./build/review/RecoveryBenchmark.exe --rift --frames=1200 --fast-hz=60 --delay-ms=20 --drop-every=0 --input-delay=0 --second-input-delay=5
 ```
