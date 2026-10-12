@@ -176,7 +176,7 @@ void fSystem::CaptureMeterSample(rSystem* src, bool show) {
     sf4e::training::ObserveMatch(src, lastGgpoSaveFrame, confirmed);
 }
 
-void fSystem::CaptureHashCheckpoint(rSystem* src) {
+void fSystem::CaptureHashCheckpoint(rSystem* src, const fPadSystem::Inputs inputs[2]) {
     // The engine counter is a signed 16-bit field and wraps during a long
     // match. GGPO's save callback uses a monotonic frame identity; spectators
     // have no save callback, so the confirmed input boundary plus one is the
@@ -187,6 +187,7 @@ void fSystem::CaptureHashCheckpoint(rSystem* src) {
         stateFrame = ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed))
             ? sf4e::statehash::SpectatorCheckpointStateFrame(confirmed) : -1;
     }
+    TraceFrame(src, stateFrame, inputs);
     const int ringIndex = sf4e::statehash::CheckpointRingIndex(stateFrame);
     if (ringIndex < 0) {
         return;
@@ -221,6 +222,7 @@ void fSystem::ClearHashCheckpoints() {
     for (int i = 0; i < NUM_HASH_CHECKPOINTS; i++) {
         hashCheckpoints[i] = HashCheckpoint();
     }
+    ClearFrameTrace();
 }
 
 void fSystem::CaptureSnapshot(rSystem* src) {

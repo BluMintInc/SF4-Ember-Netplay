@@ -23,6 +23,7 @@
 #include "sf4e__Platform.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
+#include "sf4e__Pad.hxx"
 
 constexpr int NUM_SAVE_STATES = GGPO_MAX_PREDICTION_FRAMES + 2;
 
@@ -246,7 +247,13 @@ namespace sf4e {
 				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
 				static CharaSemantics CaptureCharaSemantics(Dimps::Game::Battle::System* src, int side);
-				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
+				// After every simulated and re-simulated frame: the frame's
+				// trace row (inputs: what the frame played) and, on cadence
+				// frames, its hash checkpoint.
+				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2]);
+				// The traced frames from the checkpoint before frameIdx up to
+				// it, logged on the battle's first v2 mismatch only.
+				static void LogFrameTrace(int frameIdx);
 				// The frame meter's sample of the frame just played. show: off
 				// inside a rollback, where nothing new is confirmed.
 				static void CaptureMeterSample(Dimps::Game::Battle::System* src, bool show);

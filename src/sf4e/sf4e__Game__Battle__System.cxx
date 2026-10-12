@@ -412,7 +412,7 @@ static bool PlayGgpoFrame(rSystem* system) {
         fSoundPlayerManager::SyncState();
     }
     fSystem::CaptureSnapshot(system);
-    fSystem::CaptureHashCheckpoint(system);
+    fSystem::CaptureHashCheckpoint(system, ggpoInputs);
     fSystem::CaptureMeterSample(system, true);
     PublishConfirmedNativeMatchResult();
     return true;

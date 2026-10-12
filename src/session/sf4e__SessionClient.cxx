@@ -143,6 +143,7 @@ static void ReportHashMismatch(
 	);
 	spdlog::error("Desync v2: local checkpoint ggpo={} engine={} flow={} substate={}",
 		local.ggpoStateFrame, local.engineFrame, local.flow, local.substate);
+	fSystem::LogFrameTrace(local.frameIdx);
 	for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
 		const fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
 		if (!cp.valid || cp.frameIdx == local.frameIdx) {

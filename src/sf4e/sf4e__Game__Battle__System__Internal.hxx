@@ -103,6 +103,11 @@ void EndSpectatorStream(int ggpoResult);
 void LogSaveStateFreePolicy();
 const char* SaveStateFreePathName();
 
+// Defined in sf4e__Game__Battle__System__FrameTrace.cxx. The trace starts and
+// ends with the hash checkpoints (fSystem::ClearHashCheckpoints).
+void TraceFrame(rSystem* system, int stateFrame, const fPadSystem::Inputs inputs[2]);
+void ClearFrameTrace();
+
 // Defined in sf4e__Game__Battle__System__RollbackStress.cxx.
 bool StressStep(rSystem* system);
 void StressOpenBattle();

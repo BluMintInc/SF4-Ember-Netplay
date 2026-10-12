@@ -656,7 +656,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         ++s_window.resimFrames;
         s_window.maxDepth = (std::max)(s_window.maxDepth, ++s_window.depth);
         CaptureSnapshot(system);
-        CaptureHashCheckpoint(system);
+        CaptureHashCheckpoint(system, inputs);
         CaptureMeterSample(system, false);
     }
 
