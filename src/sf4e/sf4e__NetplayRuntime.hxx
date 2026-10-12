@@ -153,6 +153,9 @@ struct Runtime {
     std::uint64_t finishActionId=0, finishRetryAt=0;
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
+    // The Practice choice of the room this PC hosts: the player's on Create,
+    // the closed room's for a replacement, false for a room it joins.
+    bool practiceRoom=false;
     bool leaveRequested=false, leaveAcknowledged=false;
     // The room being opened is a public one joined with a ticket, so a refusal or
     // failure is worded for it. Set with the join, cleared when the room closes.

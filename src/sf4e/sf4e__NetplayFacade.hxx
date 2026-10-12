@@ -105,6 +105,8 @@ namespace sf4e {
             std::string publicTicket;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
+            // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
+            bool practiceRoom = false;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

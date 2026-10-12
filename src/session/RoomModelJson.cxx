@@ -466,6 +466,7 @@ void from_json(const nlohmann::json& json, ChatMessage& value) { value.sequence 
 void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::json{{"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"name", value.name}, {"capacity", value.capacity}, {"locked", value.locked}, {"closed", value.closed}, {"host", value.host}, {"local_member", value.localMember}, {"members", value.members}, {"tables", value.tables}, {"terminal_pending", value.terminalPending}, {"local_terminal_pending", value.localTerminalPending}, {"local_terminal_generations", value.localTerminalGenerations}, {"chat", value.chat}, {"tournament", value.tournament}};
 	if (value.localMatchGenerationsSent) json["local_match_generations"] = value.localMatchGenerations;
 	if (value.serverOwned) json["server_owned"] = true;
+	if (value.practice) json["practice"] = true;
 }
 void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100));
@@ -476,6 +477,8 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.host = ReadU64(json, "host"); value.localMember = ReadU64(json, "local_member");
 		if (json.contains("server_owned") && !json.at("server_owned").is_boolean()) throw std::invalid_argument("room server owned field");
 		value.serverOwned = json.value("server_owned", false);
+	if (json.contains("practice") && !json.at("practice").is_boolean()) throw std::invalid_argument("room practice field");
+	value.practice = json.value("practice", false);
 	value.terminalPending.fill(false);
 	if (json.contains("terminal_pending")) {
 		const auto& pending = json.at("terminal_pending");

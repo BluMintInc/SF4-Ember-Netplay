@@ -13,10 +13,10 @@ static int failures = 0;
 #define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 struct Room {
-	RoomAuthority authority{"Training flag", 8, 41};
+	RoomAuthority authority;
 	MemberId host = 0, p1 = 0, p2 = 0;
 
-	Room() {
+	explicit Room(bool practice = false) : authority("Training flag", 8, 41, Rules(), practice) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", 0, true);
 		p1 = Join("P1", 1); p2 = Join("P2", 2);
@@ -211,6 +211,35 @@ int main() {
 			const auto result = setRules(invalid);
 			CHECK(!result.accepted && result.reason == RejectReason::InvalidRules);
 		}
+	}
+	{
+		// A Practice room: chosen when it is created, in every member's view, and kept
+		// through a checkpoint. A room created without it says nothing on the wire.
+		Room plain;
+		CHECK(!plain.authority.SnapshotView().practice);
+		CHECK(!nlohmann::json(plain.authority.SnapshotFor(plain.p2)).contains("practice"));
+		CHECK(!plain.authority.Checkpoint().at("snapshot").contains("practice"));
+		Room room(true);
+		const nlohmann::json view = room.authority.SnapshotFor(room.p2);
+		CHECK(view.at("practice").get<bool>() && view.get<Snapshot>().practice);
+		RoomAuthority restored("Restored");
+		CHECK(restored.RestoreCheckpoint(room.authority.Checkpoint()) && restored.SnapshotView().practice);
+		nlohmann::json bad = view;
+		bad["practice"] = 1;
+		bool refused = false;
+		try { (void)bad.get<Snapshot>(); } catch (const std::exception&) { refused = true; }
+		CHECK(refused);
+		// Nothing played or done in the room changes it: the host's rules, a game, the host leaving.
+		auto set = room.Make(room.host, ActionKind::SetRules);
+		set.rules = room.authority.SnapshotView().tables[0].rules;
+		set.rules.roundTime = 60;
+		CHECK(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().practice);
+		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
+		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
+		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
+		CHECK(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().practice);
+		CHECK(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().practice);
 	}
 	if (failures) { std::printf("%d failures\n", failures); return 1; }
 	std::printf("Room training flag rules passed.\n");

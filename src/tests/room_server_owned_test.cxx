@@ -231,6 +231,11 @@ static void TestSetServerOwnedNeedsAFreshRoom() {
 	const auto member = Join(emptied, 0, true);
 	CHECK(emptied.Leave(member).accepted);
 	CHECK(!emptied.SetServerOwned());
+	// Only a player creates a Practice room, so none is ever a public one.
+	RoomAuthority practice("Practice", 8, 1, Rules(), true);
+	CHECK(!practice.SetServerOwned() && !practice.SnapshotView().serverOwned);
+	RoomAuthority fresh("Fresh", 8, 1);
+	CHECK(fresh.SetServerOwned() && !fresh.SnapshotView().practice);
 }
 
 static void TestCheckpointRoundTrip() {

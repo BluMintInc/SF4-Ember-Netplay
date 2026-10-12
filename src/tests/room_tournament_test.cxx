@@ -656,6 +656,17 @@ static void TestCasualRoomsNeedNoPermit() {
 	CHECK(authority.BeginMatch(0, host, other).accepted);
 }
 
+// A tournament match is never played in a Practice room, whose games are not
+// scored as a match's; a room a binding is accepted by is not one.
+static void TestPracticeRoomsTakeNoBinding() {
+	RoomAuthority practice("Practice", 8, 1, Rules(), true);
+	CHECK(Join(practice, 0, true));
+	const auto refused = practice.BindTournament(Binding());
+	CHECK(!refused.accepted && refused.reason == RejectReason::Unauthorized && !practice.SnapshotView().tournament.Active());
+	RoomAuthority match("Match", 8, 1);
+	CHECK(match.BindTournament(Binding()).accepted && !match.SnapshotView().practice);
+}
+
 int main() {
 	TestFightersOnly();
 	TestPermitGate();
@@ -667,6 +678,7 @@ int main() {
 	TestPermitClockIsTheOwners();
 	TestNativeStartWindow();
 	TestCasualRoomsNeedNoPermit();
+	TestPracticeRoomsTakeNoBinding();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");
 	return failures ? 1 : 0;
