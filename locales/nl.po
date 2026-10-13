@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Getoonde frames"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen; 120 toont de hele geschiedenis. Als de meter stilstaat, scrolt het muiswiel boven de balken terug."
+msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen. Een langere uitwisseling gaat verder vanaf de linkerrand. Als de meter stilstaat, bladert het muiswiel boven de balken per pagina terug."
 
 msgid "training.meter.hud_recovery"
 msgstr "Herstel op de HUD"

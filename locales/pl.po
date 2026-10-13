@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Pokazane klatki"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Ile klatek pokazują paski na tej samej szerokości. Mniej to szersze klatki, łatwiejsze do policzenia; 120 pokazuje całą historię. Gdy miernik jest zatrzymany, kółko myszy nad paskami przewija wstecz."
+msgstr "Ile klatek pokazują paski na tej samej szerokości. Mniej to szersze klatki, łatwiejsze do policzenia. Dłuższa wymiana biegnie dalej od lewej krawędzi. Gdy miernik jest zatrzymany, kółko myszy nad paskami cofa o jedną stronę."
 
 msgid "training.meter.hud_recovery"
 msgstr "Powrót na HUD"

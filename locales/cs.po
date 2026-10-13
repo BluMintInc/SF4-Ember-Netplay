@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Zobrazené snímky"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají; 120 ukáže celou historii. Když je měřič zastavený, kolečko myši nad pruhy jí listuje zpět."
+msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají. Delší výměna pokračuje znovu od levého okraje. Když je měřič zastavený, kolečko myši nad pruhy listuje zpět po stránkách."
 
 msgid "training.meter.hud_recovery"
 msgstr "Zotavení na HUD"

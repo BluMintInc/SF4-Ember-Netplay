@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Gezeigte Frames"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Wie viele Frames die Balken auf gleicher Breite zeigen. Weniger machen jeden Frame breiter und leichter zu zählen; 120 zeigt den ganzen Verlauf. Ist das Meter angehalten, blättert das Mausrad über den Balken zurück."
+msgstr "Wie viele Frames die Balken auf gleicher Breite zeigen. Weniger machen jeden Frame breiter und leichter zu zählen. Ein längerer Schlagabtausch geht am linken Rand weiter. Ist das Meter angehalten, blättert das Mausrad über den Balken seitenweise zurück."
 
 msgid "training.meter.hud_recovery"
 msgstr "Erholung im HUD"

@@ -154,23 +154,28 @@ struct FrameAdvantage {
 // counts it, so the move's total is startup - 1 + active + recovery. seen:
 // an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
-// The bars show MeterShown frames. The meter keeps one more, so the leftmost
-// cell can still tell whether a new action began on it.
-constexpr std::size_t MeterShown = 120, MeterHistory = MeterShown + 1;
-// Short histories align right; longer ones show only the newest cells.
-// window: the cells across the bar; back: how many of the newest frames lie
-// to the right of it, while a held meter is scrolled back.
-inline int MeterFrameIndex(std::size_t size, std::size_t cell, std::size_t window = MeterShown, std::size_t back = 0) {
-    const auto end = size > back ? size - back : 0;
-    const auto shown = (std::min)(end, window);
-    const int offset = static_cast<int>(cell) - static_cast<int>(window - shown);
-    return cell >= window || offset < 0 ? -1 : static_cast<int>(end - shown) + offset;
+// The bars show up to MeterShown frames. The meter keeps two bars' worth, so
+// a held meter can step back a whole page at any width.
+constexpr std::size_t MeterShown = 120, MeterHistory = 2 * MeterShown;
+// Both fighters quiet this many frames end an exchange and hold the bars.
+constexpr unsigned MeterIdleFrames = 4;
+// The bars fill from the left, as SF6's meter does: the frame at position pos
+// of the exchange (its first frame is 0) is drawn in cell pos % window of
+// page pos / window, so an exchange longer than the bars goes on from their
+// left edge. They show the newest frame's page, or the page back pages
+// before it while a held meter is stepped back. size: the frames kept;
+// length: the exchange's frames so far, the newest at length - 1 (taken as
+// size when smaller, for bars made by hand). The frames' index, or -1.
+inline int MeterFrameIndex(std::size_t size, std::size_t length, std::size_t cell, std::size_t window = MeterShown, std::size_t back = 0) {
+    length = (std::max)(length, size);
+    if (!size || !window || cell >= window || back > (length - 1) / window) return -1;
+    const auto pos = ((length - 1) / window - back) * window + cell, first = length - size;
+    return pos < first || pos >= length ? -1 : static_cast<int>(pos - first);
 }
-// How far back a held meter can scroll with window cells across the bar: to
-// the oldest of the MeterShown frames it keeps.
-inline std::size_t MeterBackLimit(std::size_t size, std::size_t window) {
-    const auto kept = (std::min)(size, MeterShown);
-    return kept > window ? kept - window : 0;
+// How many pages a held meter can step back: to the oldest with a frame kept.
+inline std::size_t MeterBackLimit(std::size_t size, std::size_t length, std::size_t window) {
+    length = (std::max)(length, size);
+    return size && window ? (length - 1) / window - (length - size) / window : 0;
 }
 // What a bar cell shows, resolved once as its frame arrives, so a cell never
 // changes as older frames leave the history and the bars only draw it.
@@ -226,7 +231,9 @@ inline void AppendMeterFrame(std::deque<MeterFrame>& frames, const std::array<Fi
     frames.push_back(added);
 }
 struct MeterView {
+    // The exchange's newest frames, and how many it has had (MeterFrameIndex).
     std::deque<MeterFrame> frames;
+    std::size_t length = 0;
     std::array<FighterSample, 2> current;
     std::array<unsigned, 2> stateFrames{};
     std::array<unsigned, 2> actionFrames{};
@@ -259,7 +266,7 @@ inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); exchangeAt_ = 0; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -280,12 +287,10 @@ public:
         for (int side = 0; side < 2; ++side)
             fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
         const std::int64_t now = observedFrames_++;
-        const bool contact = ObserveAdvantage(now, fighters);
-        bool neutral = true;
+        ObserveAdvantage(now, fighters);
         std::array<MeterCell, 2> cells;
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
-            neutral = neutral && sample.valid && ClassifyStatus(sample.status) == Phase::Neutral;
             if (sample.valid && view_.current[side].valid && sample.status == view_.current[side].status)
                 ++view_.stateFrames[side];
             else view_.stateFrames[side] = sample.valid ? 1 : 0;
@@ -369,44 +374,58 @@ public:
             lastCells_[side] = cells[side];
             view_.current[side] = sample;
         }
-        if (neutral) ++idleFrames_;
-        else {
-            // Idle frames from before anything happened are not kept either.
-            if (!hadActivity_ && idleFrames_ >= 30) view_.frames.clear();
-            idleFrames_ = 0; hadActivity_ = true;
-        }
-        // Half a second of both fighters idle holds the bars. They stay as
-        // they are until a fighter is hit or blocks (or is thrown), so a whiff,
-        // a walk or a jump never takes the last exchange away, and the bars and
-        // the advantage beside them always tell of the same one. Meanwhile the
-        // frames are kept aside, from the first move after both were last idle
-        // with no attack under way; contact puts them in the bars' place, so the
-        // new exchange shows from its first move. An attack waiting for its
-        // contact (ObserveAdvantage's armed exchange), a projectile in flight
-        // among them, keeps them through idle frames until it lands or is given
-        // up: one held while the bars run goes on from the bars into the frames
-        // kept aside when they are held, from the frame it began.
+        // Both fighters quiet, as their cells show them: standing, crouching,
+        // a jump or a guard in the air, or missing.
+        bool neutral = true;
+        for (const auto& cell : cells) neutral = neutral && (cell.kind == MeterKind::Neutral || cell.kind == MeterKind::Unknown);
+        idleFrames_ = neutral ? idleFrames_ + 1 : 0;
+        // The bars run from an exchange's first active frame; idle frames
+        // before it are not kept. MeterIdleFrames quiet frames hold them,
+        // ending on the exchange's last active frame, and any action after
+        // that starts the next exchange on clear bars. An attack still waiting
+        // for its contact when they are held (ObserveAdvantage's armed
+        // exchange), a projectile in flight among them, goes on in frames
+        // kept aside from the frame it began; the other's guard, block or hit
+        // puts them in the bars' place, so that exchange shows whole.
         const MeterFrame latest{fighters, cells, frame};
         const bool attacking = (armed_[0] || armed_[1]) && !view_.advantage.valid;
-        if (!view_.frozen && hadActivity_ && idleFrames_ >= 30) {
-            view_.frozen = true;
-            if (attacking) {
-                const auto since = (std::min)(view_.frames.size(), static_cast<std::size_t>(now - exchangeAt_));
-                aside_.assign(view_.frames.end() - static_cast<std::ptrdiff_t>(since), view_.frames.end());
-                if (!aside_.empty()) for (auto& cell : aside_.front().cells) cell.newAction = cell.split = false;
-            }
-        }
         if (view_.frozen) {
-            if (neutral && !attacking) aside_.clear();
-            else if (!neutral || !aside_.empty()) Append(aside_, latest);
-            if (contact) { view_.frames.swap(aside_); aside_.clear(); view_.frozen = false; }
-        } else Append(view_.frames, latest);
+            if (neutral) {
+                if (attacking && !aside_.empty()) Append(aside_, asideLength_, latest);
+                else aside_.clear();
+                return;
+            }
+            // The other's guard, block or hit while the attack is quiet (a
+            // projectile on its way) goes on with the exchange kept aside.
+            const int attacker = armed_[0] ? 0 : 1;
+            const auto other = cells[1 - attacker].kind;
+            const bool reaction = cells[attacker].kind == MeterKind::Neutral && (other == MeterKind::Guard || other == MeterKind::Hit ||
+                other == MeterKind::Down || other == MeterKind::Sequence);
+            if (reaction && attacking && !aside_.empty()) {
+                Append(aside_, asideLength_, latest);
+                view_.frames.swap(aside_); view_.length = asideLength_;
+            } else { view_.frames.clear(); view_.length = 0; Append(view_.frames, view_.length, latest); }
+            aside_.clear(); view_.frozen = false;
+            return;
+        }
+        if (neutral && view_.frames.empty()) return;
+        Append(view_.frames, view_.length, latest);
+        if (idleFrames_ < MeterIdleFrames) return;
+        view_.frozen = true;
+        if (attacking) {
+            const auto since = (std::min)(view_.length, static_cast<std::size_t>(now - exchangeAt_ + 1));
+            aside_.assign(view_.frames.end() - static_cast<std::ptrdiff_t>((std::min)(since, view_.frames.size())), view_.frames.end());
+            asideLength_ = since;
+            if (!aside_.empty()) for (auto& cell : aside_.front().cells) cell.newAction = cell.split = false;
+        }
+        // The quiet frames after the last active one leave the bars.
+        for (unsigned quiet = 0; quiet < idleFrames_ && view_.frames.size() > 1; ++quiet) { view_.frames.pop_back(); --view_.length; }
     }
 private:
-    static void Append(std::deque<MeterFrame>& bars, MeterFrame added) {
+    static void Append(std::deque<MeterFrame>& bars, std::size_t& length, MeterFrame added) {
         // The first cell of the bars has nothing before it to part from.
         if (bars.empty()) for (auto& cell : added.cells) cell.newAction = cell.split = false;
-        bars.push_back(added);
+        bars.push_back(added); ++length;
         if (bars.size() > MeterHistory) bars.pop_front();
     }
     // Whether a fighter was hit, blocked or thrown this frame.
@@ -495,8 +514,10 @@ private:
     std::array<bool, 2> thrower_{};
     // The last cell each side was given (ResolveMeterCell).
     std::array<MeterCell, 2> lastCells_{};
-    // What a held meter has seen since both fighters were last idle (Observe).
+    // What a held meter has seen of an exchange still waiting for its
+    // contact, and that exchange's frames so far (Observe).
     std::deque<MeterFrame> aside_;
+    std::size_t asideLength_ = 0;
     // When the armed exchange began, on the clock of accepted observations.
     std::int64_t exchangeAt_ = 0;
     // On the clock of accepted observations; -1 none.
@@ -508,7 +529,6 @@ private:
     std::array<std::int64_t, 2> recovered_{{-1, -1}};
     std::int64_t observedFrames_ = 0, contactFrame_ = 0;
     unsigned idleFrames_ = 0;
-    bool hadActivity_ = false;
     std::uint16_t lastFrame_ = 0;
     bool hasFrame_ = false;
 };

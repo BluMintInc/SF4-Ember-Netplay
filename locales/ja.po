@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "表示フレーム数"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "同じ幅に表示するフレーム数です。少ないほど1フレームが広く数えやすくなり、120では履歴全体を表示します。メーターの停止中は、バーの上でマウスホイールを回すとさかのぼれます。"
+msgstr "同じ幅に表示するフレーム数です。少ないほど1フレームが広く数えやすくなります。それより長い攻防は左端から続けて表示します。メーターの停止中は、バーの上でマウスホイールを回すと1ページずつさかのぼれます。"
 
 msgid "training.meter.hud_recovery"
 msgstr "HUDに硬直を表示"
