@@ -6,28 +6,7 @@ using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 int main() {
     try {
-        MeterView longHistory;
-        for (int frame = 0; frame < static_cast<int>(MeterHistory); ++frame) AppendMeterFrame(longHistory.frames, {}, frame);
-        for (std::size_t cell = 0; cell < MeterShown; ++cell) {
-            const int index = MeterFrameIndex(longHistory.frames.size(), cell);
-            Require(index == static_cast<int>(MeterHistory - MeterShown + cell) && longHistory.frames[index].frame == index,
-                "Meter did not draw the newest 120 frames it keeps");
-        }
-        Require(MeterFrameIndex(0, 119) == -1 && MeterFrameIndex(3, 116) == -1 &&
-            MeterFrameIndex(3, 117) == 0 && MeterFrameIndex(3, 119) == 2 && MeterFrameIndex(MeterHistory, 120) == -1,
-            "Short meter history or visible cell boundary wrong");
-        // A zoomed bar shows its newest cells; scrolled back, older ones, no
-        // further than the oldest of the 120 kept.
-        for (const std::size_t window : {60u, 90u}) {
-            Require(MeterFrameIndex(MeterHistory, window - 1, window) == static_cast<int>(MeterHistory) - 1 &&
-                MeterFrameIndex(MeterHistory, 0, window) == static_cast<int>(MeterHistory - window) &&
-                MeterFrameIndex(MeterHistory, window, window) == -1, "Zoomed meter did not show its newest frames");
-            const auto limit = MeterBackLimit(MeterHistory, window);
-            Require(limit == MeterShown - window && MeterFrameIndex(MeterHistory, 0, window, limit) == 1 &&
-                MeterFrameIndex(MeterHistory, window - 1, window, limit) == static_cast<int>(window), "Scrolled meter left the kept history");
-        }
-        Require(MeterBackLimit(MeterHistory, MeterShown) == 0 && MeterBackLimit(30, 60) == 0 && MeterFrameIndex(30, 59, 60) == 29 &&
-            MeterFrameIndex(30, 29, 60) == -1, "Short history did not align right in a zoomed meter");
+        // How the bars start, fill, hold and page: frame_meter_run_test.cxx.
         // Reproduce action chains through the same per-frame observer used by
         // native training. An internal move change must not discard contact.
         for (int variant = 0; variant < 4; ++variant) {
@@ -392,21 +371,10 @@ int main() {
         Require(ClassifyStatus(16) == Phase::Attack && ClassifyStatus(22) == Phase::Guard && ClassifyStatus(99) == Phase::Unknown, "Native status classification wrong");
         fighters[0].status = fighters[1].status = 0;
         for (int i = 6; i < 50; ++i) meter.Observe(i, fighters);
-        Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
-        // A whiff, a walk and a jump leave the held bars as they are; contact
-        // replaces them with the exchange it ends, which the cancel at frame 5
-        // began and which no reading ever closed.
-        fighters[0].status = 16; fighters[0].action = 102; meter.Observe(50, fighters);
-        fighters[0].status = 10; fighters[0].action = 5; meter.Observe(51, fighters);
-        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(52, fighters);
-        fighters[0].status = 2; fighters[0].action = 6; meter.Observe(53, fighters);
-        Require(meter.View().frozen && meter.View().frames.back().frame == 34, "A whiff, a walk or a jump replaced the held exchange");
-        fighters[0].status = 16; fighters[0].action = 103; meter.Observe(54, fighters);
-        fighters[1].status = 22; fighters[1].action = 201; meter.Observe(55, fighters);
-        Require(!meter.View().frozen && meter.View().frames.size() == 51 && meter.View().frames.front().frame == 5 &&
-            meter.View().frames.back().frame == 55, "Contact did not put its own exchange in the held one's place");
-        for (int i = 56; i < 156 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
-        Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
+        Require(meter.View().frozen && meter.View().frames.back().frame == 5 && meter.View().length == 6, "Idle did not hold exchange on its last active frame");
+        fighters[0].status = 16; fighters[0].action = 103; fighters[1].status = 22; fighters[1].action = 201;
+        for (int i = 50; i < 50 + 3 * static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
+        Require(meter.View().frames.size() == MeterHistory && meter.View().length == 3 * MeterHistory, "Frame meter unbounded");
         meter.Observe(10, fighters);
         Require(meter.View().frames.size() == 1 && meter.View().stateFrames[0] == 1, "Timeline crossed reset");
         fighters[0].valid = false; meter.Observe(11, fighters);
@@ -500,7 +468,7 @@ int main() {
         meter.Reset();
         Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.empty(), "A reset kept the last reading or its bars");
         exchange(0, 22, 10, 15); meter.Observe(18, fighters);
-        Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.size() == 1, "The last reading crossed a simulation gap");
+        Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.empty(), "The last reading crossed a simulation gap");
         // Dummy settings: a request within the menu's choices shows in the
         // view until the adapter's read-back; -1 leaves a setting alone.
         {
@@ -533,7 +501,8 @@ int main() {
                 both[0].status = p1; both[0].action = a1; both[0].actionFrame = frame;
                 both[1].status = p2; both[1].action = a2; both[1].comboDamage = damage; both[1].actionFrame = frame;
                 resolved.Observe(observed++, both);
-                return resolved.View().frames.back().cells;
+                // An idle frame before any action leaves the bars empty.
+                return resolved.View().frames.empty() ? std::array<MeterCell, 2>{} : resolved.View().frames.back().cells;
             };
             observe(ActorStatus::Jump, 1, ActorStatus::Skill, 9);
             for (int held = 0; held < static_cast<int>(MeterHistory) + 40; ++held)
@@ -549,8 +518,9 @@ int main() {
             resolved.Reset(); observed = 0;
             // A jab cancelled into a special: two counts. A hit and then the combo's next: two counts.
             observe(ActorStatus::Stand, 1, ActorStatus::Stand, 1);
-            Require(!resolved.View().frames.back().cells[0].split && !resolved.View().frames.back().cells[0].newAction, "The first cell parted from nothing");
-            observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40);
+            Require(resolved.View().frames.empty(), "An idle frame started the bars");
+            cells = observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40);
+            Require(!cells[0].split && !cells[0].newAction, "The first cell parted from the frame before it");
             cells = observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40, 2);
             Require(!cells[0].split && !cells[1].split, "A move or a hit split its own run");
             cells = observe(ActorStatus::Skill, 101, ActorStatus::Damage, 300, 90, 3);
@@ -576,19 +546,19 @@ int main() {
             Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
             step(tick++, 0, 0, 22);
             Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().moves[1].seen, "A finished move lost its frames");
-            // After a pause the next move's frames start counting at once, while
-            // the bars keep the blocked move until the new one makes contact,
-            // and then start from their left edge with it.
+            // After a pause the next move's frames start counting at once, and
+            // it starts the bars again from their left edge.
             for (int idle = 0; idle < 40; ++idle) step(tick++, 0, 0, 0);
-            const auto held = counted.View().frames.size();
+            Require(counted.View().frozen, "The blocked move was not held");
             step(tick++, 16, 1, 0);
-            Require(counted.View().frozen && counted.View().frames.size() == held && counted.View().moves[0].active == 0 && counted.View().advantage.attacker == -1,
-                "A new move after a pause took the old bars or kept the old frames");
+            Require(!counted.View().frozen && counted.View().frames.size() == 1 && counted.View().moves[0].active == 0 && counted.View().advantage.attacker == -1,
+                "A new move after a pause kept the old bars or the old frames");
             step(tick++, 16, 2, 22);
-            Require(!counted.View().frozen && counted.View().frames.size() == 2, "The new move's contact did not start the bars from it");
-            // A projectile thrown after a held exchange: its startup and its
-            // thrower's recovery stay kept through the idle frames it travels,
-            // and its contact shows them.
+            Require(!counted.View().frozen && counted.View().frames.size() == 2, "The new move's contact did not go on from it");
+            // A projectile thrown after a held exchange: the throw starts the
+            // bars, which are held once the thrower recovers; its startup and
+            // its thrower's recovery stay kept through the idle frames it
+            // travels, and its contact shows them.
             {
                 FrameMeter thrown; std::array<FighterSample, 2> fireball; int at = 0;
                 const auto frameOf = [&](unsigned own, unsigned other) {
@@ -610,9 +580,9 @@ int main() {
                 Require(!thrown.View().frozen && thrown.View().frames.front().frame == thrownAt && thrown.View().frames.size() == 27 &&
                     thrown.View().frames.front().cells[0].phase == Phase::Attack, "The projectile's startup and recovery were lost before it landed");
             }
-            // One thrown while the bars run, whose flight outlasts the half
-            // second that holds them: from a fresh meter, and soon after an
-            // exchange that was measured.
+            // One whose flight outlasts the frames that hold the bars: from a
+            // fresh meter, and soon after an exchange that was measured, whose
+            // bars are held by then.
             for (const bool after : {false, true}) {
                 FrameMeter live; std::array<FighterSample, 2> fireball; int at = 0;
                 const auto frameOf = [&](unsigned own, unsigned other) {
@@ -629,7 +599,7 @@ int main() {
                     Require(live.View().advantage.valid, "The exchange before the projectile was not measured");
                     for (int idle = 0; idle < 5; ++idle) frameOf(0, 0);
                 }
-                Require(!live.View().frozen, "The bars were held before the projectile");
+                Require(live.View().frozen == after, "The bars were held before the projectile, or the measured exchange was not");
                 const int thrownAt = at;
                 for (int move = 0; move < 6; ++move) frameOf(16, 0);
                 for (int travel = 0; travel < 35; ++travel) frameOf(0, 0);

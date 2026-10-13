@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Fotogramas mostrados"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Cuántos fotogramas muestran las barras en el mismo ancho. Menos hace cada fotograma más ancho y fácil de contar; 120 muestra todo el historial. Con el medidor detenido, la rueda del ratón sobre las barras retrocede."
+msgstr "Cuántos fotogramas muestran las barras en el mismo ancho. Menos hace cada fotograma más ancho y fácil de contar. Un intercambio más largo sigue desde el borde izquierdo. Con el medidor detenido, la rueda del ratón sobre las barras retrocede una página a la vez."
 
 msgid "training.meter.hud_recovery"
 msgstr "Recuperación en el HUD"

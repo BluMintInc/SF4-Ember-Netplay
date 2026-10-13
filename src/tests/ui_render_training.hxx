@@ -193,25 +193,28 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     for(const auto* window:GImGui->Windows)if(window->LastFrameActive==ImGui::GetFrameCount()&&window->Name[0]!='#'&&std::string(window->Name)!="Debug##Default")
         Require(window->Pos.y+window->Size.y<=hud->Pos.y+hud->Size.y+1,"Training window sits between meter and super gauges");
     const auto savedMeter=training.meter;
-    // Both styles, at each frames-shown value, draw exactly the newest frames
-    // it names and no older one, keep the meter's size, and at the default
-    // zoom give each cell room to count by eye. Flat keeps Stable's colours
-    // exactly: an attack in Ember, at Stable's alpha.
+    // Both styles, at each frames-shown value, draw exactly the page with the
+    // newest frame and no earlier one, a full page and one just begun, keep
+    // the meter's size, and at the default zoom give each cell room to count
+    // by eye. Flat keeps Stable's colours exactly: an attack in Ember, at
+    // Stable's alpha.
     {
         training::FighterSample down,attack;down.valid=attack.valid=true;down.status=19;attack.status=16;down.action=attack.action=1;
         Require(TrainingCellColor(training::MeterCellOf(attack),false)==((palette::Ember&~IM_COL32_A_MASK)|(215u<<IM_COL32_A_SHIFT))&&
             TrainingCellColor(training::MeterCellOf(down),false)==IM_COL32(178,123,210,215),"Flat bars left Stable's colours");
         std::map<std::string,std::pair<ImVec2,ImVec2>> bars;
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});
-        for(const int shown:training::MeterShownChoices)for(bool angled:{true,false}) {
+        for(const int shown:training::MeterShownChoices)for(bool angled:{true,false})for(const int last:{shown,7}) {
             training::MeterOptions options;options.flat=!angled;options.shown=shown;SetTrainingMeterOptions(options);
-            training.meter.frames.clear();
-            for(int frame=0;frame<1200;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<1200-shown?down:attack,frame<1200-shown?down:attack}},frame);
+            // Ten pages, then the last frames on a page of their own unless they fill one.
+            const int total=10*shown+(last==shown?0:last);
+            training.meter.frames.clear();training.meter.length=0;
+            for(int frame=0;frame<total;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<total-last?down:attack,frame<total-last?down:attack}},frame);
             draw();
             const ImU32 oldColor=TrainingCellColor(training::MeterCellOf(down),angled),newColor=TrainingCellColor(training::MeterCellOf(attack),angled);
             int cells=0;
-            for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer){Require(vertex.col!=oldColor,"Meter drew frames older than the newest it shows");if(vertex.col==newColor)++cells;}
-            Require(cells==2*shown*4,"Meter did not draw exactly the frames shown for each player");
+            for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer){Require(vertex.col!=oldColor,"Meter drew frames of an earlier page");if(vertex.col==newColor)++cells;}
+            Require(cells==2*last*4,"Meter did not draw exactly the newest frame's page for each player");
             hud=FindWindow("Training frame meter");Require(hud->Size.x<=620*hudScale+1&&hud->Size.y<size.h*.17f,"Frames shown changed the meter's size");
             Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Frames shown moved the meter over the game's super meters");
             const auto& bar=bars.at("training-bar-1");
@@ -224,22 +227,28 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             }
         }
         SetMenuCardProbe({});SetTrainingMeterOptions({});
-        // A held meter scrolls back with the mouse wheel over the bars: six
-        // notches show the oldest 60 frames it keeps, and running again
-        // shows the newest.
+        // A held meter steps back a page a notch of the mouse wheel over the
+        // bars, no further than its oldest frame; Frames shown changed while
+        // it is stepped back keeps it within its frames; running again shows
+        // the newest frame's page.
         training.meter.frames.clear();
-        for(int frame=0;frame<121;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<60?down:attack,frame<60?down:attack}},frame);
-        training.meter.frozen=true;draw();
+        for(int frame=0;frame<120;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<60?down:attack,frame<60?down:attack}},frame);
+        training.meter.length=120;training.meter.frozen=true;draw();
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});draw();SetMenuCardProbe({});
         const auto& bar=bars.at("training-bar-1");
-        io.AddMousePosEvent((bar.first.x+bar.second.x)/2,(bar.first.y+bar.second.y)/2);io.AddMouseWheelEvent(0,6);draw();
         const auto count=[&](ImU32 colour){int n=0;for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer)if(vertex.col==colour)++n;return n;};
-        Require(count(TrainingCellColor(training::MeterCellOf(down),true))==2*59*4&&count(TrainingCellColor(training::MeterCellOf(attack),true))==2*1*4,"Scrolling a held meter back did not show its oldest frames");
-        io.AddMouseWheelEvent(0,-6);draw();
-        Require(count(TrainingCellColor(training::MeterCellOf(attack),true))==2*60*4,"Scrolling forward did not return to the newest frames");
-        io.AddMouseWheelEvent(0,6);draw();training.meter.frozen=false;draw();
-        Require(count(TrainingCellColor(training::MeterCellOf(attack),true))==2*60*4,"A running meter stayed scrolled back");
-        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);draw();
+        const ImU32 downColor=TrainingCellColor(training::MeterCellOf(down),true),attackColor=TrainingCellColor(training::MeterCellOf(attack),true);
+        Require(count(downColor)==0&&count(attackColor)==2*60*4,"A held meter did not show its newest frame's page");
+        io.AddMousePosEvent((bar.first.x+bar.second.x)/2,(bar.first.y+bar.second.y)/2);io.AddMouseWheelEvent(0,6);draw();
+        Require(count(downColor)==2*60*4&&count(attackColor)==0,"Stepping a held meter back did not stop at its first page");
+        io.AddMouseWheelEvent(0,-1);draw();
+        Require(count(downColor)==0&&count(attackColor)==2*60*4,"A notch forward did not return to the newest frame's page");
+        io.AddMouseWheelEvent(0,1);draw();
+        {training::MeterOptions wide;wide.shown=120;SetTrainingMeterOptions(wide);draw();}
+        Require(count(downColor)==2*60*4&&count(attackColor)==2*60*4,"Frames shown changed while stepped back left the frames kept");
+        SetTrainingMeterOptions({});io.AddMouseWheelEvent(0,1);draw();training.meter.frozen=false;draw();
+        Require(count(attackColor)==2*60*4,"A running meter stayed stepped back");
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);draw();training.meter.length=0;
     }
     // The F6 colour key must describe the flat bars: each entry's colour is the
     // one they draw for a status of that phase, and no two entries share one.
@@ -353,7 +362,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     }
     // Run lengths and counting marks: P1's jab and a special it cancels into
     // each count their own startup, active and recovery; P2's two hits of the
-    // combo count apart; every fifth and tenth cell boundary is marked.
+    // combo count apart; every fifth and tenth cell boundary is marked. At 60
+    // frames shown the bars show the second page, the cancel and the combo.
     {
         training::MeterView runs;
         const auto attack=[](int action,int frame,int first,int last){training::FighterSample s;s.valid=true;s.status=16;s.action=action;

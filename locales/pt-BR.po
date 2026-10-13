@@ -1548,7 +1548,7 @@ msgid "training.meter.frames_shown"
 msgstr "Quadros mostrados"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar; 120 mostra todo o histórico. Com o medidor parado, a roda do mouse sobre as barras volta no tempo."
+msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar. Uma troca mais longa continua a partir da borda esquerda. Com o medidor parado, a roda do mouse sobre as barras volta uma página por vez."
 
 msgid "training.meter.hud_recovery"
 msgstr "Recuperação no HUD"

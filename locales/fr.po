@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Frames affichées"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Combien de frames les barres montrent sur la même largeur. Moins de frames les rend plus larges et faciles à compter ; 120 montre tout l'historique. Jauge figée, la molette sur les barres remonte en arrière."
+msgstr "Combien de frames les barres montrent sur la même largeur. Moins de frames les rend plus larges et faciles à compter. Un échange plus long reprend depuis le bord gauche. Jauge figée, la molette sur les barres recule d'une page à la fois."
 
 msgid "training.meter.hud_recovery"
 msgstr "Récupération sur le HUD"

@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Frames shown"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "How many frames the bars show across the same width. Fewer make each frame wider and easier to count; 120 shows the whole history. While the meter is held, the mouse wheel over the bars scrolls back through it."
+msgstr "How many frames the bars show across the same width. Fewer make each frame wider and easier to count. An exchange longer than that goes on from the left edge. While the meter is held, the mouse wheel over the bars steps back a page at a time."
 
 msgid "training.meter.hud_recovery"
 msgstr "Recovery on HUD"

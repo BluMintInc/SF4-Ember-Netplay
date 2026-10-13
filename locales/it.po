@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "Frame mostrati"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Quanti frame mostrano le barre nella stessa larghezza. Meno frame sono più larghi e facili da contare; 120 mostra tutta la cronologia. A misuratore fermo, la rotellina sopra le barre scorre indietro."
+msgstr "Quanti frame mostrano le barre nella stessa larghezza. Meno frame sono più larghi e facili da contare. Uno scambio più lungo riprende dal bordo sinistro. A misuratore fermo, la rotellina sopra le barre torna indietro di una pagina alla volta."
 
 msgid "training.meter.hud_recovery"
 msgstr "Recupero nell'HUD"

@@ -1761,7 +1761,7 @@ msgid "training.meter.frames_shown"
 msgstr "显示帧数"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "计量条在同样宽度内显示的帧数。越少则每帧越宽、越好数；120 显示全部记录。计量条停住时，在条上滚动鼠标滚轮可向前回看。"
+msgstr "计量条在同样宽度内显示的帧数。越少则每帧越宽、越好数。更长的攻防会从左端接着显示。计量条停住时，在条上滚动鼠标滚轮可逐页向前回看。"
 
 msgid "training.meter.hud_recovery"
 msgstr "在 HUD 显示硬直"
