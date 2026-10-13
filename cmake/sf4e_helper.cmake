@@ -69,7 +69,7 @@ if(WIN32)
             add_test(NAME BridgeSdk
                 COMMAND ${CMAKE_COMMAND} "-DSOURCE=${CMAKE_SOURCE_DIR}"
                     "-DCARGO=${SF4E_CARGO_EXECUTABLE}" "-DNPM=${SF4E_NPM_EXECUTABLE}"
-                    "-DEMBER_TARGET=${SF4E_EMBER_TARGET_DIR}"
+                    "-DEMBER_TARGET=${SF4E_EMBER_TARGET_DIR}" "-DJOBS=${SF4E_CARGO_TEST_JOBS}"
                     -P "${CMAKE_SOURCE_DIR}/cmake/RunSdkTests.cmake")
             set_tests_properties(BridgeSdk PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(BridgeSdk ember_processes)

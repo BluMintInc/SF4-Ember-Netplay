@@ -8,8 +8,12 @@ function(require_success)
     endif()
 endfunction()
 set(BRIDGE "${EMBER_TARGET}/debug/ember-bridge.exe")
+# On the processors CTest reserves for this test (SF4E_CARGO_TEST_JOBS).
+if(NOT JOBS MATCHES "^[1-9][0-9]*$")
+    message(FATAL_ERROR "SDK validation needs JOBS, a positive integer")
+endif()
 require_success("${CMAKE_COMMAND}" -E env "CARGO_TARGET_DIR=${EMBER_TARGET}"
-    "${CARGO}" build --locked --manifest-path "${SOURCE}/server/ember/Cargo.toml" -p ember-bridge)
+    "${CARGO}" build --locked -j ${JOBS} --manifest-path "${SOURCE}/server/ember/Cargo.toml" -p ember-bridge)
 if(NOT EXISTS "${BRIDGE}")
     message(FATAL_ERROR "SDK bridge prerequisite is missing: ${BRIDGE}")
 endif()
