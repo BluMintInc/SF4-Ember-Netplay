@@ -26,7 +26,18 @@ FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const st
             if (auto raw = ParseRawBinding(field.second)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
     return names;
 }
-std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable) {
+namespace {
+void Mark(std::vector<MenuEntry>& rows, const LayoutRowMarks& marks) {
+    for (auto& row : rows) {
+        if (!marks.waiting.empty()) {
+            if (row.id == marks.waiting) { row.value = loc::T("button_layout.waiting"); row.valueHighlighted = true; }
+            else { row.enabled = false; row.quiet = true; }
+        }
+        if (row.id == marks.flash) row.valueHighlighted = true;
+    }
+}
+}
+std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const LayoutRowMarks& marks) {
     std::vector<MenuEntry> rows;
     const bool absent = pad.state == RowState::Absent;
     const bool setup = pad.state == RowState::GameRead || pad.state == RowState::Unmapped;
@@ -58,6 +69,7 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable) {
     for (const auto& choice : LayoutPresets) preset.choices.push_back({choice.id, loc::T(choice.key), loc::T(choice.detailKey)});
     rows.push_back(std::move(preset));
     if (editable && !absent && pad.layout) rows.push_back(ConfirmRow("remove", loc::T("button_layout.remove"), loc::T("button_layout.remove_detail")));
+    Mark(rows, marks);
     return rows;
 }
 std::vector<MenuEntry> ButtonEditorRows(const PadView& pad, unsigned button, bool editable) {
@@ -114,21 +126,42 @@ void Attacks(const PadView& pad) {
     ImGui::Dummy(ImVec2(0, height));
 }
 }
-void DrawButtonLayoutDetail(const PadView& pad, ButtonPrompts prompts, bool capture, const std::optional<std::uint32_t>& mask) {
+void DrawButtonLayoutDetail(const PadView& pad, ButtonPrompts prompts, bool capture) {
     PictureName(pad);
     if (pad.state == RowState::GameRead || pad.state == RowState::Unmapped) return;
-    if (capture) {
-        const auto text = mask ? loc::Tf("button_layout.press_for", AttackLongName(*mask)) : std::string(loc::T("button_layout.press_to_change"));
-        const float font = 1.4f * ImGui::GetFontSize();
-        const auto at = ImGui::GetCursorScreenPos();
-        const float width = ImGui::GetContentRegionAvail().x;
-        const auto measured = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, width, text.c_str());
-        ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), font, at, palette::Ivory, text.c_str(), nullptr, width);
-        ImGui::Dummy(ImVec2(0, measured.y + 8 * Scale()));
-        ImGui::TextWrapped("%s", loc::T("button_layout.press_cancel"));
-    }
     LayoutMap(pad, ResolvePrompts(prompts, input::PadXInput, pad.brand));
     if (!capture) Attacks(pad);
+}
+CaptureCard LayoutCaptureCard(const PadView& pad, const std::optional<std::uint32_t>& mask, double left) {
+    return {mask ? loc::Tf("button_layout.press_for", AttackLongName(*mask)) : std::string(loc::T("button_layout.press_to_change")), pad.name, left};
+}
+namespace {
+// The prompt at 1.4x the body font, as the wizard's capture draws it (5.2).
+float PromptFont() { return 1.4f * ImGui::GetFontSize(); }
+float BarHeight() { return 4 * Scale(); }
+}
+float CaptureCardHeight(const CaptureCard& card, float width) {
+    const float gap = 10 * Scale();
+    return ImGui::GetFont()->CalcTextSizeA(PromptFont(), FLT_MAX, width, card.prompt.c_str()).y + gap +
+        ImGui::CalcTextSize(card.pad.c_str(), nullptr, false, width).y + gap + BarHeight() + gap +
+        ImGui::CalcTextSize(loc::T("button_layout.press_cancel"), nullptr, false, width).y;
+}
+void DrawCaptureCard(const CaptureCard& card) {
+    const float s = Scale(), gap = 10 * s, width = ImGui::GetContentRegionAvail().x;
+    auto* draw = ImGui::GetWindowDrawList();
+    auto at = ImGui::GetCursorScreenPos();
+    const auto prompt = ImGui::GetFont()->CalcTextSizeA(PromptFont(), FLT_MAX, width, card.prompt.c_str());
+    draw->AddText(ImGui::GetFont(), PromptFont(), at, palette::Ivory, card.prompt.c_str(), nullptr, width);
+    ImGui::Dummy(ImVec2(0, prompt.y + gap - ImGui::GetStyle().ItemSpacing.y));
+    NoteUserText(card.pad);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(palette::Muted));
+    ImGui::TextWrapped("%s", card.pad.c_str());
+    ImGui::PopStyleColor();
+    at = ImGui::GetCursorScreenPos(); at.y += gap - ImGui::GetStyle().ItemSpacing.y;
+    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + BarHeight()), IM_COL32(255, 135, 56, 60));
+    draw->AddRectFilled(at, ImVec2(at.x + width * static_cast<float>(card.left), at.y + BarHeight()), palette::Ember);
+    ImGui::Dummy(ImVec2(0, 2 * gap + BarHeight() - 2 * ImGui::GetStyle().ItemSpacing.y));
+    ImGui::TextWrapped("%s", loc::T("button_layout.press_cancel"));
 }
 void DrawButtonEditorDetail(const PadView& pad, ButtonPrompts prompts, unsigned button) {
     const float size = 64 * Scale(); const auto at = ImGui::GetCursorScreenPos(); const auto names = NamesOf(pad.table);

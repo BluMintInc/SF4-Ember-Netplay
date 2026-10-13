@@ -5006,6 +5006,9 @@ msgstr "Hod (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Focus útok (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Červený Focus útok (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Vyberte a stiskněte požadované tlačítko pro {0}. Pokud útok má jiné tlačítko, obě se prohodí."
 
@@ -5068,6 +5071,9 @@ msgstr "Stiskněte tlačítko pro {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Stiskněte tlačítko ke změně"
+
+msgid "button_layout.waiting"
+msgstr "Stiskněte tlačítko..."
 
 msgid "button_layout.press_cancel"
 msgstr "Pohněte páčkou nebo stiskněte Start pro zrušení."

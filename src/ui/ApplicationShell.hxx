@@ -445,6 +445,9 @@ private:
     std::optional<unsigned> layoutCaptureFunction_;
     gamepads::LayoutCapture layoutCapture_;
     bool layoutNeutral_ = false;
+    // The row that just took a press, shown in Ember until layoutFlashUntil_.
+    std::string layoutFlash_;
+    double layoutFlashUntil_ = 0;
     void SyncLayoutPaths(const ShellView& view);
     void SetGameplayLayoutPrompts(const ShellView& view);
     void CancelLayoutCapture(const ShellView& view, const Submit& submit);

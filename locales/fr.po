@@ -5006,6 +5006,9 @@ msgstr "Projection (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Attaque Focus (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Attaque Focus rouge (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Sélectionnez, puis appuyez sur le bouton souhaité pour {0}. Si un autre bouton a cette attaque, les deux s'échangent."
 
@@ -5068,6 +5071,9 @@ msgstr "Appuyez sur le bouton pour {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Appuyez sur le bouton à modifier"
+
+msgid "button_layout.waiting"
+msgstr "Appuyez sur un bouton..."
 
 msgid "button_layout.press_cancel"
 msgstr "Bougez le stick ou appuyez sur Start pour annuler."

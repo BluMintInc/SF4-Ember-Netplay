@@ -5006,6 +5006,9 @@ msgstr "Presa (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Attacco Focus (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Attacco Focus rosso (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Seleziona, poi premi il pulsante desiderato per {0}. Se un altro pulsante ha questo attacco, i due si scambiano."
 
@@ -5068,6 +5071,9 @@ msgstr "Premi il pulsante per {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Premi il pulsante da cambiare"
+
+msgid "button_layout.waiting"
+msgstr "Premi un pulsante..."
 
 msgid "button_layout.press_cancel"
 msgstr "Muovi lo stick o premi Start per annullare."

@@ -4662,6 +4662,9 @@ msgstr "Throw (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Focus attack (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Red Focus attack (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Select, then press the button you want for {0}. If another button has it, the two buttons swap."
 
@@ -4724,6 +4727,9 @@ msgstr "Press the button for {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Press the button to change"
+
+msgid "button_layout.waiting"
+msgstr "Press a button..."
 
 msgid "button_layout.press_cancel"
 msgstr "Move the stick or press Start to cancel."

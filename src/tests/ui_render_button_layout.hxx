@@ -26,9 +26,9 @@ void ShootButtonLayout(sf4e::ui::ApplicationShell& shell, sf4e::ui::ShellView& v
     view.preferences.controllerMappings[pad.identity.guid] = pad.identity.guid + ",Stick,a:b7,b:b8,x:b4,y:b5,leftshoulder:b10,rightshoulder:b6,lefttrigger:a0,righttrigger:b9,";
     draw("button-layout-stick");
     view.pads[0].brand = view.gameplayBrand = pad.brand; view.pads[0].picture = pad.picture; view.pads[0].name = pad.name; view.pads[0].has = AllLayoutButtons;
-    view.pads[0].held.clear(); focus("fn-lp"); draw(nullptr, MenuInput::Select, 1); draw("button-layout-capture");
+    view.pads[0].held.clear(); focus("fn-red-focus"); draw(nullptr, MenuInput::Select, 1); draw("button-layout-capture");
     view.pads[0].held = {"Start"}; draw(); view.pads[0].held.clear(); draw();
-    focus("edit-button"); draw(nullptr, MenuInput::Select, 1); draw(); view.pads[0].held = {"LB"}; draw(); view.pads[0].held.clear(); draw();
+    focus("edit-button"); draw(nullptr, MenuInput::Select, 1); draw("button-layout-capture-pick"); view.pads[0].held = {"LB"}; draw(); view.pads[0].held.clear(); draw();
     for (const auto* bit : {"bit-mp", "bit-hp", "bit-lk"}) {
         shell.Navigation().Focus(bit, ButtonEditorRows(view.pads[0], 4, true));
         draw(nullptr, MenuInput::Right, 1); draw();

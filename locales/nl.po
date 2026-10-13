@@ -5006,6 +5006,9 @@ msgstr "Worp (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Focusaanval (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Rode focusaanval (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Selecteer en druk op de gewenste knop voor {0}. Als een andere knop deze aanval heeft, wisselen de twee knoppen."
 
@@ -5068,6 +5071,9 @@ msgstr "Druk op de knop voor {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Druk op de te wijzigen knop"
+
+msgid "button_layout.waiting"
+msgstr "Druk op een knop..."
 
 msgid "button_layout.press_cancel"
 msgstr "Beweeg de stick of druk op Start om te annuleren."

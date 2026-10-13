@@ -5006,6 +5006,9 @@ msgstr "投げ (LP+LK)"
 msgid "button_layout.focus"
 msgstr "セービングアタック (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "レッドセービングアタック (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "選択してから、{0} に使いたいボタンを押してください。別のボタンに同じ攻撃があれば、2つのボタンの攻撃を入れ替えます。"
 
@@ -5068,6 +5071,9 @@ msgstr "{0} のボタンを押してください"
 
 msgid "button_layout.press_to_change"
 msgstr "変更するボタンを押してください"
+
+msgid "button_layout.waiting"
+msgstr "ボタンを押してください..."
 
 msgid "button_layout.press_cancel"
 msgstr "スティックを動かすか Start を押すとキャンセルします。"

@@ -111,6 +111,13 @@ public:
     float wideListShare=.53f;
     // A custom detail can request more room above a compact list, leaving one row visible.
     float compactDetailHeight=0;
+    // A card over the list while the screen waits for something outside the
+    // menu (a button capture): measure gives the height its content needs at a
+    // content width, draw fills it. It sits centred on the list, or centred in
+    // the larger band beside the focused row when it would cover that row, so
+    // the row stays readable. Presentation only; empty draws none.
+    struct ListCard { std::function<float(float)> measure; std::function<void()> draw; };
+    ListCard listCard;
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).
@@ -158,6 +165,8 @@ private:
     void DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin);
     // Veils the body between top and bottom (screen y), not the header or legend.
     void DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,float unit,float top,float bottom,MenuAction& action);
+    // listCard over the list (listMin to listMax), clear of the focused row (rowMin to rowMax) where it can be.
+    void DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 rowMax,float unit);
     void DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action);
     // A reader in place of the list; held Up/Down scroll it.
     void DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held);

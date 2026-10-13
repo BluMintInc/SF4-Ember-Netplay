@@ -653,6 +653,7 @@ New keys for button layouts (see 11). Short fight names (LP, 3P, LP+LK) and prin
 | `button_layout.attacks` | Attacks |
 | `button_layout.throw` | Throw (LP+LK) |
 | `button_layout.focus` | Focus attack (MP+MK) |
+| `button_layout.red_focus` | Red Focus attack (LP+MP+MK) |
 | `button_layout.row_detail` | Select, then press the button you want for {0}. If another button has it, the two buttons swap. |
 | `button_layout.row_missing` | No button does only this, so you cannot press it on its own. |
 | `button_layout.no_button` | No button |
@@ -674,6 +675,7 @@ New keys for button layouts (see 11). Short fight names (LP, 3P, LP+LK) and prin
 | `button_layout.removed` | The game's layout applies to this controller again. |
 | `button_layout.press_for` | Press the button for {0} |
 | `button_layout.press_to_change` | Press the button to change |
+| `button_layout.waiting` | Press a button... |
 | `button_layout.press_cancel` | Move the stick or press Start to cancel. |
 | `button_layout.assigned` | {0} is on {1} now. |
 | `button_layout.swapped` | {0} is on {1} now. {2} does {3} instead. |
@@ -783,19 +785,19 @@ Edge states
 Button layout (see 11)
 
 38. U: `ButtonLayout.hxx` presets: `default` equals the 0xA5D078 masks for A to RT and 0 for LS and RS; `PresetOf` returns `default`, `triggers` and `focus-throw` for their exact masks and Custom after any single change.
-39. U: `FightName`: 0x10 `LP`, 0x430 `3P`, 0x8C0 `3K`, 0x50 `LP+LK`, 0xA0 `MP+MK`, 0xC00 `HP+HK`, 0x70 `LP+MP+LK`, 0 empty.
+39. U: `FightName`: 0x10 `LP`, 0x430 `3P`, 0x8C0 `3K`, 0x50 `LP+LK`, 0xA0 `MP+MK`, 0xB0 `LP+MP+MK`, 0xC00 `HP+HK`, 0x70 `LP+MP+LK`, 0 empty.
 40. U: `Assign` from Default: Light punch on Y gives X = MP, Y = LP; 3P on RB gives LB = HP, RB = 3P; Throw on LT when no button has exactly LP+LK changes only LT; Light punch on X changes nothing; Light punch on Y leaves LB at 3P; with old mask 0 the other button becomes 0.
 41. U: `SetMask` accepts any subset of 0xCF0 and the same function on two buttons; `PlayerPreferences::Valid` rejects a mask with any bit outside 0xCF0 and more than 32 layouts.
 42. U: `MissingAttacks`: Default gives none; X cleared gives Light punch; LP only on an LP+LK button gives Light punch; a button the pad lacks (LT on a wizard pad that skipped 3K) does not count.
 43. U: preferences round trip of `buttonLayouts`; an entry with 9 masks or a mask of 0x1000 is dropped and the rest load; saving a 33rd identity drops the oldest `edited`; `SamePreferences` sees a one-mask change.
 44. U: `FindLayout`: serial match; guid plus path match; guid-only fallback when exactly one serial-less entry has that guid and no other connected pad has it; no fallback with two such entries or two such pads.
-45. U: `SlotWritePlan`: a pad with a layout placed in a game-owned slot gives copy then layout; a pad without a layout taking an owned slot gives the game copy; a pad without a layout taking a game-owned slot gives nothing; a pad returning in slot 3 from slot 1 gives a write to slot 3 only; a removed layout gives the game copy; the first edit of a pad without a layout, sitting in a game-owned slot, gives copy then layout; an edit writes only its own slot; no plan ever addresses bits 0 to 9 or the menu table.
+45. U: `SlotWritePlan`: a pad with a layout placed in a game-owned slot gives copy then layout; a pad without a layout taking an owned slot gives the game copy; a pad without a layout taking a game-owned slot gives nothing; a pad returning in slot 3 from slot 1 gives a write to slot 3 only; a removed layout gives the game copy; the first edit of a pad without a layout, sitting in a game-owned slot, gives copy then layout; an edit writes only its own slot; no plan ever addresses bits 0 to 9 or the menu table. `ReclaimReloadedSlots`: a table the game wrote into an owned slot becomes its `gameCopy` and the layout is written back; a later removal restores that table; unowned slots, slots that fail the bounds check and every slot while the game's button screen is open are left untouched.
 46. U: Stick names: the default table gives the 2.3 names; after Light punch on RB the RB circle reads `LP` and X reads `HP`; a 0 mask gives no name and `PromptLabel("A", "Select", Stick)` with that table returns `Select`.
 47. U (shell journey): Player `controls` gives the value, detail and enabled of each 11.5 row (layer pad, DirectInput pad, keyboard, game reads, SDL failed); `game-buttons` sends `StartOffline`.
-48. U (shell journey): on `button-layout`, A on `fn-lp` opens capture; the held A is ignored until released; the next press of Y assigns, the status shows `button_layout.swapped`, then Saving and Saved; Start, a direction, Esc and 10 s without a press each cancel with no change; with `canEditPreferences` false every row but `test` is disabled and capture cannot open.
+48. U (shell journey): on `button-layout`, A on `fn-lp` opens capture; the held A is ignored until released; the next press of Y assigns, the status shows `button_layout.swapped`, then Saving and Saved; while capture is open its row reads `button_layout.waiting` and the other rows are disabled, and after it the row shows its button again; Start, a direction, Esc and 10 s without a press each cancel with no change; with `canEditPreferences` false every row but `test` is disabled and capture cannot open.
 49. U (shell journey): Back after a change that leaves Light punch on no button opens the notice with Keep editing selected; Keep editing stays; Leave returns to Player; Back with no change this visit returns at once; returning from `button-layout-button` never opens it.
 50. U (shell journey): the wizard's saved notice offers Button layout; choosing it opens `button-layout` for that pad with focus on `test`; Back returns to Controllers.
-51. R: `button-layout` for an Xbox pad, a DualSense (L3, R3 and Cross in the values), a Switch Pro pad and a wizard Stick that skipped the stick clicks (raw input names in the values, layout names on the circles, no LS or RS squares); the `test` row with LB and A held, lighting LP, MP, HP and LK; capture mode for Light punch; the read-only room state; the disconnected state; the set-up-first state.
+51. R: `button-layout` for an Xbox pad, a DualSense (L3, R3 and Cross in the values), a Switch Pro pad and a wizard Stick that skipped the stick clicks (raw input names in the values, layout names on the circles, no LS or RS squares); the `test` row with LB and A held, lighting LP, MP, HP and LK; capture mode for Red Focus with the capture card, and pick capture on `edit-button`; the read-only room state; the disconnected state; the set-up-first state.
 52. R: `button-layout-button` for LB with LP and LK on; the missing-attack notice; the Controllers row detail with `Button layout: Custom.`
 53. G: in Training with a DualSense, put Light punch on R1 from the layout screen; on the next frame R1 does light punch and Square does what R1 did.
 54. G: restart the game; the layout still applies. Connect another pad first so the DualSense lands in game slot 2; its layout follows it, and the pad in slot 1 has the game's layout.
@@ -847,7 +849,7 @@ Bits 0 to 7 (directions), 8 (View, 0x2000) and 9 (Start, 0x1000) are fixed and n
 
 **Short names** (`FightName(mask)`, not localised; fighting notation, like 2.5): 0x430 is `3P`; 0x8C0 is `3K`; any other non-zero mask joins the names of its bits with `+` in the order LP, MP, HP, LK, MK, HK (`LP+LK`, `MP+MK`, `HP+HK`, `LP+MP+LK`); 0 is the empty string.
 
-**Long names** (rows and status): the six attacks use `pad_setup.step.lp` to `pad_setup.step.hk`; 0x430 `pad_setup.step.3p`; 0x8C0 `pad_setup.step.3k`; 0x50 `button_layout.throw`; 0xA0 `button_layout.focus`; any other mask uses its short name.
+**Long names** (rows and status): the six attacks use `pad_setup.step.lp` to `pad_setup.step.hk`; 0x430 `pad_setup.step.3p`; 0x8C0 `pad_setup.step.3k`; 0x50 `button_layout.throw`; 0xA0 `button_layout.focus`; 0xB0 (LP+MP+MK, Red Focus Attack) `button_layout.red_focus`; any other mask uses its short name.
 
 **Presets** (masks in the order of the table above):
 
@@ -884,11 +886,12 @@ Per slot the layer keeps `owner` (the identity whose Ember layout is in the tabl
 | A pad without a layout takes slot n and `owner[n]` is none | Nothing. |
 | The layout of the pad in slot n changes (edit, preset), including the first edit of a pad that had no layout | If `owner[n]` is none, copy the ten entries into `gameCopy[n]` first and set `owner[n]` to the pad. Write the new layout. |
 | The layout of the pad in slot n is removed (`remove`, 11.6.2) | Write `gameCopy[n]`; `owner[n]` = none. |
+| The game writes its own table into slot n while `owner[n]` is set (its config load, about 5 s after the binding records exist) | At the next update the ten entries no longer equal the owner's layout: copy them into `gameCopy[n]` (they are the game's fresh table), then write the layout again; `owner[n]` is unchanged. Checked every update, before the frame's input update, so the game never plays more than one update with its own table on an owned slot. Not while the game's button screen is open (Decisions 6); that swap owns the slots then. |
 | A pad disconnects | Nothing. The table stays until another pad takes the slot. |
 | A pad comes back in a different slot (3.1 rule 4), including mid-match | Treated as "takes slot m" above. Its old slot is handled when another pad takes it. |
 | Let the game read controllers on, or SDL failed | Never writes. |
 
-`SlotWritePlan(previous owners, new placements, layouts)` returns the list of `{slot, source (layout or gameCopy)}` writes and is the unit under test; the game-thread writer only executes it.
+`SlotWritePlan(previous owners, new placements, layouts)` returns the list of `{slot, source (layout or gameCopy)}` writes and is the unit under test; the game-thread writer only executes it. `ReclaimReloadedSlots(owners, records, screen swap)` does the reload row above and returns the slots it reclaimed; the writer runs it first in each update, so a removal or a new owner in the same update starts from the fresh `gameCopy`. A slot whose record fails the bounds check is skipped and never written.
 
 **Applying an edit.** The shell does not wait for the autosave. Each change sends `ControllerRequest{Kind::Layout, padId}` with the ten masks (new `Kind::Layout`; `Kind::RemoveLayout` for `remove`), and the runtime writes it on the next frame and logs it. The shell also sets `preferences_.buttonLayouts`, `preferencesDirty_ = true` and `saveAt_ = now + 0.45 s`, as a main fighter pick does, so the normal autosave stores the same data and the status shows Saving, then Saved. If the save fails, the existing `error.settings_not_saved` path applies and the layout stays in force for this session.
 
@@ -936,9 +939,10 @@ A pure button list would force a stick player to find "the circle named HP" in a
 | 9 | `fn-3k` | as above | `pad_setup.step.3k` | as above | as above | capture, mask 0x8C0 |
 | 10 | `fn-throw` | as above | `button_layout.throw` | as above | as above | capture, mask 0x50 |
 | 11 | `fn-focus` | as above | `button_layout.focus` | as above | as above | capture, mask 0xA0 |
-| 12 | `edit-button` | `Row` | `button_layout.edit_button` | none | `button_layout.edit_button_detail` | opens capture for a button to edit (11.7), then `button-layout-button` |
-| 13 | `preset` | `Row` with `value` and `choices`, `chosen` = current preset id (none when Custom or no layout) | `button_layout.preset` | layout name (11.3) | `button_layout.preset_detail` | opens the choices modal: `default`, `triggers`, `focus-throw`, each with its label and `_detail` key; picking one applies it at once (choices beat confirmation, as everywhere in the shell) and shows status `button_layout.preset_applied` ({0} = label) |
-| 14 | `remove` | `ConfirmRow`, shown only when the pad has an Ember layout | `button_layout.remove` | none | `button_layout.remove_detail` | confirmation; yes removes the layout (11.4), focus moves to `preset`, status `button_layout.removed` |
+| 12 | `fn-red-focus` | as above | `button_layout.red_focus` | as above | as above | capture, mask 0xB0 (LP+MP+MK) |
+| 13 | `edit-button` | `Row` | `button_layout.edit_button` | none | `button_layout.edit_button_detail` | opens capture for a button to edit (11.7), then `button-layout-button` |
+| 14 | `preset` | `Row` with `value` and `choices`, `chosen` = current preset id (none when Custom or no layout) | `button_layout.preset` | layout name (11.3) | `button_layout.preset_detail` | opens the choices modal: `default`, `triggers`, `focus-throw`, each with its label and `_detail` key; picking one applies it at once (choices beat confirmation, as everywhere in the shell) and shows status `button_layout.preset_applied` ({0} = label) |
+| 15 | `remove` | `ConfirmRow`, shown only when the pad has an Ember layout | `button_layout.remove` | none | `button_layout.remove_detail` | confirmation; yes removes the layout (11.4), focus moves to `preset`, status `button_layout.removed` |
 
 **Value of the `fn-` rows:** the names of the listed buttons whose mask equals the row's mask exactly, joined with ", ", in table order; `button_layout.no_button` when none. A button carrying a different mix (LP+MP) appears in no row; the detail pane shows it. Button names by the target pad's resolved prompt brand (`ResolvePrompts(setting, PadXInput, pad.brand)`, 2.4); printed names, not localised:
 
@@ -988,7 +992,7 @@ Rebuilt every frame from the snapshot, so the screen moves between them live.
 |---|---|---|
 | Editable: target connected and served by the layer, `canEditPreferences` | 11.6.2 | 11.6.3 |
 | Read-only: `canEditPreferences` false (a room, not at the main menu, a GGPO session) | the same rows, values filled; every row but `test` disabled with detail `settings.leave_room_to_edit`; `remove` hidden | 11.6.3 (the test keeps working) |
-| Target disconnected | first `InfoRow` `layout-absent`, label `button_layout.absent`, detail `button_layout.absent_detail` ({0} = name); then rows 2 to 13 disabled with the same detail and the saved values; `test` and `remove` hidden. Focus moves to `layout-absent`. When the same identity reconnects, the editable or read-only rows return with focus on `test`. | picture `controller_disconnected.png`, the name, the map without highlights |
+| Target disconnected | first `InfoRow` `layout-absent`, label `button_layout.absent`, detail `button_layout.absent_detail` ({0} = name); then rows 2 to 14 disabled with the same detail and the saved values; `test` and `remove` hidden. Focus moves to `layout-absent`. When the same identity reconnects, the editable or read-only rows return with focus on `test`. | picture `controller_disconnected.png`, the name, the map without highlights |
 | Target game-read (unmapped, or native-profile stick) | `InfoRow` `layout-setup-first`, label `button_layout.setup_first`, detail `button_layout.setup_first_detail` ({0} = name); then `Row` `setup`, label `controllers.choice_setup`, detail `controllers.choice_setup_detail`, enabled `canEditPreferences` (else detail `settings.leave_room_to_edit`). A on `setup` starts the wizard exactly as the Controllers `setup` choice does. After a save the wizard returns to this screen, now editable, focus `test`, and shows the saved notice without its alternative (5.9). A cancelled or stopped wizard also returns here. | the picture and name only |
 
 Any capture open when the state leaves Editable is cancelled silently (11.7).
@@ -998,16 +1002,18 @@ Any capture open when the state leaves Editable is cancelled silently (11.7).
 Opened by A or Enter (or a click) on an `fn-` row (**assign** capture) or on `edit-button` (**pick** capture).
 
 - **Shell:** `menu_.listEnabled = false`, `menu_.ownsBack = true`, `additionalInput = 0`. The legend follows the wizard's capture convention (5.2): no Select or Back pair; extras `{"Start", common.cancel}` drawn in the target's resolved brand, and `{"Esc", common.cancel}`. Header Back acts as cancel.
-- **Pane** (replaces 11.6.3 while open): picture and name; then `button_layout.press_for` ({0} = row label) for assign, or `button_layout.press_to_change` for pick, at 1.4x the body font as in 5.2; then `button_layout.press_cancel`; then the layout map (11.6.3 item 2) so the player sees where things are now.
+- **Rows** (`ButtonLayoutRows` with `LayoutRowMarks`): the capture's row (the `fn-` row for assign, `edit-button` for pick) shows the value `button_layout.waiting` in `palette::Ember` (`valueHighlighted`). Every other row is disabled and `quiet`, so it draws dimmed. The shell has no shared pulse helper, so the value does not pulse.
+- **Card** (`GameMenu::listCard`): a card over the list, on the panel the flyout's confirmation uses (`BeginDialogCard`). It is centred on the list, or centred in the larger band above or below the capture's row when it would cover that row. Top to bottom: `button_layout.press_for` ({0} = row label) for assign, or `button_layout.press_to_change` for pick, at 1.4x the body font as in 5.2; the target's name in Muted; a 4 px `palette::Ember` bar that empties over the 10 s timeout (`LayoutCapture::Left`); `button_layout.press_cancel`.
+- **Pane** (replaces 11.6.3 while open): picture and name, then the layout map (11.6.3 item 2) so the player sees where things are now. The card carries the prompt and the cancel line.
 - **Arming:** capture ignores the target until none of its listed buttons, directions, View or Start is held (so the A that opened it does nothing). Opened with Enter or a click while nothing is held, it is armed at once.
 - **Taking the press:** the first listed button of the target to go down after arming (trigger past 50%) is the button P, taken on press. Other pads and the keyboard never bind. After a press the screen ignores the target's menu input until all its buttons are released (`NeutralGate`), so a press of A or B never also selects or goes back.
 - **Cancel:** Start or any direction on the target (d-pad or left stick past 50%), Esc, header Back, or 10 s with no press. Nothing changes and no message is shown. Also cancelled silently when the screen leaves the Editable state.
-- **Assign result** (`Assign(layout, P, mask)`): let `old` be P's mask. If `old == mask`, nothing changes. Otherwise every other listed button whose mask equals `mask` exactly gets `old` (a swap), and P gets `mask`. Buttons whose mask merely contains a function of `mask` are untouched (assigning LP to Y leaves 3P on LB as it is). Nothing is ever lost: the attack P had moves to the button the new one came from. The change is applied and saved (11.4). Status, `Tone::Neutral`, 4 s:
+- **Assign result** (`Assign(layout, P, mask)`): let `old` be P's mask. If `old == mask`, nothing changes. Otherwise every other listed button whose mask equals `mask` exactly gets `old` (a swap), and P gets `mask`. Buttons whose mask merely contains a function of `mask` are untouched (assigning LP to Y leaves 3P on LB as it is). Nothing is ever lost: the attack P had moves to the button the new one came from. The change is applied and saved (11.4). Status, `Tone::Success`, 4 s:
   - no other button had it: `button_layout.assigned` ({0} = row label, {1} = P's name);
   - a swap, `old` non-zero: `button_layout.swapped` ({0} row label, {1} P's name, {2} the other button's name, {3} `FightName(old)`); with several other buttons, {2} is the first in table order;
   - a swap, `old` zero: `button_layout.swapped_nothing` ({0}, {1}, {2} as above).
 
-  Focus stays on the row.
+  Focus stays on the row. Whenever a press is taken, changed or not, the row's value shows in `palette::Ember` for 600 ms (`LayoutRowMarks::flash`), so the row flashes with its new button.
 - **Pick result:** push `button-layout-button` for P, focus `bit-lp`.
 
 Decision on duplicates: assigning by press moves (swaps) so one press can never leave an attack without a button. The same function on several buttons is allowed, but only on purpose, through the per-button editor or a preset (`focus-throw` has MP on Y and in Focus).
@@ -1084,11 +1090,11 @@ At `spdlog::info` unless marked, prefix `Input:`, conventions of section 7. `{la
 | Guid fallback match | `Input: layout for guid {guid} matched '{name}' id {id} by guid only; path updated` |
 | Cap reached | `Input: layout for id {id} dropped, oldest of 33` |
 | Leave warning | `Input: layout for id {id} left with no button for {LP, HK}` |
-| Table changed outside Ember | `Input: slot {n} fight table changed by the game while id {id} owns it; Ember writes its layout again at the next placement` (warn, once per slot per session; checked once a second) |
+| Table reloaded by the game (11.4) | `Input: slot {n} fight table reloaded by the game; its table saved again and the layout for id {id} written back` (once per slot per session; checked every update) |
 
 ### 11.13 Limits and engineering notes
 
-1. **The game's own screen and Ember layouts share memory.** The game's screen edits the same slot tables. A change made there to a slot that holds an Ember layout lasts only until Ember next writes that slot (next placement or launch); `player.game_buttons_detail` says Ember layouts win. When the game saves its config, the tables it saves include any Ember layouts in the slots, so a pad without a layout can later inherit one by slot position. And because the validator (0x4CBA40) checks all four XInput records, an Ember layout with a missing attack in any slot can stop the game's screen saving anything, including a keyboard change. If the game's button screen can be detected (IDA task), the layer should write `gameCopy` into every owned slot while it is open and write the layouts back when it closes. Until then this is a known limit (open question for Kate).
+1. **The game's own screen and Ember layouts share memory.** The game's screen edits the same slot tables. Decisions 6 now sets Ember layouts aside while that screen is open. Outside it, a table the game writes into a slot that holds an Ember layout (its config load at launch) becomes that slot's `gameCopy` at the next update and the layout is written back (11.4); `player.game_buttons_detail` says Ember layouts win. When the game saves its config, the tables it saves include any Ember layouts in the slots, so a pad without a layout can later inherit one by slot position. And because the validator (0x4CBA40) checks all four XInput records, an Ember layout with a missing attack in any slot can stop the game's screen saving anything, including a keyboard change. If the game's button screen can be detected (IDA task), the layer should write `gameCopy` into every owned slot while it is open and write the layouts back when it closes. Until then this is a known limit (open question for Kate).
 2. **Record to slot mapping.** The writer addresses the XInput record of slot n as in the 2026-10-08 IDA notes (code notes 11 and 13). Confirm which record index each XInput slot uses before implementing; the spec assumes one fixed record per slot.
 3. `HeldGlyphs` (`ControllerView.hxx`) gains `LS` (`Button::LeftStick`) and `RS` (`Button::RightStick`). `PadView` gains `has` (ten bools, 11.2), `table` (the ten masks in force, 11.11), `layout` (the stored masks or none) and `buttonNames` (the ten printed names, 11.6.2).
 4. Writes go through the game thread only; the overlay thread only submits requests. A write is ten aligned dword stores and the game re-reads the table on each update, so no lock with the game is needed beyond writing before the update in the same pass.

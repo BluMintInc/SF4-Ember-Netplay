@@ -5006,6 +5006,9 @@ msgstr "Rzut (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Atak Focus (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Czerwony atak Focus (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Wybierz, a potem naciśnij przycisk dla {0}. Jeśli inny przycisk ma ten atak, przyciski zamienią się."
 
@@ -5068,6 +5071,9 @@ msgstr "Naciśnij przycisk dla {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Naciśnij przycisk do zmiany"
+
+msgid "button_layout.waiting"
+msgstr "Naciśnij przycisk..."
 
 msgid "button_layout.press_cancel"
 msgstr "Porusz gałką lub naciśnij Start, aby anulować."

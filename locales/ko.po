@@ -5006,6 +5006,9 @@ msgstr "잡기 (LP+LK)"
 msgid "button_layout.focus"
 msgstr "세이빙 어택 (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "레드 세이빙 어택 (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "선택한 다음 {0}에 사용할 버튼을 누르세요. 다른 버튼에 같은 공격이 있으면 두 버튼의 공격이 서로 바뀝니다."
 
@@ -5068,6 +5071,9 @@ msgstr "{0}에 쓸 버튼을 누르세요"
 
 msgid "button_layout.press_to_change"
 msgstr "바꿀 버튼을 누르세요"
+
+msgid "button_layout.waiting"
+msgstr "버튼을 누르세요..."
 
 msgid "button_layout.press_cancel"
 msgstr "스틱을 움직이거나 Start를 눌러 취소하세요."

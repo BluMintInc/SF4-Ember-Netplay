@@ -17,7 +17,7 @@ static void Model() {
         CHECK(!PresetOf(changed));
     }
     const std::pair<unsigned, const char*> names[] = {{0x10, "LP"}, {0x430, "3P"}, {0x8C0, "3K"}, {0x50, "LP+LK"},
-        {0xA0, "MP+MK"}, {0xC00, "HP+HK"}, {0x70, "LP+MP+LK"}, {0, ""}};
+        {0xA0, "MP+MK"}, {0xB0, "LP+MP+MK"}, {0xC00, "HP+HK"}, {0x70, "LP+MP+LK"}, {0, ""}};
     for (const auto& name : names) CHECK(FightName(name.first) == name.second);
     auto layout = DefaultLayout;
     auto swap = Assign(layout, 3, 0x10); CHECK(swap.changed && swap.swapped == 2 && swap.old == 0x20);
@@ -119,6 +119,36 @@ static void Writer() {
     CHECK(ReadSlot(records, 0, read) && read == newGame && !owners[0]);
     CHECK(ReadSlot(records, 1, read) && read == otherGame && !owners[1]);
 }
+// The game's config load replaces owned tables after Ember wrote them.
+static void Reload() {
+    alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 4> memory; memory.fill(0);
+    PadBindingRecords records(memory.data(), memory.data() + memory.size());
+    for (unsigned slot = 0; slot < 4; ++slot) WriteSlot(records, slot, DefaultLayout);
+    LayoutOwners owners; LayoutPlacements placements; std::array<bool, 4> occupied{};
+    const auto apply = [&] { CHECK(ApplySlotWrites(owners, placements, SlotWritePlan(owners, placements, occupied), records)); };
+    placements[0] = LayoutPlacement{Pad(1), LayoutPresets[1].buttons}; placements[2] = LayoutPlacement{Pad(2), LayoutPresets[2].buttons};
+    occupied[0] = occupied[2] = true; apply();
+    ButtonScreenSwap screen; ButtonLayout read;
+    CHECK(ReclaimReloadedSlots(owners, records, screen).empty());
+    auto loaded = DefaultLayout; loaded[0] = 0x50; WriteSlot(records, 0, loaded);
+    auto unowned = DefaultLayout; unowned[1] = 0xA0; WriteSlot(records, 1, unowned);
+    CHECK(ReclaimReloadedSlots(owners, records, screen) == std::vector<unsigned>{0});
+    CHECK(owners[0]->gameCopy == loaded && ReadSlot(records, 0, read) && read == LayoutPresets[1].buttons);
+    CHECK(owners[2]->gameCopy == DefaultLayout && ReadSlot(records, 2, read) && read == LayoutPresets[2].buttons);
+    CHECK(!owners[1] && ReadSlot(records, 1, read) && read == unowned);
+    CHECK(ReclaimReloadedSlots(owners, records, screen).empty());
+    // A later remove writes back the reloaded table, not the one saved at placement.
+    placements[0].reset(); apply();
+    CHECK(!owners[0] && ReadSlot(records, 0, read) && read == loaded);
+    // Bounds failure: slot 2 lies outside these records, so nothing is written.
+    WriteSlot(records, 2, unowned); auto before = memory;
+    PadBindingRecords shortRecords(memory.data(), memory.data() + 2 * PadBindingRecords::Stride);
+    CHECK(ReclaimReloadedSlots(owners, shortRecords, screen).empty() && memory == before && owners[2]->gameCopy == DefaultLayout);
+    // While the game's button screen is open its tables are meant to differ.
+    CHECK(screen.Open(owners, records)); WriteSlot(records, 2, loaded); before = memory;
+    CHECK(ReclaimReloadedSlots(owners, records, screen).empty() && memory == before && owners[2]->gameCopy == DefaultLayout);
+    CHECK(screen.Close(owners, records) && owners[2]->gameCopy == loaded && ReadSlot(records, 2, read) && read == LayoutPresets[2].buttons);
+}
 static void Capture() {
     LayoutCapture capture; capture.Begin(0, {"A"});
     CHECK(!capture.Read(1, {"A"}, AllLayoutButtons).button); capture.Read(2, {}, AllLayoutButtons);
@@ -129,6 +159,7 @@ static void Capture() {
     for (auto reason : {LayoutCancel::Escape, LayoutCancel::Back, LayoutCancel::State}) {
         capture.Begin(0, {}); CHECK(capture.Read(1, {}, AllLayoutButtons, reason).cancelled == reason);
     }
-    capture.Begin(0, {}); CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout);
+    capture.Begin(0, {}); CHECK(capture.Left(0) == 1 && capture.Left(2.5) == .75 && capture.Left(12) == 0);
+    CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout && capture.Left(10) == 0);
 }
-int main() { Model(); Persistence(); Writer(); Capture(); }
+int main() { Model(); Persistence(); Writer(); Reload(); Capture(); }

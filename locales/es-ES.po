@@ -5006,6 +5006,9 @@ msgstr "Agarre (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Ataque Focus (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Ataque Focus rojo (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Selecciona y pulsa el botón que quieras para {0}. Si otro botón tiene ese ataque, los dos se intercambian."
 
@@ -5068,6 +5071,9 @@ msgstr "Pulsa el botón para {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Pulsa el botón que quieras cambiar"
+
+msgid "button_layout.waiting"
+msgstr "Pulsa un botón..."
 
 msgid "button_layout.press_cancel"
 msgstr "Mueve la palanca o pulsa Start para cancelar."

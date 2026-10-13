@@ -4545,6 +4545,9 @@ msgstr "Arremesso (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Ataque Focus (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Ataque Focus vermelho (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Selecione e pressione o botão desejado para {0}. Se outro botão tiver esse ataque, os dois trocam."
 
@@ -4607,6 +4610,9 @@ msgstr "Pressione o botão para {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Pressione o botão a alterar"
+
+msgid "button_layout.waiting"
+msgstr "Pressione um botão..."
 
 msgid "button_layout.press_cancel"
 msgstr "Mova o analógico ou pressione Start para cancelar."

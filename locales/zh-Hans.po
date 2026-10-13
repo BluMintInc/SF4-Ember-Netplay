@@ -5006,6 +5006,9 @@ msgstr "投技 (LP+LK)"
 msgid "button_layout.focus"
 msgstr "蓄力攻击 (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "红色蓄力攻击 (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "选择后，按下要用于 {0} 的按钮。如果其他按钮已有该攻击，两个按钮的功能会互换。"
 
@@ -5068,6 +5071,9 @@ msgstr "请按下用于 {0} 的按钮"
 
 msgid "button_layout.press_to_change"
 msgstr "请按下要更改的按钮"
+
+msgid "button_layout.waiting"
+msgstr "请按下按钮..."
 
 msgid "button_layout.press_cancel"
 msgstr "移动摇杆或按 Start 取消。"

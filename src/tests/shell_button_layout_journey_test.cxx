@@ -137,6 +137,36 @@ void GuidFallbackEdit() {
     h.view.preferences = h.actions.back().preferences; h.Frame(); h.Choose("remove"); h.Press(MenuInput::Right); h.Press(MenuInput::Select); h.Wait(.5f);
     Check(h.actions.back().preferences.buttonLayouts.empty(), "Guid fallback layout could not be removed");
 }
-
+// Red Focus (LP+MP+MK) has its own row. While a capture waits, its row reads
+// "Press a button..." in Ember and the others dim; the row then flashes and
+// the status reads as a success.
+void RedFocusAndCaptureRows() {
+    Check(AttackLongName(0xB0) == loc::T("button_layout.red_focus"), "0xB0 has no long name");
+    Harness h; std::vector<MenuEntry> rows; std::string status; Tone tone = Tone::Neutral;
+    SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
+    SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+    const auto row = [&](const char* id) {
+        const auto at = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
+        Check(at != rows.end(), "Button layout row missing"); return *at;
+    };
+    auto pad = LayoutPad(); pad.table[2] = 0xB0; Prepare(h); h.view.pads = {pad}; h.Frame();
+    const auto focus = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "fn-focus"; });
+    Check(focus != rows.end() && focus + 1 != rows.end() && focus[1].id == "fn-red-focus", "Red Focus does not follow Focus");
+    Check(row("fn-red-focus").label == loc::T("button_layout.red_focus") && row("fn-red-focus").value == "Square", "Red Focus row does not show its button");
+    h.Choose("fn-red-focus");
+    Check(row("fn-red-focus").value == loc::T("button_layout.waiting") && row("fn-red-focus").valueHighlighted && row("fn-red-focus").enabled,
+        "Capture did not show the waiting value on its row");
+    Check(!row("fn-lp").enabled && !row("preset").enabled && !row("test").enabled, "Capture did not dim the other rows");
+    h.view.pads[0].held = {"RB"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(LastLayout(h).buttons[5] == 0xB0 && LastLayout(h).buttons[2] == 0x400, "Red Focus did not swap onto R1");
+    Check(row("fn-red-focus").value == "R1" && row("fn-red-focus").valueHighlighted && row("fn-lp").enabled, "Assigned row did not flash with its new button");
+    Check(status.find(loc::T("button_layout.red_focus")) != std::string::npos && tone == Tone::Success, "Assignment status is not a success naming Red Focus");
+    h.Wait(.7f); Check(!row("fn-red-focus").valueHighlighted, "Flash did not end");
+    h.Choose("edit-button");
+    Check(row("edit-button").value == loc::T("button_layout.waiting") && !row("fn-red-focus").enabled, "Pick capture did not wait on Change one button");
+    h.view.pads[0].held = {"Start"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(row("edit-button").value.empty() && row("fn-lp").enabled, "Cancelled capture left the waiting value");
+    SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
-void ButtonLayoutJourneys() { LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); }
+}
+void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); }

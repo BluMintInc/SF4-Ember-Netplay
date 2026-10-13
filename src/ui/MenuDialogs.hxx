@@ -20,4 +20,9 @@ struct DialogButton { std::string label; bool enabled=true, lit=true; };
 int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons,int* selected,float height,bool focusOnAppearing=true);
 // The height DrawDialogButtons will take here, for dialogs that lay out around it.
 float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height);
+// The panel of a dialog drawn in place rather than as a popup (the flyout's
+// confirmation, a button capture's card): a bordered child of `size` at `at`,
+// in screen coordinates. Pair with EndDialogCard.
+void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size);
+void EndDialogCard();
 } }

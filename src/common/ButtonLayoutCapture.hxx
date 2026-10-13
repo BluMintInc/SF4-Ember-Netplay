@@ -17,12 +17,16 @@ inline const char* CancelName(LayoutCancel reason) {
 struct LayoutPress { std::optional<unsigned> button; LayoutCancel cancelled = LayoutCancel::None; };
 class LayoutCapture {
 public:
+    // Seconds with no press before a capture cancels itself.
+    static constexpr double Timeout = 10;
     void Begin(double now, const std::vector<std::string>& held) { active_ = true; armed_ = held.empty(); began_ = now; }
     bool Active() const { return active_; }
+    // The part of the timeout still to run, 1 at Begin and 0 once it is spent or the capture ended.
+    double Left(double now) const { return active_ ? (std::max)(0.0, 1 - (now - began_) / Timeout) : 0; }
     LayoutPress Read(double now, const std::vector<std::string>& held, const ListedButtons& listed,
         LayoutCancel cancel = LayoutCancel::None) {
         if (!active_) return {};
-        if (cancel == LayoutCancel::None && now - began_ >= 10) cancel = LayoutCancel::Timeout;
+        if (cancel == LayoutCancel::None && now - began_ >= Timeout) cancel = LayoutCancel::Timeout;
         if (cancel != LayoutCancel::None) { active_ = false; return {{}, cancel}; }
         if (!armed_) { armed_ = held.empty(); return {}; }
         const auto down = [&](const char* id) { return std::find(held.begin(), held.end(), id) != held.end(); };

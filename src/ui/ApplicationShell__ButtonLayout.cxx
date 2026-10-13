@@ -45,7 +45,7 @@ void ApplicationShell::CancelLayoutCapture(const ShellView& view, const Submit& 
     if (!layoutCapture_.Active() || !layoutPad_) return;
     layoutCapture_.Read(ImGui::GetTime(), {}, layoutPad_->has, LayoutCancel::State);
     LayoutLog(view, submit, fmt::format("layout capture for id {} {} cancelled (state)", layoutPad_->id,
-        layoutCaptureFunction_ ? std::string("assign fn-") + LayoutFunctions[*layoutCaptureFunction_].id : "pick"));
+        layoutCaptureFunction_ ? "assign " + LayoutCaptureRow(layoutCaptureFunction_) : std::string("pick")));
     layoutNeutral_ = true; menu_.navigation.NeutralGate();
 }
 void ApplicationShell::OpenButtonLayout(const PadView& pad) {
@@ -105,7 +105,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         if (layoutPad_) {
             CancelLayoutCapture(view, submit);
             menu_.listEnabled = true; menu_.ownsBack = false; menu_.customDetail = false;
-            menu_.additionalInput = 0; menu_.compactDetailHeight = 0;
+            menu_.additionalInput = 0; menu_.compactDetailHeight = 0; menu_.listCard = {};
             if (nav.Screen() != "pad-setup") layoutPad_.reset();
         }
         return false;
@@ -132,11 +132,18 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     bool editor = nav.Screen() == "button-layout-button";
     if (layoutNeutral_ && pad.held.empty()) layoutNeutral_ = false;
     SetGameplayLayoutPrompts(view);
-    auto rows = editor ? ButtonEditorRows(pad, layoutButton_, editable) : ButtonLayoutRows(pad,
-        editable || ((pad.state == RowState::GameRead || pad.state == RowState::Unmapped) && view.canEditPreferences));
-    if (wasAbsent != absent) nav.Focus(absent ? "layout-absent" : "test", rows);
     const bool capturing = layoutCapture_.Active();
     const std::optional<std::uint32_t> captureMask = layoutCaptureFunction_ ? std::make_optional(LayoutFunctions[*layoutCaptureFunction_].mask) : std::nullopt;
+    const auto captureRow = LayoutCaptureRow(layoutCaptureFunction_);
+    const LayoutRowMarks marks{capturing ? captureRow : std::string(), ImGui::GetTime() < layoutFlashUntil_ ? layoutFlash_ : std::string()};
+    auto rows = editor ? ButtonEditorRows(pad, layoutButton_, editable) : ButtonLayoutRows(pad,
+        editable || ((pad.state == RowState::GameRead || pad.state == RowState::Unmapped) && view.canEditPreferences), marks);
+    if (wasAbsent != absent) nav.Focus(absent ? "layout-absent" : "test", rows);
+    menu_.listCard = {};
+    if (capturing) {
+        const auto card = LayoutCaptureCard(pad, captureMask, layoutCapture_.Left(ImGui::GetTime()));
+        menu_.listCard = {[card](float width) { return CaptureCardHeight(card, width); }, [card] { DrawCaptureCard(card); }};
+    }
     menu_.listEnabled = !capturing; menu_.ownsBack = true; menu_.customDetail = capturing;
     menu_.additionalInput = !capturing && !layoutNeutral_ && !pad.gameplay ? TargetInput(pad) : 0;
     menu_.shortcutHints = capturing ? std::vector<LegendHint>{{"Start", loc::T("common.cancel")}, {"Esc", loc::T("common.cancel")}} : std::vector<LegendHint>{};
@@ -149,12 +156,12 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     const auto action = menu_.Draw(loc::T(editor ? "button_layout.button_title" : "button_layout.title"), rows,
         message.c_str(), [&](const std::string&) {
             if (editor) DrawButtonEditorDetail(pad, preferences_.buttonPrompts, layoutButton_);
-            else DrawButtonLayoutDetail(pad, preferences_.buttonPrompts, capturing, captureMask);
-        }, 1, {}, {}, 0, 100, false, !error_.empty() || saveFailed_ ? Tone::Error : notice ? Tone::Neutral : preferencesDirty_ || saveQueued_ || view.settingsPending ? Tone::Pending : Tone::Neutral);
+            else DrawButtonLayoutDetail(pad, preferences_.buttonPrompts, capturing);
+        }, 1, {}, {}, 0, 100, false, !error_.empty() || saveFailed_ ? Tone::Error : notice ? noticeTone_ : preferencesDirty_ || saveQueued_ || view.settingsPending ? Tone::Pending : Tone::Neutral);
     if (capturing) {
         const auto cancel = !editable ? LayoutCancel::State : ImGui::IsKeyPressed(ImGuiKey_Escape, false) ? LayoutCancel::Escape : action.kind == MenuAction::Back ? LayoutCancel::Back : LayoutCancel::None;
         const auto press = layoutCapture_.Read(ImGui::GetTime(), pad.held, pad.has, cancel);
-        const auto captureName = layoutCaptureFunction_ ? std::string("assign fn-") + LayoutFunctions[*layoutCaptureFunction_].id : "pick";
+        const auto captureName = layoutCaptureFunction_ ? "assign " + captureRow : std::string("pick");
         if (press.cancelled != LayoutCancel::None) {
             LayoutLog(view, submit, fmt::format("layout capture for id {} {} cancelled ({})", pad.id, captureName, CancelName(press.cancelled)));
             nav.NeutralGate(); layoutNeutral_ = true;
@@ -164,6 +171,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             layoutNeutral_ = true; nav.NeutralGate();
             if (!captureMask) { layoutButton_ = button; nav.Push("button-layout-button"); nav.Focus("bit-lp", ButtonEditorRows(pad, button, true)); }
             else {
+                layoutFlash_ = captureRow; layoutFlashUntil_ = ImGui::GetTime() + .6;
                 auto layout = pad.table; const auto assigned = Assign(layout, button, *captureMask, pad.has);
                 if (assigned.changed && ChangeLayout(pad, layout, view, submit,
                     fmt::format("layout for id {}: {} = {} ({})", pad.id, LayoutGlyphs[button], FightName(*captureMask), nav.Focus()))) {
@@ -174,7 +182,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
                         notice_ = assigned.old ? loc::Tf("button_layout.swapped", name, pad.buttonNames[button], pad.buttonNames[other], FightName(assigned.old)) :
                             loc::Tf("button_layout.swapped_nothing", name, pad.buttonNames[button], pad.buttonNames[other]);
                     } else notice_ = loc::Tf("button_layout.assigned", name, pad.buttonNames[button]);
-                    noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
+                    noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
                 }
             }
         }

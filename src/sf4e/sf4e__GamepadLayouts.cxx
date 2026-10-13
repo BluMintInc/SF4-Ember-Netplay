@@ -4,7 +4,6 @@
 #include "../netplay/SettingsStore.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include <spdlog/spdlog.h>
-#include <windows.h>
 
 namespace sf4e { namespace GamepadLayouts {
 using namespace gamepads;
@@ -15,8 +14,7 @@ ButtonScreenSwap gameScreen;
 bool closingGameScreen = false;
 struct LastSlot { Identity identity; int slot; };
 std::vector<LastSlot> lastSlots;
-std::array<bool, 4> warned{};
-ULONGLONG checkedAt = 0;
+std::array<bool, 4> reclaimLogged{};
 bool loggingReady = false;
 std::vector<std::pair<spdlog::level::level_enum, std::string>> pendingLogs;
 void Log(spdlog::level::level_enum level, std::string message) {
@@ -57,6 +55,15 @@ const std::vector<StoredLayout>& Stored() { return layouts; }
 void Update(const Inventory& inventory) {
     if (closingGameScreen) CloseGameScreen();
     if (gameScreen.IsOpen()) return;
+    const auto records = Dimps::Pad::BindingRecords();
+    // Every update, before the plan, so a removal or a new owner starts from the
+    // game's fresh table. If the game rewrote a table every frame (it does not),
+    // this would write the layout back every frame; the log stays once per slot.
+    for (const auto slot : ReclaimReloadedSlots(owners, records, gameScreen)) if (!reclaimLogged[slot]) {
+        reclaimLogged[slot] = true;
+        Log(spdlog::level::info, fmt::format("Input: slot {} fight table reloaded by the game; its table saved again and the layout for id {} written back",
+            slot + 1, owners[slot]->instance));
+    }
     LayoutPlacements placements;
     std::array<bool, 4> occupied{};
     std::array<const Pad*, 4> pads{};
@@ -75,7 +82,6 @@ void Update(const Inventory& inventory) {
     }
     const auto writes = SlotWritePlan(owners, placements, occupied);
     const auto previous = owners;
-    const auto records = Dimps::Pad::BindingRecords();
     if (!ApplySlotWrites(owners, placements, writes, records)) return;
     for (const auto& write : writes) {
         const auto& pad = *pads[write.slot];
@@ -99,17 +105,6 @@ void Update(const Inventory& inventory) {
         const auto old = std::find_if(lastSlots.begin(), lastSlots.end(), [&](const LastSlot& placed) { return Same(placed.identity, pad.identity); });
         if (old == lastSlots.end()) lastSlots.push_back({pad.identity, pad.slot});
         else *old = {pad.identity, pad.slot};
-    }
-    const auto now = GetTickCount64();
-    if (now < checkedAt + 1000) return;
-    checkedAt = now;
-    for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot] && !warned[slot]) {
-        ButtonLayout actual;
-        if (ReadSlot(records, slot, actual) && actual != owners[slot]->buttons) {
-            warned[slot] = true;
-            Log(spdlog::level::warn, fmt::format("Input: slot {} fight table changed by the game while id {} owns it; Ember writes its layout again at the next placement",
-                slot + 1, owners[slot]->instance));
-        }
     }
 }
 void Read(PadFrame& frame, const Inventory& inventory) {

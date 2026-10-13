@@ -57,6 +57,12 @@ inline bool RestoreGameLayouts(LayoutOwners& owners, const PadBindingRecords& re
         if (owners[slot]) writes.push_back({slot, LayoutSource::GameCopy, false});
     return ApplySlotWrites(owners, {}, writes, records);
 }
+// The slot holds a table the game wrote: keep it as the table to restore, and
+// write the owner's layout back over it.
+inline void Reclaim(LayoutOwner& owner, const PadBindingRecords& records, unsigned slot) {
+    ReadSlot(records, slot, owner.gameCopy);
+    WriteSlot(records, slot, owner.buttons);
+}
 class ButtonScreenSwap {
 public:
     bool Open(const LayoutOwners& owners, const PadBindingRecords& records) {
@@ -68,10 +74,7 @@ public:
     bool Close(LayoutOwners& owners, const PadBindingRecords& records) {
         if (!open_) return false;
         for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot] && !records.FightTable(slot)) return false;
-        for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot]) {
-            ReadSlot(records, slot, owners[slot]->gameCopy);
-            WriteSlot(records, slot, owners[slot]->buttons);
-        }
+        for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot]) Reclaim(*owners[slot], records, slot);
         open_ = false;
         return true;
     }
@@ -79,4 +82,22 @@ public:
 private:
     bool open_ = false;
 };
+// The game loads its own button config into the binding records a few seconds
+// after they exist (the .ctrlsav loader), over any layout Ember wrote there.
+// An owned slot whose ten entries no longer equal its owner's layout holds that
+// fresh table, so it becomes the slot's gameCopy and the layout is written back.
+// Returns the slots reclaimed. While the game's button screen is open the slots
+// hold gameCopy on purpose (ButtonScreenSwap), so nothing is reclaimed.
+inline std::vector<unsigned> ReclaimReloadedSlots(LayoutOwners& owners, const PadBindingRecords& records,
+    const ButtonScreenSwap& screen) {
+    std::vector<unsigned> reclaimed;
+    if (screen.IsOpen()) return reclaimed;
+    for (unsigned slot = 0; slot < owners.size(); ++slot) {
+        ButtonLayout actual;
+        if (!owners[slot] || !ReadSlot(records, slot, actual) || actual == owners[slot]->buttons) continue;
+        Reclaim(*owners[slot], records, slot);
+        reclaimed.push_back(slot);
+    }
+    return reclaimed;
+}
 } }

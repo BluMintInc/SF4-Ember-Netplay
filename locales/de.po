@@ -5006,6 +5006,9 @@ msgstr "Wurf (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Fokusangriff (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Roter Fokusangriff (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Wähle diese Zeile und drücke die gewünschte Taste für {0}. Hat eine andere Taste diesen Angriff, tauschen die beiden Tasten."
 
@@ -5068,6 +5071,9 @@ msgstr "Drücke die Taste für {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Drücke die zu ändernde Taste"
+
+msgid "button_layout.waiting"
+msgstr "Drücke eine Taste..."
 
 msgid "button_layout.press_cancel"
 msgstr "Bewege den Stick oder drücke Start zum Abbrechen."

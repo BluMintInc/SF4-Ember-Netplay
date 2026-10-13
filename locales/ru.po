@@ -5007,6 +5007,9 @@ msgstr "Бросок (LP+LK)"
 msgid "button_layout.focus"
 msgstr "Фокус-атака (MP+MK)"
 
+msgid "button_layout.red_focus"
+msgstr "Красная фокус-атака (LP+MP+MK)"
+
 msgid "button_layout.row_detail"
 msgstr "Выберите строку, затем нажмите кнопку для {0}. Если атака есть у другой кнопки, они поменяются."
 
@@ -5069,6 +5072,9 @@ msgstr "Нажмите кнопку для {0}"
 
 msgid "button_layout.press_to_change"
 msgstr "Нажмите кнопку для изменения"
+
+msgid "button_layout.waiting"
+msgstr "Нажмите кнопку..."
 
 msgid "button_layout.press_cancel"
 msgstr "Двиньте стик или нажмите Start для отмены."

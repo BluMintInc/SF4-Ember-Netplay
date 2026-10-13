@@ -473,6 +473,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float fullWidth=ImGui::GetContentRegionAvail().x;
     const float cellWidth=(fullWidth-gap*(columns-1))/columns;
     const std::size_t cells=MenuGridCells(entries);
+    ImVec2 focusMin,focusMax;
     // Tall appearance cards must fit as a whole in the focused scrolling pane,
     // including their saved marker and caption, even at narrow/high DPI sizes.
     const float gridHeight=cardHeight>100?(std::min)(cardHeight*Scale(),ImGui::GetContentRegionAvail().y):cardHeight*(flyout?unit:Scale());
@@ -555,6 +556,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(home)ImGui::PopFont();ImGui::PopStyleColor(2);ImGui::PopStyleVar(3);
         if(cardProbe)cardProbe(e.id.c_str(),start,ImVec2(start.x+rowWidth,start.y+height));
         if(focused) {
+            focusMin=start;focusMax=ImVec2(start.x+rowWidth,start.y+height);
             // A card with rounded corners draws its own outline; the bar would stick out of them.
             if(gridCell)ImGui::GetWindowDrawList()->AddRect(start,ImVec2(start.x+rowWidth,start.y+height),palette::Ember,card?cardRounding*unit:0,0,2*Scale());
             else if(!(drawnCard&&cardRounding>0))ImGui::GetWindowDrawList()->AddRectFilled(start,ImVec2(start.x+3*Scale(),start.y+height),palette::Ember);
@@ -564,8 +566,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     if(home)ImGui::PopStyleVar();
     navigation.Scroll()=ImGui::GetScrollY(); ImGui::EndChild();ImGui::PopStyleColor();
+    const auto listMin=ImGui::GetItemRectMin(),listMax=ImGui::GetItemRectMax();
     if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
         ImGui::BeginChild("Menu detail",ImVec2(0,(std::max)(60.f,available.y-footer))); preview(); ImGui::EndChild(); ImGui::PopStyleColor(); }
+    if(listCard.draw)DrawListCard(listMin,listMax,focusMin,focusMax,unit);
     }
     if(action.kind==MenuAction::Back){backRequested=true;action={};}
     if(!flyout){
@@ -613,5 +617,26 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     lastFocus_=navigation.Focus(); lastScreen_=navigation.Screen();
     if(backRequested) return ownsBack?MenuAction{MenuAction::Back}:navigation.Return();
     return action;
+}
+void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 rowMax,float unit) {
+    const auto cursor=ImGui::GetCursorScreenPos();const auto padding=ImGui::GetStyle().WindowPadding;
+    const float margin=16*unit,width=(std::max)(1.f,listMax.x-listMin.x-2*margin);
+    const float room=(std::max)(1.f,listMax.y-listMin.y-2*margin);
+    const float height=(std::min)(room,listCard.measure?listCard.measure((std::max)(1.f,width-2*padding.x))+2*padding.y:room);
+    // Centred on the list, unless that hides the focused row: then centred in
+    // the larger band above or below it, kept inside the list.
+    float top=(listMin.y+listMax.y-height)*.5f;
+    const bool row=rowMax.y>rowMin.y&&rowMax.y>listMin.y&&rowMin.y<listMax.y;
+    if(row&&top<rowMax.y&&top+height>rowMin.y) {
+        const float above=rowMin.y-listMin.y,below=listMax.y-rowMax.y;
+        top=above>below?listMin.y+(above-height)*.5f:rowMax.y+(below-height)*.5f;
+        top=(std::max)(listMin.y+margin,(std::min)(top,listMax.y-margin-height));
+    }
+    const ImVec2 at(listMin.x+margin,top);
+    BeginDialogCard("List card",at,ImVec2(width,height));
+    listCard.draw();
+    EndDialogCard();
+    ReportMenuCard("list-card",at,ImVec2(at.x+width,at.y+height));
+    ImGui::SetCursorScreenPos(cursor);
 }
 } }
