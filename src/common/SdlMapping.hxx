@@ -1,5 +1,6 @@
 #pragma once
 #include "PadSetupInput.hxx"
+#include <cctype>
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -88,10 +89,19 @@ inline constexpr std::array<std::string_view, 32> MappingOutputs = {
     "a", "b", "x", "y", "back", "guide", "start", "leftstick", "rightstick", "leftshoulder", "rightshoulder",
     "dpup", "dpdown", "dpleft", "dpright", "misc1", "misc2", "misc3", "misc4", "misc5", "misc6",
     "paddle1", "paddle2", "paddle3", "paddle4", "touchpad", "leftx", "lefty", "rightx", "righty", "lefttrigger", "righttrigger"};
-// The output a key drives, without the + or - half SDL allows on it.
+inline bool SameMappingName(std::string_view a, std::string_view b) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](unsigned char x, unsigned char y) {
+        return std::tolower(x) == std::tolower(y);
+    });
+}
+// The output a key drives, in SDL's spelling, without the + or - half SDL
+// allows on it; empty when the key is not an output. SDL matches names
+// without regard to case and keeps the key as written.
 inline std::string_view MappingTarget(std::string_view key) {
     if (!key.empty() && (key.front() == '+' || key.front() == '-')) key.remove_prefix(1);
-    return key;
+    const auto output = std::find_if(MappingOutputs.begin(), MappingOutputs.end(),
+        [&](std::string_view name) { return SameMappingName(name, key); });
+    return output == MappingOutputs.end() ? std::string_view{} : *output;
 }
 struct MappingBinding { std::string output, value; MappingInput input; };
 struct MappingField { std::string key, value; };
@@ -109,10 +119,8 @@ inline SdlMapping ParseMapping(const std::string& text) {
         else if (column == 1) mapping.name = field;
         else if (colon != std::string::npos) {
             auto key = field.substr(0, colon), value = field.substr(colon + 1);
-            if (key == "platform") continue;
-            const auto target = MappingTarget(key);
-            const auto input = std::find(MappingOutputs.begin(), MappingOutputs.end(), target) != MappingOutputs.end() ?
-                ParseMappingInput(value) : std::nullopt;
+            if (SameMappingName(key, "platform")) continue;
+            const auto input = !MappingTarget(key).empty() ? ParseMappingInput(value) : std::nullopt;
             if (input) mapping.bindings.push_back({std::move(key), std::move(value), *input});
             else mapping.metadata.push_back({std::move(key), std::move(value)});
         }

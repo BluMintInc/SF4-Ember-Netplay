@@ -106,6 +106,14 @@ int main() {
     const auto crc = BuildSetupMapping(crcGuid, "Crc pad", Record({{"lk", {RawKind::Button, 3}}}),
         crcGuid + ",Crc pad,a:b0,y:b3,crc:b003,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,sdk>=:21,platform:Windows,");
     CHECK(crc == crcGuid + ",Crc pad,a:b3,crc:b003,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,sdk>=:21,platform:Windows,");
+    // SDL reads output names in any case: a mixed-case binding is still a binding,
+    // so it goes when its input is reused or its target recorded, and a mixed-case
+    // platform field is not written twice.
+    CHECK(MappingTarget("LEFTSHOULDER") == "leftshoulder" && MappingTarget("+LeftX") == "leftx" && MappingTarget("Crc").empty());
+    const std::string caseGuid = "03000000790000001400000000000000";
+    const auto cased = BuildSetupMapping(caseGuid, "Case pad", Record({{"up", {RawKind::HatUp, 0}}, {"lk", {RawKind::Button, 3}}}),
+        caseGuid + ",Case pad,LEFTSHOULDER:h0.1,A:b0,RightShoulder:b5,Platform:Windows,");
+    CHECK(cased == caseGuid + ",Case pad,dpup:h0.1,a:b3,RightShoulder:b5,platform:Windows,");
 
     nlohmann::json prefs = {{"controllerMappings", {{guid, full}}}};
     CHECK(sf4e::netplay::ReadControllerMappings(nlohmann::json::parse(prefs.dump())).at(guid) == full);

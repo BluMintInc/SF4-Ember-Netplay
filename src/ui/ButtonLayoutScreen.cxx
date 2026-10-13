@@ -22,7 +22,7 @@ FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const st
     if (pad.mapping.empty() && mapping == mappings.end()) return names;
     constexpr std::array<const char*, 10> targets = {"a", "b", "x", "y", "leftshoulder", "rightshoulder", "lefttrigger", "righttrigger", "leftstick", "rightstick"};
     for (const auto& binding : ParseMapping(pad.mapping.empty() ? mapping->second : pad.mapping).bindings)
-        for (unsigned i = 0; i < targets.size(); ++i) if (binding.output == targets[i])
+        for (unsigned i = 0; i < targets.size(); ++i) if (MappingTarget(binding.output) == targets[i])
             if (auto raw = ToRawInput(binding.input)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
     return names;
 }
