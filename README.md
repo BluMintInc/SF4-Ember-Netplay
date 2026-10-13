@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="src/ui/ember.png" alt="Ember orange ink and smoke emblem" width="112">
+  <img src="src/ui/ember.png" alt="Ember logo: the fire character in an open brush circle" width="112">
   <h1>SF4 Ember Netplay</h1>
   <p><strong>Your room. Your rivals. One more game.</strong></p>
   <p>Private rollback rooms and a controller-first overlay for Ultra Street Fighter IV.</p>

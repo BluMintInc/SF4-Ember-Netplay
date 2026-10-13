@@ -30,15 +30,9 @@ Settings retain one-way imports and backups for names, selections, lobby default
 
 ## Approved artwork
 
-The approved original is `src/ui/ember.png`, copied byte-for-byte from `exec-ff601ed8-cf4e-4e1b-832b-814bef203757.png`. SHA-256: `ec9f48910ea1a7e8f0337bf60243d47be214d05278497c86ac5d2561e3d7fde8`.
-
-The user supplied [Kyoto National Museum's masterworks of ink painting](https://artsandculture.google.com/story/masterworks-of-ink-painting-kyoto-national-museum/ywXxnuF1XTi-JA?hl=en) as visual direction. This is original generated ink-smoke artwork, not a reproduction of a museum work or an official Capcom mark. The user selected the more expressive smoke image after a simplification was considered; the simpler alternate is not used.
+Since 2026-10-13 the logo (`src/ui/ember.png`) and menu background (`assets/brand/ember-menu-background.png`) are original artwork drawn for the project, with editable SVG sources in `assets/brand/source/`. `assets/brand/README.md` lists the files, their hashes and how to rebuild the exports. They replace the earlier generated ink-smoke mark and background.
 
 `scripts/build-ember-brand.py` performs size/format conversion only: a multi-size Windows icon and 128x128 RGBA atlas bytes. Normal CMake builds embed those checked-in bytes into the existing ImGui font atlas, so the mark follows the existing DX9 device-reset lifecycle without an additional runtime file dependency. Launcher, Sidecar, Updater and the helper carry the shared icon and branded Windows metadata.
-
-Generation prompt:
-
-> Use case: logo-brand. Asset: final original logo symbol for SF4 Ember Netplay, an unofficial Ultra Street Fighter IV netplay app. The user specifically wants an INK CLOUD OF SMOKE inspired by the energetic sumi-e ink animation in Street Fighter IV cinematics. Design one compact abstract cloud of smoke in expressive calligraphic brushwork. Two or three irregular curling ink plumes rolling sideways and upward, a substantial cohesive smoke silhouette with broken dry-brush edges and a handful of restrained ink flecks. Mostly warm ivory (#F3EBDD) ink with a few restrained ember-orange (#FF8738) brush accents woven into the lower smoke. It will sit on a charcoal UI; negative spaces should be transparent. Genuine transparent PNG background, square canvas, centered mark occupying 85% of canvas, simple enough to read as smoke at 32px yet beautifully ink-textured at 128px. No text or letters, no triangle, no A, no chevrons, no mountains, no flame silhouette, no esports badge, no enclosing circle, no gradients, no glow, no photorealistic volumetric smoke, no background rectangle. Original Japanese brush-painted smoke mark, dynamic and restrained.
 
 ## Validation record
 

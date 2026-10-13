@@ -1,9 +1,24 @@
-# Ember menu artwork
+# Ember brand artwork
 
-`ember-menu-background.png` is an original generated background made for this menu pass using the built-in image-generation tool. It complements the existing embedded Ember mark rather than replacing it. The runtime loads it asynchronously through the existing WIC/DX9 artwork pipeline, crops to cover without stretching, and adds a dark readability tint. No new renderer, sounds or UI framework were introduced.
+Ember's logo and menu background are original artwork drawn for the project (2026-10-13). The logo is a simple fire character, 火, inside an open brush circle. The background is an ink landscape with a brush arc on the right, which leaves the left side quiet behind the menu.
 
-SHA-256: `CC0C91826A08A405174F54B51807DF9082FEBEAD6EE5C409482C580FACB2B4A4`.
+| File | What it is |
+|---|---|
+| `source/ember-mark.svg` | Editable logo, 512 x 512, transparent |
+| `source/ember-menu-background.svg` | Editable background, 2048 x 1152 |
+| `ember-menu-background.png` | Background export, 2048 x 1152 RGB, loaded at runtime and cropped to cover |
+| `../../src/ui/ember.png` | Logo export, 1254 x 1254 RGBA |
+| `../../src/ui/ember.ico` | Windows icon, 16 to 256 px |
+| `../../src/ui/ember.rgba` | 128 x 128 straight RGBA, embedded in the font atlas at build time |
 
-## Generation prompt
+SHA-256:
+- `ember-menu-background.png`: `B02FF71A65E7EFCF71CAB28ED87002AEFB0609DD458279D6FF67AC145AAFB032`
+- `ember.png`: `37384030C4F17595E8F588CE3216C85F1A38E2915B8010046A7C5C857D2F6A58`
 
-Use case: stylized-concept. Asset type: production background artwork for SF4 Ember's controller-first game menu, not a mockup. Create one widescreen 16:9 raster image, 2048x1152 or similar. Matte near-black charcoal (#141312), warm ivory dry-brush texture, and ember-orange (#FF8738) ink. A forceful, elegant martial-arts brushstroke arcs through the right third, breaking into a few small glowing ember flecks toward the bottom-right. Restrained premium fighting-game title-screen atmosphere, printed ink texture and subtle depth, not glossy or neon. Left half and top-left must remain very quiet near-black negative space behind a large vertical menu and header. Keep the center-right subdued enough for ivory detail text. Artwork fills the canvas to all edges. No text, no lettering, no logo, no characters, no UI panels, no buttons, no watermark. Avoid bright flames, busy particles, gradients resembling rainbow gaming RGB, and high contrast behind the left menu. This complements an existing orange Ember emblem; do not invent another emblem.
+## Rebuilding
+
+- **From the PNG.** `scripts/build-ember-brand.py` (Pillow) rebuilds `ember.ico` and `ember.rgba` from `ember.png`, with the same sizes and Lanczos resize the original exports used. Use it after any change to the PNG.
+- **From the SVGs.** Render each SVG with Inkscape at the sizes above, then run the script.
+- **Website.** `scripts/build-web-assets.py` regenerates the embernetplay.link favicon, header emblem and background from these files.
+
+Normal product builds use the checked-in exports and need neither Python nor Inkscape.
