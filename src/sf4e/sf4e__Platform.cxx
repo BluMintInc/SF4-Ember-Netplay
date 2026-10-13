@@ -418,6 +418,11 @@ int fMain::Initialize(void* a, void* b, void* c) {
     }
     CoTaskMemFree(path);
 
+    if (rval != 0) {
+        // The game failed to initialize and ends after this returns: it has no device to draw on.
+        spdlog::critical("Game initialization failed ({}); the overlay is not started", rval);
+        return rval;
+    }
     sf4e::Gamepads::LogInventory();
     Overlay::InitializeOverlay(
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
