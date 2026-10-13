@@ -114,6 +114,11 @@ int main() {
     const auto cased = BuildSetupMapping(caseGuid, "Case pad", Record({{"up", {RawKind::HatUp, 0}}, {"lk", {RawKind::Button, 3}}}),
         caseGuid + ",Case pad,LEFTSHOULDER:h0.1,A:b0,RightShoulder:b5,Platform:Windows,");
     CHECK(cased == caseGuid + ",Case pad,dpup:h0.1,a:b3,RightShoulder:b5,platform:Windows,");
+    // SDL skips spaces inside fields: a spaced binding is still a binding, so it
+    // goes when its input is reused or its target recorded; spaced metadata stays as written.
+    const auto spaced = BuildSetupMapping(caseGuid, "Space pad", Record({{"up", {RawKind::HatUp, 0}}, {"lk", {RawKind::Button, 3}}}),
+        caseGuid + ",Space pad,leftshoulder: h0.1,a :b0, right shoulder:b5,hint:!SDL_X :=1, platform: Windows,");
+    CHECK(spaced == caseGuid + ",Space pad,dpup:h0.1,a:b3,rightshoulder:b5,hint:!SDL_X :=1,platform:Windows,");
 
     nlohmann::json prefs = {{"controllerMappings", {{guid, full}}}};
     CHECK(sf4e::netplay::ReadControllerMappings(nlohmann::json::parse(prefs.dump())).at(guid) == full);

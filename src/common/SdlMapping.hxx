@@ -109,6 +109,9 @@ struct SdlMapping { std::string guid, name; std::vector<MappingBinding> bindings
 // A field is a binding when its key is an output and its value an input;
 // anything else stays as it is. platform is left out and written once, last:
 // SDL cuts a stored mapping at a second platform field (CreateMappingString).
+// SDL skips spaces inside fields (SDL_PrivateParseGamepadConfigString), so a
+// field is read without them; a binding is kept in that form, which SDL reads
+// the same way, and metadata as written.
 inline SdlMapping ParseMapping(const std::string& text) {
     SdlMapping mapping;
     for (std::size_t at = 0, column = 0; at <= text.size(); ++column) {
@@ -119,9 +122,11 @@ inline SdlMapping ParseMapping(const std::string& text) {
         else if (column == 1) mapping.name = field;
         else if (colon != std::string::npos) {
             auto key = field.substr(0, colon), value = field.substr(colon + 1);
-            if (SameMappingName(key, "platform")) continue;
-            const auto input = !MappingTarget(key).empty() ? ParseMappingInput(value) : std::nullopt;
-            if (input) mapping.bindings.push_back({std::move(key), std::move(value), *input});
+            auto read = [](std::string part) { part.erase(std::remove(part.begin(), part.end(), ' '), part.end()); return part; };
+            auto readKey = read(key), readValue = read(value);
+            if (SameMappingName(readKey, "platform")) continue;
+            const auto input = !MappingTarget(readKey).empty() ? ParseMappingInput(readValue) : std::nullopt;
+            if (input) mapping.bindings.push_back({std::move(readKey), std::move(readValue), *input});
             else mapping.metadata.push_back({std::move(key), std::move(value)});
         }
     }
