@@ -161,6 +161,8 @@ struct ShellAction {
     std::string servicePath;
     // With UpdateNow or SkipUpdate: the launch offer the player was shown.
     launcher::InstallOffer updateOffer;
+    // With OpenSteamProfile: the member's profile to open.
+    SteamId steamProfile;
     reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     gamepads::ControllerRequest padAction;

@@ -14,6 +14,7 @@
 
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/SteamId.hxx"
 #include "../common/MatchSide.hxx"
 #include "../platform/HelperProcess.hxx"
 #include "../netplay/SessionController.hxx"
@@ -88,6 +89,8 @@ namespace sf4e {
             std::string servicePath;
             // With UpdateNow or SkipUpdate: the launch offer the player saw.
             launcher::InstallOffer updateOffer;
+            // With OpenSteamProfile: the member's profile to open.
+            SteamId steamProfile;
             reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
             gamepads::ControllerRequest padAction;

@@ -301,6 +301,15 @@ msgstr "Geopend in je browser. Ga erheen om lid te worden van de server."
 msgid "services.community_failed"
 msgstr "Kon geen browser openen. Ga naar {0} om lid te worden."
 
+msgid "services.opening_steam_profile"
+msgstr "Steam-profiel openen in je browser..."
+
+msgid "services.steam_profile_opened"
+msgstr "Geopend in je browser."
+
+msgid "services.steam_profile_failed"
+msgstr "Kon geen browser openen."
+
 msgid "settings.language"
 msgstr "Taal"
 
@@ -881,6 +890,12 @@ msgstr "Hoofdpersonage"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Wordt gebruikt voor je spelerskaart, los van je keuze voor de match."
+
+msgid "profile.share_steam"
+msgstr "Mijn Steam-profiel tonen"
+
+msgid "profile.share_steam_detail"
+msgstr "Kamerleden kunnen je Steam-profiel openen vanaf het ledenscherm. Geldt vanaf de volgende keer dat je een kamer binnengaat."
 
 msgid "profile.record"
 msgstr "Winst- en verliesstand"
@@ -2900,6 +2915,15 @@ msgstr "Host overdragen"
 msgid "room.transfer_host.detail"
 msgstr "Maak {0} de host."
 
+msgid "room.steam_profile"
+msgstr "Steam-profiel"
+
+msgid "room.steam_profile.detail"
+msgstr "Open het Steam-profiel van dit lid."
+
+msgid "room.steam_profile.none"
+msgstr "Dit lid heeft geen Steam-profiel gedeeld."
+
 msgid "room.compose_message"
 msgstr "Bericht schrijven"
 
@@ -3040,6 +3064,9 @@ msgstr "Kamerverbinding mislukt. De kamer wordt gesloten; onbevestigde uitslagen
 
 msgid "runtime.operation_busy"
 msgstr "De bewerking is bezig. Probeer opnieuw."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Kon het Steam-profiel niet openen."
 
 msgid "discord.invitation_expired"
 msgstr "De Discord-uitnodiging is verlopen. Vraag om een nieuwe."

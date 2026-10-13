@@ -146,7 +146,28 @@ int main() {
 	CHECK(roomTransport->sent.size() == 1 && roomTransport->sent.back().at("admission").value("mainFighter", -1) == 13 &&
 		roomTransport->sent.back().at("admission").value("link", -1) == static_cast<int>(NetworkLink::Wired) &&
 		roomTransport->sent.back().at("admission").value("nat", -1) == static_cast<int>(NatClass::Strict));
-	protocol::SessionHelloResp roomHello; roomHello.cid = {"room", "player"};
+	// The player showed no Steam profile (the default), so the admission carries no key for it.
+	CHECK(!roomTransport->sent.back().at("admission").contains("steamId"));
+	{
+		// One who shows it sends the exact decimal text, and the server's profile reads it back.
+		SessionClient sharing(callbacks, "build", 30000, roomName);
+		sharing.RequireCustomRooms();
+		sharing.SetProfileSteam(sf4e::SteamId::Parsed("76561200000000000"));
+		auto* sharingTransport = new MockClient();
+		CHECK(sharing.Connect(std::unique_ptr<session::ClientTransport>(sharingTransport), false) == 0);
+		sharingTransport->state = session::ConnectionState::Connected;
+		CHECK(sharing.Step() == 0 && sharingTransport->sent.size() == 1);
+		const auto& admission = sharingTransport->sent.back().at("admission");
+		CHECK(admission.at("steamId").is_string() && admission.at("steamId").get<std::string>() == "76561200000000000");
+		CHECK(admission.get<protocol::SessionJoinRequest>().Profile().steamId.ToString() == "76561200000000000");
+		// A value that is not a SteamId, or not text, joins as nobody sharing.
+		for (const json invalid : { json("76561190000000000"), json("x"), json(76561200000000000ull), json(nullptr) }) {
+			json forged = admission;
+			forged["steamId"] = invalid;
+			CHECK(!forged.get<protocol::SessionJoinRequest>().Profile().steamId.Present());
+		}
+		sharing.Disconnect();
+	}	protocol::SessionHelloResp roomHello; roomHello.cid = {"room", "player"};
 	roomHello.roomMember = 1; roomHello.authenticatedEndpoint = "player"; roomHello.incarnation = 11;
 	roomTransport->Push(json(roomHello)); CHECK(roomClient.Step() == 0);
 	// The committed hello already performed custom-room admission. It must not

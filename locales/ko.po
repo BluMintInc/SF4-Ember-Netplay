@@ -301,6 +301,15 @@ msgstr "브라우저에서 열었습니다. 브라우저로 전환해 서버에 
 msgid "services.community_failed"
 msgstr "브라우저를 열지 못했습니다. {0}에서 참가하세요."
 
+msgid "services.opening_steam_profile"
+msgstr "브라우저에서 Steam 프로필을 여는 중..."
+
+msgid "services.steam_profile_opened"
+msgstr "브라우저에서 열었습니다."
+
+msgid "services.steam_profile_failed"
+msgstr "브라우저를 열지 못했습니다."
+
 msgid "settings.language"
 msgstr "언어"
 
@@ -881,6 +890,12 @@ msgstr "주 캐릭터"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. 대전 선택과 별도로 플레이어 카드에 표시됩니다."
+
+msgid "profile.share_steam"
+msgstr "내 Steam 프로필 표시"
+
+msgid "profile.share_steam_detail"
+msgstr "방 참가자가 참가자 화면에서 내 Steam 프로필을 열 수 있습니다. 다음에 방에 참가할 때부터 적용됩니다."
 
 msgid "profile.record"
 msgstr "승패 전적"
@@ -2900,6 +2915,15 @@ msgstr "방장 넘기기"
 msgid "room.transfer_host.detail"
 msgstr "{0} 님을 방장으로 지정합니다."
 
+msgid "room.steam_profile"
+msgstr "Steam 프로필"
+
+msgid "room.steam_profile.detail"
+msgstr "이 참가자의 Steam 프로필을 엽니다."
+
+msgid "room.steam_profile.none"
+msgstr "이 참가자는 Steam 프로필을 공유하지 않았습니다."
+
 msgid "room.compose_message"
 msgstr "메시지 작성"
 
@@ -3040,6 +3064,9 @@ msgstr "방 연결에 실패했습니다. 방을 닫는 중이며 미확정 결�
 
 msgid "runtime.operation_busy"
 msgstr "작업이 진행 중입니다. 다시 시도하세요."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Steam 프로필을 열지 못했습니다."
 
 msgid "discord.invitation_expired"
 msgstr "Discord 초대가 만료되었습니다. 새 초대를 요청하세요."

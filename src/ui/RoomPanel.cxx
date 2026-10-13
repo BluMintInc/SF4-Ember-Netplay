@@ -380,6 +380,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }else if(screen=="room-member"){
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
+   // Only a member who chose to show the room their profile has one to open.
+   const bool hasSteam=m&&m->steamId.Present();
+   rows.push_back(Row("steam-profile",loc::T("room.steam_profile"),
+    loc::T(!m?"room.member_left.detail":hasSteam?"room.steam_profile.detail":"room.steam_profile.none"),hasSteam));
    if(!tournamentRoom){
     rows.push_back(ConfirmRow("kick",loc::T("room.kick_member"),m?loc::Tf("room.kick_member.detail",m->name):loc::T("room.member_left.detail"),host&&other));
     rows.back().detailText=DetailText::Name;
@@ -794,6 +798,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   // No room command: the runtime sends the game on, if the room still allows it, while the room stays as it is.
   ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Room;
   if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
+  return;
+ }
+ if(a.id=="steam-profile"){
+  // The runtime opens Steam's overlay on the profile when it is up, and the browser page otherwise.
+  const auto* m=Member(v.room,selectedMember_);
+  if(!m||!m->steamId.Present()){error_=loc::T("room.member_left.detail");return;}
+  ShellAction open;open.command.generation=v.session.generation;
+  open.service=platform::ServiceAction::OpenSteamProfile;open.steamProfile=m->steamId;
+  if(!submit(std::move(open)))error_=loc::T("error.queue_failed");else error_.clear();
   return;
  }
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}

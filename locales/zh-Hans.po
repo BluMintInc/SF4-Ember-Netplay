@@ -301,6 +301,15 @@ msgstr "已在浏览器中打开。请切换到浏览器加入服务器。"
 msgid "services.community_failed"
 msgstr "无法打开浏览器。请访问 {0} 加入。"
 
+msgid "services.opening_steam_profile"
+msgstr "正在浏览器中打开 Steam 个人资料..."
+
+msgid "services.steam_profile_opened"
+msgstr "已在浏览器中打开。"
+
+msgid "services.steam_profile_failed"
+msgstr "无法打开浏览器。"
+
 msgid "settings.language"
 msgstr "语言"
 
@@ -881,6 +890,12 @@ msgstr "主角"
 
 msgid "profile.main_character_detail"
 msgstr "{0}。用于玩家名片，不受对战角色选择影响。"
+
+msgid "profile.share_steam"
+msgstr "显示我的 Steam 个人资料"
+
+msgid "profile.share_steam_detail"
+msgstr "房间成员可以在成员界面打开你的 Steam 个人资料。下次加入房间时生效。"
 
 msgid "profile.record"
 msgstr "胜负记录"
@@ -2900,6 +2915,15 @@ msgstr "转让房主"
 msgid "room.transfer_host.detail"
 msgstr "让 {0} 成为房主。"
 
+msgid "room.steam_profile"
+msgstr "Steam 个人资料"
+
+msgid "room.steam_profile.detail"
+msgstr "打开此成员的 Steam 个人资料。"
+
+msgid "room.steam_profile.none"
+msgstr "此成员未分享 Steam 个人资料。"
+
 msgid "room.compose_message"
 msgstr "编写消息"
 
@@ -3040,6 +3064,9 @@ msgstr "房间连接失败。房间即将关闭；未确认的结果不会计入
 
 msgid "runtime.operation_busy"
 msgstr "操作繁忙，请重试。"
+
+msgid "runtime.steam_profile_failed"
+msgstr "无法打开 Steam 个人资料。"
 
 msgid "discord.invitation_expired"
 msgstr "Discord 邀请已过期。请索取新邀请。"

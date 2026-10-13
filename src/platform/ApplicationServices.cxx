@@ -88,7 +88,8 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
 }
 bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
     if (action == ServiceAction::CancelReport) { Cancel(); return true; }
-    if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash) return false;
+    if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash ||
+        action == ServiceAction::OpenSteamProfile) return false;
     if (action == ServiceAction::LaunchUpdateCheck) return RequestLaunchCheck();
     // These two carry the offer the player saw: UpdateNow and SkipUpdate.
     if (action == ServiceAction::UpdateNow || action == ServiceAction::SkipUpdate) return false;
@@ -97,6 +98,13 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     if (action == ServiceAction::PrepareProblemReport)
         return QueueReport(action, reports::Preparation{std::nullopt, state_.channel});
     return Start(action, diagnostics, state_.channel, std::move(target));
+}
+bool ApplicationServices::OpenSteamProfilePage(const SteamId& id) {
+    if (!id.Present()) return false;
+    const std::string digits = id.ToString();  // ASCII, so widening is byte for byte.
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return Start(ServiceAction::OpenSteamProfile, {}, state_.channel, std::wstring(digits.begin(), digits.end()));
 }
 bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -149,6 +157,7 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
     request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; target_ = std::move(target); state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = reportOperation_ ? state_.reporting.message :
         action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
+        action == ServiceAction::OpenSteamProfile ? loc::T("services.opening_steam_profile") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel || action == ServiceAction::LaunchUpdateCheck ? loc::T("services.checking") :
         action == ServiceAction::SkipUpdate ? std::string() :
@@ -261,6 +270,13 @@ void ApplicationServices::Run() {
                 const bool opened = ShellOpen(url.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
+            } else if (action == ServiceAction::OpenSteamProfile) {
+                // The target is the text OpenSteamProfilePage made from a SteamId; it is read back as one.
+                const SteamId id = SteamId::Parsed(WideToUtf8(target));
+                const std::string url = SteamProfileUrl(id);
+                const bool opened = id.Present() && ShellOpen(std::wstring(url.begin(), url.end()).c_str());
+                next.succeeded = opened;
+                next.message = loc::T(opened ? "services.steam_profile_opened" : "services.steam_profile_failed");
             } else if (action == ServiceAction::OpenReplayFolder) {
                 const auto folder = replays::FindFolders().archive;
                 std::error_code ignored; std::filesystem::create_directories(folder, ignored);

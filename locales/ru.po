@@ -301,6 +301,15 @@ msgstr "Страница открыта в браузере. Перейдите 
 msgid "services.community_failed"
 msgstr "Не удалось открыть браузер. Перейдите по адресу {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Открытие профиля Steam в браузере..."
+
+msgid "services.steam_profile_opened"
+msgstr "Открыто в браузере."
+
+msgid "services.steam_profile_failed"
+msgstr "Не удалось открыть браузер."
+
 msgid "settings.language"
 msgstr "Язык"
 
@@ -882,6 +891,12 @@ msgstr "Основной персонаж"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Показывается в карточке игрока независимо от выбора для матча."
+
+msgid "profile.share_steam"
+msgstr "Показывать мой профиль Steam"
+
+msgid "profile.share_steam_detail"
+msgstr "Участники лобби могут открыть ваш профиль Steam на экране участника. Вступает в силу при следующем входе в лобби."
 
 msgid "profile.record"
 msgstr "Победы / поражения"
@@ -2901,6 +2916,15 @@ msgstr "Сменить ведущего"
 msgid "room.transfer_host.detail"
 msgstr "Назначить {0} ведущим лобби."
 
+msgid "room.steam_profile"
+msgstr "Профиль Steam"
+
+msgid "room.steam_profile.detail"
+msgstr "Открыть профиль Steam этого участника."
+
+msgid "room.steam_profile.none"
+msgstr "Этот участник не делится профилем Steam."
+
 msgid "room.compose_message"
 msgstr "Написать сообщение"
 
@@ -3041,6 +3065,9 @@ msgstr "Сбой соединения с лобби. Лобби закрывае
 
 msgid "runtime.operation_busy"
 msgstr "Операция занята. Повторите попытку."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Не удалось открыть профиль Steam."
 
 msgid "discord.invitation_expired"
 msgstr "Срок приглашения Discord истёк. Попросите новое."

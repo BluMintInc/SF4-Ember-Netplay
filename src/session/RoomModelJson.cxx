@@ -341,7 +341,9 @@ void to_json(nlohmann::json& json, const ConnectionRef& value) { json = nlohmann
 void from_json(const nlohmann::json& json, ConnectionRef& value) { value.host = ReadText(json, "host", 256); value.user = ReadText(json, "user", 256); }
 void to_json(nlohmann::json& json, const Member& value) { json = nlohmann::json{{"id", value.id}, {"name", value.name}, {"connection", value.connection}, {"host", value.host}, {"status", static_cast<int>(value.status)}, {"table", value.table}, {"seat", value.seat}, {"join_order", value.joinOrder}, {"incarnation", value.incarnation},{"fighter",value.fighter},{"main_fighter",value.mainFighter}, {"selected_delay", value.selectedDelay}, {"frozen_delay", value.frozenDelay}, {"delay_locked", value.delayLocked}, {"spectator_locked", value.spectatorLocked}, {"link", static_cast<int>(value.link)}, {"nat", static_cast<int>(value.nat)}};
     if (value.idleSeconds) json["idle_s"] = value.idleSeconds;
-    if (value.training) json["training"] = true; }
+    if (value.training) json["training"] = true;
+    // Only a member who showed the room a profile has the key; older readers skip it.
+    if (value.steamId.Present()) json["steam_id"] = value.steamId.ToString(); }
 void from_json(const nlohmann::json& json, Member& value) {
 	value.id = ReadU64(json, "id"); if (!value.id) throw std::invalid_argument("room member id");
 	value.name = ReadText(json, "name", 32, false); json.at("connection").get_to(value.connection);
@@ -362,6 +364,8 @@ void from_json(const nlohmann::json& json, Member& value) {
     value.training = json.contains("training") ? json.at("training").get<bool>() : false;
     value.link = json.contains("link") ? NetworkLinkFromWire(json.at("link").get<long long>()) : NetworkLink::Unknown;
     value.nat = json.contains("nat") ? NatClassFromWire(json.at("nat").get<long long>()) : NatClass::Unknown;
+    // Text that is not a SteamId reads as none, as an unknown link does.
+    value.steamId = json.contains("steam_id") && json.at("steam_id").is_string() ? SteamId::Parsed(json.at("steam_id").get<std::string>()) : SteamId();
     value.idleSeconds = json.contains("idle_s") ? static_cast<std::uint32_t>(ReadInt(json, "idle_s", 0, static_cast<int>(MaximumIdleSeconds))) : 0;
 }
 void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{"id", value.id}, {"rules", value.rules}, {"phase", static_cast<int>(value.phase)}, {"revision", value.revision}, {"match_generation", value.matchGeneration}, {"p1", value.p1}, {"p2", value.p2}, {"queue", value.queue}, {"spectators", value.spectators}, {"watching_next", value.watchingNext}, {"ending_watchers", value.endingWatchers}, {"ready", {value.ready[0], value.ready[1]}}, {"input_delay", {value.inputDelay[0], value.inputDelay[1]}}, {"score", {value.score[0], value.score[1]}}, {"result_pending", value.resultPending}, {"spectator_hold", value.spectatorHold}, {"last_set", {{"generation", value.lastSet.generation}, {"p1", value.lastSet.p1}, {"p2", value.lastSet.p2}, {"score", {value.lastSet.score[0], value.lastSet.score[1]}}, {"winner_seat", value.lastSet.winnerSeat}}}, {"streak_holder", value.streakHolder}, {"streak", value.streak}, {"permit_generation", value.permitGeneration}, {"permits", value.permits}};

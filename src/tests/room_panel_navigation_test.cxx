@@ -501,7 +501,21 @@ int main() try {
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
     focus("member-2"); press(MenuInput::Select); frame();
     Check(row("transfer-host").enabled, "Host member menu omitted Transfer host");
-    focus("transfer-host"); const auto beforeTransfer = actions.size(); press(MenuInput::Select);
+    // Steam profile: offered only for a member who showed one, and it asks the runtime to open exactly that ID.
+    Check(row("steam-profile").label == loc::T("room.steam_profile") && !row("steam-profile").enabled &&
+        row("steam-profile").detail == loc::T("room.steam_profile.none"), "A member who showed no Steam profile offered one");
+    {
+        const auto beforeSteam = actions.size(); focus("steam-profile"); press(MenuInput::Select);
+        Check(actions.size() == beforeSteam, "A disabled Steam profile row submitted something");
+        view.room.members[1].steamId = SteamId::Parsed("76561200000000000"); ++view.room.revision; frame();
+        Check(row("steam-profile").enabled && row("steam-profile").detail == loc::T("room.steam_profile.detail"), "A shared Steam profile was not offered");
+        focus("steam-profile"); press(MenuInput::Select);
+        Check(actions.size() == beforeSteam + 1 && actions.back().service == platform::ServiceAction::OpenSteamProfile &&
+            actions.back().steamProfile.ToString() == "76561200000000000", "Steam profile did not ask to open that member's profile");
+        view.room.members[1].steamId = SteamId(); ++view.room.revision; frame();
+        Check(!row("steam-profile").enabled, "A profile the member took away stayed offered");
+        view.room.members[1].steamId = SteamId::Parsed("76561200000000000"); ++view.room.revision; frame();
+    }    focus("transfer-host"); const auto beforeTransfer = actions.size(); press(MenuInput::Select);
     Check(actions.size() == beforeTransfer, "Transfer host confirmation did not default to Cancel");
     press(MenuInput::Right); press(MenuInput::Select);
     Check(actions.size() == beforeTransfer + 1 && actions.back().roomAction.kind == room::ActionKind::TransferHost &&

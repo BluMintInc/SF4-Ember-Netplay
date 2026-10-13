@@ -301,6 +301,15 @@ msgstr "Otwarto w przeglądarce. Przejdź do niej, aby dołączyć do serwera."
 msgid "services.community_failed"
 msgstr "Nie można otworzyć przeglądarki. Dołącz na {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Otwieranie profilu Steam w przeglądarce..."
+
+msgid "services.steam_profile_opened"
+msgstr "Otwarto w przeglądarce."
+
+msgid "services.steam_profile_failed"
+msgstr "Nie można otworzyć przeglądarki."
+
 msgid "settings.language"
 msgstr "Język"
 
@@ -881,6 +890,12 @@ msgstr "Główna postać"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Pojawia się na karcie gracza niezależnie od wyboru postaci do walki."
+
+msgid "profile.share_steam"
+msgstr "Pokaż mój profil Steam"
+
+msgid "profile.share_steam_detail"
+msgstr "Uczestnicy pokoju mogą otworzyć twój profil Steam z ekranu uczestnika. Obowiązuje od następnego dołączenia do pokoju."
 
 msgid "profile.record"
 msgstr "Bilans walk"
@@ -2900,6 +2915,15 @@ msgstr "Przekaż hosta"
 msgid "room.transfer_host.detail"
 msgstr "Uczyń {0} hostem pokoju."
 
+msgid "room.steam_profile"
+msgstr "Profil Steam"
+
+msgid "room.steam_profile.detail"
+msgstr "Otwórz profil Steam tego uczestnika."
+
+msgid "room.steam_profile.none"
+msgstr "Ten uczestnik nie udostępnił profilu Steam."
+
 msgid "room.compose_message"
 msgstr "Napisz wiadomość"
 
@@ -3040,6 +3064,9 @@ msgstr "Połączenie z pokojem nie powiodło się. Pokój jest zamykany; niepotw
 
 msgid "runtime.operation_busy"
 msgstr "Operacja jest zajęta. Spróbuj ponownie."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Nie można otworzyć profilu Steam."
 
 msgid "discord.invitation_expired"
 msgstr "Zaproszenie Discord wygasło. Poproś o nowe."

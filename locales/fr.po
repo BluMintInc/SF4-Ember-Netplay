@@ -301,6 +301,15 @@ msgstr "Page ouverte dans votre navigateur. Rejoignez-y le serveur."
 msgid "services.community_failed"
 msgstr "Impossible d'ouvrir un navigateur. Rendez-vous sur {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Ouverture du profil Steam dans votre navigateur..."
+
+msgid "services.steam_profile_opened"
+msgstr "Page ouverte dans votre navigateur."
+
+msgid "services.steam_profile_failed"
+msgstr "Impossible d'ouvrir un navigateur."
+
 msgid "settings.language"
 msgstr "Langue"
 
@@ -881,6 +890,12 @@ msgstr "Perso principal"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Affiché sur votre carte de joueur, indépendamment du choix en combat."
+
+msgid "profile.share_steam"
+msgstr "Montrer mon profil Steam"
+
+msgid "profile.share_steam_detail"
+msgstr "Les membres du salon peuvent ouvrir votre profil Steam depuis l'écran du membre. Pris en compte à la prochaine arrivée dans un salon."
 
 msgid "profile.record"
 msgstr "Victoires / défaites"
@@ -2900,6 +2915,15 @@ msgstr "Changer d'hôte"
 msgid "room.transfer_host.detail"
 msgstr "Faire de {0} l'hôte du salon."
 
+msgid "room.steam_profile"
+msgstr "Profil Steam"
+
+msgid "room.steam_profile.detail"
+msgstr "Ouvrir le profil Steam de ce membre."
+
+msgid "room.steam_profile.none"
+msgstr "Ce membre n'a pas partagé de profil Steam."
+
 msgid "room.compose_message"
 msgstr "Écrire un message"
 
@@ -3040,6 +3064,9 @@ msgstr "Échec de la connexion au salon. Il va fermer ; les résultats non confi
 
 msgid "runtime.operation_busy"
 msgstr "Opération occupée. Réessayez."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Impossible d'ouvrir le profil Steam."
 
 msgid "discord.invitation_expired"
 msgstr "L'invitation Discord a expiré. Demandez-en une nouvelle."

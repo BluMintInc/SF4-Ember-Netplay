@@ -7,6 +7,7 @@
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
+#include "sf4e__Steam.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -179,6 +180,7 @@ void AttachRoom() {
 	UserApp::netplay->client.SetProfileLink(link);
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
+	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
@@ -383,6 +385,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
+		(command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
 		command.reportSubmission.comment.size() > 8000 ||
 		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
 		(command.createdRules && !command.createdRules->Valid())) return false;

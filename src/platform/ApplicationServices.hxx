@@ -2,6 +2,7 @@
 #include "../launcher/update/github_release_client.hxx"
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/SteamId.hxx"
 #include "ReportWorkflow.hxx"
 #include "UpdatePolicy.hxx"
 #include <memory>
@@ -24,8 +25,9 @@ namespace sf4e { namespace platform {
 // LaunchUpdateCheck is the check the game makes once per launch when its
 // UpdatePolicy allows (ApplicationServices::RequestLaunchCheck). UpdateNow opens
 // the Launcher's Updates window with the launch offer the player accepted, and
-// SkipUpdate records that they skipped it.
-enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile,
+// SkipUpdate records that they skipped it. OpenSteamProfile opens a member's
+// Steam profile page in the browser; only OpenSteamProfilePage starts it, with a SteamId.
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate };
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
@@ -133,6 +135,8 @@ public:
     ~ApplicationServices();
     // target: the file a ShowReplayFile request names; nothing else reads it.
     bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {}, std::wstring target = {});
+    // The member's Steam profile page in the default browser (SteamProfileUrl).
+    bool OpenSteamProfilePage(const SteamId& id);
     // Saves `channel` as the update channel, then checks for an update on it.
     bool SwitchUpdateChannel(launcher::UpdateChannel channel);
     // Makes the launch check, once, if the policy allows it. True also when the

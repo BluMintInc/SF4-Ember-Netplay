@@ -355,7 +355,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
-        request.service = action.service; request.servicePath = std::move(action.servicePath);
+        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
         request.updateOffer = std::move(action.updateOffer);
         request.replay = std::move(action.replay);
         request.reportSubmission = std::move(action.reportSubmission);
