@@ -167,7 +167,8 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     const auto measure=[&](const char* value){return ImGui::CalcTextSize(value).x;};
     // The startup and recovery columns are sized from the translated text they will show.
     const float startup=(std::max)(measure(loc::Tf("training.start_frames",999).c_str()),measure(loc::T("training.start_unknown")));
-    const float recovery=options.recovery?(std::max)(measure(loc::Tf("training.recovery_frames",999).c_str()),measure(loc::T("training.recovery_unknown")))+gap:0;
+    const float recovery=options.recovery?(std::max)({measure(loc::Tf("training.recovery_frames",999).c_str()),measure(loc::T("training.recovery_unknown")),
+        measure(loc::T("training.recovery_cancelled"))})+gap:0;
     const float label = options.numbers ? measure("P2") + gap + measure("+999 f") + gap + startup + gap + recovery : 0;
     // As tall as the text beside it allows, so the run lengths read too.
     const float height = 14 * hudScale;
@@ -195,17 +196,21 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
             ImGui::TextDisabled("P%d", side + 1);
             ImGui::SameLine(0,gap); Advantage(meter, side);
             ImGui::SameLine(0,gap);
-            if (meter.startupFrames[side] >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", meter.startupFrames[side]).c_str());
+            // A focus cancel's move keeps its startup through the focus and the dash.
+            const auto* chain = ChainOf(meter.advantage, side);
+            const int startup = chain ? chain->startup : meter.startupFrames[side];
+            if (startup >= 0) ImGui::TextUnformatted(loc::Tf("training.start_frames", startup).c_str());
             else {
                 ImGui::TextDisabled("%s", loc::T("training.start_unknown"));
                 if (ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), false))
-                    ImGui::SetTooltip("%s", Unavailable(loc::T("training.startup"), meter.startupUnavailable[side]).c_str());
+                    ImGui::SetTooltip("%s", Unavailable(loc::T("training.startup"), chain ? chain->startupUnavailable : meter.startupUnavailable[side]).c_str());
             }
             // The last move's recovery, as Frame data counts it, once it is over.
             if (options.recovery) {
                 const auto& move = meter.moves[side];
                 ImGui::SameLine(0,gap);
-                if (move.seen && !move.live && move.recovery > 0) ImGui::TextUnformatted(loc::Tf("training.recovery_frames", move.recovery).c_str());
+                if (chain) ImGui::TextUnformatted(loc::T("training.recovery_cancelled"));
+                else if (move.seen && !move.live && move.recovery > 0) ImGui::TextUnformatted(loc::Tf("training.recovery_frames", move.recovery).c_str());
                 else ImGui::TextDisabled("%s", loc::T("training.recovery_unknown"));
             }
             if (options.bars) ImGui::SameLine(rowStart + label);
@@ -218,11 +223,26 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
         ImGui::Dummy(ImVec2(width, height));
     }
 }
+// What a focus cancel was, from the reading it belongs to.
+const char* ChainName(const CancelChain& chain, bool last = false) {
+    if (chain.dash == ActionClass::BackDash) return last ? loc::T("training.last_focus_back") : loc::T("training.meter.focus_back");
+    return last ? loc::T("training.last_focus_forward") : loc::T("training.meter.focus_forward");
+}
+// The focus cancel this exchange's reading ends on, for the line under the
+// bars; a kept one would hide why the next move's startup is missing.
+std::string ChainLine(const MeterView& meter) {
+    for (int side = 0; side < 2; ++side)
+        if (const auto* chain = ChainOf(meter.advantage, side)) return "P" + std::to_string(side + 1) + " " + ChainName(*chain);
+    return {};
+}
 // The first measurement that is unavailable, and why, for the HUD's reason
-// line: the pad and keys cannot hover the tooltips that say the same.
+// line: the pad and keys cannot hover the tooltips that say the same. A
+// focus cancel the reading ends on comes before a missing startup.
 std::string MeasurementReason(const MeterView& meter) {
     if(AdvantageExplained(meter))return Unavailable(loc::T("training.advantage"),meter.advantage.unavailable);
-    for(int side=0;side<2;++side)if(meter.startupFrames[side]<0)
+    const auto cancel=ChainLine(meter);
+    if(!cancel.empty())return cancel;
+    for(int side=0;side<2;++side)if(meter.startupFrames[side]<0&&!ChainOf(meter.advantage,side))
         return "P"+std::to_string(side+1)+" "+Unavailable(loc::T("training.startup"),meter.startupUnavailable[side]);
     return {};
 }
@@ -230,13 +250,17 @@ struct Reading { std::string label, value; };
 std::vector<Reading> Readings(const MeterView& meter, int side) {
     const auto& move = meter.moves[side];
     const auto number = [](int value) { return value > 0 ? std::to_string(value) : std::string("--"); };
+    // A focus cancel gives the move it cancelled, taken before the focus
+    // began, and that move's recovery was cancelled.
+    const auto& advantage = meter.advantage;
+    const auto* chain = ChainOf(advantage, side);
     std::vector<Reading> readings{
-        {loc::T("training.startup"), number(meter.startupFrames[side])},
-        {loc::T("training.meter.active"), number(move.seen ? move.active : 0)},
-        {loc::T("training.meter.recovery"), number(move.seen && !move.live ? move.recovery : 0)}};
+        {loc::T("training.startup"), number(chain ? chain->startup : meter.startupFrames[side])},
+        {loc::T("training.meter.active"), number(chain ? chain->active : move.seen ? move.active : 0)},
+        {loc::T("training.meter.recovery"), chain ? std::string(loc::T("training.meter.cancelled")) : number(move.seen && !move.live ? move.recovery : 0)}};
+    if (chain) readings.push_back({ChainName(*chain), std::string()});
     // What the move met, and the frames it left its user ahead or behind:
     // this exchange's, so it is never told of another's move.
-    const auto& advantage = meter.advantage;
     const auto met = [&](const FrameAdvantage& exchange) -> const char* {
         return exchange.attacker == side ? (exchange.blocked ? "training.meter.block" : "training.meter.hit") : nullptr;
     };
@@ -258,8 +282,11 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
     // The HUD keeps the last exchange measured until the next one is
     // (ShownAdvantage); here it is a reading of its own, apart from the moves above.
     const auto& last = meter.lastAdvantage;
-    if (!advantage.valid && last.valid)
-        readings.push_back({loc::T("training.last_advantage"), (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last)});
+    if (!advantage.valid && last.valid) {
+        const auto* lastChain = ChainOf(last, side);
+        readings.push_back({lastChain ? ChainName(*lastChain, true) : loc::T("training.last_advantage"),
+            (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last)});
+    }
     return readings;
 }
 }

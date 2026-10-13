@@ -1763,6 +1763,15 @@ msgstr "Touché"
 msgid "training.meter.block"
 msgstr "Garde"
 
+msgid "training.meter.focus_forward"
+msgstr "Annulation Focus, dash avant"
+
+msgid "training.meter.focus_back"
+msgstr "Annulation Focus, dash arrière"
+
+msgid "training.meter.cancelled"
+msgstr "Annulée"
+
 msgid "training.meter.whiff"
 msgstr "Dans le vide"
 
@@ -1838,6 +1847,9 @@ msgstr "Récup. {0} tr."
 msgid "training.recovery_unknown"
 msgstr "Récup. --"
 
+msgid "training.recovery_cancelled"
+msgstr "Récup. annulée"
+
 msgid "training.neutral"
 msgstr "Neutre"
 
@@ -1882,6 +1894,12 @@ msgstr "Avantage"
 
 msgid "training.last_advantage"
 msgstr "Dernier avantage"
+
+msgid "training.last_focus_forward"
+msgstr "Dernière annulation Focus, dash avant"
+
+msgid "training.last_focus_back"
+msgstr "Dernière annulation Focus, dash arrière"
 
 msgid "selection.preview_unavailable"
 msgstr "Aperçu\nindisponible"

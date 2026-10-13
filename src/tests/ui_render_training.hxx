@@ -388,6 +388,26 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         runs.advantage.unavailable=training::MeasurementUnavailable::MeasuringRecovery;
         training.meter=runs;SetTrainingMeterOptions({false,true,120});draw("training-hud-measuring");
         Require(TrainingFrameData(runs,0).find(std::string(loc::T("training.meter.hit"))+" +3")!=std::string::npos,"Frame data dropped the last reading while the next was measured");
+        // A focus cancel: the HUD and Frame data both give the move it
+        // cancelled, its recovery cancelled and the dash, from the one reading.
+        {
+            auto cancel=runs;cancel.advantage=training::FrameAdvantage{};cancel.advantage.valid=true;cancel.advantage.blocked=true;
+            cancel.advantage.attacker=0;cancel.advantage.frames={{-2,2}};cancel.startupFrames={{-1,-1}};
+            cancel.startupUnavailable[0]=training::MeasurementUnavailable::WaitingForAttackBoundary;
+            auto& chain=cancel.advantage.chain;chain.valid=chain.recoveryCancelled=true;chain.side=0;chain.startup=3;chain.active=2;
+            chain.provenance=training::BoundaryProvenance::BacActionHeader;chain.startupUnavailable=training::MeasurementUnavailable::None;
+            chain.dash=training::ActionClass::ForwardDash;cancel.lastAdvantage=cancel.advantage;
+            training.meter=cancel;SetTrainingMeterOptions({false,true,60});draw("training-hud-focus-cancel");
+            const auto text=TrainingFrameData(cancel,0);
+            const auto label=[](const char* id,const std::string& value){return std::string(loc::T(id))+": "+value;};
+            Require(text.find(label("training.startup","3"))!=std::string::npos&&text.find(label("training.meter.recovery",loc::T("training.meter.cancelled")))!=std::string::npos&&
+                text.find(loc::T("training.meter.focus_forward"))!=std::string::npos&&text.find(label("training.result",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
+                "Frame data did not read the focus cancel");
+            // The next exchange is being measured: the kept reading keeps its cancel.
+            cancel.advantage=training::FrameAdvantage{};cancel.advantage.pending=true;cancel.advantage.attacker=0;
+            Require(TrainingFrameData(cancel,0).find(label("training.last_focus_forward",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
+                "Frame data's last reading lost its cancel");
+        }
         SetTrainingMeterOptions({});training.meter=savedMeter;
     }
     mode=6;training.watching=true;draw();

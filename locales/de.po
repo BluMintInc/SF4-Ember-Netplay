@@ -1763,6 +1763,15 @@ msgstr "Treffer"
 msgid "training.meter.block"
 msgstr "Block"
 
+msgid "training.meter.focus_forward"
+msgstr "Fokus-Cancel, Dash vorwärts"
+
+msgid "training.meter.focus_back"
+msgstr "Fokus-Cancel, Dash rückwärts"
+
+msgid "training.meter.cancelled"
+msgstr "Abgebrochen"
+
 msgid "training.meter.whiff"
 msgstr "Verfehlt"
 
@@ -1838,6 +1847,9 @@ msgstr "Erh. {0} F"
 msgid "training.recovery_unknown"
 msgstr "Erh. --"
 
+msgid "training.recovery_cancelled"
+msgstr "Erh. abgebrochen"
+
 msgid "training.neutral"
 msgstr "Neutral"
 
@@ -1882,6 +1894,12 @@ msgstr "Vorteil"
 
 msgid "training.last_advantage"
 msgstr "Letzter Vorteil"
+
+msgid "training.last_focus_forward"
+msgstr "Letzter Fokus-Cancel, Dash vorwärts"
+
+msgid "training.last_focus_back"
+msgstr "Letzter Fokus-Cancel, Dash rückwärts"
 
 msgid "selection.preview_unavailable"
 msgstr "Vorschau\nnicht verfügbar"

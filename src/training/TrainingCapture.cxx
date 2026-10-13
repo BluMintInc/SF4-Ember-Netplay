@@ -52,7 +52,7 @@ void TrainingCapture::Run() {
     outputPath /= std::wstring(L"training-samples-") + processId + L".csv";
     std::ofstream output(outputPath, std::ios::out | std::ios::trunc);
     if (!output) return Fail("the CSV file could not be opened");
-    output << "frame,side,status,action,action_frame,posture,time_scale,inhibited,attack_start,attack_end,boundary_source,startup,startup_reason,advantage,advantage_valid,advantage_pending,advantage_reason,valid,damage,combo_damage,health,dropped\n";
+    output << "frame,side,status,action,action_frame,posture,time_scale,inhibited,attack_start,attack_end,boundary_source,startup,startup_reason,advantage,advantage_valid,advantage_pending,advantage_reason,valid,damage,combo_damage,health,dropped,action_class,cancel_dash,cancel_startup\n";
     std::unique_lock<std::mutex> lock(mutex_);
     for (;;) {
         wake_.wait(lock, [&] { return stopping_ || !rows_.empty(); });
@@ -60,6 +60,7 @@ void TrainingCapture::Run() {
             Row row = std::move(rows_.front()); rows_.pop_front(); lock.unlock();
             for (int side = 0; side < 2; ++side) {
                 const auto& f = row.fighters[side];
+                const auto* chain = ChainOf(row.advantage, side);
                 output << row.frame << ',' << side << ',' << f.status << ',' << f.action << ','
                     << std::setprecision(9) << f.actionFrame << ',' << f.posture << ',' << f.timeScale << ','
                     << (f.basicActionInhibited ? 1 : 0) << ',' << f.firstActiveFrame << ',' << f.lastActiveFrame << ','
@@ -67,7 +68,10 @@ void TrainingCapture::Run() {
                     << static_cast<unsigned>(row.startupUnavailable[side]) << ',' << row.advantage.frames[side] << ','
                     << (row.advantage.valid ? 1 : 0) << ',' << (row.advantage.pending ? 1 : 0) << ','
                     << static_cast<unsigned>(row.advantage.unavailable) << ',' << (f.valid ? 1 : 0) << ','
-                    << f.damage << ',' << f.comboDamage << ',' << f.health << ',' << dropped_.load() << '\n';
+                    << f.damage << ',' << f.comboDamage << ',' << f.health << ',' << dropped_.load() << ','
+                    // ActionClass, and the reading's focus cancel by this side: its dash's ActionClass, 0 for none.
+                    << static_cast<unsigned>(f.actionClass) << ',' << (chain ? static_cast<unsigned>(chain->dash) : 0u) << ','
+                    << (chain ? chain->startup : -1) << '\n';
             }
             lock.lock();
         }

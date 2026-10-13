@@ -33,6 +33,29 @@ struct ActorStatus {
         Damage = 21, DamageGuard = 22, DamageBlow = 23, Sequence = 24
     };
 };
+// What an action is, from the game's own move data: the category of the
+// command (.bcm) move a Skill plays, or a dash status. Focus is the game's
+// SAVING category, which its normal and red focus moves and their cancel
+// versions carry; a dash out of a focus is the command move DASH or
+// BACK_DASH, played as a Skill. Unknown: no sample, or a Skill that no
+// command move started. TrainingRuntime resolves it (ResolveActionClass);
+// docs/design/FOCUS_CANCEL_MARKER.md says how the marker was confirmed.
+enum class ActionClass : std::uint8_t { Unknown, Other, Focus, ForwardDash, BackDash };
+// Bits of a command move's category (its +0x28), named as the game's table names them.
+struct CommandCategory { enum : std::uint32_t { Saving = 0x80, Dash = 0x80000, BackDash = 0x100000 }; };
+// command: a Skill's command move was read, its category in category.
+inline ActionClass ResolveActionClass(bool valid, unsigned status, bool command, std::uint32_t category) {
+    if (!valid) return ActionClass::Unknown;
+    if (status == ActorStatus::FrontDash) return ActionClass::ForwardDash;
+    if (status == ActorStatus::BackDash) return ActionClass::BackDash;
+    if (status != ActorStatus::Skill) return ActionClass::Other;
+    if (!command) return ActionClass::Unknown;
+    if (category & CommandCategory::Saving) return ActionClass::Focus;
+    if (category & CommandCategory::Dash) return ActionClass::ForwardDash;
+    if (category & CommandCategory::BackDash) return ActionClass::BackDash;
+    return ActionClass::Other;
+}
+inline bool DashClass(ActionClass action) { return action == ActionClass::ForwardDash || action == ActionClass::BackDash; }
 inline Phase ClassifyStatus(unsigned status) {
     // Attack is kept whole: Skill does not distinguish startup, active and recovery.
     using S = ActorStatus;
@@ -75,6 +98,7 @@ struct FighterSample {
     // its total frames; -1 unknown.
     int interruptibleFrame = -1, totalFrames = -1;
     BoundaryProvenance boundaryProvenance = BoundaryProvenance::None;
+    ActionClass actionClass = ActionClass::Unknown;
     // Set by the meter, not the game: the thrower, still in a throw's
     // sequence after the fighter it threw has left it.
     bool throwRecovery = false;
@@ -138,6 +162,21 @@ inline bool GroundedRecoveryState(unsigned status) {
     default: return false;
     }
 }
+// A focus cancel (FrameMeter::Observe): a move, a focus started before that
+// move recovered, then a forward or back dash out of the focus. side: whose.
+// startup, its provenance and reason, and active are the move's, taken as the
+// focus began, before the focus's own replaced them. focusFrames: the frames
+// the focus was seen in. dash: ForwardDash or BackDash. recoveryCancelled: the
+// move's recovery was cut short, so it has no recovery to show.
+struct CancelChain {
+    bool valid = false;
+    int side = -1;
+    int startup = -1, active = 0, focusFrames = 0;
+    BoundaryProvenance provenance = BoundaryProvenance::None;
+    MeasurementUnavailable startupUnavailable = MeasurementUnavailable::NoAttackBoundary;
+    ActionClass dash = ActionClass::Unknown;
+    bool recoveryCancelled = false;
+};
 struct FrameAdvantage {
     std::array<int, 2> frames{};
     bool valid = false, pending = false;
@@ -147,7 +186,15 @@ struct FrameAdvantage {
     int attacker = -1;
     bool blocked = false;
     MeasurementUnavailable unavailable = MeasurementUnavailable::NoContact;
+    // This exchange's focus cancel once its dash came out; it goes and stays
+    // with the frames above, so a reading never pairs one exchange's cancel
+    // with another's result.
+    CancelChain chain;
 };
+// The focus cancel of a reading made by side, or null.
+inline const CancelChain* ChainOf(const FrameAdvantage& reading, int side) {
+    return reading.chain.valid && reading.chain.side == side ? &reading.chain : nullptr;
+}
 // A fighter's last attack in advancing frames, hitstop left out: those inside
 // its attack boundary and those after it. Its startup is MeterView's
 // startupFrames, including the first active frame, as the game's frame data
@@ -266,7 +313,7 @@ inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -296,6 +343,8 @@ public:
             else view_.stateFrames[side] = sample.valid ? 1 : 0;
             const auto& previous = view_.current[side];
             const bool actionChanged = sample.action != previous.action || sample.actionFrame < previous.actionFrame;
+            // Before a focus's own startup and move replace the move's below.
+            WatchCancel(side, previous, sample);
             if (!sample.valid) {
                 view_.startupFrames[side] = -1; startupPending_[side] = false;
                 view_.startupUnavailable[side] = MeasurementUnavailable::InvalidSample;
@@ -430,8 +479,9 @@ private:
     }
     // Whether a fighter was hit, blocked or thrown this frame.
     bool ObserveAdvantage(std::int64_t frame, const std::array<FighterSample, 2>& fighters) {
+        // A cleared reading takes its focus cancel, and one still forming, with it.
         auto clear = [&](MeasurementUnavailable reason) {
-            view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}};
+            view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}}; cancelling_ = {};
         };
         for (const auto& sample : fighters) {
             if (!sample.valid || sample.action < 0 || sample.status > ActorStatus::Sequence ||
@@ -505,6 +555,32 @@ private:
         }
         return contact;
     }
+    // A focus cancel forms only as a move, a focus that began while the move
+    // still played (no frame between them out of Skill), then a dash straight
+    // out of the focus. The move's readings are taken as the focus begins;
+    // the dash puts the chain in this exchange's reading. Anything else after
+    // the focus drops it, and another attack after the dash takes it out of
+    // the reading, which no longer ends on the cancel.
+    void WatchCancel(int side, const FighterSample& previous, const FighterSample& sample) {
+        auto& chain = cancelling_[side];
+        const bool focus = sample.valid && sample.status == ActorStatus::Skill && sample.actionClass == ActionClass::Focus;
+        const bool attack = sample.valid && sample.status == ActorStatus::Skill && !DashClass(sample.actionClass) && previous.valid &&
+            (previous.status != ActorStatus::Skill || sample.action != previous.action || sample.actionFrame < previous.actionFrame);
+        if (attack && ChainOf(view_.advantage, side)) view_.advantage.chain = CancelChain{};
+        if (chain.side >= 0) {
+            if (focus) { ++chain.focusFrames; return; }
+            if (sample.valid && DashClass(sample.actionClass)) {
+                chain.dash = sample.actionClass; chain.recoveryCancelled = chain.valid = true;
+                view_.advantage.chain = chain;
+            }
+            chain = {};
+            return;
+        }
+        if (!focus || !previous.valid || previous.status != ActorStatus::Skill || previous.actionClass != ActionClass::Other) return;
+        chain.side = side; chain.focusFrames = 1;
+        chain.startup = view_.startupFrames[side]; chain.provenance = view_.startupBoundaryProvenance[side];
+        chain.startupUnavailable = view_.startupUnavailable[side]; chain.active = view_.moves[side].active;
+    }
     void Meaty(int attacker) {
         const auto active = firstActiveAt_[attacker], wake = wakeAt_[1 - attacker];
         if (active < 0 || wake < 0 || active - wake > 60) return;
@@ -523,6 +599,8 @@ private:
     // On the clock of accepted observations; -1 none.
     std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};
+    // A focus cancel each side may be forming (WatchCancel): side -1 none.
+    std::array<CancelChain, 2> cancelling_{};
     std::array<bool, 2> startupPending_{};
     std::array<int, 2> startupElapsed_{};
     std::array<int, 2> recoveryCells_{};
