@@ -36,6 +36,12 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME FrameMeterRun SOURCES "src/tests/frame_meter_run_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingReply SOURCES "src/tests/training_reply_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.cxx" STD 14)
+    # The bank's test includes RecordingBank.hxx alone, so it fails to build
+    # if the bank comes to need the session.
+    sf4e_add_unit_test(NAME TrainingRecordingBank SOURCES "src/tests/training_recording_bank_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME TrainingRecording SOURCES "src/tests/training_recording_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME TrainingPendingReply SOURCES "src/tests/training_pending_reply_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME TrainingPadStandby SOURCES "src/tests/training_pad_standby_test.cxx" STD 14)
     sf4e_add_unit_test(NAME FighterCatalog SOURCES "src/tests/fighter_catalog_test.cxx" LIBS sf4e_selection TIMEOUT 15)
     sf4e_add_unit_test(NAME SessionController SOURCES "src/tests/session_controller_test.cxx" LIBS sf4e_netplay_core Threads::Threads TIMEOUT 15)
     sf4e_add_unit_test(NAME RollbackHud SOURCES "src/tests/rollback_hud_test.cxx")
@@ -248,6 +254,7 @@ if(BUILD_TESTING)
     # times as long while other tests and builds use the disk.
     sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
     sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
+    sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 endif()
 
 add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ControllersScreen.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")

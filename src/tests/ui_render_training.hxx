@@ -84,13 +84,19 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
-        if(std::string(screen)=="reply")Require(trainingRows.size()==7,"Reply page lost one of its own rows");
+        if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
         if(std::string(screen)=="hud")Require(trainingRows.size()==6&&trainingRows[0].id=="hud-size","HUD page lost its size or one of its parts");
-        if(std::string(screen)=="reply")for(const auto& row:trainingRows)if(row.id=="reply-slot"){
-            Require(row.value==loc::Tf("training.slot",1),"Reply slot value includes recorded frame count");
-            Require(row.detail.find(loc::Tf("training.recorded_frames",120))!=std::string::npos,"Reply slot detail lost recorded frame count");
+        // The reply plays the slots that are on, so its page has no slot of its own.
+        if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
+        // Each slot says whether it is on, or that it is empty, with its frames in the detail.
+        if(std::string(screen)=="recording"){
+            Require(trainingRows.size()==training::SlotCount+7&&trainingRows[0].value==loc::T("common.on")&&trainingRows[2].value==loc::T("common.off")&&
+                trainingRows[1].value==loc::T("training.slot.empty")&&trainingRows[0].detail.find("120")!=std::string::npos&&!trainingRows[1].adjustable,
+                "The recording page did not show each slot on, off or empty");
+            const auto order=std::find_if(trainingRows.begin(),trainingRows.end(),[](const MenuEntry& row){return row.id=="order";});
+            Require(order!=trainingRows.end()&&order->value==loc::T("training.order.random"),"The recording page lost its order row");
         }
         if(std::string(screen)=="home") {
             const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","return"};
@@ -150,12 +156,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         for(int i=0;i<20&&TrainingNavigation().Focus()!="reply-move";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
         Require(TrainingNavigation().Focus()=="reply-move","Reply pick list unreachable");
         const auto pickValue=[&]{for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
-        Require(pickValue()==loc::T("training.reply.slot"),"Reply pick list did not start on the reply slot");
+        Require(pickValue()==loc::T("training.reply.recordings"),"Reply pick list did not start on the recordings");
         acceptTraining=true;trainingCommand={};draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(pickValue()=="623P"&&trainingCommand.action==training::Action::DummyPlan,"Reply preset was not sent as a plan");
         draw("training-reply-presets");
         draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
-        Require(pickValue()==loc::T("training.reply.slot"),"Left did not return the pick list to the reply slot");
+        Require(pickValue()==loc::T("training.reply.recordings"),"Left did not return the pick list to the recordings");
         acceptTraining=false;
         SetMenuEntriesProbe({});
     }
@@ -172,7 +178,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.acks.Note(trainingCommand.requestId,false);
     draw("training-command-error");Require((TakeForwardedMenuAction().kind!=MenuAction::Close),"Failed training command closed flyout");
     training.ready=false;TrainingNavigation().Home();TrainingNavigation().Push("recording");draw("training-unavailable");
-    training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
+    training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");
+    training.mode=training::Mode::Standby;draw("training-standby");training.mode=training::Mode::Idle;
     // An Xbox pad's press turns the controls' legend to its buttons.
     SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
     // A new battle clears the failed command left by the shots above.
@@ -319,13 +326,18 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Meter option moved the HUD over the game's super meters");
     }
     SetTrainingMeterOptions({});
-    // A recording and a playback add their strip, and the meter stays clear of the gauges.
+    // Standby, a recording and a playback add their strip, and the meter stays
+    // clear of the gauges. The typed reply plays from a slot of its own and adds none.
     const float whole=hud->Size.y;
-    for(const auto& shot:{std::make_pair("training-hud-recording",training::Mode::Recording),std::make_pair("training-hud-playback",training::Mode::Playback)}) {
-        training.mode=shot.second;training.cursor=45;draw(shot.first);
+    training.active=0;training.activeLength=120;
+    for(const auto& shot:{std::make_pair("training-hud-standby",training::Mode::Standby),std::make_pair("training-hud-recording",training::Mode::Recording),
+        std::make_pair("training-hud-playback",training::Mode::Playback)}) {
+        training.mode=shot.second;training.cursor=shot.second==training::Mode::Standby?0:45;draw(shot.first);
         Require(hud->Size.y>whole&&hud->Size.y<size.h*.17f&&hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Recording strip is missing or made the HUD too large");
     }
-    training.mode=training::Mode::Idle;training.cursor=0;
+    training.active=training::ReplySlot;draw();
+    Require(std::fabs(hud->Size.y-whole)<1,"The typed reply drew a playback strip");
+    training.mode=training::Mode::Idle;training.cursor=0;training.active=-1;training.activeLength=0;
     // The HUD's parts: the bars alone are a smaller meter with no chip over it, and with every part off nothing is drawn.
     training::MeterOptions parts;parts.numbers=parts.state=parts.shortcuts=false;SetTrainingMeterOptions(parts);draw("training-hud-bars");
     Require(hud->Size.y<whole*.7f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
@@ -406,7 +418,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     Require(MenuPromptDevice()==input::PadKeyboard,"A function key did not turn the HUD's prompts to the keyboard");
     SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");
     // While a slot plays F8 stops it, and the strip says so.
-    training.mode=training::Mode::Playback;training.cursor=40;draw("training-hud-playing");training.mode=training::Mode::Idle;training.cursor=0;
+    training.mode=training::Mode::Playback;training.active=0;training.activeLength=120;training.cursor=40;draw("training-hud-playing");
+    training.mode=training::Mode::Idle;training.cursor=0;training.active=-1;training.activeLength=0;
     // A failed strip check names what the strip showed.
     const auto strip=[](const char* what){
         std::string told=std::string(what)+" (" +loc::Tag(loc::Active())+", "+std::to_string(LastTrainingStrip().textPixels)+" px):";
@@ -433,6 +446,9 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         io.DisplaySize=ImVec2(1920,1080);SetTrainingMeterOptions({});
         SetTrainingPositionKeys(1,10);draw();
         names({"F6",chip,"F7",record,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"The strip did not name the keyboard's keys at rest");
+        // On standby F7 starts the recording; recording, it stops it.
+        training.mode=training::Mode::Standby;draw();
+        names({"F6",chip,"F7",record,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"F7 did not read Record on standby");
         training.mode=training::Mode::Recording;draw();
         names({"F6",chip,"F7",stop,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"F7 did not read Stop while recording");
         training.mode=training::Mode::Playback;draw();

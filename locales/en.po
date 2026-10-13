@@ -1577,14 +1577,11 @@ msgstr "On Wake-Up"
 msgid "training.reply.any"
 msgstr "Whenever it recovers"
 
-msgid "training.reply.slot"
-msgstr "Reply slot"
+msgid "training.reply.recordings"
+msgstr "Recordings"
 
-msgid "training.reply.slot.detail"
-msgstr "The dummy recording played as the reply while Reply moves is empty, from its first press."
-
-msgid "training.reply.slot_empty"
-msgstr "Slot {0} is empty, so the dummy has no reply. Record it or pick a move."
+msgid "training.reply.no_recordings_on"
+msgstr "No recordings are on that can be used as a reply"
 
 msgid "training.reply.chance"
 msgstr "Reply chance"
@@ -1602,13 +1599,13 @@ msgid "training.reply.moves"
 msgstr "Reply moves"
 
 msgid "training.reply.moves.detail"
-msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. [1] holds a direction until the next move, [1]20f holds it 20 frames and 10f waits: [1] > 3HP blocks low until the dummy is free, then presses 3HP. Empty uses the reply slot."
+msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. [1] holds a direction until the next move, [1]20f holds it 20 frames and 10f waits: [1] > 3HP blocks low until the dummy is free, then presses 3HP. Empty replies with a recording that is on."
 
 msgid "training.reply.move"
 msgstr "Reply preset"
 
 msgid "training.reply.move.detail"
-msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Reply slot plays the recording; Custom keeps the moves you typed. Select opens Reply moves to type one."
+msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Recordings replies with a recording that is on; Custom keeps the moves you typed. Select opens Reply moves to type one."
 
 msgid "training.reply.custom"
 msgstr "Custom"
@@ -1718,8 +1715,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / SELECTED"
 
-msgid "training.recorded_frames"
-msgstr "{0} recorded frames. Recordings last until this battle ends."
+msgid "training.slot.detail"
+msgstr "{0} recorded frames. Select turns the slot on or off: Play and the dummy reply use the slots that are on. Slots stay with this dummy fighter until the game closes."
+
+msgid "training.slot.empty"
+msgstr "Empty"
+
+msgid "training.slot.empty_detail"
+msgstr "Nothing recorded. Select chooses this slot for Record."
 
 msgid "training.record"
 msgstr "Record"
@@ -1727,26 +1730,38 @@ msgstr "Record"
 msgid "training.record.overwrite"
 msgstr "Overwrite this occupied slot and return to practice."
 
-msgid "training.record.detail"
-msgstr "Record P1 controls as P2, then return to practice."
+msgid "training.record.choose"
+msgstr "Left and Right choose the slot to record into, which the rows below act on too."
+
+msgid "training.record.standby_detail"
+msgstr "Standby: P1 controls the dummy and practice resumes. {0} or {1} starts recording, and the same again stops it."
 
 msgid "training.play"
 msgstr "Play"
 
-msgid "training.play.detail"
-msgstr "Play the selected slot and return to practice. Recordings follow the side the dummy faces. Left and Right choose whether it repeats."
+msgid "training.play.on_detail"
+msgstr "Play a slot that is on, picked in the playback order, and return to practice. Recordings follow the side the dummy faces. Left and Right choose whether it repeats; each repeat picks again."
+
+msgid "training.order"
+msgstr "Playback order"
+
+msgid "training.order.random"
+msgstr "Random"
+
+msgid "training.order.in_order"
+msgstr "In order"
+
+msgid "training.order.detail"
+msgstr "How Play and the dummy reply pick among the slots that are on."
 
 msgid "training.play.once"
 msgstr "Once"
 
-msgid "training.slot_empty"
-msgstr "This slot is empty."
+msgid "training.no_recordings_on"
+msgstr "No recordings are on"
 
 msgid "training.stop"
 msgstr "Stop"
-
-msgid "training.stop.detail"
-msgstr "Stop recording or playback."
 
 msgid "training.loop"
 msgstr "Loop playback"
@@ -1775,11 +1790,17 @@ msgstr "Clear the meter and both input histories."
 msgid "training.practice_ready"
 msgstr "Practice ready"
 
+msgid "training.standby_status"
+msgstr "Standby: P1 controls the dummy. {0} or {1} starts recording."
+
+msgid "training.standby"
+msgstr "Standby"
+
 msgid "training.recording_suspended"
 msgstr "Recording suspended while controls are open"
 
 msgid "training.playback_suspended"
-msgstr "Playback running; recording waits for the controls to close"
+msgstr "Playback running"
 
 msgid "training.applying"
 msgstr "Applying command..."

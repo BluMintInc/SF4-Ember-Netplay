@@ -1577,14 +1577,11 @@ msgstr "기상 시"
 msgid "training.reply.any"
 msgstr "회복할 때마다"
 
-msgid "training.reply.slot"
-msgstr "반격 슬롯"
+msgid "training.reply.recordings"
+msgstr "녹화"
 
-msgid "training.reply.slot.detail"
-msgstr "반격 기술이 비어 있을 때 반격으로 재생하는 더미 녹화입니다. 첫 입력부터 재생합니다."
-
-msgid "training.reply.slot_empty"
-msgstr "슬롯 {0}이(가) 비어 있어 더미가 반격하지 않습니다. 녹화하거나 기술을 고르세요."
+msgid "training.reply.no_recordings_on"
+msgstr "반격으로 쓸 수 있는 켜진 녹화가 없습니다"
 
 msgid "training.reply.chance"
 msgstr "반격 확률"
@@ -1602,13 +1599,13 @@ msgid "training.reply.moves"
 msgstr "반격 기술"
 
 msgid "training.reply.moves.detail"
-msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. [1]은 다음 기술까지 방향을 유지하고, [1]20f는 20프레임 유지하며, 10f는 기다립니다. 예: [1] > 3HP. 비워 두면 반격 슬롯을 씁니다."
+msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. [1]은 다음 기술까지 방향을 유지하고, [1]20f는 20프레임 유지하며, 10f는 기다립니다. 예: [1] > 3HP. 비워 두면 켜진 녹화로 반격합니다."
 
 msgid "training.reply.move"
 msgstr "반격 프리셋"
 
 msgid "training.reply.move.detail"
-msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 반격 슬롯은 녹화를 재생하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
+msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 녹화는 켜진 녹화로 반격하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
 
 msgid "training.reply.custom"
 msgstr "사용자 지정"
@@ -1718,8 +1715,14 @@ msgstr "슬롯 {0}"
 msgid "training.slot_selected"
 msgstr "슬롯 {0} / 선택됨"
 
-msgid "training.recorded_frames"
-msgstr "{0}프레임 녹화됨. 녹화는 현재 대전이 끝날 때까지 유지됩니다."
+msgid "training.slot.detail"
+msgstr "{0}프레임 녹화됨. 선택하면 슬롯을 켜거나 끕니다. 재생과 더미 반격은 켜진 슬롯을 씁니다. 슬롯은 게임을 닫을 때까지 이 더미 캐릭터에 남습니다."
+
+msgid "training.slot.empty"
+msgstr "비어 있음"
+
+msgid "training.slot.empty_detail"
+msgstr "녹화가 없습니다. 선택하면 이 슬롯을 녹화할 슬롯으로 고릅니다."
 
 msgid "training.record"
 msgstr "녹화"
@@ -1727,26 +1730,38 @@ msgstr "녹화"
 msgid "training.record.overwrite"
 msgstr "이 슬롯의 녹화를 덮어쓰고 연습으로 돌아갑니다."
 
-msgid "training.record.detail"
-msgstr "P1의 조작을 P2로 녹화하고 연습으로 돌아갑니다."
+msgid "training.record.choose"
+msgstr "좌우로 녹화할 슬롯을 고릅니다. 아래 항목도 이 슬롯을 씁니다."
+
+msgid "training.record.standby_detail"
+msgstr "대기: P1이 더미를 조작하며 연습으로 돌아갑니다. {0} 또는 {1}로 녹화를 시작하고, 같은 조작을 다시 하면 멈춥니다."
 
 msgid "training.play"
 msgstr "재생"
 
-msgid "training.play.detail"
-msgstr "선택한 슬롯을 재생하고 연습으로 돌아갑니다. 녹화는 더미가 보는 방향에 맞춰 재생됩니다. 좌우로 반복 여부를 고릅니다."
+msgid "training.play.on_detail"
+msgstr "켜진 슬롯을 재생 순서대로 골라 재생하고 연습으로 돌아갑니다. 녹화는 더미가 보는 방향을 따릅니다. 좌우로 반복 여부를 고르며, 반복할 때마다 다시 고릅니다."
+
+msgid "training.order"
+msgstr "재생 순서"
+
+msgid "training.order.random"
+msgstr "무작위"
+
+msgid "training.order.in_order"
+msgstr "순서대로"
+
+msgid "training.order.detail"
+msgstr "재생과 더미 반격이 켜진 슬롯 중에서 고르는 방식입니다."
 
 msgid "training.play.once"
 msgstr "한 번"
 
-msgid "training.slot_empty"
-msgstr "빈 슬롯입니다."
+msgid "training.no_recordings_on"
+msgstr "켜진 녹화가 없습니다"
 
 msgid "training.stop"
 msgstr "중지"
-
-msgid "training.stop.detail"
-msgstr "녹화 또는 재생을 중지합니다."
 
 msgid "training.loop"
 msgstr "반복 재생"
@@ -1775,11 +1790,17 @@ msgstr "미터와 두 플레이어의 입력 기록을 지웁니다."
 msgid "training.practice_ready"
 msgstr "연습 준비 완료"
 
+msgid "training.standby_status"
+msgstr "대기: P1이 더미를 조작합니다. {0} 또는 {1}로 녹화를 시작합니다."
+
+msgid "training.standby"
+msgstr "대기"
+
 msgid "training.recording_suspended"
 msgstr "조작 창이 열려 녹화 일시 중지"
 
 msgid "training.playback_suspended"
-msgstr "재생 중. 녹화는 조작 창을 닫을 때까지 대기합니다"
+msgstr "재생 중"
 
 msgid "training.applying"
 msgstr "명령 적용 중..."

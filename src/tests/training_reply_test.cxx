@@ -156,8 +156,13 @@ int main() {
         Require(DummyReplies(plan, 3, 0) && ValidDummyPlan(plan), "A reply to anything missed a knockdown");
         plan.timing = MaxReplyTiming + 1;
         Require(!ValidDummyPlan(plan), "A reply timing beyond its range was accepted");
-        plan.timing = 0; plan.slot = SlotCount;
-        Require(!ValidDummyPlan(plan), "A reply slot beyond the slots was accepted");
+        plan.timing = 0;
+        // A recorded reply names no slot: it may play any slot that is on and
+        // presses something (RecordingBank::Replyable), which the bank decides.
+        RecordingBank bank;
+        bank.Replace(2, {{0, 0, 0, 0}}); bank.Replace(5, {{0, 0, 0, 0}, {0x10, 0x10, 0, 0}});
+        Require(bank.Playable() == ((1u << 2) | (1u << 5)) && bank.Replyable() == (1u << 5), "A recording that only stands could be a reply");
+        Require(bank.SetOn(5, false) && bank.Replyable() == 0, "A slot turned off could still be a reply");
         // 623HP: three directions of three frames, then the button.
         std::vector<Input> dragon;
         for (unsigned bits : {8u, 8u, 8u, 2u, 2u, 2u, 10u, 10u, 10u, 0x40au, 10u, 0u}) dragon.push_back({bits, bits, 0, 0});

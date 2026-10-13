@@ -11,8 +11,8 @@ using Json = nlohmann::json;
 
 Handle::~Handle() { if (value != INVALID_HANDLE_VALUE) CloseHandle(value); }
 
-bool ReadBytes(const Path& path, std::string& bytes, bool& missing, std::string& error) {
-    auto read = durable::ReadBounded(path, MaximumBytes);
+bool ReadBytes(const Path& path, std::string& bytes, bool& missing, std::string& error, std::size_t limit) {
+    auto read = durable::ReadBounded(path, limit);
     // Only a file absent from its folder is missing. A missing folder is an
     // error, so a lost drive never reads as a fresh profile.
     std::error_code ignored;
@@ -64,11 +64,11 @@ bool PreserveBackup(const Path& path, const std::string& original, std::string& 
 }
 
 bool Publish(const Path& directory, const std::wstring& filename,
-             const Json& document, std::string& error) {
+             const Json& document, std::string& error, std::size_t limit) {
     std::string bytes;
     try { bytes = document.dump(2) + "\n"; }
     catch (...) { error = "Settings contain invalid text."; return false; }
-    if (bytes.size() > MaximumBytes) {
+    if (bytes.size() > limit) {
         error = "Settings exceed the size limit.";
         return false;
     }

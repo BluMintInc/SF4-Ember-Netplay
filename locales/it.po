@@ -1577,14 +1577,11 @@ msgstr "Al rialzo"
 msgid "training.reply.any"
 msgstr "Ogni volta che si riprende"
 
-msgid "training.reply.slot"
-msgstr "Slot di risposta"
+msgid "training.reply.recordings"
+msgstr "Registrazioni"
 
-msgid "training.reply.slot.detail"
-msgstr "La registrazione del manichino riprodotta come risposta finché Mosse di risposta è vuoto, dalla sua prima pressione."
-
-msgid "training.reply.slot_empty"
-msgstr "Lo slot {0} è vuoto, quindi il manichino non risponde. Registralo o scegli una mossa."
+msgid "training.reply.no_recordings_on"
+msgstr "Nessuna registrazione attiva può fare da risposta"
 
 msgid "training.reply.chance"
 msgstr "Probabilità di risposta"
@@ -1602,13 +1599,13 @@ msgid "training.reply.moves"
 msgstr "Mosse di risposta"
 
 msgid "training.reply.moves.detail"
-msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. [1] tiene una direzione fino alla mossa successiva, [1]20f la tiene 20 frame e 10f aspetta: [1] > 3HP para in basso finché il manichino è libero, poi preme 3HP. Vuoto usa lo slot di risposta."
+msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. [1] tiene una direzione fino alla mossa successiva, [1]20f la tiene 20 frame e 10f aspetta: [1] > 3HP para in basso finché il manichino è libero, poi preme 3HP. Vuoto risponde con una registrazione attiva."
 
 msgid "training.reply.move"
 msgstr "Risposta predefinita"
 
 msgid "training.reply.move.detail"
-msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Slot di risposta riproduce la registrazione; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
+msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Registrazioni risponde con una registrazione attiva; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
 
 msgid "training.reply.custom"
 msgstr "Personalizzata"
@@ -1718,8 +1715,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / SELEZIONATO"
 
-msgid "training.recorded_frames"
-msgstr "{0} frame registrati. Le registrazioni durano fino alla fine dell'incontro."
+msgid "training.slot.detail"
+msgstr "{0} frame registrati. Seleziona attiva o disattiva lo slot: Riproduci e la risposta del manichino usano gli slot attivi. Gli slot restano per questo lottatore manichino finché il gioco non si chiude."
+
+msgid "training.slot.empty"
+msgstr "Vuoto"
+
+msgid "training.slot.empty_detail"
+msgstr "Niente registrato. Seleziona sceglie questo slot per Registra."
 
 msgid "training.record"
 msgstr "Registra"
@@ -1727,26 +1730,38 @@ msgstr "Registra"
 msgid "training.record.overwrite"
 msgstr "Sovrascrivi questo slot occupato e torna all'allenamento."
 
-msgid "training.record.detail"
-msgstr "Registra i comandi di G1 come G2, poi torna all'allenamento."
+msgid "training.record.choose"
+msgstr "Sinistra e Destra scelgono lo slot in cui registrare; anche le righe sotto lo usano."
+
+msgid "training.record.standby_detail"
+msgstr "In attesa: P1 controlla il manichino e l'allenamento riprende. {0} o {1} avvia la registrazione, e lo stesso di nuovo la ferma."
 
 msgid "training.play"
 msgstr "Riproduci"
 
-msgid "training.play.detail"
-msgstr "Riproduci lo slot scelto e torna all'allenamento. Le registrazioni seguono il lato verso cui guarda il manichino. Sinistra e Destra scelgono se si ripete."
+msgid "training.play.on_detail"
+msgstr "Riproduce uno slot attivo, scelto nell'ordine di riproduzione, e torna all'allenamento. Le registrazioni seguono il lato verso cui guarda il manichino. Sinistra e Destra scelgono se si ripete; ogni ripetizione sceglie di nuovo."
+
+msgid "training.order"
+msgstr "Ordine di riproduzione"
+
+msgid "training.order.random"
+msgstr "Casuale"
+
+msgid "training.order.in_order"
+msgstr "In ordine"
+
+msgid "training.order.detail"
+msgstr "Come Riproduci e la risposta del manichino scelgono tra gli slot attivi."
 
 msgid "training.play.once"
 msgstr "Una volta"
 
-msgid "training.slot_empty"
-msgstr "Questo slot è vuoto."
+msgid "training.no_recordings_on"
+msgstr "Nessuna registrazione attiva"
 
 msgid "training.stop"
 msgstr "Ferma"
-
-msgid "training.stop.detail"
-msgstr "Ferma registrazione o riproduzione."
 
 msgid "training.loop"
 msgstr "Ripeti riproduzione"
@@ -1775,11 +1790,17 @@ msgstr "Azzera indicatore e sequenze comandi."
 msgid "training.practice_ready"
 msgstr "Allenamento pronto"
 
+msgid "training.standby_status"
+msgstr "In attesa: P1 controlla il manichino. {0} o {1} avvia la registrazione."
+
+msgid "training.standby"
+msgstr "In attesa"
+
 msgid "training.recording_suspended"
 msgstr "Registrazione sospesa con comandi aperti"
 
 msgid "training.playback_suspended"
-msgstr "Riproduzione in corso; la registrazione attende la chiusura dei comandi"
+msgstr "Riproduzione in corso"
 
 msgid "training.applying"
 msgstr "Applicazione comando..."

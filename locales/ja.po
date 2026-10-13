@@ -1577,14 +1577,11 @@ msgstr "起き上がり"
 msgid "training.reply.any"
 msgstr "復帰するたび"
 
-msgid "training.reply.slot"
-msgstr "反撃スロット"
+msgid "training.reply.recordings"
+msgstr "記録"
 
-msgid "training.reply.slot.detail"
-msgstr "反撃の技が空のとき、反撃として再生するダミーの記録です。最初の入力から再生します。"
-
-msgid "training.reply.slot_empty"
-msgstr "スロット{0}が空なので、ダミーは反撃しません。記録するか技を選んでください。"
+msgid "training.reply.no_recordings_on"
+msgstr "反撃に使えるオンの記録がありません"
 
 msgid "training.reply.chance"
 msgstr "反撃の確率"
@@ -1602,13 +1599,13 @@ msgid "training.reply.moves"
 msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
-msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空なら反撃スロットを使います。"
+msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空ならオンの記録で反撃します。"
 
 msgid "training.reply.move"
 msgstr "反撃のプリセット"
 
 msgid "training.reply.move.detail"
-msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。反撃スロットは記録を再生し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
+msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。記録はオンの記録で反撃し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
 
 msgid "training.reply.custom"
 msgstr "カスタム"
@@ -1718,8 +1715,14 @@ msgstr "スロット{0}"
 msgid "training.slot_selected"
 msgstr "スロット{0} / 選択中"
 
-msgid "training.recorded_frames"
-msgstr "{0}F記録済み。記録はこの対戦が終わるまで残ります。"
+msgid "training.slot.detail"
+msgstr "{0}フレーム記録済み。選択でスロットのオンとオフを切り替えます。再生とダミーの反撃はオンのスロットを使います。スロットはゲームを閉じるまでこのダミーのキャラクターに残ります。"
+
+msgid "training.slot.empty"
+msgstr "空"
+
+msgid "training.slot.empty_detail"
+msgstr "記録がありません。選択でこのスロットをレコーディング先にします。"
 
 msgid "training.record"
 msgstr "レコーディング"
@@ -1727,26 +1730,38 @@ msgstr "レコーディング"
 msgid "training.record.overwrite"
 msgstr "使用中のスロットを上書きして練習に戻ります。"
 
-msgid "training.record.detail"
-msgstr "P1の操作をP2として記録し、練習に戻ります。"
+msgid "training.record.choose"
+msgstr "左右で記録先のスロットを選びます。下の項目もこのスロットを使います。"
+
+msgid "training.record.standby_detail"
+msgstr "スタンバイ: P1でダミーを操作したまま練習に戻ります。{0}または{1}で記録を始め、もう一度同じ操作で止めます。"
 
 msgid "training.play"
 msgstr "再生"
 
-msgid "training.play.detail"
-msgstr "選択中のスロットを再生して練習に戻ります。記録はダミーの向きに合わせて再生されます。左右で繰り返すかを選びます。"
+msgid "training.play.on_detail"
+msgstr "オンのスロットを再生順に選んで再生し、練習に戻ります。記録はダミーの向きに合わせて再生されます。左右で繰り返すかを選びます。繰り返すたびに選び直します。"
+
+msgid "training.order"
+msgstr "再生順"
+
+msgid "training.order.random"
+msgstr "ランダム"
+
+msgid "training.order.in_order"
+msgstr "順番"
+
+msgid "training.order.detail"
+msgstr "再生とダミーの反撃がオンのスロットから選ぶ方法です。"
 
 msgid "training.play.once"
 msgstr "1回"
 
-msgid "training.slot_empty"
-msgstr "このスロットは空です。"
+msgid "training.no_recordings_on"
+msgstr "オンの記録がありません"
 
 msgid "training.stop"
 msgstr "停止"
-
-msgid "training.stop.detail"
-msgstr "記録または再生を停止します。"
 
 msgid "training.loop"
 msgstr "ループ再生"
@@ -1775,11 +1790,17 @@ msgstr "計測表示と両プレイヤーの入力履歴を消去します。"
 msgid "training.practice_ready"
 msgstr "練習の準備完了"
 
+msgid "training.standby_status"
+msgstr "スタンバイ: P1でダミーを操作中。{0}または{1}で記録を始めます。"
+
+msgid "training.standby"
+msgstr "スタンバイ"
+
 msgid "training.recording_suspended"
 msgstr "操作画面を開いている間、記録は一時停止します"
 
 msgid "training.playback_suspended"
-msgstr "再生中。録画は操作画面を閉じるまで待機します"
+msgstr "再生中"
 
 msgid "training.applying"
 msgstr "操作を適用中..."

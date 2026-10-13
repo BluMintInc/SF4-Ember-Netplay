@@ -562,7 +562,7 @@ int main(int argc, char** argv) {
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
             training::View training;training.available=training.ready=training.checkpoint=true;training.generation=static_cast<unsigned>(size.w+size.dpi*100);
-            training.lengths[0]=120;
+            training.lengths[0]=120;training.lengths[2]=45;training.on[0]=true;training.playable=training.replyable=1u; // Slot 1 on, slot 3 off.
             training::FrameMeter meter;std::array<training::FighterSample,2> fighters;
             for(int f=0;f<120;++f){
                 for(int p=0;p<2;++p){auto& s=fighters[p];s.valid=true;s.timeScale=1;s.status=p?(f<40?0:f<65?22:0):(f<30?0:f<70?16:0);

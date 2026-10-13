@@ -1578,14 +1578,11 @@ msgstr "При подъёме"
 msgid "training.reply.any"
 msgstr "Всегда после восстановления"
 
-msgid "training.reply.slot"
-msgstr "Ячейка ответа"
+msgid "training.reply.recordings"
+msgstr "Записи"
 
-msgid "training.reply.slot.detail"
-msgstr "Запись манекена, которая воспроизводится как ответ, пока «Приёмы ответа» пусты, с первого нажатия."
-
-msgid "training.reply.slot_empty"
-msgstr "Ячейка {0} пуста, манекену нечем ответить. Запишите её или выберите приём."
+msgid "training.reply.no_recordings_on"
+msgstr "Нет включённых записей, подходящих для ответа"
 
 msgid "training.reply.chance"
 msgstr "Шанс ответа"
@@ -1603,13 +1600,13 @@ msgid "training.reply.moves"
 msgstr "Приёмы ответа"
 
 msgid "training.reply.moves.detail"
-msgstr "Ответ, записанный цифровой нотацией, например 623HP или 44, читается для стороны, в которую смотрит манекен. Подходят и названия движений: qcf, qcb, dp, rdp, hcf и hcb, например qcfP или dp+HP. Движение вводится, пока манекен ещё скован, чтобы кнопка попала на его первый свободный кадр. [1] держит направление до следующего приёма, [1]20f держит его 20 кадров, а 10f ждёт: [1] > 3HP блокирует внизу, пока манекен не освободится, затем жмёт 3HP. Пустая строка использует ячейку ответа."
+msgstr "Ответ, записанный цифровой нотацией, например 623HP или 44, читается для стороны, в которую смотрит манекен. Подходят и названия движений: qcf, qcb, dp, rdp, hcf и hcb, например qcfP или dp+HP. Движение вводится, пока манекен ещё скован, чтобы кнопка попала на его первый свободный кадр. [1] держит направление до следующего приёма, [1]20f держит его 20 кадров, а 10f ждёт: [1] > 3HP блокирует внизу, пока манекен не освободится, затем жмёт 3HP. Пустая строка отвечает включённой записью."
 
 msgid "training.reply.move"
 msgstr "Готовый ответ"
 
 msgid "training.reply.move.detail"
-msgstr "Влево и вправо выбирают обычный ответ в нумпад-записи для стороны, куда смотрит манекен. «Ячейка ответа» воспроизводит запись; «Свой» оставляет набранные приёмы. «Выбрать» открывает «Приёмы ответа» для ввода."
+msgstr "Влево и вправо выбирают обычный ответ в нумпад-записи для стороны, куда смотрит манекен. «Записи» отвечают включённой записью; «Свой» оставляет набранные приёмы. «Выбрать» открывает «Приёмы ответа» для ввода."
 
 msgid "training.reply.custom"
 msgstr "Свой"
@@ -1719,8 +1716,14 @@ msgstr "Ячейка {0}"
 msgid "training.slot_selected"
 msgstr "Ячейка {0} / ВЫБРАНА"
 
-msgid "training.recorded_frames"
-msgstr "Записано кадров: {0}. Запись хранится до конца этого боя."
+msgid "training.slot.detail"
+msgstr "Записано кадров: {0}. «Выбрать» включает или выключает ячейку: «Пуск» и ответ манекена берут включённые ячейки. Ячейки остаются за этим бойцом-манекеном, пока игра не закрыта."
+
+msgid "training.slot.empty"
+msgstr "Пусто"
+
+msgid "training.slot.empty_detail"
+msgstr "Ничего не записано. «Выбрать» назначает эту ячейку для «Запись»."
 
 msgid "training.record"
 msgstr "Запись"
@@ -1728,26 +1731,38 @@ msgstr "Запись"
 msgid "training.record.overwrite"
 msgstr "Перезаписать занятую ячейку и вернуться к тренировке."
 
-msgid "training.record.detail"
-msgstr "Записать управление P1 как P2 и вернуться к тренировке."
+msgid "training.record.choose"
+msgstr "Влево и вправо выбирают ячейку для записи; строки ниже тоже используют её."
+
+msgid "training.record.standby_detail"
+msgstr "Ожидание: P1 управляет манекеном, тренировка продолжается. {0} или {1} начинает запись, повторное нажатие останавливает её."
 
 msgid "training.play"
 msgstr "Пуск"
 
-msgid "training.play.detail"
-msgstr "Воспроизвести выбранную ячейку и вернуться к тренировке. Записи следуют стороне, в которую смотрит манекен. Влево и Вправо выбирают, повторять ли её."
+msgid "training.play.on_detail"
+msgstr "Воспроизводит включённую ячейку по порядку воспроизведения и возвращает к тренировке. Записи следуют стороне, куда смотрит манекен. Влево и вправо выбирают повтор; каждый повтор выбирает заново."
+
+msgid "training.order"
+msgstr "Порядок воспроизведения"
+
+msgid "training.order.random"
+msgstr "Случайно"
+
+msgid "training.order.in_order"
+msgstr "По порядку"
+
+msgid "training.order.detail"
+msgstr "Как «Пуск» и ответ манекена выбирают среди включённых ячеек."
 
 msgid "training.play.once"
 msgstr "Один раз"
 
-msgid "training.slot_empty"
-msgstr "Ячейка пуста."
+msgid "training.no_recordings_on"
+msgstr "Нет включённых записей"
 
 msgid "training.stop"
 msgstr "Стоп"
-
-msgid "training.stop.detail"
-msgstr "Остановить запись/воспроизведение."
 
 msgid "training.loop"
 msgstr "Повтор"
@@ -1776,11 +1791,17 @@ msgstr "Очистить индикатор и историю нажатий о�
 msgid "training.practice_ready"
 msgstr "Тренировка готова"
 
+msgid "training.standby_status"
+msgstr "Ожидание: P1 управляет манекеном. {0} или {1} начинает запись."
+
+msgid "training.standby"
+msgstr "Ожидание"
+
 msgid "training.recording_suspended"
 msgstr "Запись приостановлена, пока открыто меню"
 
 msgid "training.playback_suspended"
-msgstr "Воспроизведение идёт; запись ждёт закрытия меню"
+msgstr "Идёт воспроизведение"
 
 msgid "training.applying"
 msgstr "Выполнение команды..."

@@ -1577,14 +1577,11 @@ msgstr "Bij het opstaan"
 msgid "training.reply.any"
 msgstr "Telkens als hij herstelt"
 
-msgid "training.reply.slot"
-msgstr "Antwoordslot"
+msgid "training.reply.recordings"
+msgstr "Opnames"
 
-msgid "training.reply.slot.detail"
-msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk."
-
-msgid "training.reply.slot_empty"
-msgstr "Slot {0} is leeg, dus de dummy reageert niet. Neem het op of kies een actie."
+msgid "training.reply.no_recordings_on"
+msgstr "Geen opname die aan staat kan als antwoord dienen"
 
 msgid "training.reply.chance"
 msgstr "Antwoordkans"
@@ -1602,13 +1599,13 @@ msgid "training.reply.moves"
 msgstr "Antwoordmoves"
 
 msgid "training.reply.moves.detail"
-msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg gebruikt het antwoordslot."
+msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg antwoordt met een opname die aan staat."
 
 msgid "training.reply.move"
 msgstr "Antwoordvoorkeuze"
 
 msgid "training.reply.move.detail"
-msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Antwoordslot speelt de opname; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
+msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Opnames antwoordt met een opname die aan staat; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
 
 msgid "training.reply.custom"
 msgstr "Eigen"
@@ -1718,8 +1715,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / GEKOZEN"
 
-msgid "training.recorded_frames"
-msgstr "{0} frames opgenomen. Opnamen blijven tot het einde van dit gevecht."
+msgid "training.slot.detail"
+msgstr "{0} opgenomen frames. Kiezen zet het slot aan of uit: Afspelen en het dummy-antwoord gebruiken de slots die aan staan. De slots blijven bij deze dummyvechter tot het spel sluit."
+
+msgid "training.slot.empty"
+msgstr "Leeg"
+
+msgid "training.slot.empty_detail"
+msgstr "Niets opgenomen. Kiezen kiest dit slot voor Opnemen."
 
 msgid "training.record"
 msgstr "Opnemen"
@@ -1727,26 +1730,38 @@ msgstr "Opnemen"
 msgid "training.record.overwrite"
 msgstr "Overschrijf dit bezette slot en ga terug naar training."
 
-msgid "training.record.detail"
-msgstr "Neem P1-besturing op als P2 en ga terug naar training."
+msgid "training.record.choose"
+msgstr "Links en rechts kiezen het slot om in op te nemen; de regels eronder gebruiken het ook."
+
+msgid "training.record.standby_detail"
+msgstr "Stand-by: P1 bestuurt de dummy en de training gaat verder. {0} of {1} start de opname, en hetzelfde nog eens stopt hem."
 
 msgid "training.play"
 msgstr "Afspelen"
 
-msgid "training.play.detail"
-msgstr "Speel het gekozen slot af en ga terug naar training. Opnames volgen de kant waar de dummy naar kijkt. Links en Rechts kiezen of het herhaalt."
+msgid "training.play.on_detail"
+msgstr "Speel een slot dat aan staat, gekozen in de afspeelvolgorde, en ga terug naar training. Opnames volgen de kant waar de dummy naar kijkt. Links en rechts kiezen of het herhaalt; elke herhaling kiest opnieuw."
+
+msgid "training.order"
+msgstr "Afspeelvolgorde"
+
+msgid "training.order.random"
+msgstr "Willekeurig"
+
+msgid "training.order.in_order"
+msgstr "Op volgorde"
+
+msgid "training.order.detail"
+msgstr "Hoe Afspelen en het dummy-antwoord kiezen uit de slots die aan staan."
 
 msgid "training.play.once"
 msgstr "Eén keer"
 
-msgid "training.slot_empty"
-msgstr "Dit slot is leeg."
+msgid "training.no_recordings_on"
+msgstr "Geen opname staat aan"
 
 msgid "training.stop"
 msgstr "Stoppen"
-
-msgid "training.stop.detail"
-msgstr "Stop opname of afspelen."
 
 msgid "training.loop"
 msgstr "Herhalen"
@@ -1775,11 +1790,17 @@ msgstr "Wis de meter en beide invoergeschiedenissen."
 msgid "training.practice_ready"
 msgstr "Training klaar"
 
+msgid "training.standby_status"
+msgstr "Stand-by: P1 bestuurt de dummy. {0} of {1} start de opname."
+
+msgid "training.standby"
+msgstr "Stand-by"
+
 msgid "training.recording_suspended"
 msgstr "Opname gepauzeerd zolang de besturing open is"
 
 msgid "training.playback_suspended"
-msgstr "Afspelen loopt; opnemen wacht tot de besturing dicht is"
+msgstr "Afspelen bezig"
 
 msgid "training.applying"
 msgstr "Opdracht uitvoeren..."

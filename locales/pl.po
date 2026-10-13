@@ -1577,14 +1577,11 @@ msgstr "Przy wstawaniu"
 msgid "training.reply.any"
 msgstr "Zawsze po odzyskaniu kontroli"
 
-msgid "training.reply.slot"
-msgstr "Slot odpowiedzi"
+msgid "training.reply.recordings"
+msgstr "Nagrania"
 
-msgid "training.reply.slot.detail"
-msgstr "Nagranie manekina odtwarzane jako odpowiedź, gdy Ciosy odpowiedzi są puste, od pierwszego naciśnięcia."
-
-msgid "training.reply.slot_empty"
-msgstr "Slot {0} jest pusty, więc przeciwnik nie odpowie. Nagraj go albo wybierz ruch."
+msgid "training.reply.no_recordings_on"
+msgstr "Żadne włączone nagranie nie nadaje się na odpowiedź"
 
 msgid "training.reply.chance"
 msgstr "Szansa odpowiedzi"
@@ -1602,13 +1599,13 @@ msgid "training.reply.moves"
 msgstr "Ciosy odpowiedzi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. [1] trzyma kierunek do następnego ruchu, [1]20f trzyma go 20 klatek, a 10f czeka: [1] > 3HP blokuje nisko, aż manekin będzie wolny, potem wciska 3HP. Puste pole używa slotu odpowiedzi."
+msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. [1] trzyma kierunek do następnego ruchu, [1]20f trzyma go 20 klatek, a 10f czeka: [1] > 3HP blokuje nisko, aż manekin będzie wolny, potem wciska 3HP. Puste pole odpowiada włączonym nagraniem."
 
 msgid "training.reply.move"
 msgstr "Gotowa odpowiedź"
 
 msgid "training.reply.move.detail"
-msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Slot odpowiedzi odtwarza nagranie; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
+msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Nagrania odpowiadają włączonym nagraniem; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
 
 msgid "training.reply.custom"
 msgstr "Własna"
@@ -1718,8 +1715,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / WYBRANY"
 
-msgid "training.recorded_frames"
-msgstr "Zapisane klatki: {0}. Nagrania pozostają do końca tej walki."
+msgid "training.slot.detail"
+msgstr "Nagrane klatki: {0}. Wybór włącza lub wyłącza slot: Odtwórz i odpowiedź manekina używają włączonych slotów. Sloty zostają przy tej postaci manekina do zamknięcia gry."
+
+msgid "training.slot.empty"
+msgstr "Pusty"
+
+msgid "training.slot.empty_detail"
+msgstr "Nic nie nagrano. Wybór ustawia ten slot dla Nagraj."
 
 msgid "training.record"
 msgstr "Nagraj"
@@ -1727,26 +1730,38 @@ msgstr "Nagraj"
 msgid "training.record.overwrite"
 msgstr "Nadpisz zajęty slot i wróć do treningu."
 
-msgid "training.record.detail"
-msgstr "Nagraj sterowanie P1 jako P2 i wróć do treningu."
+msgid "training.record.choose"
+msgstr "Lewo i prawo wybierają slot do nagrania; wiersze poniżej też go używają."
+
+msgid "training.record.standby_detail"
+msgstr "Gotowość: P1 steruje manekinem i trening trwa dalej. {0} lub {1} zaczyna nagrywanie, a to samo ponownie je kończy."
 
 msgid "training.play"
 msgstr "Odtwórz"
 
-msgid "training.play.detail"
-msgstr "Odtwórz wybrany slot i wróć do treningu. Nagrania podążają za stroną, w którą patrzy manekin. Lewo i Prawo wybierają, czy się powtarza."
+msgid "training.play.on_detail"
+msgstr "Odtwarza włączony slot wybrany w kolejności odtwarzania i wraca do treningu. Nagrania podążają za stroną, w którą patrzy manekin. Lewo i prawo wybierają, czy się powtarza; każde powtórzenie wybiera od nowa."
+
+msgid "training.order"
+msgstr "Kolejność odtwarzania"
+
+msgid "training.order.random"
+msgstr "Losowo"
+
+msgid "training.order.in_order"
+msgstr "Po kolei"
+
+msgid "training.order.detail"
+msgstr "Jak Odtwórz i odpowiedź manekina wybierają spośród włączonych slotów."
 
 msgid "training.play.once"
 msgstr "Raz"
 
-msgid "training.slot_empty"
-msgstr "Ten slot jest pusty."
+msgid "training.no_recordings_on"
+msgstr "Żadne nagranie nie jest włączone"
 
 msgid "training.stop"
 msgstr "Stop"
-
-msgid "training.stop.detail"
-msgstr "Zatrzymaj nagranie lub odtwarzanie."
 
 msgid "training.loop"
 msgstr "Odtwarzaj w pętli"
@@ -1775,11 +1790,17 @@ msgstr "Wyczyść miernik i historię przycisków obu graczy."
 msgid "training.practice_ready"
 msgstr "Trening gotowy"
 
+msgid "training.standby_status"
+msgstr "Gotowość: P1 steruje manekinem. {0} lub {1} zaczyna nagrywanie."
+
+msgid "training.standby"
+msgstr "Gotowość"
+
 msgid "training.recording_suspended"
 msgstr "Nagrywanie wstrzymane, gdy panel jest otwarty"
 
 msgid "training.playback_suspended"
-msgstr "Odtwarzanie trwa; nagrywanie czeka na zamknięcie panelu"
+msgstr "Trwa odtwarzanie"
 
 msgid "training.applying"
 msgstr "Wykonywanie polecenia..."
