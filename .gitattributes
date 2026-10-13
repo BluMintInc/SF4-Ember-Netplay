@@ -1,2 +1,8 @@
 # Shell entry points must run from Windows checkouts, archives and containers.
 *.sh text eol=lf
+# Everything Linux reads from the deploy and container directories must stay LF
+# in every checkout: setup.sh matches unit lines with a trailing "$".
+*.service text eol=lf
+*.timer text eol=lf
+server/**/deploy/** text eol=lf
+server/*/docker/** text eol=lf

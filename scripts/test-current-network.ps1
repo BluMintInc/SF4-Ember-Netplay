@@ -52,7 +52,7 @@ $hashes | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $OutputD
 $results = @()
 foreach ($case in $plan) {
     foreach ($route in ($Routes | Select-Object -Unique)) {
-        $arguments = @($helper) + $case.arguments
+        $arguments = @($helper) + $case.arguments + "--network-case=$($case.name)"
         if ($route -eq 'relay') { $arguments += '--relay-only' }
         $log = Join-Path $OutputDirectory ($case.name + '-' + $route + '.log')
         $started = [DateTime]::UtcNow

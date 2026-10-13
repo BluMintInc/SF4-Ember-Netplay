@@ -41,7 +41,13 @@ struct LocalUdp {
 };
 
 int wmain(int argc, wchar_t** argv) {
-	CHECK(argc == 2 || (argc == 3 && std::wstring(argv[2]) == L"--relay-only"));
+	CHECK(argc >= 2 && argc <= 4);
+	bool relayOnly = false;
+	for (int i = 2; i < argc; ++i) {
+		const std::wstring option = argv[i];
+		if (option == L"--relay-only") relayOnly = true;
+		else CHECK(sf4e::test::ParseNetworkCaseOption(option));
+	}
     session::IrohRoom::GameSnapshot routeSnapshot;
     routeSnapshot.route="direct";
     nlohmann::json statistics={{"sent_packets",1},{"received_packets",1},{"sent_bytes",1024},{"received_bytes",1024},
@@ -77,8 +83,8 @@ int wmain(int argc, wchar_t** argv) {
     }
 	WSADATA winsock; CHECK(WSAStartup(MAKEWORD(2, 2), &winsock) == 0);
 	platform::HelperProcess hostProcess, guestProcess;
-	CHECK(hostProcess.Start(argv[1], GetCurrentProcessId(), argc == 3));
-	CHECK(guestProcess.Start(argv[1], GetCurrentProcessId(), argc == 3));
+	CHECK(hostProcess.Start(argv[1], GetCurrentProcessId(), relayOnly));
+	CHECK(guestProcess.Start(argv[1], GetCurrentProcessId(), relayOnly));
 	platform::HelperClient hostHelper, guestHelper;
 	CHECK(hostHelper.Start(hostProcess.Bootstrap())); CHECK(guestHelper.Start(guestProcess.Bootstrap()));
 	auto host = std::make_shared<session::IrohRoom>(hostHelper);
@@ -127,7 +133,7 @@ int wmain(int argc, wchar_t** argv) {
 		SecureZeroMemory(capability.data(), capability.size());
 		wait([&]() { return host->Game(guestId).state == GameState::Ready && guest->Game(hostId).state == GameState::Ready; });
 		CHECK(!host->Game(guestId).route.empty() && !guest->Game(hostId).route.empty());
-		if(argc==3) CHECK(host->Game(guestId).route.rfind("relay:",0)==0 && guest->Game(hostId).route.rfind("relay:",0)==0);
+		if(relayOnly) CHECK(host->Game(guestId).route.rfind("relay:",0)==0 && guest->Game(hostId).route.rfind("relay:",0)==0);
 		std::cout << "Raw bridge generation " << generation << " selected routes=" << host->Game(guestId).route
 			<< "," << guest->Game(hostId).route << '\n';
 		hostUdp.Connect(host->Game(guestId).virtualPort); guestUdp.Connect(guest->Game(hostId).virtualPort);
@@ -161,7 +167,7 @@ int wmain(int argc, wchar_t** argv) {
 	wait([&]() { return host->GetState() == session::IrohRoom::State::Idle && guest->GetState() == session::IrohRoom::State::Idle; });
 	CHECK(hostHelper.Send("{\"type\":\"shutdown\"}")); CHECK(guestHelper.Send("{\"type\":\"shutdown\"}"));
 	wait([&]() { return !hostProcess.IsRunning() && !guestProcess.IsRunning(); });
-	std::cout << "C++ raw UDP bridge: 3 generations, 30 exact 1024-byte round trips, statistics and control-loss independence passed; relay-only=" << (argc == 3) << ". No SF4 gameplay tested.\n";
-    sf4e::test::CompleteNetworkCase("game");
+	std::cout << "C++ raw UDP bridge: 3 generations, 30 exact 1024-byte round trips, statistics and control-loss independence passed; relay-only=" << relayOnly << ". No SF4 gameplay tested.\n";
+    sf4e::test::CompleteNetworkCase();
 	return 0;
 }

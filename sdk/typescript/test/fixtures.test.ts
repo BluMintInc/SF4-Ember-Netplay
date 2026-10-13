@@ -10,6 +10,7 @@ import {
   canonicalize,
   commandDigest,
   emberIdFromPublicKey,
+  EventError,
   fingerprint,
   parseEvent,
   parseStrict,
@@ -37,7 +38,7 @@ test("shared event envelope acceptance vectors", () => {
   const vectors = load<{ name: string; valid: boolean; event: Json }[]>("event-envelope-vectors.json");
   for (const vector of vectors) {
     if (vector.valid) assert.doesNotThrow(() => parseEvent(vector.event), vector.name);
-    else assert.throws(() => parseEvent(vector.event), undefined, vector.name);
+    else assert.throws(() => parseEvent(vector.event), EventError, vector.name);
   }
 });
 

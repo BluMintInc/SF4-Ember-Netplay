@@ -7,7 +7,8 @@ function(require_success)
         message(FATAL_ERROR "SDK validation failed (${result}): ${ARGV}")
     endif()
 endfunction()
-require_success("${CMAKE_COMMAND}" -E env "CARGO_TARGET_DIR=${BUILD}/rust-ember-target"
+set(BRIDGE "${EMBER_TARGET}/debug/ember-bridge.exe")
+require_success("${CMAKE_COMMAND}" -E env "CARGO_TARGET_DIR=${EMBER_TARGET}"
     "${CARGO}" build --locked --manifest-path "${SOURCE}/server/ember/Cargo.toml" -p ember-bridge)
 if(NOT EXISTS "${BRIDGE}")
     message(FATAL_ERROR "SDK bridge prerequisite is missing: ${BRIDGE}")

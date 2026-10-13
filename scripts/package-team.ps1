@@ -91,6 +91,8 @@ if (!$validator) { throw 'Build PackageInstallerTest before packaging so the nat
 & $validator --validate $destination
 if ($LASTEXITCODE -ne 0) { throw 'The native updater rejected the package inventory' }
 Compress-Archive -LiteralPath $destination -DestinationPath "$destination.zip"
+# The candidate zip must pass the same extraction and validation as a downloaded update.
+& (Join-Path $PSScriptRoot 'test-updater-download-validation.ps1') -Validator $validator -PackageZip "$destination.zip"
 $hash = (Get-FileHash -LiteralPath "$destination.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
 Set-Content -LiteralPath "$destination.zip.sha256" -Encoding ASCII -Value "$hash  $([IO.Path]::GetFileName($destination)).zip"
 $script:PackageZipPath = "$destination.zip"

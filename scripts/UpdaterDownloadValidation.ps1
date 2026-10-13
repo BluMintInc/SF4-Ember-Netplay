@@ -1,8 +1,11 @@
-function Get-DownloadSha256([string]$Path) {
-    $stream = [IO.File]::OpenRead($Path)
-    $hash = [Security.Cryptography.SHA256]::Create()
-    try { [BitConverter]::ToString($hash.ComputeHash($stream)).Replace('-','').ToLowerInvariant() }
-    finally { $hash.Dispose(); $stream.Dispose() }
+# Removes a temp directory this script created: only a GUID-suffixed folder
+# directly under the temp path, so a wrong path can never delete anything else.
+function Remove-DownloadTempDirectory([string]$Path, [string]$Prefix) {
+    $resolved = [IO.Path]::GetFullPath($Path)
+    $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    if (!$resolved.StartsWith($temp, [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($resolved) -notmatch "^$Prefix-[0-9a-f]{32}$") { throw 'Unsafe temporary cleanup path' }
+    if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }
 function Test-UpdaterDownload {
     param([string]$Label, [string]$Url, [string]$ExpectedSha256,
@@ -17,28 +20,15 @@ function Test-UpdaterDownload {
         & $Download $Url $archive | Out-Null
         if (!(Test-Path -LiteralPath $archive -PathType Leaf)) { throw 'Download produced no file' }
         $result.bytes = (Get-Item -LiteralPath $archive).Length
-        $result.sha256 = Get-DownloadSha256 $archive
+        $result.sha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash
         if ($result.sha256 -ne $ExpectedSha256) { throw 'Selected asset SHA-256 mismatch' }
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
-        $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+        # The same extractor, by full path, as the shipped updater
+        # (github_release_client.cxx ExpandZipArchive); the native validator
+        # then applies the shipped package rules to what it wrote.
         $extract = Join-Path $root 'extracted'
-        $prefix = [IO.Path]::GetFullPath($extract) + [IO.Path]::DirectorySeparatorChar
-        $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-        try {
-            if (!$zip.Entries.Count -or $zip.Entries.Count -gt 20000) { throw 'Invalid archive entry count' }
-            $total = [long]0
-            foreach ($entry in $zip.Entries) {
-                $name = $entry.FullName.Replace('\','/')
-                $parts = $name.TrimEnd('/').Split('/')
-                if ($name.StartsWith('/') -or $name.Contains(':') -or @($parts | Where-Object { !$_ -or $_ -in '.', '..' -or $_ -match '[. ]$' }).Count) { throw 'Unsafe archive path' }
-                if (!([IO.Path]::GetFullPath((Join-Path $extract $name))).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Archive path escapes extraction root' }
-                if (!$names.Add($name.TrimEnd('/'))) { throw 'Duplicate archive path' }
-                if ((($entry.ExternalAttributes -shr 16) -band 0xF000) -eq 0xA000) { throw 'Archive contains a symbolic link' }
-                $total += $entry.Length
-                if ($total -gt 2GB) { throw 'Archive exceeds package extraction limit' }
-            }
-        } finally { $zip.Dispose() }
-        [IO.Compression.ZipFile]::ExtractToDirectory($archive, $extract)
+        $null = New-Item -ItemType Directory -Path $extract
+        & "$env:SystemRoot\System32\tar.exe" -xf $archive -C $extract
+        if ($LASTEXITCODE -ne 0) { throw "Archive extraction failed ($LASTEXITCODE)" }
         $entries = @(Get-ChildItem -LiteralPath $extract -Force)
         $package = $extract
         if ($entries.Count -eq 1 -and $entries[0].PSIsContainer) { $package = $entries[0].FullName }
@@ -46,13 +36,6 @@ function Test-UpdaterDownload {
         if ($LASTEXITCODE -ne 0) { throw "Native package validation failed ($LASTEXITCODE)" }
         $result.passed = $true
     } catch { $result.error = $_.Exception.Message }
-    finally {
-        # Only this invocation's GUID directory can be removed.
-        $resolved = [IO.Path]::GetFullPath($root)
-        $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-        if (!$resolved.StartsWith($temp, [StringComparison]::OrdinalIgnoreCase) -or
-            [IO.Path]::GetFileName($resolved) -notmatch '^ember-download-check-[0-9a-f]{32}$') { throw 'Unsafe temporary cleanup path' }
-        if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
-    }
+    finally { Remove-DownloadTempDirectory $root 'ember-download-check' }
     [pscustomobject]$result
 }

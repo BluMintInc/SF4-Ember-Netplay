@@ -772,7 +772,11 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SoundPoolRestore SOURCES src/tests/sound_pool_restore_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 15)
     sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer shell32)
     add_test(NAME UpdaterDownloadValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-updater-download-validation.ps1 -Validator $<TARGET_FILE:PackageInstallerTest>)
-    add_test(NAME NetworkCompletion COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-network-completion.ps1)
+    # The record the network fixtures print, produced by the same header, is what
+    # the runner's validator is tested against.
+    add_executable(NetworkCompletionEmitter src/tests/network_completion_emitter.cxx)
+    target_compile_features(NetworkCompletionEmitter PRIVATE cxx_std_17)
+    add_test(NAME NetworkCompletion COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-network-completion.ps1 -Emitter $<TARGET_FILE:NetworkCompletionEmitter>)
     sf4e_add_unit_test(NAME ProgressWindow SOURCES src/tests/progress_window_test.cxx LIBS comctl32 user32 STD 17 TIMEOUT 30)
     sf4e_add_unit_test(NAME UpdaterRun SOURCES src/tests/updater_run_test.cxx LIBS sf4e_updater_run STD 17 TIMEOUT 60)
     add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)

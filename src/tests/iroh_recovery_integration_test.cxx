@@ -1069,14 +1069,14 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
 
 int wmain(int argc,wchar_t** argv) {
     std::cout << std::unitbuf;
-    CHECK(argc>=2 && argc<=4);
+    CHECK(argc>=2 && argc<=5);
     bool relayOnly=false;
     std::wstring scenario=L"all";
     for(int i=2;i<argc;++i) {
         const std::wstring option=argv[i];
         if(option==L"--relay-only") { CHECK(!relayOnly);relayOnly=true; }
         else if(option.rfind(L"--scenario=",0)==0) { CHECK(scenario==L"all");scenario=option.substr(11); }
-        else CHECK(false);
+        else CHECK(sf4e::test::ParseNetworkCaseOption(option));
     }
     struct Case { const wchar_t* name; std::size_t count; Fault fault; };
     const Case cases[]={
@@ -1090,5 +1090,5 @@ int wmain(int argc,wchar_t** argv) {
     CHECK(scenario==L"all" || std::any_of(std::begin(cases),std::end(cases),[&](const Case& c){return scenario==c.name;}));
     for(const auto& c:cases) if(scenario==L"all" || scenario==c.name) RunRecovery(argv[1],relayOnly,c.count,c.fault);
     std::cout << "Helper recovery integration passed. No native SF4 gameplay tested.\n";
-    sf4e::test::CompleteNetworkCase(scenario == L"all" ? "recovery" : "recovery-subset");
+    sf4e::test::CompleteNetworkCase();
 }

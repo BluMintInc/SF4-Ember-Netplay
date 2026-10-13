@@ -16,11 +16,8 @@ $receipt = [ordered]@{sourceRoot=$repo; branch=(& git -C $repo branch --show-cur
     coverageNotes=@('DPAPI and Windows bridge-process fixtures run only on Windows. Linux validates its passphrase backend and DPAPI refusal.',
         'Explicitly ignored Rust tests remain unexecuted; their counts and names are retained in each Cargo log.');
     exclusions=@('Game launch and gameplay','Live Discord and external provider acceptance','Package installation and deployment')}
-$linuxNames=@('rooms-signals','posix-helper','room-host-build','rooms-deployment-mocks','reports-deployment-mocks','shell-syntax')
-foreach ($crate in @('helper','ember','rooms','short','reports')) {
-    foreach ($kind in @('tests','clippy','format')) { $linuxNames += "$crate-$kind" }
-}
-$receipt.linuxComponents=@($linuxNames | ForEach-Object { [pscustomobject]@{name=$_;platform='linux';status='unexecuted'} })
+# One selector for every cargo call here and in the Linux script, which owns the Linux component list.
+$rustToolchain = '+1.98.0'
 function Save-QualityReceipt {
     $copy = [ordered]@{}
     foreach ($key in $receipt.Keys) { $copy[$key] = $receipt[$key] }
@@ -47,9 +44,9 @@ foreach ($crate in @(@('helper','rust/sf4-net','rust-test-target'), @('ember','s
             Push-Location $work
             try {
                 switch ($kind) {
-                    'tests' { & cargo +1.98.0 test --locked -j 4 @extra }
-                    'clippy' { & cargo +1.98.0 clippy --locked -j 4 @extra --all-targets --no-deps -- -D warnings }
-                    'format' { & cargo +1.98.0 fmt --all -- --check }
+                    'tests' { & cargo $rustToolchain test --locked -j 4 @extra }
+                    'clippy' { & cargo $rustToolchain clippy --locked -j 4 @extra --all-targets --no-deps -- -D warnings }
+                    'format' { & cargo $rustToolchain fmt --all -- --check }
                 }
                 if ($LASTEXITCODE) { throw "cargo $kind failed ($LASTEXITCODE)" }
             } finally {
@@ -77,7 +74,7 @@ Add-Check 'linux-suite' 'linux' {
     if ($LASTEXITCODE) { throw 'Linux source path unavailable' }
     $linuxOutput = (& wsl -d $LinuxDistribution --exec wslpath -a $OutputDirectory).Trim()
     if ($LASTEXITCODE) { throw 'Linux output path unavailable' }
-    & wsl -d $LinuxDistribution --exec python3 "$linuxSource/scripts/test-full-quality-linux.py" $linuxSource "$linuxOutput/linux"
+    & wsl -d $LinuxDistribution --exec python3 "$linuxSource/scripts/test-full-quality-linux.py" $linuxSource "$linuxOutput/linux" $rustToolchain
     if ($LASTEXITCODE) { throw 'Linux quality suite failed; see per-component receipt' }
 }
 Save-QualityReceipt
@@ -96,7 +93,8 @@ try {
     }
 } finally { Pop-Location }
 $linuxReceipt=Join-Path $OutputDirectory 'linux/linux-quality.json'
-if (Test-Path -LiteralPath $linuxReceipt) { $receipt.linuxComponents = @(Get-Content -Raw -LiteralPath $linuxReceipt | ConvertFrom-Json) }
+$receipt.linuxComponents = if (Test-Path -LiteralPath $linuxReceipt) { @(Get-Content -Raw -LiteralPath $linuxReceipt | ConvertFrom-Json) }
+    else { @([pscustomobject]@{name='linux-receipt';platform='linux';status='missing'}) }
 $receipt['sourceUnchanged'] = (Get-SourceFingerprint $repo) -eq $receipt.sourceFingerprint
 $receipt['finishedUtc'] = [DateTime]::UtcNow.ToString('o')
 foreach ($check in $receipt.components) { $check.PSObject.Properties.Remove('run') }

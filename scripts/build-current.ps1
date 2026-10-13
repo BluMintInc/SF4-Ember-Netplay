@@ -33,8 +33,14 @@ if ($LASTEXITCODE) { throw 'Build failed' }
 # receipt names them, so testsPassed never implies they ran (ledger A-015).
 $excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 if (!$SkipTests) {
-    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests
+    $junit = Join-Path $build 'ctest-junit.xml'
+    Remove-Item -LiteralPath $junit -ErrorAction SilentlyContinue
+    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests --output-junit $junit
     if ($LASTEXITCODE) { throw 'Tests failed' }
+    # The receipt names these components, so the run itself must show them.
+    $ran = @(([xml](Get-Content -Raw -LiteralPath $junit)).testsuite.testcase | Where-Object { $_.status -eq 'run' -and !$_.failure } | ForEach-Object { $_.name })
+    $missing = @('HelperRust','EmberRust','BridgeSdk') | Where-Object { $_ -notin $ran }
+    if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }

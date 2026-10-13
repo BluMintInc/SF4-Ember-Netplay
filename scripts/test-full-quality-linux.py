@@ -1,4 +1,7 @@
-"""Linux half of test-full-quality.ps1; runs local checks, never deployment."""
+"""Linux half of test-full-quality.ps1; runs local checks, never deployment.
+
+This script owns the Linux component inventory; the receipt it writes is the
+only list of Linux components."""
 import argparse
 import json
 import os
@@ -9,6 +12,7 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument("source", type=Path)
 parser.add_argument("output", type=Path)
+parser.add_argument("toolchain", help="Rust toolchain selector, such as +1.98.0, from test-full-quality.ps1")
 args = parser.parse_args()
 source = args.source.resolve()
 output = args.output.resolve()
@@ -30,19 +34,19 @@ for name, relative in [("helper", "rust/sf4-net"), ("ember", "server/ember"),
                        ("reports", "server/ember-reports")]:
     target = str(Path.home() / ".cache/sf4-full-quality" / name)
     directory = source / relative
-    add(name + "-tests", ["cargo", "+1.98.0", "test", "--locked"], directory, target)
-    add(name + "-clippy", ["cargo", "+1.98.0", "clippy", "--locked", "--all-targets", "--no-deps", "--", "-D", "warnings"], directory, target)
-    add(name + "-format", ["cargo", "+1.98.0", "fmt", "--all", "--check"], directory, target)
-add("rooms-signals", ["cargo", "+1.98.0", "test", "--locked", "--test", "sigterm"],
+    add(name + "-tests", ["cargo", args.toolchain, "test", "--locked"], directory, target)
+    add(name + "-clippy", ["cargo", args.toolchain, "clippy", "--locked", "--all-targets", "--no-deps", "--", "-D", "warnings"], directory, target)
+    add(name + "-format", ["cargo", args.toolchain, "fmt", "--all", "--check"], directory, target)
+add("rooms-signals", ["cargo", args.toolchain, "test", "--locked", "--test", "sigterm"],
     source / "server/ember-rooms", str(Path.home() / ".cache/sf4-full-quality/rooms"))
 add("posix-helper", ["bash", str(source / "server/roomhost/test-linux.sh"), str(source)])
 add("room-host-build", ["bash", str(source / "server/roomhost/build-linux.sh"), str(source), str(output / "sf4e-room-host")])
 add("rooms-deployment-mocks", ["bash", "test-setup.sh"], source / "server/ember-rooms/deploy")
 add("reports-deployment-mocks", ["python3", "tests/deploy_setup.py"], source / "server/ember-reports")
 files = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=source, text=True).splitlines()
-for index, name in enumerate(sorted(set(files))):
+for name in sorted(set(files)):
     if name.endswith(".sh"):
-        add(f"shell-syntax-{index}", ["bash", "-n", str(source / name)])
+        add("shell-syntax-" + name.replace("/", "-"), ["bash", "-n", str(source / name)])
 
 
 def save():
