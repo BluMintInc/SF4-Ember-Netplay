@@ -210,7 +210,7 @@ void PracticeRoomCreate() {
 void TrainingJourneys() {
  using namespace sf4e;
  HeadlessImGui imgui;auto& io=imgui.io;
- training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;
+ training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;v.on[0]=true;v.playable=v.replyable=1;
  std::vector<training::Command> commands;
  training::DummyPlan runtimePlan;
  bool queueOpen=true;
@@ -301,6 +301,26 @@ void TrainingJourneys() {
   commands.clear();choose("mirror");
   Check(commands.size()==1&&commands.back().action==training::Action::Mirror,"Mirror did not send its command");
   v.acks.Note(commands.back().requestId,true);frame();
+  // Select turns a recorded slot off and on, and chooses an empty one for
+  // Record. In the grid Up and Down keep to a column, so the slots are focused directly.
+  const auto slot=[&](const char* id){TrainingNavigation().Focus(id,rows);frame();Check(TrainingNavigation().Focus()==id,"Slot row unreachable");};
+  commands.clear();slot("slot-0");press(MenuInput::Select);
+  Check(commands.size()==1&&commands.back().action==training::Action::SlotOn&&commands.back().slot==0&&!commands.back().on,"Select did not turn the recorded slot off");
+  v.acks.Note(commands.back().requestId,true);frame();
+  commands.clear();slot("slot-1");press(MenuInput::Select);
+  Check(commands.size()==1&&commands.back().action==training::Action::Select&&commands.back().slot==1,"Select did not choose the empty slot for Record");
+  v.acks.Note(commands.back().requestId,true);frame();
+  // Left and Right on Record choose the slot it records into.
+  commands.clear();reach("record");press(MenuInput::Right);
+  Check(commands.size()==1&&commands.back().action==training::Action::Select&&commands.back().slot==1,"Right on Record did not choose the next slot");
+  v.acks.Note(commands.back().requestId,true);frame();
+  // The order row: Right picks in order, Left at random.
+  commands.clear();reach("order");press(MenuInput::Right);
+  Check(commands.size()==1&&commands.back().action==training::Action::PlayOrder&&commands.back().order==training::Order::InOrder,"Order Right did not pick in order");
+  v.acks.Note(commands.back().requestId,true);frame();
+  commands.clear();press(MenuInput::Left);
+  Check(commands.size()==1&&commands.back().action==training::Action::PlayOrder&&commands.back().order==training::Order::Random,"Order Left did not pick at random");
+  v.acks.Note(commands.back().requestId,true);frame();
   SetMenuEntriesProbe({});press(MenuInput::Back);
  }
  io.DisplaySize=ImVec2(1280,960);frame();
@@ -322,7 +342,7 @@ void TrainingJourneys() {
   !TrainingNavigation().ConfirmSelected(),"F7 on a recorded slot did not ask before overwriting");
  press(MenuInput::Select);Check(commands.empty()&&!TrainingNavigation().Confirming(),"The overwrite question did not default to Cancel");
  OpenTrainingRecordings(controls,controls.Sample());frame();frame();press(MenuInput::Right);press(MenuInput::Select);
- Check(commands.size()==1&&commands.back().action==training::Action::Record,"Confirming the overwrite did not send one Record");
+ Check(commands.size()==1&&commands.back().action==training::Action::AdvanceRecording,"Confirming the overwrite did not send one Record");
  TakeForwardedMenuAction();
  // The published action is the logical setting while a reply plays. The
  // row steps from Crouch to Jump, rather than from the temporary Stand.
@@ -377,8 +397,8 @@ void TrainingJourneys() {
   Check(runtimePlan.when==1&&!runtimePlan.moves.empty(),"The typed reply was not turned back on");
   Check(pick()==loc::T("training.reply.custom"),"A typed reply that is no preset did not show as Custom");
   focus("reply-move");commands.clear();press(MenuInput::Right);
-  Check(pick()==loc::T("training.reply.slot")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
-   runtimePlan.moves.empty(),"Custom did not step on to the reply slot");
+  Check(pick()==loc::T("training.reply.recordings")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
+   runtimePlan.moves.empty()&&!saved()["reply"].contains("slot"),"Custom did not step on to the recordings");
   press(MenuInput::Right);
   training::DummyPlan typed;std::string error;
   Check(training::BuildReplyPlan("623P",runtimePlan,typed,error),"The first preset is not notation");

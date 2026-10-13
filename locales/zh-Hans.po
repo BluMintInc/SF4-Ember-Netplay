@@ -1493,14 +1493,11 @@ msgstr "起身时"
 msgid "training.reply.any"
 msgstr "每次恢复时"
 
-msgid "training.reply.slot"
-msgstr "反击槽位"
+msgid "training.reply.recordings"
+msgstr "录制"
 
-msgid "training.reply.slot.detail"
-msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。"
-
-msgid "training.reply.slot_empty"
-msgstr "槽位 {0} 为空，假想对手无法反击。请先录制或选择一个招式。"
+msgid "training.reply.no_recordings_on"
+msgstr "没有可用作反击的已开启录制"
 
 msgid "training.reply.chance"
 msgstr "反击概率"
@@ -1518,13 +1515,13 @@ msgid "training.reply.moves"
 msgstr "反击招式"
 
 msgid "training.reply.moves.detail"
-msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。也可使用 qcf、qcb、dp、rdp、hcf、hcb 等缩写，例如 qcfP 或 dp+HP。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。[1] 保持一个方向直到下一招，[1]20f 保持 20 帧，10f 等待：例如 [1] > 3HP。留空则使用反击槽位。"
+msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。也可使用 qcf、qcb、dp、rdp、hcf、hcb 等缩写，例如 qcfP 或 dp+HP。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。[1] 保持一个方向直到下一招，[1]20f 保持 20 帧，10f 等待：例如 [1] > 3HP。留空则用已开启的录制反击。"
 
 msgid "training.reply.move"
 msgstr "预设反击"
 
 msgid "training.reply.move.detail"
-msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。反击槽位播放录制；自定义保留你输入的招式。选择打开反击招式进行输入。"
+msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。录制播放一段已开启的录制；自定义保留你输入的招式。选择打开反击招式进行输入。"
 
 msgid "training.reply.custom"
 msgstr "自定义"
@@ -1634,8 +1631,14 @@ msgstr "槽位 {0}"
 msgid "training.slot_selected"
 msgstr "槽位 {0}／已选"
 
-msgid "training.recorded_frames"
-msgstr "已录制 {0} 帧。本场对战结束前录制会保留。"
+msgid "training.slot.detail"
+msgstr "已录制 {0} 帧。选择可开启或关闭此槽位：播放和木桩反击使用已开启的槽位。槽位会为此木桩角色保留，直到关闭游戏。"
+
+msgid "training.slot.empty"
+msgstr "空"
+
+msgid "training.slot.empty_detail"
+msgstr "尚未录制。选择即可将此槽位用于录制。"
 
 msgid "training.record"
 msgstr "录制"
@@ -1643,26 +1646,38 @@ msgstr "录制"
 msgid "training.record.overwrite"
 msgstr "覆盖此槽位并返回练习。"
 
-msgid "training.record.detail"
-msgstr "将 P1 操作录制为 P2 操作，然后返回练习。"
+msgid "training.record.choose"
+msgstr "左右键选择要录制的槽位，下方各项也使用此槽位。"
+
+msgid "training.record.standby_detail"
+msgstr "待机：P1 操控木桩并返回练习。按 F7 开始录制，再按 F7 停止。"
 
 msgid "training.play"
 msgstr "播放"
 
-msgid "training.play.detail"
-msgstr "播放所选槽位并返回练习。录制会按木桩面对的方向播放。左右选择是否循环。"
+msgid "training.play.on_detail"
+msgstr "按播放顺序选择一个已开启的槽位播放，并返回练习。录制会按木桩面向的一侧播放。左右键选择是否重复；每次重复都会重新选择。"
+
+msgid "training.order"
+msgstr "播放顺序"
+
+msgid "training.order.random"
+msgstr "随机"
+
+msgid "training.order.in_order"
+msgstr "按顺序"
+
+msgid "training.order.detail"
+msgstr "播放和木桩反击如何在已开启的槽位中选择。"
 
 msgid "training.play.once"
 msgstr "单次"
 
-msgid "training.slot_empty"
-msgstr "此槽位为空。"
+msgid "training.no_recordings_on"
+msgstr "没有已开启的录制"
 
 msgid "training.stop"
 msgstr "停止"
-
-msgid "training.stop.detail"
-msgstr "停止录制或播放。"
 
 msgid "training.loop"
 msgstr "循环播放"
@@ -1690,6 +1705,12 @@ msgstr "清除计量器和双方输入记录。"
 
 msgid "training.practice_ready"
 msgstr "练习就绪"
+
+msgid "training.standby_status"
+msgstr "待机：P1 正在操控木桩。按 F7 开始录制。"
+
+msgid "training.standby"
+msgstr "待机"
 
 msgid "training.recording_suspended"
 msgstr "打开操作界面时暂停录制"

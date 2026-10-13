@@ -397,25 +397,32 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
     ImGui::End();
     ImGui::PopStyleVar(2);
 }
-// What the lab is doing while it records or plays a slot: a red dot or a green
-// arrow, the slot, how far along it is and, for the keyboard, the key that
-// stops it, over a line that fills as the slot does.
+// What the lab is doing on standby, or while it records or plays a slot: a
+// hollow or red dot, or a green arrow, the slot, how far along it is and, for
+// the keyboard, the key that moves on from it, over a line that fills as the
+// slot does. Standby has recorded nothing, so its line stays empty.
 static void ModeStrip(const training::View& view, float hudScale) {
-    const bool recording = view.mode == training::Mode::Recording;
+    const bool standby = view.mode == training::Mode::Standby, recording = view.mode == training::Mode::Recording;
+    const bool padPlays = training::PadPlaysDummy(view.mode);
     const float h = ImGui::GetTextLineHeight(), full = ImGui::GetContentRegionAvail().x, left = ImGui::GetCursorPosX();
-    const ImU32 colour = recording ? IM_COL32(255, 121, 129, 255) : palette::Ready;
+    const ImU32 colour = padPlays ? IM_COL32(255, 121, 129, 255) : palette::Ready;
     auto* draw = ImGui::GetWindowDrawList();
     const ImVec2 at = ImGui::GetCursorScreenPos();
-    if (!recording) draw->AddTriangleFilled(ImVec2(at.x + h * .15f, at.y + h * .2f), ImVec2(at.x + h * .15f, at.y + h * .8f), ImVec2(at.x + h * .7f, at.y + h * .5f), colour);
-    // The dot blinks once a second, as a recorder's does.
+    if (!padPlays) draw->AddTriangleFilled(ImVec2(at.x + h * .15f, at.y + h * .2f), ImVec2(at.x + h * .15f, at.y + h * .8f), ImVec2(at.x + h * .7f, at.y + h * .5f), colour);
+    // On standby the dot waits, hollow; recording, it blinks once a second, as a recorder's does.
+    else if (standby) draw->AddCircle(ImVec2(at.x + h * .4f, at.y + h * .5f), h * .3f, colour, 0, (std::max)(1.f, 1.5f * hudScale));
     else if (static_cast<int>(ImGui::GetTime() * 2) % 2 == 0) draw->AddCircleFilled(ImVec2(at.x + h * .4f, at.y + h * .5f), h * .3f, colour);
     ImGui::Dummy(ImVec2(h * .8f, h)); ImGui::SameLine(0, 4 * hudScale);
-    const int total = recording ? training::MaxFrames : view.lengths[view.selected];
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colour), "%s", loc::T(recording ? "training.record" : "training.play"));
-    ImGui::SameLine(0, 10 * hudScale); ImGui::Text("%s  %d / %d f", loc::Tf("training.slot", view.selected + 1).c_str(), view.cursor, total);
+    // What plays is the active slot; standby and a recording are for the selected one.
+    const int slot = padPlays ? view.selected : view.active;
+    const int total = padPlays ? training::MaxFrames : view.activeLength;
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(colour), "%s", loc::T(standby ? "training.standby" : recording ? "training.record" : "training.play"));
+    ImGui::SameLine(0, 10 * hudScale);
+    if (standby) ImGui::Text("%s", loc::Tf("training.slot", slot + 1).c_str());
+    else ImGui::Text("%s  %d / %d f", loc::Tf("training.slot", slot + 1).c_str(), view.cursor, total);
     if (MenuPromptDevice() == sf4e::input::PadKeyboard) {
-        const std::string stop = TrainingKeyName(recording ? TrainingRecordKey : TrainingPlayKey) + " " + loc::T("training.stop");
-        ImGui::SameLine(left + full - ImGui::CalcTextSize(stop.c_str()).x); ImGui::TextDisabled("%s", stop.c_str());
+        const std::string next = TrainingKeyName(padPlays ? TrainingRecordKey : TrainingPlayKey) + " " + loc::T(standby ? "training.record" : "training.stop");
+        ImGui::SameLine(left + full - ImGui::CalcTextSize(next.c_str()).x); ImGui::TextDisabled("%s", next.c_str());
     }
     const ImVec2 bar = ImGui::GetCursorScreenPos();
     draw->AddRectFilled(bar, ImVec2(bar.x + full, bar.y + 2 * hudScale), IM_COL32(28, 29, 29, 100));
@@ -429,7 +436,8 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
     const auto* vp = ImGui::GetMainViewport();
     ImVec2 hudTop(vp->Pos.x + (vp->Size.x - width) / 2, hudBottom);
     // The dummy's typed reply plays from a slot of its own and is no playback of the player's.
-    const bool strip = options.status && view.mode != training::Mode::Idle && view.selected < training::SlotCount;
+    const bool strip = options.status && (training::PadPlaysDummy(view.mode) ||
+        (view.mode == training::Mode::Playback && view.active >= 0 && view.active < training::SlotCount));
     // With every part off there is no window to draw.
     if (!strip && !options.numbers && !options.bars && !options.state) return hudTop;
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));

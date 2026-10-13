@@ -48,7 +48,7 @@ int main() {
     const char* notation[] = {"MP+MK", "MP+MK", "LP+MP+MK", "LP+MP+MK", "MP+MK", "[MP+MK]", "[MP+MK]",
         "MP+MK", "[MP+MK]", "[MP+MK]", "LP+MP+MK", "[LP+MP+MK]", "[LP+MP+MK]",
         "LP+MP+MK", "[LP+MP+MK]", "[LP+MP+MK]", "LP+LK", "4LP+LK", "HP+HK", "66", "44", "8", "9", "7"};
-    DummyPlan settings; settings.when = 4; settings.slot = 3;
+    DummyPlan settings; settings.when = 4; settings.chance = 75;
     std::string error;
     for (std::size_t i = 0; i < sizeof(names) / sizeof(*names); ++i) {
         sf4e::combo::Step step;
@@ -58,7 +58,7 @@ int main() {
         CHECK(MigrateReplyMoves(migrated) == migrated);
         DummyPlan plan;
         CHECK(BuildReplyPlan(migrated, settings, plan, error));
-        CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves.empty());
+        CHECK(plan.when == 4 && plan.chance == 75 && !plan.moves.empty());
         // Made once, for the dummy facing right, as a slot holds it.
         sf4e::combo::Compiled compiled;
         CHECK(sf4e::combo::Synthesize({notation[i]}, true, compiled, error));
@@ -74,7 +74,7 @@ int main() {
     CHECK(MigrateReplyMoves("2MK > xx 623HP") == "2MK > xx 623HP");
     CHECK(MigrateReplyMoves("dash > Hadoken") == "dash > Hadoken");
     // Invalid saved text (including a nonempty separator-only line) cannot
-    // erase a typed reply and silently switch the command to its slot.
+    // erase a typed reply and silently switch the command to a recording.
     DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
     // A reply plays from its first pressed frame, so one starting with a wait
     // is refused, as are holds with no move to time the reply by and a
@@ -86,7 +86,7 @@ int main() {
         CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
         CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);
     }
-    CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.slot == 3);
+    CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.chance == 75);
     CHECK(BuildReplyPlan("[1] > 3HP", settings, result, error) && !result.moves.empty() && BuildReplyPlan("[2]30f > 5MK", settings, result, error));
     // The first move's own offset rides with the plan, and goes with typed moves.
     CHECK(BuildReplyPlan("[2]30f > 5MK@+3", settings, result, error) && result.offset == 3 && ValidDummyPlan(result));

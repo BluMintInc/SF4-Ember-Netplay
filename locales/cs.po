@@ -1493,14 +1493,11 @@ msgstr "Při vstávání"
 msgid "training.reply.any"
 msgstr "Vždy po zotavení"
 
-msgid "training.reply.slot"
-msgstr "Pozice odpovědi"
+msgid "training.reply.recordings"
+msgstr "Nahrávky"
 
-msgid "training.reply.slot.detail"
-msgstr "Nahrávka figuríny přehraná jako odpověď, dokud jsou Údery odpovědi prázdné, od prvního stisku."
-
-msgid "training.reply.slot_empty"
-msgstr "Pozice {0} je prázdná, soupeř nemá čím odpovědět. Nahrajte ji, nebo vyberte pohyb."
+msgid "training.reply.no_recordings_on"
+msgstr "Žádná zapnutá nahrávka se nehodí jako odpověď"
 
 msgid "training.reply.chance"
 msgstr "Šance na odpověď"
@@ -1518,13 +1515,13 @@ msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole použije pozici odpovědi."
+msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole odpoví zapnutou nahrávkou."
 
 msgid "training.reply.move"
 msgstr "Předvolba odpovědi"
 
 msgid "training.reply.move.detail"
-msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Pozice odpovědi přehraje nahrávku; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
+msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Nahrávky přehrají zapnutou nahrávku; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
 
 msgid "training.reply.custom"
 msgstr "Vlastní"
@@ -1634,8 +1631,14 @@ msgstr "Pozice {0}"
 msgid "training.slot_selected"
 msgstr "Pozice {0} / VYBRÁNA"
 
-msgid "training.recorded_frames"
-msgstr "Nahrané snímky: {0}. Nahrávky vydrží do konce tohoto souboje."
+msgid "training.slot.detail"
+msgstr "Nahráno snímků: {0}. Vybrat pozici zapne nebo vypne: Přehrát a odpověď figuríny používají zapnuté pozice. Pozice zůstanou u této figuríny, dokud se hra nezavře."
+
+msgid "training.slot.empty"
+msgstr "Prázdná"
+
+msgid "training.slot.empty_detail"
+msgstr "Nic nenahráno. Vybrat zvolí tuto pozici pro Nahrát."
 
 msgid "training.record"
 msgstr "Nahrát"
@@ -1643,26 +1646,38 @@ msgstr "Nahrát"
 msgid "training.record.overwrite"
 msgstr "Přepsat obsazenou pozici a vrátit se k tréninku."
 
-msgid "training.record.detail"
-msgstr "Nahrát ovládání 1H jako 2H a vrátit se k tréninku."
+msgid "training.record.choose"
+msgstr "Vlevo a vpravo volí pozici pro nahrávání; řádky níže ji používají také."
+
+msgid "training.record.standby_detail"
+msgstr "Pohotovost: P1 ovládá figurínu a trénink pokračuje. F7 spustí nahrávání, další F7 ho zastaví."
 
 msgid "training.play"
 msgstr "Přehrát"
 
-msgid "training.play.detail"
-msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Nahrávky se řídí stranou, kam se figurína dívá. Vlevo a Vpravo volí, zda se opakuje."
+msgid "training.play.on_detail"
+msgstr "Přehraje zapnutou pozici podle pořadí přehrávání a vrátí se k tréninku. Nahrávky sledují stranu, kam figurína hledí. Vlevo a vpravo volí, zda se opakuje; každé opakování vybírá znovu."
+
+msgid "training.order"
+msgstr "Pořadí přehrávání"
+
+msgid "training.order.random"
+msgstr "Náhodně"
+
+msgid "training.order.in_order"
+msgstr "Postupně"
+
+msgid "training.order.detail"
+msgstr "Jak Přehrát a odpověď figuríny vybírají mezi zapnutými pozicemi."
 
 msgid "training.play.once"
 msgstr "Jednou"
 
-msgid "training.slot_empty"
-msgstr "Tato pozice je prázdná."
+msgid "training.no_recordings_on"
+msgstr "Žádná nahrávka není zapnutá"
 
 msgid "training.stop"
 msgstr "Zastavit"
-
-msgid "training.stop.detail"
-msgstr "Zastavit nahrávání nebo přehrávání."
 
 msgid "training.loop"
 msgstr "Opakovat přehrávání"
@@ -1690,6 +1705,12 @@ msgstr "Vymazat ukazatel a historii vstupů obou hráčů."
 
 msgid "training.practice_ready"
 msgstr "Trénink připraven"
+
+msgid "training.standby_status"
+msgstr "Pohotovost: P1 ovládá figurínu. F7 spustí nahrávání."
+
+msgid "training.standby"
+msgstr "Pohotovost"
 
 msgid "training.recording_suspended"
 msgstr "Nahrávání je pozastaveno, dokud je otevřené ovládání"

@@ -3,7 +3,7 @@
 // Ember, the input plan, the session and the control together through a
 // held recording, resets and a restarted playback, and typed replies against
 // the game's input path.
-#include "../training/TrainingSession.hxx"
+#include "../training/DummyReply.hxx"
 #include "../training/MoveInputs.hxx"
 #include "../training/PracticeSettings.hxx"
 #include <algorithm>
@@ -130,8 +130,9 @@ int main() {
             };
             const std::vector<Input> moves(8, Input{0x10, 0x10, 0, 0});
             {
+                // Standby plays the dummy from the pad as the recording after it does.
                 Bench recording;
-                Require(recording.Send(Action::Record), "The recording did not start");
+                Require(recording.Send(Action::AdvanceRecording) && recording.Update() && recording.Send(Action::AdvanceRecording), "The recording did not start");
                 const auto pads = recording.Run({false, false, true, true, false, false});
                 Require(pads == std::vector<bool>{true, true, true, false, true, true},
                     "A recording held under the open controls kept the dummy on the pad, or did not take it back on resuming");
@@ -155,7 +156,8 @@ int main() {
                 // The pause menu changed the action, and the first update to
                 // see it resets the battle: the choice stands and Ember stops.
                 Bench recordingTaken;
-                Require(recordingTaken.Send(Action::Record) && recordingTaken.Run({false, false}) == std::vector<bool>{true, true},
+                Require(recordingTaken.Send(Action::AdvanceRecording) && recordingTaken.Send(Action::AdvanceRecording) &&
+                    recordingTaken.Run({false, false}) == std::vector<bool>{true, true},
                     "The recording did not play from the pad");
                 recordingTaken.action = 3;
                 Require(recordingTaken.Reset() && recordingTaken.session.GetView().mode == Mode::Idle && !recordingTaken.Finish() && !recordingTaken.Update(),
@@ -207,11 +209,16 @@ int main() {
             // read: Player 2's input as the game read it, per update.
             struct Run { int button = -1, free = -1, move = -1, ended = -1, padOff = -1; bool dropped = false; std::vector<unsigned> read; };
             // What the runtime keeps across stuns: the stun watch, the session
-            // and the stretch a reply was last decided for. Faces right, as a
-            // slot holds its frames, so a charge's back is Left.
+            // and its reply decision (DummyReply.hxx). Faces right, as a slot
+            // holds its frames, so a charge's back is Left.
             struct Dummy {
-                DummyWatch watch; Session session; unsigned decided = ~0u;
+                DummyWatch watch; Session session; ReplyDecision replies;
                 Dummy() { session.Enter(); session.SetReady(true); session.SetPositions(1, 0); }
+            };
+            // The one recording on in these runs, the one a recorded reply plays.
+            const auto recorded = [](const Session& session) {
+                for (int slot = 0; slot < SlotCount; ++slot) if (InSet(session.Bank().Replyable(), slot)) return session.Slot(slot);
+                return std::vector<Input>();
             };
             // reply: the plan, played with the timing given. statuses: the
             // dummy's, one per frame; it is free from the first one after the
@@ -219,12 +226,12 @@ int main() {
             // more than a frame on, which the runtime does not observe
             // (TrainingRuntime.cxx, AfterUpdate), -1 for none. next: a plan
             // that replaces it from the frame given (a DummyPlan command).
-            const auto play = [](Dummy& dummy, DummyPlan reply, int timing, const std::vector<unsigned>& statuses, unsigned charge,
+            const auto play = [&recorded](Dummy& dummy, DummyPlan reply, int timing, const std::vector<unsigned>& statuses, unsigned charge,
                                  int gap = -1, const DummyPlan* next = nullptr, int nextAt = -1) {
-                DummyWatch& watch = dummy.watch; Session& session = dummy.session; unsigned& decided = dummy.decided;
+                DummyWatch& watch = dummy.watch; Session& session = dummy.session;
                 reply.timing = timing;
                 // The reply's frames, typed or recorded, for the game's side to find its button in.
-                const std::vector<Input> frames = reply.moves.empty() ? session.Slot(reply.slot) : reply.moves;
+                const std::vector<Input> frames = reply.moves.empty() ? recorded(session) : reply.moves;
                 Run run; bool held = false, began = false;
                 DummyControl control; Game game;
                 const auto sample = [&](int frame) {
@@ -249,7 +256,7 @@ int main() {
                         run.move = frame;
                     if (began && step == DummyControl::Step::End && run.padOff < 0) run.padOff = frame;
                     control.Simulated();
-                    if (frame == gap) { ForgetStun(watch, session); continue; }
+                    if (frame == gap) { ForgetStun(watch, session, dummy.replies); continue; }
                     // As the runtime observes the fight before committing the update (TrainingRuntime.cxx).
                     const DummySeen seen = watch.Observe(sample(frame), 100);
                     session.Observe(ClassifyStatus(statuses[frame]) == Phase::Neutral, false, -1,
@@ -258,13 +265,10 @@ int main() {
                     if (replying && run.button < 0 && (output[1].raw & AttackButtons)) run.button = frame;
                     if (seen.held) held = true;
                     else if (held && run.free < 0) run.free = frame;
-                    if (seen.held && seen.stretch != decided && session.Replying()) { session.StopReply(); run.dropped = true; }
-                    const int cause = seen.held ? seen.held : seen.out;
-                    const ReplySchedule schedule = PlanSchedule(reply, session.Slot(reply.slot));
-                    if (cause && seen.stretch != decided && ReplyBegins(schedule, seen)) {
-                        decided = seen.stretch;
-                        began = reply.moves.empty() ? session.Reply(reply.slot, schedule) : session.Reply(reply.moves, schedule);
-                    }
+                    // The production decision, as the runtime makes it each observed frame.
+                    const ReplyStep decision = dummy.replies.Observe(reply, seen, session, 0);
+                    run.dropped = run.dropped || decision.stopped;
+                    began = began || decision.started;
                 }
                 run.read = game.read;
                 return run;
@@ -424,7 +428,7 @@ int main() {
                     Command load = select; load.action = Action::Load; load.side = 1;
                     load.frames = {{0, 0, 0, 0}, {0, 0, 0, 0}, {Down, Down, 0, 0}, {Down, Down, 0, 0}, {Down | MK, Down | MK, 0, 0}, {0, 0, 0, 0}};
                     Require(dummy.session.Apply(select) && dummy.session.Apply(load), "The recording was not loaded");
-                    DummyPlan recording; recording.when = 4; recording.slot = 3;
+                    DummyPlan recording; recording.when = 4;
                     const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 40);
                     play(dummy, recording, timing, block, 0);
                     const Run run = play(dummy, recording, timing, block, 0);
@@ -435,7 +439,7 @@ int main() {
                 // moves, or to a recording, while its hold waits does not move it.
                 {
                     const auto reply = Plan({"[1]", "3HP@+5"});
-                    DummyPlan recording; recording.when = 4; recording.slot = 3;
+                    DummyPlan recording; recording.when = 4;
                     for (const DummyPlan& next : {Plan({"5MK"}), recording}) {
                         Dummy dummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 90, 0u, 40);

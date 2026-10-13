@@ -1493,14 +1493,11 @@ msgstr "Beim Aufstehen"
 msgid "training.reply.any"
 msgstr "Immer wenn er sich erholt"
 
-msgid "training.reply.slot"
-msgstr "Antwort-Slot"
+msgid "training.reply.recordings"
+msgstr "Aufnahmen"
 
-msgid "training.reply.slot.detail"
-msgstr "Die Dummy-Aufnahme, die als Antwort abgespielt wird, solange Antwortzüge leer ist, ab dem ersten Tastendruck."
-
-msgid "training.reply.slot_empty"
-msgstr "Slot {0} ist leer, der Dummy hat keine Antwort. Nehmen Sie ihn auf oder wählen Sie eine Aktion."
+msgid "training.reply.no_recordings_on"
+msgstr "Keine eingeschaltete Aufnahme taugt als Antwort"
 
 msgid "training.reply.chance"
 msgstr "Antwortchance"
@@ -1518,13 +1515,13 @@ msgid "training.reply.moves"
 msgstr "Antwortzüge"
 
 msgid "training.reply.moves.detail"
-msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. [1] hält eine Richtung bis zum nächsten Zug, [1]20f hält sie 20 Frames und 10f wartet: [1] > 3HP blockt unten, bis der Dummy frei ist, dann kommt 3HP. Leer nutzt den Antwort-Slot."
+msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. [1] hält eine Richtung bis zum nächsten Zug, [1]20f hält sie 20 Frames und 10f wartet: [1] > 3HP blockt unten, bis der Dummy frei ist, dann kommt 3HP. Leer antwortet mit einer eingeschalteten Aufnahme."
 
 msgid "training.reply.move"
 msgstr "Antwortvorlage"
 
 msgid "training.reply.move.detail"
-msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Antwort-Slot spielt die Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
+msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Aufnahmen spielt eine eingeschaltete Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
 
 msgid "training.reply.custom"
 msgstr "Eigene"
@@ -1634,8 +1631,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / GEWÄHLT"
 
-msgid "training.recorded_frames"
-msgstr "{0} Frames aufgenommen. Gilt bis zum Kampfende."
+msgid "training.slot.detail"
+msgstr "{0} Frames aufgenommen. Auswählen schaltet den Slot ein oder aus: Abspielen und die Dummy-Antwort nutzen die eingeschalteten Slots. Die Slots bleiben bei diesem Dummy-Kämpfer, bis das Spiel beendet wird."
+
+msgid "training.slot.empty"
+msgstr "Leer"
+
+msgid "training.slot.empty_detail"
+msgstr "Nichts aufgenommen. Auswählen wählt diesen Slot für Aufnehmen."
 
 msgid "training.record"
 msgstr "Aufnehmen"
@@ -1643,26 +1646,38 @@ msgstr "Aufnehmen"
 msgid "training.record.overwrite"
 msgstr "Belegten Slot überschreiben und zum Training zurückkehren."
 
-msgid "training.record.detail"
-msgstr "P1-Steuerung als P2 aufnehmen und zum Training zurückkehren."
+msgid "training.record.choose"
+msgstr "Links und Rechts wählen den Slot für die Aufnahme; die Zeilen darunter nutzen ihn auch."
+
+msgid "training.record.standby_detail"
+msgstr "Bereitschaft: P1 steuert den Dummy, und das Training geht weiter. F7 startet die Aufnahme, F7 erneut beendet sie."
 
 msgid "training.play"
 msgstr "Abspielen"
 
-msgid "training.play.detail"
-msgstr "Gewählten Slot abspielen und zum Training zurückkehren. Aufnahmen folgen der Seite, in die der Dummy blickt. Links und Rechts wählen, ob sie wiederholt wird."
+msgid "training.play.on_detail"
+msgstr "Einen eingeschalteten Slot in der Abspielreihenfolge abspielen und zum Training zurückkehren. Aufnahmen folgen der Seite, in die der Dummy blickt. Links und Rechts wählen, ob sie wiederholt wird; jede Wiederholung wählt neu."
+
+msgid "training.order"
+msgstr "Abspielreihenfolge"
+
+msgid "training.order.random"
+msgstr "Zufällig"
+
+msgid "training.order.in_order"
+msgstr "Der Reihe nach"
+
+msgid "training.order.detail"
+msgstr "Wie Abspielen und die Dummy-Antwort unter den eingeschalteten Slots wählen."
 
 msgid "training.play.once"
 msgstr "Einmal"
 
-msgid "training.slot_empty"
-msgstr "Dieser Slot ist leer."
+msgid "training.no_recordings_on"
+msgstr "Keine Aufnahme ist eingeschaltet"
 
 msgid "training.stop"
 msgstr "Stopp"
-
-msgid "training.stop.detail"
-msgstr "Aufnahme oder Wiedergabe stoppen."
 
 msgid "training.loop"
 msgstr "Endlosschleife"
@@ -1690,6 +1705,12 @@ msgstr "Messanzeige und beide Input-Verläufe löschen."
 
 msgid "training.practice_ready"
 msgstr "Training bereit"
+
+msgid "training.standby_status"
+msgstr "Bereitschaft: P1 steuert den Dummy. F7 startet die Aufnahme."
+
+msgid "training.standby"
+msgstr "Bereitschaft"
 
 msgid "training.recording_suspended"
 msgstr "Aufnahme pausiert, solange die Steuerung geöffnet ist"

@@ -573,13 +573,24 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
+            // F7: standby, then record, then stop. From rest on a recorded
+            // slot it first asks about overwriting it, and its Record sends
+            // the same press.
             if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingRecordKey), false)) {
-                if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
+                if (!sf4e::training::PadPlaysDummy(training.mode) && training.lengths[training.selected] > 0) {
                     sf4e::ui::OpenTrainingRecordings(s_trainingControls, focus);
-                } else practice(training.mode == sf4e::training::Mode::Recording ? sf4e::training::Action::Stop : sf4e::training::Action::Record);
+                } else practice(sf4e::training::Action::AdvanceRecording);
             }
             if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingPlayKey), false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
+            // Escape leaves standby, keeps a recording, and stops a playback.
+            if (training.mode != sf4e::training::Mode::Idle && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) practice(sf4e::training::Action::Interrupt);
         }
+        // The controls opening, by any key, chip or pad, interrupt the same
+        // way, once per opening.
+        static bool controlsWereOpen = false;
+        const bool controlsOpen = s_trainingControls.Open();
+        if (controlsOpen && !controlsWereOpen) practice(sf4e::training::Action::Interrupt);
+        controlsWereOpen = controlsOpen;
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
@@ -734,7 +745,8 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         focused = w != 0;
         if (!focused) {
             const auto training = sf4e::training::ReadView();
-            sf4e::training::Submit({sf4e::training::Action::Stop, training.generation});
+            // Standby is dropped and a recording kept (TrainingCommands.hxx keeps a place for it).
+            sf4e::training::Submit({sf4e::training::Action::Interrupt, training.generation});
             capture = false; pointerCapture = false;
             activationClick.Reset();
             sf4e::ui::SetOverlayCursorOwnership(false);

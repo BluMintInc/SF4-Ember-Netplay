@@ -13,6 +13,9 @@
 namespace sf4e { namespace training {
 constexpr const char* RecordingFormat = "sf4e-recording";
 constexpr int RecordingVersion = 2;
+// The most a named recording's file may hold: a full slot written as the
+// panel writes it (indented) is over the 256 KiB other stores keep to.
+constexpr std::size_t RecordingFileBytes = 4 * 1024 * 1024;
 // One frame as the file holds it: [mapped, raw, wait, offset].
 inline nlohmann::json EncodeFrame(const Input& frame) { return {frame.mapped, frame.raw, frame.wait, frame.offset}; }
 // False when the value is not four such numbers. The wait keeps its two

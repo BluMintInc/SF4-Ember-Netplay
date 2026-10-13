@@ -141,7 +141,7 @@ int main() {
         Require(startup.View().startupFrames[0] == -1, "Reset retained startup");
 
         Session session;
-        Require(!session.Apply({Action::Record, 0}), "Inactive session accepted recording");
+        Require(!session.Apply({Action::AdvanceRecording, 0}), "Inactive session accepted recording");
         session.Enter(); session.SetReady(true);
         const auto generation = session.GetView().generation;
         auto apply = [&](Action a) { return session.Apply({a, generation}); };
@@ -235,12 +235,13 @@ int main() {
             apply(Action::Stop);
         }
         Require(!apply(Action::Restore), "Missing checkpoint restored");
-        Require(apply(Action::Record), "Record rejected");
+        // Standby, then recording; the slot keeps what it held until the recording stops.
+        Require(apply(Action::AdvanceRecording) && session.GetView().mode == Mode::Standby && apply(Action::AdvanceRecording), "Record rejected");
         Frame physical{{Input{0x10, 0x10}, Input{0x80, 0x80}}};
         const auto output = session.Prepare(physical);
         Require(output[0].raw == 0 && output[1].raw == 0x10, "P1 did not control dummy");
         for (int i = 0; i < 5; ++i) session.Prepare(physical);
-        Require(session.GetView().lengths[0] == 0, "Repeated or paused reads advanced recording");
+        Require(session.GetView().cursor == 0 && session.GetView().lengths[0] == 5, "Repeated or paused reads advanced recording");
         session.Commit(output);
         physical[0] = {0x20, 0x20}; session.Commit(session.Prepare(physical));
         Require(apply(Action::Stop) && loop(false) && apply(Action::Play), "Playback start failed");
@@ -253,23 +254,24 @@ int main() {
         for (int i = 0; i < 10; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().cursor == 0 && session.GetView().mode == Mode::Playback, "Loop boundary failed");
         Require(!select(1) && !apply(Action::Clear), "Slot mutated during playback");
-        apply(Action::Stop); select(1); apply(Action::Record);
+        apply(Action::Stop); select(1); apply(Action::AdvanceRecording); apply(Action::AdvanceRecording);
         for (int i = 0; i < MaxFrames + 5; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().lengths[1] == MaxFrames && session.GetView().mode == Mode::Idle, "Recording limit failed");
         Require(session.GetView().lengths[0] == 2, "Second slot overwrote first");
         Require(session.GetView().history[0].size() <= HistoryRows, "History unbounded");
-        session.SetReady(false); Require(!apply(Action::Record), "Loading allowed record");
+        session.SetReady(false); Require(!apply(Action::AdvanceRecording), "Loading allowed record");
         session.SetReady(true); session.SetCheckpoint(true);
         Require(apply(Action::Restore) && session.GetView().history[0].empty(), "Reset kept stale history");
         session.Reset(); session.Enter(); session.SetReady(true);
-        Require(!apply(Action::Record) && !session.GetView().checkpoint && session.GetView().lengths[0] == 0, "Battle generation isolation failed");
+        Require(!apply(Action::AdvanceRecording) && !session.GetView().checkpoint && session.GetView().lengths[0] == 0, "Battle generation isolation failed");
         // The session is the one check every command passes: one sent for
         // another battle is refused there, whatever its action, and changes
         // nothing. The runtime's own actions pass it before the fight starts.
         {
             Session checked; checked.Enter();
             const auto current = checked.GetView().generation;
-            for (int a = 0; a <= static_cast<int>(Action::DummyPlan); ++a) {
+            // PlayOrder is the last action.
+            for (int a = 0; a <= static_cast<int>(Action::PlayOrder); ++a) {
                 Command stale{static_cast<Action>(a), current + 1};
                 stale.slot = 3; stale.loop = false; stale.frames = {Input{1, 1}};
                 Require(!checked.Apply(stale), "A command for another battle was accepted");
@@ -278,7 +280,7 @@ int main() {
             }
             for (Action a : {Action::Place, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
                 Require(checked.Apply({a, current}), "A command for this battle was refused before the fight");
-            Command plan{Action::DummyPlan, current}; plan.plan.slot = SlotCount;
+            Command plan{Action::DummyPlan, current}; plan.plan.when = 5;
             Require(!checked.Apply(plan), "An invalid reply plan was accepted");
             Command load{Action::Load, current}; load.frames = {Input{1, 1}};
             checked.SetReady(true); load.side = 2;
@@ -671,7 +673,8 @@ int main() {
             Session drive; drive.Enter(); drive.SetReady(true);
             const auto send = [&](Action action) { Command command; command.action = action; command.generation = drive.GetView().generation; return drive.Apply(command); };
             Require(!DrivesDummy(drive.GetView()), "An idle session played Player 2");
-            Require(send(Action::Record) && DrivesDummy(drive.GetView()), "A recording did not play Player 2");
+            Require(send(Action::AdvanceRecording) && DrivesDummy(drive.GetView()) && send(Action::AdvanceRecording) && DrivesDummy(drive.GetView()),
+                "Standby or a recording did not play Player 2");
             drive.Commit(drive.Prepare(Frame{{Input{0x10, 0x10}, Input{}}}));
             Require(send(Action::Stop) && send(Action::Play) && DrivesDummy(drive.GetView()), "A playback on Player 2's side did not play Player 2");
             send(Action::Stop);
@@ -687,8 +690,9 @@ int main() {
             Require(send(Action::Save) && drive.Replying(), "A save ended a reply");
             Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle && drive.Schedule().anchor == -1,
                 "A reset left a reply playing, or its schedule");
-            Require(send(Action::Record) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Recording,
-                "A save or a reset stopped a recording");
+            Require(send(Action::AdvanceRecording) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Standby &&
+                send(Action::AdvanceRecording) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Recording,
+                "A save or a reset stopped standby or a recording");
         }
         {
             // A reset starts a playback again from its first frame, and a wait
@@ -719,53 +723,63 @@ int main() {
             Require(cued(), "The wait after the reset did not take its own cue and offset");
         }
         {
-            // The dummy's own reply plays a slot or typed moves (its watch, schedule and trace: training_reply_test.cxx).
+            // The dummy's own reply plays a recording's frames or typed moves (its watch, schedule
+            // and trace: training_reply_test.cxx; the slot it picks: training_pending_reply_test.cxx).
             // 623HP: three directions of three frames, then the button.
             std::vector<Input> dragon;
             for (unsigned bits : {8u, 8u, 8u, 2u, 2u, 2u, 10u, 10u, 10u, 0x40au, 10u, 0u}) dragon.push_back({bits, bits, 0, 0});
 
             Session reply; reply.Enter(); reply.SetReady(true);
             Command command; command.generation = reply.GetView().generation;
-            Require(!reply.Reply(2, ReplySchedule{}), "An empty slot replied");
+            Require(!reply.Reply(reply.Slot(2), ReplySchedule{}, 2), "An empty slot replied");
             command.action = Action::Select; command.slot = 2; reply.Apply(command);
-            command.action = Action::Record; reply.Apply(command);
+            command.action = Action::AdvanceRecording; reply.Apply(command); reply.Apply(command);
             // Two idle frames, as a player leaves before pressing, then two presses.
             for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
             command.action = Action::Stop; reply.Apply(command);
             command.action = Action::Select; command.slot = 5; reply.Apply(command);
-            Require(reply.Reply(2, ReplySchedule{}) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
-            Require(!reply.Reply(2, ReplySchedule{}), "A reply started over a playback");
+            Require(reply.Reply(reply.Slot(2), ReplySchedule{}, 2) && reply.GetView().mode == Mode::Playback && reply.GetView().active == 2 &&
+                reply.GetView().selected == 5, "The reply did not start, or took the selection");
+            Require(!reply.Reply(reply.Slot(2), ReplySchedule{}, 2), "A reply started over a playback");
             Require(reply.Prepare(Frame{})[1].raw == 0x10 && reply.Prepare(Frame{})[0].raw == 0, "The reply did not start on its first press, on Player 2");
             reply.Commit(reply.Prepare(Frame{}));
             Require(reply.Prepare(Frame{})[1].raw == 0x20, "The reply did not advance");
             reply.Commit(reply.Prepare(Frame{}));
-            Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5, "The reply looped or kept the selection");
-            // The typed reply has a slot of its own; hit again, it is dropped.
-            Require(reply.Reply(dragon, ReplySchedule{}) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
+            Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().active == -1, "The reply looped or changed the selection");
+            // The typed reply plays as a slot of its own; hit again, it is dropped.
+            Require(reply.Reply(dragon, ReplySchedule{}) && reply.Replying() && reply.GetView().active == ReplySlot && reply.GetView().selected == 5 &&
+                reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
             reply.StopReply();
-            Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
+            Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply changed the selection or touched a slot");
             command.action = Action::Select; command.slot = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
-            // Play stops a reply before checking the restored selection.
+            // Play stops a reply and plays a slot that is on, whatever is selected.
             for (bool typed : {false, true}) {
-                Require(typed ? reply.Reply(dragon, ReplySchedule{}) : reply.Reply(2, ReplySchedule{}), "The reply did not start over an empty selection");
+                Require(typed ? reply.Reply(dragon, ReplySchedule{}) : reply.Reply(reply.Slot(2), ReplySchedule{}, 2), "The reply did not start");
                 command.action = Action::Play;
-                Require(!reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Idle &&
-                    reply.GetView().selected == 5 && reply.GetView().cursor == 0, "Play started on an empty restored slot");
-                Frame physical; physical[0] = {0x10, 0x10, 0, 0}; physical[1] = {0x20, 0x20, 0, 0};
-                const auto output = reply.Prepare(physical);
-                Require(output[0].raw == 0x10 && output[1].raw == 0x20, "A refused playback changed physical input");
+                Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback && reply.GetView().active == 2 &&
+                    reply.GetView().selected == 5 && reply.GetView().playbackSide == 1 && reply.GetView().cursor == 0, "Play did not replace the reply with a slot that is on");
+                command.action = Action::Stop; reply.Apply(command);
             }
+            // With no slot on, Play is refused after stopping the reply, and the pads pass as they are.
+            command.action = Action::SlotOn; command.slot = 2; command.on = false;
+            Require(reply.Apply(command) && reply.Reply(dragon, ReplySchedule{}), "The typed reply did not start with no slot on");
+            command.action = Action::Play;
+            Require(!reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().cursor == 0, "Play started with no slot on");
+            Frame physical; physical[0] = {0x10, 0x10, 0, 0}; physical[1] = {0x20, 0x20, 0, 0};
+            const auto output = reply.Prepare(physical);
+            Require(output[0].raw == 0x10 && output[1].raw == 0x20, "A refused playback changed physical input");
+            // A reply takes Player 2 and gives a loaded slot's side back.
             command.action = Action::Select; command.slot = 2;
             Require(reply.Apply(command), "The recorded slot could not be selected");
             command.action = Action::Load; command.side = 0; command.frames = {{0x40, 0x40, 0, 0}};
             Require(reply.Apply(command) && reply.Reply(dragon, ReplySchedule{}), "The reply did not start over a loaded selection");
             command.action = Action::Play;
             Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback &&
-                reply.GetView().selected == 2 && reply.GetView().playbackSide == 0 && reply.GetView().cursor == 0,
-                "Play did not restart the restored slot and side");
+                reply.GetView().active == 2 && reply.GetView().playbackSide == 0 && reply.GetView().cursor == 0,
+                "Play did not play the loaded slot on its side");
             Require(reply.Prepare(Frame{})[0].raw == 0x40 && reply.Prepare(Frame{})[1].raw == 0,
-                "Play used the reply instead of the restored recording");
+                "Play used the reply instead of the loaded recording");
         }
         {
             // A rollback match: every played frame is captured, a replayed one over its first capture,

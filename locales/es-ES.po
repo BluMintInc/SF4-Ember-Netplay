@@ -1493,14 +1493,11 @@ msgstr "Al levantarse"
 msgid "training.reply.any"
 msgstr "Siempre que se recupere"
 
-msgid "training.reply.slot"
-msgstr "Ranura de respuesta"
+msgid "training.reply.recordings"
+msgstr "Grabaciones"
 
-msgid "training.reply.slot.detail"
-msgstr "La grabación del muñeco que se reproduce como respuesta mientras Golpes de respuesta esté vacío, desde su primera pulsación."
-
-msgid "training.reply.slot_empty"
-msgstr "La ranura {0} está vacía, así que el sparring no responde. Grábala o elige un movimiento."
+msgid "training.reply.no_recordings_on"
+msgstr "No hay grabaciones activadas que sirvan como respuesta"
 
 msgid "training.reply.chance"
 msgstr "Probabilidad de respuesta"
@@ -1518,13 +1515,13 @@ msgid "training.reply.moves"
 msgstr "Golpes de respuesta"
 
 msgid "training.reply.moves.detail"
-msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. También sirven los nombres de movimientos: qcf, qcb, dp, rdp, hcf y hcb, como en qcfP o dp+HP. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. [1] mantiene una dirección hasta el siguiente movimiento, [1]20f la mantiene 20 frames y 10f espera: [1] > 3HP bloquea abajo hasta que el muñeco queda libre y luego pulsa 3HP. Vacío usa la ranura de respuesta."
+msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. También sirven los nombres de movimientos: qcf, qcb, dp, rdp, hcf y hcb, como en qcfP o dp+HP. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. [1] mantiene una dirección hasta el siguiente movimiento, [1]20f la mantiene 20 frames y 10f espera: [1] > 3HP bloquea abajo hasta que el muñeco queda libre y luego pulsa 3HP. Vacío responde con una grabación activada."
 
 msgid "training.reply.move"
 msgstr "Respuesta predefinida"
 
 msgid "training.reply.move.detail"
-msgstr "Izquierda y derecha eligen una respuesta común en notación numérica, leída para el lado al que mira el muñeco. Ranura de respuesta reproduce la grabación; Personalizada conserva los golpes que escribiste. Elegir abre Golpes de respuesta para escribir uno."
+msgstr "Izquierda y derecha eligen una respuesta común en notación numérica, leída para el lado al que mira el muñeco. Grabaciones reproduce una grabación activada; Personalizada conserva los golpes que escribiste. Elegir abre Golpes de respuesta para escribir uno."
 
 msgid "training.reply.custom"
 msgstr "Personalizada"
@@ -1634,8 +1631,14 @@ msgstr "Ranura {0}"
 msgid "training.slot_selected"
 msgstr "Ranura {0} / SELECCIONADA"
 
-msgid "training.recorded_frames"
-msgstr "{0} fotogramas grabados. La grabación dura hasta que acaba este combate."
+msgid "training.slot.detail"
+msgstr "{0} frames grabados. Elegir activa o desactiva la ranura: Repro. y la respuesta del muñeco usan las ranuras activadas. Las ranuras se conservan para este luchador del muñeco hasta cerrar el juego."
+
+msgid "training.slot.empty"
+msgstr "Vacía"
+
+msgid "training.slot.empty_detail"
+msgstr "Nada grabado. Elegir escoge esta ranura para Grabar."
 
 msgid "training.record"
 msgstr "Grabar"
@@ -1643,26 +1646,38 @@ msgstr "Grabar"
 msgid "training.record.overwrite"
 msgstr "Sobrescribe esta ranura y vuelve al entrenamiento."
 
-msgid "training.record.detail"
-msgstr "Graba los controles de P1 como P2 y vuelve al entrenamiento."
+msgid "training.record.choose"
+msgstr "Izquierda y Derecha eligen la ranura donde grabar; las filas de abajo también la usan."
+
+msgid "training.record.standby_detail"
+msgstr "En espera: P1 controla al muñeco y vuelves al entrenamiento. F7 empieza a grabar y F7 otra vez lo para."
 
 msgid "training.play"
 msgstr "Repro."
 
-msgid "training.play.detail"
-msgstr "Reproduce la ranura seleccionada y vuelve al entrenamiento. Las grabaciones siguen el lado al que mira el muñeco. Izquierda y Derecha eligen si se repite."
+msgid "training.play.on_detail"
+msgstr "Reproduce una ranura activada, elegida según el orden de reproducción, y vuelve al entrenamiento. Las grabaciones siguen el lado al que mira el muñeco. Izquierda y Derecha eligen si se repite; cada repetición elige de nuevo."
+
+msgid "training.order"
+msgstr "Orden de reproducción"
+
+msgid "training.order.random"
+msgstr "Aleatorio"
+
+msgid "training.order.in_order"
+msgstr "En orden"
+
+msgid "training.order.detail"
+msgstr "Cómo Repro. y la respuesta del muñeco eligen entre las ranuras activadas."
 
 msgid "training.play.once"
 msgstr "Una vez"
 
-msgid "training.slot_empty"
-msgstr "Esta ranura está vacía."
+msgid "training.no_recordings_on"
+msgstr "No hay grabaciones activadas"
 
 msgid "training.stop"
 msgstr "Parar"
-
-msgid "training.stop.detail"
-msgstr "Detén la grabación o reproducción."
 
 msgid "training.loop"
 msgstr "Repetir"
@@ -1690,6 +1705,12 @@ msgstr "Borra el medidor y el historial de ambos jugadores."
 
 msgid "training.practice_ready"
 msgstr "Entrenamiento listo"
+
+msgid "training.standby_status"
+msgstr "En espera: P1 controla al muñeco. F7 empieza a grabar."
+
+msgid "training.standby"
+msgstr "En espera"
 
 msgid "training.recording_suspended"
 msgstr "Grabación pausada mientras están abiertos los controles"

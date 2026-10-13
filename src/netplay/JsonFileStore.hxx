@@ -8,6 +8,8 @@
 
 namespace sf4e { namespace netplay { namespace json_file {
 
+// The most a store reads or publishes, unless it passes its own limit (a
+// named recording holds a whole slot: RecordingFile.hxx).
 constexpr std::size_t MaximumBytes = 256 * 1024;
 
 struct Handle {
@@ -19,13 +21,13 @@ struct Handle {
 };
 
 bool ReadBytes(const std::filesystem::path& path, std::string& bytes,
-    bool& missing, std::string& error);
+    bool& missing, std::string& error, std::size_t limit = MaximumBytes);
 bool Parse(const std::string& bytes, nlohmann::json& value, std::string& error);
 bool WriteNew(const std::filesystem::path& path, const std::string& bytes,
     std::string& error);
 bool PreserveBackup(const std::filesystem::path& path, const std::string& original,
     std::string& error);
 bool Publish(const std::filesystem::path& directory, const std::wstring& filename,
-    const nlohmann::json& document, std::string& error);
+    const nlohmann::json& document, std::string& error, std::size_t limit = MaximumBytes);
 
 } } } // namespace sf4e::netplay::json_file
