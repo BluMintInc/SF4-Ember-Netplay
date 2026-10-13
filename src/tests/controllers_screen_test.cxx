@@ -88,11 +88,15 @@ static void LayoutEntryStates() {
     row = player(input::PadKeyboard, Layer::Active); CHECK(!row.enabled && row.quiet && row.detail == loc::T("player.button_layout_keyboard"));
     row = player(input::PadXInput, Layer::GameReads); CHECK(!row.enabled && row.detail == loc::T("player.button_layout_game_reads"));
     row = player(input::PadXInput, Layer::Failed); CHECK(!row.enabled && row.detail == loc::T("player.button_layout_failed"));
-    pad.brand = {Brand::Stick}; pad.mapping = "guid,Stick,a:b3,b:h1.2,x:+a0,y:-a1,leftshoulder:a2~,rightshoulder:h0.3,lefttrigger:+a4~,platform:Windows,"; pad.numberedHats = true;
-    const auto physical = LayoutButtonNames(pad, ButtonPrompts::Automatic, {});
+    pad.brand = {Brand::Stick}; pad.numberedHats = true;
+    using T = SdlBindType;
+    pad.bindings = {{{T::Button, 3}, SdlTarget("a")}, {{T::Hat, 1, 0, 0, 2}, SdlTarget("b")}, {{T::Axis, 0, 0, SdlAxisMax}, SdlTarget("x")},
+        {{T::Axis, 1, 0, SdlAxisMin}, SdlTarget("y")}, {{T::Axis, 2, SdlAxisMax, SdlAxisMin}, SdlTarget("leftshoulder")},
+        {{T::Hat, 0, 0, 0, 3}, SdlTarget("rightshoulder")}, {{T::Axis, 4, SdlAxisMax, 0}, SdlTarget("lefttrigger")}};
+    const auto physical = LayoutButtonNames(pad, ButtonPrompts::Automatic);
     CHECK(physical[0] == "Button 4" && physical[1] == "Hat right 2" && physical[2] == "Axis 1 +" && physical[3] == "Axis 2 -" && physical[4] == "Trigger axis 3");
     CHECK(physical[5] == "RB" && physical[6] == "Axis 5 +");
-    CHECK(LayoutButtonNames(pad, ButtonPrompts::Nintendo, {})[0] == "B");
+    CHECK(LayoutButtonNames(pad, ButtonPrompts::Nintendo)[0] == "B");
     netplay::PlayerPreferences a, b; a.buttonLayouts = b.buttonLayouts = {{pad.identity, DefaultLayout, 1}};
     CHECK(SamePreferences(a, b)); b.buttonLayouts[0].buttons[0] = 0; CHECK(!SamePreferences(a, b) && OnlyLayoutsChanged(a, b));
 }

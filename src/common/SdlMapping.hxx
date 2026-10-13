@@ -1,23 +1,18 @@
 #pragma once
 #include <algorithm>
 #include <array>
-#include <cstdlib>
-#include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 namespace sf4e { namespace gamepads {
-// How SDL 3.4.16 reads a gamepad mapping, ported from src/joystick/SDL_gamepad.c
-// (SDL_PrivateParseGamepadConfigString, SDL_PrivateParseGamepadElement,
-// SDL_GetGamepadAxisFromString, SDL_PrivateGetGamepadButtonFromString) and the
-// folding SDL_strcasecmp does (src/stdlib/SDL_string.c, SDL_casefolding.h).
-// Simple DirectMedia Layer, Copyright (C) 1997-2026 Sam Lantinga, zlib licence.
-
-// SDL_GamepadBinding, with SDL's enum values and axis ranges.
+// SDL_GamepadBinding with SDL 3.4.16's enum values and axis ranges. Bindings
+// come only from SDL_GetGamepadBindings (sf4e__GamepadBindings.hxx); Ember
+// writes them as mapping text and never reads bindings back from text.
 enum class SdlBindType { None, Button, Axis, Hat };
+// An axis input runs from min to max: a half starts at 0, and min above max
+// is an inverted axis.
 struct SdlInput {
     SdlBindType type = SdlBindType::None;
     int index = 0, min = 0, max = 0, hatMask = 0;
@@ -33,110 +28,92 @@ struct SdlBinding {
     SdlOutput output;
     bool operator==(const SdlBinding& b) const { return input == b.input && output == b.output; }
 };
-inline constexpr int SdlAxisMin = -32768, SdlAxisMax = 32767, SdlLeftTrigger = 4;
+inline constexpr int SdlAxisMin = -32768, SdlAxisMax = 32767, SdlLeftTrigger = 4, SdlDpadUp = 11;
 inline constexpr std::array<std::string_view, 6> SdlAxisNames = {"leftx", "lefty", "rightx", "righty", "lefttrigger", "righttrigger"};
 inline constexpr std::array<std::string_view, 26> SdlButtonNames = {"a", "b", "x", "y", "back", "guide", "start", "leftstick",
     "rightstick", "leftshoulder", "rightshoulder", "dpup", "dpdown", "dpleft", "dpright", "misc1", "paddle1", "paddle2", "paddle3",
     "paddle4", "touchpad", "misc2", "misc3", "misc4", "misc5", "misc6"};
 // The side of 0 an axis range covers: 1 or -1 for a half, 0 for the whole axis.
 inline int AxisHalf(int min, int max) { return min && max ? 0 : min + max > 0 ? 1 : -1; }
-
-// Text folded as SDL_strcasecmp folds it, when it folds into ASCII. Besides
-// A to Z, these are the only codepoints SDL folds into ASCII.
-inline std::optional<std::string> SdlFold(std::string_view text) {
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 11> folds = {{
-        {"\xC3\x9F", "ss"}, {"\xC5\xBF", "s"}, {"\xE1\xBA\x9E", "ss"}, {"\xE2\x84\xAA", "k"}, {"\xEF\xAC\x80", "ff"}, {"\xEF\xAC\x81", "fi"},
-        {"\xEF\xAC\x82", "fl"}, {"\xEF\xAC\x83", "ffi"}, {"\xEF\xAC\x84", "ffl"}, {"\xEF\xAC\x85", "st"}, {"\xEF\xAC\x86", "st"}}};
-    std::string folded;
-    while (!text.empty()) {
-        const char c = text.front();
-        if (static_cast<unsigned char>(c) < 0x80) {
-            folded += c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-            text.remove_prefix(1);
-            continue;
-        }
-        const auto fold = std::find_if(folds.begin(), folds.end(), [&](const auto& f) { return text.substr(0, f.first.size()) == f.first; });
-        if (fold == folds.end()) return {};
-        folded += fold->second;
-        text.remove_prefix(fold->first.size());
-    }
-    return folded;
-}
-// The output a key names: one sign picks a stick's half, then an axis name,
-// which may carry one more sign, or a button name.
-inline std::optional<SdlOutput> ParseSdlOutput(std::string_view key) {
-    char half = 0;
-    if (!key.empty() && (key.front() == '+' || key.front() == '-')) { half = key.front(); key.remove_prefix(1); }
-    const auto name = SdlFold(key);
-    if (!name) return {};
-    std::string_view axisName = *name;
-    if (!axisName.empty() && (axisName.front() == '+' || axisName.front() == '-')) axisName.remove_prefix(1);
-    const auto axis = std::find(SdlAxisNames.begin(), SdlAxisNames.end(), axisName);
+// The output an SDL name stands for: a button by position, a whole stick axis or a trigger.
+inline SdlOutput SdlTarget(std::string_view name) {
+    const auto axis = std::find(SdlAxisNames.begin(), SdlAxisNames.end(), name);
     if (axis != SdlAxisNames.end()) {
         const int index = static_cast<int>(axis - SdlAxisNames.begin());
-        if (index >= SdlLeftTrigger || half == '+') return SdlOutput{SdlBindType::Axis, index, 0, SdlAxisMax};
-        return SdlOutput{SdlBindType::Axis, index, half ? 0 : SdlAxisMin, half ? SdlAxisMin : SdlAxisMax};
+        return {SdlBindType::Axis, index, index < SdlLeftTrigger ? SdlAxisMin : 0, SdlAxisMax};
     }
-    const auto button = std::find(SdlButtonNames.begin(), SdlButtonNames.end(), *name);
-    if (button == SdlButtonNames.end()) return {};
-    return SdlOutput{SdlBindType::Button, static_cast<int>(button - SdlButtonNames.begin())};
-}
-// One key and input as SDL binds them: an input sign and ~ shape an axis only,
-// and indices are SDL_atoi's decimal prefix.
-inline std::optional<SdlBinding> ParseSdlElement(const char* key, const char* input) {
-    const auto output = ParseSdlOutput(key);
-    if (!output) return {};
-    char half = 0;
-    if (*input == '+' || *input == '-') half = *input++;
-    const auto length = std::strlen(input);
-    const bool invert = length && input[length - 1] == '~';
-    const auto digit = [](char c) { return c >= '0' && c <= '9'; };
-    const auto number = [](const char* text) { return static_cast<int>(std::strtol(text, nullptr, 10)); };
-    SdlInput bound;
-    if (input[0] == 'a' && digit(input[1])) {
-        bound = {SdlBindType::Axis, number(input + 1), half ? 0 : SdlAxisMin, half == '-' ? SdlAxisMin : SdlAxisMax};
-        if (invert) std::swap(bound.min, bound.max);
-    } else if (input[0] == 'b' && digit(input[1])) bound = {SdlBindType::Button, number(input + 1)};
-    else if (input[0] == 'h' && digit(input[1]) && input[2] == '.' && digit(input[3])) bound = {SdlBindType::Hat, number(input + 1), 0, 0, number(input + 3)};
-    else return {};
-    return SdlBinding{bound, *output};
+    return {SdlBindType::Button, static_cast<int>(std::find(SdlButtonNames.begin(), SdlButtonNames.end(), name) - SdlButtonNames.begin())};
 }
 
-// A field SDL does not bind, as written. key is what SDL read as its key.
-struct SdlField { std::string key, text; };
-// The bindings SDL makes, once each and in order, and every other field.
-struct SdlMapping { std::vector<SdlBinding> bindings; std::vector<SdlField> metadata; };
-// Reads the fields after the GUID and name of a mapping as SDL stores it. SDL
-// skips spaces, starts the input again at each colon without clearing it, and
-// stops at a key over 20 characters or an input over 128, so the fields from
-// there on are never read. A full buffer here still ends where SDL's reads on;
-// no output name fills a key.
-inline SdlMapping ReadSdlMapping(const std::string& mapping) {
-    SdlMapping read;
+// A binding as the text SDL decodes back to the same binding: a, b, x and y
+// are positions, a half axis output takes its sign, and an input axis range
+// takes + or - for a half and ~ when inverted. A trigger reads 0 to max.
+inline std::string FormatBinding(const SdlBinding& binding) {
+    const auto& input = binding.input;
+    const auto& output = binding.output;
+    const auto sign = [](int half) { return std::string(half > 0 ? "+" : half < 0 ? "-" : ""); };
+    std::string text = output.type == SdlBindType::Button ? std::string(SdlButtonNames[output.index]) :
+        (output.index < SdlLeftTrigger ? sign(AxisHalf(output.min, output.max)) : "") + std::string(SdlAxisNames[output.index]);
+    const auto index = std::to_string(input.index);
+    if (input.type == SdlBindType::Button) return text + ":b" + index;
+    if (input.type == SdlBindType::Hat) return text + ":h" + index + "." + std::to_string(input.hatMask);
+    const int half = AxisHalf(input.min, input.max);
+    return text + ":" + sign(half) + "a" + index + ((half ? input.min != 0 : input.min > input.max) ? "~" : "");
+}
+
+// The fields of a mapping that bind nothing and are safe to carry over, as SDL
+// reads them: each key where it first appears after the GUID and name, up to
+// the next comma. crc picks which pads the mapping matches, type and face only
+// name the pad and its labels, and sdk>= and sdk<= apply on Android alone. A
+// value is kept only when it is plain letters and digits, so no kept field can
+// hold another key. Hints go: a label hint would rename positional bindings,
+// and any other hint can stop SDL adding the mapping at all.
+inline std::string SdlMetadata(std::string_view mapping) {
     const auto name = mapping.find(',');
-    const auto body = name == std::string::npos ? name : mapping.find(',', name + 1);
-    if (body == std::string::npos) return read;
-    const char* field = mapping.c_str() + body + 1;
-    char key[20 + 1] = {}, input[128 + 1] = {};
-    const auto element = [&](const char* end) {
-        const auto binding = ParseSdlElement(key, input);
-        if (!binding) read.metadata.push_back({key, std::string(field, end)});
-        else if (std::find(read.bindings.begin(), read.bindings.end(), *binding) == read.bindings.end()) read.bindings.push_back(*binding);
-        field = end + 1;
-        std::memset(key, 0, sizeof key);
-        std::memset(input, 0, sizeof input);
-    };
-    bool inKey = true;
-    std::size_t i = 0;
-    const char* at = field;
-    for (; *at; ++at) {
-        if (*at == ':') { i = 0; inKey = false; }
-        else if (*at == ' ') {}
-        else if (*at == ',') { i = 0; inKey = true; element(at); }
-        else if (inKey) { if (i >= 20) return read; key[i++] = *at; }
-        else { if (i >= 128) return read; input[i++] = *at; }
+    const auto body = name == std::string_view::npos ? name : mapping.find(',', name + 1);
+    if (body == std::string_view::npos) return {};
+    mapping.remove_prefix(body + 1);
+    const auto plain = [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); };
+    std::string kept;
+    for (const std::string_view key : {"crc:", "type:", "face:", "sdk>=:", "sdk<=:"}) {
+        const auto at = mapping.find(key);
+        if (at == std::string_view::npos) continue;
+        auto value = mapping.substr(at + key.size());
+        value = value.substr(0, value.find(','));
+        if (!value.empty() && std::all_of(value.begin(), value.end(), plain)) kept += std::string(key) + std::string(value) + ",";
     }
-    if (key[0] || input[0]) element(at);
-    return read;
+    return kept;
+}
+// SDL_IsJoystickHIDAPI: byte 14 of a HIDAPI pad's GUID is 'h'.
+inline bool HidapiGuid(std::string_view guid) { return guid.size() == 32 && guid.substr(28, 2) == "68"; }
+// SDL's own mark of a mapping whose a, b, x and y are positions. Without a
+// GameCube hint SDL appends the unnegated one to a GameCube pad's mapping and
+// swaps its b and x; this first and only hint makes SDL read the bindings as written.
+inline constexpr std::string_view PositionalHint = "hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1";
+
+// The mapping SDL decodes back to exactly these bindings, with the metadata
+// existing mapping text carries, or none when SDL cannot be given them.
+// SDL_FixupHIDAPIMapping takes a HIDAPI mapping for a legacy one when the first
+// binding to a button from dpup on reads that same button number, and then
+// moves every button input. These bindings are SDL's own, already fixed up, so
+// the first such binding written is one that reads another input; when every
+// one reads its own number, SDL would move them whatever the order.
+inline std::optional<std::string> WriteSdlMapping(const std::string& guid, std::string name, std::vector<SdlBinding> bindings, std::string_view existing = {}) {
+    if (HidapiGuid(guid)) {
+        const auto late = [](const SdlBinding& b) { return b.output.type == SdlBindType::Button && b.output.index >= SdlDpadUp; };
+        const auto own = [](const SdlBinding& b) { return b.input.type == SdlBindType::Button && b.input.index == b.output.index; };
+        const auto first = std::find_if(bindings.begin(), bindings.end(), late);
+        if (first != bindings.end() && own(*first)) {
+            const auto other = std::find_if(first, bindings.end(), [&](const SdlBinding& b) { return late(b) && !own(b); });
+            if (other == bindings.end()) return {};
+            std::rotate(first, other, other + 1);
+        }
+    }
+    // Commas delimit SDL fields; driver names must not create mapping fields.
+    std::replace(name.begin(), name.end(), ',', ' ');
+    auto text = guid + "," + name + ",";
+    for (const auto& binding : bindings) text += FormatBinding(binding) + ",";
+    // platform goes once, last: SDL cuts a returned mapping at a second one (CreateMappingString).
+    return text + std::string(PositionalHint) + "," + SdlMetadata(existing) + "platform:Windows,";
 }
 } }

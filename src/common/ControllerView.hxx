@@ -61,7 +61,8 @@ struct PadView {
     std::vector<std::string> held;
     std::vector<RawInput> raw;
     bool rawAtRest = true;
-    std::string mapping;
+    // What SDL binds for a pad with an Ember setup; Stick names read it.
+    std::vector<SdlBinding> bindings;
     bool numberedHats = false;
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;
@@ -73,7 +74,7 @@ struct PadFrame {
     std::vector<RawInput> raw;
     bool pressed = false;
     bool rawAtRest = true;
-    std::string mapping;
+    std::vector<SdlBinding> bindings;
     bool numberedHats = false;
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;

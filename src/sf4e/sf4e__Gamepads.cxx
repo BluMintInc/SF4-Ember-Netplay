@@ -1,4 +1,5 @@
 #include "sf4e__Gamepads.hxx"
+#include "sf4e__GamepadBindings.hxx"
 #include "sf4e__GamepadLayouts.hxx"
 #include "sf4e__ImportPatch.hxx"
 #include "sf4e__DirectInputFilter.hxx"
@@ -327,8 +328,7 @@ void UpdateLocked(bool rebuild) {
         if (handle != handles.end() && SDL_GamepadConnected(handle->second)) {
             frame.state = ReadState(handle->second);
             if (pad.hasEmberMapping) {
-                char* mapping = SDL_GetGamepadMapping(handle->second);
-                frame.mapping = Text(mapping); SDL_free(mapping);
+                frame.bindings = ReadBindings(handle->second);
                 frame.numberedHats = SDL_GetNumJoystickHats(SDL_GetGamepadJoystick(handle->second)) > 1;
             }
             const SDL_GamepadButton buttons[] = {SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER};
@@ -563,12 +563,10 @@ void BeginSetup(const Identity& identity, unsigned padId) {
     for (const auto& pad : inventory.pads) if (Same(pad.identity, identity)) {
         const auto handle = handles.find(pad.id);
         if (handle == handles.end() || !SDL_GetGamepadButton(handle->second, SDL_GAMEPAD_BUTTON_SOUTH)) break;
-        int count = 0; auto** bindings = SDL_GetGamepadBindings(handle->second, &count);
-        for (int i = 0; i < count; ++i) if (bindings[i]->output_type == SDL_GAMEPAD_BINDTYPE_BUTTON &&
-            bindings[i]->output.button == SDL_GAMEPAD_BUTTON_SOUTH && bindings[i]->input_type == SDL_GAMEPAD_BINDTYPE_AXIS) {
-            entry = SetupAxisEntry{bindings[i]->input.axis.axis, bindings[i]->input.axis.axis_min}; break;
+        for (const auto& binding : ReadBindings(handle->second)) if (binding.output == SdlTarget("a") && binding.input.type == SdlBindType::Axis) {
+            entry = SetupAxisEntry{binding.input.index, binding.input.min}; break;
         }
-        SDL_free(bindings); break;
+        break;
     }
     setupModel.Start(GetTickCount64(), entry); setup.padId = padId; setup.identity = identity; setup.state = setupModel.State();
     setup.outcome = SetupEnd::None; setupRestLogged = false; setupCommands.clear();
@@ -585,16 +583,25 @@ std::optional<std::string> SaveSetup() {
     UpdateLocked(false);
     if (!active || !setup.state.active || setup.state.mode != SetupMode::Summary || !setup.state.CanSave() || setup.state.feedback == SetupFeedback::Reconnect) return {};
     const auto guid = setup.identity.guid;
-    const auto existing = MappingForGuid(guid);
-    const auto mapping = BuildSetupMapping(guid, setup.identity.name, setup.state, existing);
-    if (SDL_AddGamepadMapping(mapping.c_str()) < 0) {
-        spdlog::error("Input: setup mapping rejected (SDL: {}): {}", SDL_GetError(), mapping);
+    // The merge starts from what SDL binds for the pad; its mapping text only
+    // supplies the fields that bind nothing.
+    const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [](const Pad& candidate) { return Same(candidate.identity, setup.identity); });
+    const auto handle = pad == inventory.pads.end() ? handles.end() : handles.find(pad->id);
+    const auto existing = pad == inventory.pads.end() ? std::nullopt : ReadBindings(pad->id, handle == handles.end() ? nullptr : handle->second);
+    const auto text = MappingForGuid(guid);
+    const auto mapping = existing ? WriteSdlMapping(guid, setup.identity.name, MergeSetup(setup.state, *existing), text) : std::nullopt;
+    std::string failure;
+    if (!existing) failure = fmt::format("the pad's bindings could not be read (SDL: {})", SDL_GetError());
+    else if (!mapping) failure = "SDL would take its d-pad for a legacy HIDAPI one and move its buttons";
+    else if (SDL_AddGamepadMapping(mapping->c_str()) < 0) failure = fmt::format("SDL rejected {} ({})", *mapping, SDL_GetError());
+    if (!failure.empty()) {
+        spdlog::error("Input: setup not saved for guid {}: {}", guid, failure);
         setup.outcome = SetupEnd::SaveFailed; ++setup.revision; return {};
     }
-    if (!savedEmberMappingGuids.count(guid) && !existing.empty()) sdlMappedGuids.insert(guid);
+    if (!savedEmberMappingGuids.count(guid) && !text.empty()) sdlMappedGuids.insert(guid);
     savedEmberMappingGuids.insert(guid);
     setup.state.active = false; setup.outcome = SetupEnd::Saved; ++setup.revision;
-    spdlog::info("Input: setup saved for guid {}: {}", guid, mapping);
+    spdlog::info("Input: setup saved for guid {}: {}", guid, *mapping);
     UpdateLocked(true);
     return mapping;
 }

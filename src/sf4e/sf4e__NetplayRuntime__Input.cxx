@@ -124,7 +124,7 @@ void CaptureMenuInput() {
             const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });
             if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; }
         }
-        pad.buttonNames = ui::LayoutButtonNames(pad, runtime->preferences.buttonPrompts, runtime->preferences.controllerMappings);
+        pad.buttonNames = ui::LayoutButtonNames(pad, runtime->preferences.buttonPrompts);
         if (pad.name.empty() && pad.state == gamepads::RowState::Steam) pad.name = loc::T("controllers.steam_name");
         if (pad.state == gamepads::RowState::GameRead && pad.slot >= 0)
             for (const auto& device : runtime->inputDevices) if (device.type == input::PadXInput && device.index == pad.slot) pad.name = DeviceName(device);

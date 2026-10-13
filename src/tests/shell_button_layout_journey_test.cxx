@@ -99,7 +99,7 @@ void WizardLayoutEntry() {
     auto& state = h.view.padSetup.state; state.active = true; state.mode = SetupMode::Summary;
     for (int i = 0; i < SetupStepCount; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
     h.Frame(); h.Choose("save");
-    h.view.preferences.controllerMappings[pad.identity.guid] = BuildSetupMapping(pad.identity.guid, pad.name, state);
+    h.view.preferences.controllerMappings[pad.identity.guid] = WriteSdlMapping(pad.identity.guid, pad.name, MergeSetup(state, {})).value();
     h.view.pads[0].state = RowState::Recognised; h.view.pads[0].brand = {Brand::Stick}; h.view.pads[0].slot = 0;
     h.view.pads[0].has[8] = h.view.pads[0].has[9] = false;
     state.active = false; h.view.padSetup.outcome = SetupEnd::Saved; ++h.view.padSetup.revision; h.Frame();

@@ -24,17 +24,15 @@ std::optional<RawInput> BoundInput(const SdlInput& input) {
     return RawInput{!half ? RawKind::Trigger : half > 0 ? RawKind::AxisPlus : RawKind::AxisMinus, input.index};
 }
 }
-FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const std::map<std::string, std::string>& mappings) {
+FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts) {
     const auto brand = ResolvePrompts(prompts, input::PadXInput, pad.brand).brand;
     if (brand == Brand::PlayStation) return {"Cross", "Circle", "Square", "Triangle", "L1", "R1", "L2", "R2", "L3", "R3"};
     if (brand == Brand::Nintendo) return {"B", "A", "Y", "X", "L", "R", "ZL", "ZR", "LS", "RS"};
     FightNames names = {"A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LS", "RS"};
     if (brand != Brand::Stick) return names;
-    const auto mapping = mappings.find(pad.identity.guid);
-    if (pad.mapping.empty() && mapping == mappings.end()) return names;
     constexpr std::array<const char*, 10> targets = {"a", "b", "x", "y", "leftshoulder", "rightshoulder", "lefttrigger", "righttrigger", "leftstick", "rightstick"};
-    for (const auto& binding : ReadSdlMapping(pad.mapping.empty() ? mapping->second : pad.mapping).bindings)
-        for (unsigned i = 0; i < targets.size(); ++i) if (SameTarget(binding.output, ParseSdlOutput(targets[i]).value()))
+    for (const auto& binding : pad.bindings)
+        for (unsigned i = 0; i < targets.size(); ++i) if (SameTarget(binding.output, SdlTarget(targets[i])))
             if (auto raw = BoundInput(binding.input)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
     return names;
 }

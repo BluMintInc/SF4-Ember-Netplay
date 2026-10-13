@@ -17,8 +17,7 @@ inline std::string LayoutCaptureRow(const std::optional<unsigned>& function) {
     return function ? std::string("fn-") + LayoutFunctions[*function].id : std::string("edit-button");
 }
 std::string AttackLongName(std::uint32_t mask);
-gamepads::FightNames LayoutButtonNames(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts,
-    const std::map<std::string, std::string>& mappings);
+gamepads::FightNames LayoutButtonNames(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts);
 // How a capture shows on the rows: the row waiting for a press reads
 // button_layout.waiting in Ember and every other row dims; the row that just
 // took a press shows its value in Ember for a moment. Empty ids mark nothing.

@@ -123,7 +123,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     const auto stored = FindLayout(preferences_.buttonLayouts, pad.identity, ConnectedLayoutPads(view));
     pad.layout = stored.index ? std::make_optional(preferences_.buttonLayouts[*stored.index].buttons) : std::nullopt;
     if (pad.layout) pad.table = *pad.layout;
-    pad.buttonNames = LayoutButtonNames(pad, preferences_.buttonPrompts, preferences_.controllerMappings);
+    pad.buttonNames = LayoutButtonNames(pad, preferences_.buttonPrompts);
     if (absent) pad.held.clear();
     const bool wasAbsent = layoutAbsent_; layoutAbsent_ = absent;
     if (absent && !wasAbsent) LayoutLog(view, submit, fmt::format("layout editor: '{}' id {} disconnected; editing paused", pad.name, pad.id));
