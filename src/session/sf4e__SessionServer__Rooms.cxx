@@ -30,9 +30,9 @@ using Dimps::Math::FixedPoint;
 using sf4e::SessionServer;
 
 void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capacity,
-	std::uint64_t roomEpoch, room::Rules defaults, bool practice) {
+	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy) {
 	if (_roomAuthority || !name.size()) return;
-	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice));
+	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice, delayPolicy));
 	_roomMatchData.clear();
 	for (auto& authority : _roomMatchAuthorities) authority.reset();
 	if (_matchAuthorizationConfigured) {
@@ -43,9 +43,9 @@ void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capa
 }
 
 bool SessionServer::EnableServerOwnedRooms(const std::string& name, std::uint8_t capacity,
-	std::uint64_t roomEpoch, room::Rules defaults) {
+	std::uint64_t roomEpoch, room::Rules defaults, room::DelayPolicy delayPolicy) {
 	if (_roomAuthority) return false;
-	EnableCustomRooms(name, capacity, roomEpoch, defaults);
+	EnableCustomRooms(name, capacity, roomEpoch, defaults, false, delayPolicy);
 	if (_roomAuthority && _roomAuthority->SetServerOwned()) return true;
 	_roomAuthority.reset();
 	return false;
@@ -349,10 +349,12 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 		update.lobbyData.members.push_back(data);
 	}
 	update.matchData = _roomMatchData[tableId];
-	// The native protocol keeps one delay per seat, and each client applies
-	// the entry for its own slot. Custom rooms fill both with the shared match
-	// delay, so every client plays at it without a protocol change.
-	update.matchData.inputDelay[0] = update.matchData.inputDelay[1] = room::MatchDelay(table);
+	// The native protocol keeps one delay per seat, and each client applies the
+	// entry for its own slot. A Shared room fills both with the match delay, so
+	// every client plays at it; an Own room gives each seat the delay its fighter
+	// chose at Ready. Neither needs a protocol change.
+	update.matchData.inputDelay[0] = room::SeatMatchDelay(snapshot, table, 0);
+	update.matchData.inputDelay[1] = room::SeatMatchDelay(snapshot, table, 1);
 	update.matchData.lowerInputLag = room::MatchLowerLag(table);
 	update.authorityTerm = _recovery.Authority().term;
 	update.authorityRevision = _recovery.Authority().revision;

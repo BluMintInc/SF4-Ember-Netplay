@@ -80,7 +80,7 @@ public:
     void Abandon();
     // Opens a public room: the new room's admission is joined when it arrives.
     // `rules` go with the new room's join, for the runtime to set on its tables.
-    void Create(const std::string& name, int capacity, const room::Rules& rules);
+    void Create(const std::string& name, int capacity, const room::Rules& rules, room::DelayPolicy delayPolicy);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
     // What a pending request or refresh says on `screen`, and the list's own

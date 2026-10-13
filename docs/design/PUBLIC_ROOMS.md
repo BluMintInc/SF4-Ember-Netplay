@@ -103,6 +103,7 @@ pub struct RoomSummary {
     pub tables_playing: u8,
     pub region: String,         // the creator's relay region code, e.g. "use1", else the host's
     pub created_at: u64,
+    pub own_delay: bool,        // each fighter plays at their own input delay; written only when true
 }
 ```
 
@@ -116,6 +117,18 @@ created without one. The bridge keeps the host's region apart (`rooms.region`,
 set once the room is hosted) for its own bookkeeping. Refusals: `room_limit` (the caller already owns a room, or
 the address or the server is at its limit), `unsupported_build` (no room host
 for that build), `invalid_name`.
+
+`CreateRoom` and `RoomSummary` also carry `own_delay`, set when the room is
+created and fixed for its life. With it a game is played at each fighter's own
+Ready delay; without it both play at the higher of the two. The field is
+written only when true, in requests, listings and admissions alike, so every
+message about a room with the shared delay is what it was before and a reader
+that refuses unknown fields never meets it. An older bridge refuses a create
+that carries it as an invalid request; the helper reports that as its own
+failure and never retries the create without it. The bridge records the
+request in `rooms.own_delay` (old rows are the shared delay) and passes it to
+the supervisor in the same `POST /rooms` body; the room host's own report
+(`details.own_delay`) then decides what the listing says.
 
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
@@ -148,7 +161,7 @@ a server-wide room cap from supervisor configuration. Bans are rows
 
 ## Supervisor API (loopback, `Authorization: Bearer <shared secret>`)
 
-- `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid }` → `{ invitation, region }` once the host reports `hosted`.
+- `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid, own_delay? }` (`own_delay` only when true; the supervisor writes it on to the room host's configuration line the same way) → `{ invitation, region }` once the host reports `hosted`.
 - `GET /rooms` → `[{ room_id, members, capacity, tables_playing, invitation, banned: [ember_id], opened }]`, polled by the bridge. `members` is the latest count; `opened` is the supervisor's latch, set the first time a status with at least one member arrives and kept for the room's life. The bridge sets `rooms.opened_at` from `opened`, not from the count a poll happens to see, so a creator who joined and left between two polls still ends creator-only admission; it lists a room on the current count. A supervisor that omits the field is judged by the count.
 - `DELETE /rooms/{room_id}`.
 - `GET /health`.

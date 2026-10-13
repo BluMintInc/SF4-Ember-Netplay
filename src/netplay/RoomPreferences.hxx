@@ -19,6 +19,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     auto json = TableRulesJson(value.tableRules);
     json["name"] = value.roomName; json["capacity"] = value.roomCapacity; json["public"] = value.roomPublic;
     json["publicRules"] = TableRulesJson(value.publicTableRules);
+    // Only Own is written; a document without the key reads as Shared.
+    if (value.roomDelayPolicy == room::DelayPolicy::Own) json["delay"] = "own";
     return json;
 }
 
@@ -61,12 +63,15 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
     try {
         if (defaults.contains("capacity") && !defaults["capacity"].is_number_integer()) return false;
         if (defaults.contains("public") && !defaults["public"].is_boolean()) return false;
+        if (defaults.contains("delay") && (!defaults["delay"].is_string() ||
+            (defaults["delay"].get<std::string>() != "own" && defaults["delay"].get<std::string>() != "shared"))) return false;
         PlayerPreferences candidate = inherited;
         candidate.roomName = defaults.value("name", candidate.roomName);
         const auto capacity = defaults.value("capacity", static_cast<std::int64_t>(candidate.roomCapacity));
         if (capacity < 2 || capacity > static_cast<std::int64_t>(room::MaxMembers)) return false;
         candidate.roomCapacity = static_cast<int>(capacity);
         candidate.roomPublic = defaults.value("public", candidate.roomPublic);
+        candidate.roomDelayPolicy = defaults.value("delay", std::string()) == "own" ? room::DelayPolicy::Own : room::DelayPolicy::Shared;
         if (!ReadTableRules(defaults, candidate.tableRules)) return false;
         if (defaults.contains("publicRules") &&
             (!defaults["publicRules"].is_object() || !ReadTableRules(defaults["publicRules"], candidate.publicTableRules))) return false;

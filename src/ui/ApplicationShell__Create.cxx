@@ -30,6 +30,7 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  // Only a private room can be a Practice room, which has no round time to choose.
  const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_;
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
+ rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
@@ -42,7 +43,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules,preferences_.roomDelayPolicy);}
  else if(a.id=="host")Send(CommandKind::HostRoom,v,submit);
 }
 // Create's own choice, never one of the saved preferences.

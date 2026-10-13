@@ -586,12 +586,36 @@ if(BUILD_TESTING)
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember"
             BYPRODUCTS "${SF4E_ROOM_TICKET_TOOL}"
             VERBATIM COMMENT "Build the room ticket test tool")
+        # The room supervisor, for the test that creates a public room through the
+        # bridge, the supervisor and a real room host.
+        set(SF4E_EMBER_ROOMS_TOOL "${CMAKE_BINARY_DIR}/rust-rooms-target/debug/ember-rooms.exe")
+        add_custom_target(EmberRoomsTool
+            COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-rooms-target"
+                "${SF4E_CARGO_EXECUTABLE}" build --locked
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember-rooms"
+            BYPRODUCTS "${SF4E_EMBER_ROOMS_TOOL}"
+            VERBATIM COMMENT "Build the room supervisor")
         option(SF4E_NETWORK_TESTS "Run tests requiring public Iroh relay/address lookup" OFF)
         if(SF4E_NETWORK_TESTS)
             add_dependencies(PublicRoomHostTest RoomTicketTool)
             add_test(NAME PublicRoomHost COMMAND PublicRoomHostTest "${SF4E_HELPER_EXECUTABLE}"
                 "$<TARGET_FILE:sf4e-room-host>" "${SF4E_ROOM_TICKET_TOOL}")
             set_tests_properties(PublicRoomHost PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE)
+            add_test(NAME PublicRoomHostOwnDelay COMMAND PublicRoomHostTest "${SF4E_HELPER_EXECUTABLE}"
+                "$<TARGET_FILE:sf4e-room-host>" "${SF4E_ROOM_TICKET_TOOL}" --own-delay)
+            set_tests_properties(PublicRoomHostOwnDelay PROPERTIES TIMEOUT 300 RUN_SERIAL TRUE)
+            # A public room created through the helper, the bridge, the supervisor and a real
+            # room host: the host's own report of each fighter's own delay reaches the bridge.
+            add_dependencies(PublicRoomHostTest EmberRoomsTool)
+            add_test(NAME PublicRoomsChain
+                COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-test-target"
+                    "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
+                    "EMBER_ROOMS_EXE=${SF4E_EMBER_ROOMS_TOOL}" "SF4E_ROOM_HOST_EXE=$<TARGET_FILE:sf4e-room-host>"
+                    "SF4E_HELPER_EXE=${SF4E_HELPER_EXECUTABLE}"
+                    "${SF4E_CARGO_EXECUTABLE}" test --locked --target x86_64-pc-windows-msvc
+                    --test public_rooms_bridge -- --ignored a_rooms_own_delay_reaches
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/sf4-net")
+            set_tests_properties(PublicRoomsChain PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
             add_test(NAME CustomRoomFourTables COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}")
             add_test(NAME CustomRoomSpectators COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}" --single-table)
             add_test(NAME CustomRoomFourTablesRelay COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}" --relay-only)
@@ -645,9 +669,12 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" STD 17 LIBS sf4e_iroh_room)
     sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
         LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME RoomHostConfig SOURCES "src/tests/room_host_config_test.cxx" "server/roomhost/RoomHost.cxx" "server/roomhost/RoomHostStatus.cxx"
+        STD 17 LIBS sf4e_iroh_room)
     sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME LowerInputLag SOURCES "src/tests/lower_input_lag_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME PracticeRoomProjection SOURCES "src/tests/practice_room_projection_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME DelayPolicyProjection SOURCES "src/tests/delay_policy_projection_test.cxx" LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" LIBS sf4e_session_server)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
     add_executable(RoomHostBench "src/tests/room_host_bench.cxx")

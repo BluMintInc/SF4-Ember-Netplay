@@ -8,7 +8,7 @@ inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::P
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&
         a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
-        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules;
+        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules;
 }
 inline bool OnlyLayoutsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
     auto compared = a;
@@ -74,6 +74,11 @@ inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool 
 inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
     return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
         loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
+}
+// Create's choice of whose input delay the room plays at, fixed for the room's life (room::Snapshot::delayPolicy).
+inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {
+    return Value("delay-policy",loc::T("room.delay_policy"),
+        loc::T(policy==room::DelayPolicy::Own?"room.delay_policy.own":"room.delay_policy.shared"),loc::T("room.delay_policy.detail"),enabled);
 }
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;

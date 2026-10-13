@@ -113,6 +113,7 @@ std::string PublicRoomsPanel::FailureText(const std::string& code) {
         {"unsupported_build", "public.failure.unsupported_build"}, {"invalid_name", "public.failure.invalid_name"},
         {"rooms_unavailable", "public.failure.rooms_unavailable"},
         {"room_locked", "public.failure.room_locked"}, {"unavailable", "public.failure.unavailable"},
+        {"own_delay_unsupported", "public.failure.own_delay_unsupported"},
         // The service is the room service here, not an address the player typed.
         {"bridge_unreachable", "public.failure.unavailable"}, {"service_unavailable", "public.failure.unavailable"},
         {"untrusted_signature", "public.failure.untrusted"}, {"binding_mismatch", "public.failure.untrusted"},
@@ -135,11 +136,12 @@ std::string PublicRoomsPanel::KnownRegion(const ShellView& v) {
     return relay == "other" ? std::string() : relay;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const room::Rules& rules) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const room::Rules& rules, room::DelayPolicy delayPolicy) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
     command.bridgeId = bridge_; command.roomName = name; command.capacity = capacity;
+    command.ownDelay = delayPolicy == room::DelayPolicy::Own;
     Begin(std::move(command));
     pending_->createdRules = rules;
 }

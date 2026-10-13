@@ -5125,3 +5125,30 @@ msgstr "Edytuj dalej"
 
 msgid "button_layout.leave"
 msgstr "Wyjdź"
+
+msgid "room.delay_policy"
+msgstr "Opóźnienie wejścia w pokoju"
+
+msgid "room.delay_policy.shared"
+msgstr "Takie samo dla obu graczy"
+
+msgid "room.delay_policy.own"
+msgstr "Własne dla każdego gracza"
+
+msgid "room.delay_policy.detail"
+msgstr "Takie samo dla obu graczy: każda walka toczy się z wyższym z dwóch opóźnień. Własne dla każdego gracza: każdy gra z wybranym przez siebie opóźnieniem, a różnicę wyrównuje rollback po drugiej stronie. To ustawienie obowiązuje, dopóki pokój jest otwarty."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, własne opóźnienie"
+
+msgid "room.table_footer_own_delay"
+msgstr "Własne opóźnienie"
+
+msgid "room.input_delay.own"
+msgstr "Twoje opóźnienie: {0}"
+
+msgid "public.own_delay"
+msgstr "Własne opóźnienie"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Ta usługa pokoi nie potrafi jeszcze utworzyć pokoju z własnym opóźnieniem każdego gracza. Wybierz Takie samo dla obu graczy albo spróbuj później."

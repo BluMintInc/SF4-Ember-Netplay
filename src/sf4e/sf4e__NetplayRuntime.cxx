@@ -163,7 +163,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -550,6 +550,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
         replacement.practiceRoom=runtime->practiceRoom;
+        replacement.delayPolicy=runtime->delayPolicy;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }

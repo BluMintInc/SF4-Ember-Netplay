@@ -235,8 +235,9 @@ static bool StartRuntimeGgpo() {
             if (committedDelay>sf4e::InputDelayWireCeiling) return false;
             netplay->delay=committedDelay;
         }
-        // Both seats carry the shared match delay; the two players' logs
-        // must show the same values here (F-018).
+        // A Shared room puts the match delay in both seats, so the two players'
+        // logs show the same values here (F-018); an Own room puts each
+        // fighter's chosen delay in its seat, and the logs still agree on the pair.
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);

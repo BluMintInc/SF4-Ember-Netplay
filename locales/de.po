@@ -5125,3 +5125,30 @@ msgstr "Weiter bearbeiten"
 
 msgid "button_layout.leave"
 msgstr "Verlassen"
+
+msgid "room.delay_policy"
+msgstr "Eingabeverzögerung im Raum"
+
+msgid "room.delay_policy.shared"
+msgstr "Für beide gleich"
+
+msgid "room.delay_policy.own"
+msgstr "Jeweils eigene"
+
+msgid "room.delay_policy.detail"
+msgstr "Für beide gleich: Jeder Kampf wird mit der höheren der beiden Verzögerungen gespielt. Jeweils eigene: Jeder Spieler spielt mit der von ihm gewählten Verzögerung, und der Rollback der Gegenseite gleicht den Unterschied aus. Das gilt, solange der Raum geöffnet ist."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, eigene Verzögerung"
+
+msgid "room.table_footer_own_delay"
+msgstr "Eigene Verzögerung"
+
+msgid "room.input_delay.own"
+msgstr "Ihre Verzögerung: {0}"
+
+msgid "public.own_delay"
+msgstr "Eigene Verzögerung"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Dieser Raumdienst kann noch keinen Raum mit der eigenen Verzögerung jedes Spielers erstellen. Wählen Sie Für beide gleich oder versuchen Sie es später erneut."

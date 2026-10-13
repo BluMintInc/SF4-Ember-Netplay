@@ -36,6 +36,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         include_str!("../migrations/016_discord_confirm_owner.sql"),
     ),
     (17, include_str!("../migrations/017_creator_region.sql")),
+    (18, include_str!("../migrations/018_room_own_delay.sql")),
 ];
 
 #[derive(Clone)]
@@ -233,6 +234,32 @@ mod tests {
         assert_eq!(expires("emt_played"), (Some(5000 + 86400), Some(86400)));
         assert_eq!(expires("emt_done"), (None, None));
         assert_eq!(expires("emt_set"), (None, None));
+    }
+
+    #[test]
+    fn rooms_from_before_their_own_delay_existed_keep_the_shared_delay() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..17]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                   VALUES ('old', 'Old room', 8, 'build', 'emb_old', 1000);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let own_delay = |id: &str| -> i64 {
+            connection
+                .query_row(
+                    "SELECT own_delay FROM rooms WHERE room_id = ?1",
+                    [id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert_eq!(own_delay("old"), 0);
     }
 
     #[test]

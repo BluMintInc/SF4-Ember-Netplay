@@ -170,6 +170,8 @@ struct Runtime {
     // The Practice choice of the room this PC hosts: the player's on Create,
     // the closed room's for a replacement, false for a room it joins.
     bool practiceRoom=false;
+    // The delay policy of the room this PC hosts, chosen the same way.
+    room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     bool leaveRequested=false, leaveAcknowledged=false;
     // The room being opened is a public one joined with a ticket, so a refusal or
     // failure is worded for it. Set with the join, cleared when the room closes.

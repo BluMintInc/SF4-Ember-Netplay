@@ -567,6 +567,30 @@ int main() {
         CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules == restored.tableRules &&
             fromOlder.publicTableRules == restored.publicTableRules);
     }
+    // The room's delay policy is a room default: written only when Own, and a
+    // document without the key (or with "shared") reads as Shared.
+    {
+        CHECK(!result["roomDefaults"].contains("delay") && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        auto own = defaults;
+        own.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
+        const Json ownDocument{{"roomDefaults", sf4e::netplay::RoomPreferences(own)}};
+        CHECK(ownDocument["roomDefaults"].at("delay") == "own");
+        sf4e::netplay::PlayerPreferences fromOwn;
+        CHECK(sf4e::netplay::ReadRoomPreferences(ownDocument, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Own &&
+            fromOwn.tableRules == restored.tableRules);
+        // Own is not remembered by a document that leaves the key out.
+        auto without = ownDocument;
+        without["roomDefaults"].erase("delay");
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        without["roomDefaults"]["delay"] = "shared";
+        fromOwn.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        for (const Json& invalid : {Json(1), Json(true), Json("mine"), Json(nullptr)}) {
+            auto bad = ownDocument;
+            bad["roomDefaults"]["delay"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        }
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},

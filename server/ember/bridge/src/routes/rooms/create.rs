@@ -63,6 +63,9 @@ pub async fn open(
     command.check().map_err(refusal)?;
     let room_id = hex(&random::<16>());
     let now = state.now();
+    // The one reading of the requested policy: it is what the room row records
+    // and what the supervisor is asked for.
+    let own_delay = command.own_delay;
     let attempt = || {
         let (room_id, creator, owner, command) = (
             room_id.clone(),
@@ -72,7 +75,7 @@ pub async fn open(
         );
         state
             .db
-            .write(move |tx| reserve(tx, &room_id, &creator, &owner, &command, now))
+            .write(move |tx| reserve(tx, &room_id, &creator, &owner, &command, own_delay, now))
     };
     if let Err(refused) = attempt().await {
         // The rooms in the way may have ended since the last poll: a room
@@ -108,6 +111,7 @@ pub async fn open(
             bridge_id: &state.config.bridge_id,
             ticket_key: &state.keys.signing_key().to_b64u(),
             ticket_kid: &state.keys.signing_kid(),
+            own_delay,
         })
         .await;
     let created = match created {
@@ -174,6 +178,7 @@ fn reserve(
     creator: &EmberId,
     owner: &Owner,
     command: &CreateRoom,
+    own_delay: bool,
     now: u64,
 ) -> Result<()> {
     tx.execute(
@@ -233,8 +238,8 @@ fn reserve(
     }
     tx.execute(
         "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, creator_address, created_at,
-             connection_id, creator_region)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+             connection_id, creator_region, own_delay)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             room_id,
             command.name,
@@ -244,7 +249,8 @@ fn reserve(
             address,
             now,
             connection_id,
-            command.region
+            command.region,
+            own_delay
         ],
     )?;
     Ok(())

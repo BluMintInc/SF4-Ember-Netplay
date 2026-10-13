@@ -238,6 +238,31 @@ static void TestSetServerOwnedNeedsAFreshRoom() {
 	CHECK(fresh.SetServerOwned() && !fresh.SnapshotView().practice);
 }
 
+// The delay policy is the room's own and not a table rule: a public room can be
+// Own, an emptied room keeps it when its rules go back to the default, and it
+// survives a checkpoint.
+static void TestDelayPolicyIsKept() {
+	RoomAuthority authority("Own", 8, 1, PublicRoomRules(), false, DelayPolicy::Own);
+	CHECK(authority.SetServerOwned() && authority.SnapshotView().serverOwned);
+	CHECK(authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+	const auto host = MemberOf(JoinAs(authority, 1, "ember-a"));
+	auto rules = TableAction(authority, host, 0, ActionKind::SetRules);
+	rules.rules.format = SetFormat::Unlimited;
+	CHECK(authority.Apply(host, rules).accepted);
+	CHECK(authority.Leave(host).accepted);
+	// The rules went back to the public default; the policy did not move.
+	CHECK(authority.SnapshotView().tables[0].rules == PublicRoomRules());
+	CHECK(authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+	CHECK(JoinAs(authority, 2, "ember-b").accepted && authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+	RoomAuthority restored("Other");
+	CHECK(restored.RestoreCheckpoint(authority.Checkpoint()));
+	CHECK(restored.SnapshotView().serverOwned && restored.SnapshotView().delayPolicy == DelayPolicy::Own);
+	CHECK(restored.Checkpoint() == authority.Checkpoint());
+	// A Shared public room says nothing about it.
+	auto shared = NewRoom();
+	CHECK(shared.SnapshotView().delayPolicy == DelayPolicy::Shared && !shared.Checkpoint().at("snapshot").contains("delay"));
+}
+
 static void TestCheckpointRoundTrip() {
 	auto authority = NewRoom(7);
 	const auto host = MemberOf(JoinAs(authority, 1, "ember-host"));
@@ -375,6 +400,7 @@ int main() {
 	TestKickBansOnlyAfterTheMemberIsRemoved();
 	TestDuplicateAndMissingAccounts();
 	TestSetServerOwnedNeedsAFreshRoom();
+	TestDelayPolicyIsKept();
 	TestCheckpointRoundTrip();
 	TestAccountsStayOutOfSnapshots();
 	TestPrivateRoomsAreUnchanged();

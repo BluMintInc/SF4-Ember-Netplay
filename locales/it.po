@@ -5125,3 +5125,30 @@ msgstr "Continua a modificare"
 
 msgid "button_layout.leave"
 msgstr "Esci"
+
+msgid "room.delay_policy"
+msgstr "Ritardo di input della sala"
+
+msgid "room.delay_policy.shared"
+msgstr "Uguale per entrambi"
+
+msgid "room.delay_policy.own"
+msgstr "Quello di ciascun giocatore"
+
+msgid "room.delay_policy.detail"
+msgstr "Uguale per entrambi: ogni partita si gioca con il più alto dei due ritardi. Quello di ciascun giocatore: ognuno gioca con il ritardo che ha scelto e il rollback dall'altra parte compensa la differenza. La scelta resta valida finché la sala è aperta."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, ritardo proprio"
+
+msgid "room.table_footer_own_delay"
+msgstr "Ritardo proprio"
+
+msgid "room.input_delay.own"
+msgstr "Il tuo ritardo: {0}"
+
+msgid "public.own_delay"
+msgstr "Ritardo proprio"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Questo servizio di sale non può ancora creare una sala con il ritardo di ciascun giocatore. Scegli Uguale per entrambi o riprova più tardi."

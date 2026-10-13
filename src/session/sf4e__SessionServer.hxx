@@ -113,10 +113,12 @@ namespace sf4e {
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
 		// Enables the multi-table room authority while retaining the legacy
 		// two-player path until this method is called by the room bootstrap.
-		// practice makes it a Practice room for its life (room::Snapshot::practice).
+		// practice makes it a Practice room for its life (room::Snapshot::practice);
+		// delayPolicy fixes whose input delay its games are played at (room::Snapshot::delayPolicy).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false);
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false,
+			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared);
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that
@@ -124,7 +126,8 @@ namespace sf4e {
 		// the account. False when the room could not be created in that mode.
 		bool EnableServerOwnedRooms(const std::string& name = "Public room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules());
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(),
+			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared);
 		void SetConnectionAccount(session::Connection connection, std::string account);
 		// The moderation view: the accounts banned as of the last committed state.
 		// A kick still in an uncommitted recovery candidate is not in it, so what

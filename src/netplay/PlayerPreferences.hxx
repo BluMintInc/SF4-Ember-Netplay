@@ -89,6 +89,8 @@ struct PlayerPreferences {
     int roomCapacity = 16;
     // Whether Create opens a public room on the Ember ID service instead of a private one.
     bool roomPublic = false;
+    // Whose input delay a room created here plays at (room::Snapshot::delayPolicy).
+    room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Shared;
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.

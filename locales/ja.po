@@ -5125,3 +5125,30 @@ msgstr "編集を続ける"
 
 msgid "button_layout.leave"
 msgstr "戻る"
+
+msgid "room.delay_policy"
+msgstr "ルームの入力遅延"
+
+msgid "room.delay_policy.shared"
+msgstr "両者で共通"
+
+msgid "room.delay_policy.own"
+msgstr "各自の設定"
+
+msgid "room.delay_policy.detail"
+msgstr "両者で共通：すべての対戦は、2人の遅延のうち大きいほうで行います。各自の設定：各プレイヤーが選んだ遅延で対戦し、差は相手側のロールバックが吸収します。この設定はルームが開いている間ずっと有効です。"
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}、各自の遅延"
+
+msgid "room.table_footer_own_delay"
+msgstr "各自の遅延"
+
+msgid "room.input_delay.own"
+msgstr "あなたの遅延：{0}"
+
+msgid "public.own_delay"
+msgstr "各自の遅延"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "このルームサービスは、各自の遅延でルームを作成することにまだ対応していません。「両者で共通」を選ぶか、しばらくしてからもう一度お試しください。"

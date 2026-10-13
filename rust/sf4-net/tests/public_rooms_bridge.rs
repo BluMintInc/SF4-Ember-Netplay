@@ -3,408 +3,13 @@
 //! creator's ticket, joining with a ticket, and the refusals the game acts on.
 #![cfg(windows)]
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+mod public_rooms_support;
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config, integrations::Secrets};
-use ember_protocol::{
-    api::SigningKeys,
-    rooms::{RoomAdmission, RoomList},
-};
+use std::time::Duration;
+
+use public_rooms_support::*;
 use serde_json::{Value, json};
-use sf4_net::{
-    service::{Command, Event},
-    tournament,
-};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-    sync::mpsc,
-};
-use zeroize::Zeroizing;
-
-const SECRET: &str = "test-secret";
-const BUILD: &str = "build-1";
-const MISSING_ROOM: &str = "0123456789abcdef0123456789abcdef";
-
-struct Dirs(PathBuf);
-
-impl Drop for Dirs {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-fn dirs(label: &str) -> Dirs {
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).unwrap();
-    let dir = std::env::temp_dir().join(format!(
-        "sf4-public-rooms-{label}-{}",
-        ember_protocol::encoding::b64u(&random)
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    Dirs(dir)
-}
-
-/// What the stand-in supervisor holds.
-#[derive(Default)]
-struct Fake {
-    /// `POST /rooms` bodies, as received.
-    created: Vec<Value>,
-    /// What `GET /rooms` lists.
-    rooms: Vec<Value>,
-    /// How long `POST /rooms` takes to answer.
-    create_delay: Duration,
-}
-
-type Supervisor = Arc<Mutex<Fake>>;
-
-/// A helper's home relay region, which the test sets while the helper runs.
-type Region = Arc<Mutex<Option<&'static str>>>;
-
-/// Reads one HTTP/1.1 request: its first line and its body.
-async fn read_request(stream: &mut TcpStream) -> Option<(String, String, Vec<u8>)> {
-    let mut data = Vec::new();
-    let mut chunk = [0u8; 4096];
-    let head_end = loop {
-        if let Some(at) = data.windows(4).position(|window| window == b"\r\n\r\n") {
-            break at + 4;
-        }
-        let read = stream.read(&mut chunk).await.ok()?;
-        if read == 0 {
-            return None;
-        }
-        data.extend_from_slice(&chunk[..read]);
-    };
-    let head = String::from_utf8_lossy(&data[..head_end]).into_owned();
-    let length = head
-        .lines()
-        .filter_map(|line| line.split_once(':'))
-        .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
-        .and_then(|(_, value)| value.trim().parse::<usize>().ok())
-        .unwrap_or(0);
-    while data.len() < head_end + length {
-        let read = stream.read(&mut chunk).await.ok()?;
-        if read == 0 {
-            return None;
-        }
-        data.extend_from_slice(&chunk[..read]);
-    }
-    let mut parts = head.lines().next()?.split(' ');
-    let method = parts.next()?.to_owned();
-    let path = parts.next()?.to_owned();
-    let authorized = head
-        .to_ascii_lowercase()
-        .contains(&format!("authorization: bearer {SECRET}"));
-    authorized.then(|| (method, path, data[head_end..head_end + length].to_vec()))
-}
-
-async fn answer(stream: &mut TcpStream, status: &str, body: &str) {
-    let response = format!(
-        "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
-        body.len()
-    );
-    let _ = stream.write_all(response.as_bytes()).await;
-    let _ = stream.shutdown().await;
-}
-
-async fn handle(fake: Supervisor, mut stream: TcpStream) {
-    let Some((method, path, body)) = read_request(&mut stream).await else {
-        return answer(&mut stream, "401 Unauthorized", "{}").await;
-    };
-    match (method.as_str(), path.as_str()) {
-        ("POST", "/rooms") => {
-            let body: Value = serde_json::from_slice(&body).unwrap();
-            let room_id = body["room_id"].as_str().unwrap().to_owned();
-            let delay = fake.lock().unwrap().create_delay;
-            tokio::time::sleep(delay).await;
-            let reply = {
-                let mut fake = fake.lock().unwrap();
-                fake.created.push(body.clone());
-                fake.rooms.push(json!({
-                    "room_id": room_id, "members": 0, "capacity": body["capacity"],
-                    "tables_playing": 0, "invitation": format!("sf4e3:{room_id}"), "banned": [],
-                }));
-                json!({ "invitation": format!("sf4e3:{room_id}"), "region": "use1" })
-            };
-            answer(&mut stream, "201 Created", &reply.to_string()).await;
-        }
-        ("GET", "/rooms") => {
-            let rooms = Value::Array(fake.lock().unwrap().rooms.clone());
-            answer(&mut stream, "200 OK", &rooms.to_string()).await;
-        }
-        ("DELETE", path) if path.starts_with("/rooms/") => {
-            let id = path.trim_start_matches("/rooms/").to_owned();
-            fake.lock()
-                .unwrap()
-                .rooms
-                .retain(|room| room["room_id"] != id.as_str());
-            answer(&mut stream, "204 No Content", "").await;
-        }
-        _ => answer(&mut stream, "404 Not Found", "{}").await,
-    }
-}
-
-async fn fake_supervisor() -> (Supervisor, String) {
-    let fake = Supervisor::default();
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    let serving = fake.clone();
-    tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            tokio::spawn(handle(serving.clone(), stream));
-        }
-    });
-    (fake, url)
-}
-
-/// What the stand-in reports for `room_id`.
-fn report(fake: &Supervisor, room_id: &str, members: u32, banned: &[&str]) {
-    let mut fake = fake.lock().unwrap();
-    let room = fake
-        .rooms
-        .iter_mut()
-        .find(|room| room["room_id"] == room_id)
-        .expect("the supervisor hosts the room");
-    room["members"] = json!(members);
-    room["banned"] = json!(banned);
-}
-
-/// What the stand-in reports as the room host's `details` for `room_id`.
-fn set_details(fake: &Supervisor, room_id: &str, details: Value) {
-    let mut fake = fake.lock().unwrap();
-    let room = fake
-        .rooms
-        .iter_mut()
-        .find(|room| room["room_id"] == room_id)
-        .expect("the supervisor hosts the room");
-    room["details"] = details;
-}
-
-/// A bridge on loopback, with public rooms when `supervisor` names one.
-async fn bridge(
-    dir: &std::path::Path,
-    supervisor: Option<String>,
-) -> (ember_bridge::Running, String) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let origin = format!("http://{}", listener.local_addr().unwrap());
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).unwrap();
-    let rooms = supervisor.is_some();
-    let config = Config {
-        bridge_id: ember_protocol::encoding::prefixed_id("brg", random),
-        display_name: "Loopback bridge".into(),
-        origin: origin.clone(),
-        listen: "127.0.0.1:0".into(),
-        database: dir.join("bridge.sqlite3"),
-        secrets: dir.join("secrets.json"),
-        allow_loopback_http: true,
-        allow_private_webhooks: true,
-        mock_browser: false,
-        discord: None,
-        integration_secrets: rooms.then(|| "unused-in-tests.json".into()),
-        rooms: supervisor.map(|supervisor_url| config::Rooms { supervisor_url }),
-        match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
-        tenants: vec![config::Tenant {
-            id: "local".into(),
-            name: "Local".into(),
-            connections: vec![config::Connection {
-                id: "mock-local".into(),
-                kind: "mock".into(),
-                environment: "local".into(),
-                display_name: "Mock provider".into(),
-                enabled: true,
-                api_base: None,
-                discord_lookup: false,
-                disputes: None,
-                results_url: None,
-                rooms: None,
-            }],
-        }],
-    };
-    let secrets = Secrets {
-        rooms_supervisor_secret: rooms.then(|| Zeroizing::new(SECRET.into())),
-        ..Default::default()
-    };
-    let db = Db::open(&config.database).unwrap();
-    let state = AppState::new(config, Keys::generate(), secrets, db, Clock::default());
-    ember_bridge::sync_config(&state).await.unwrap();
-    (ember_bridge::start(state, listener).unwrap(), origin)
-}
-
-struct Worker {
-    handle: tournament::Handle,
-    events: mpsc::Receiver<Event>,
-    task: tokio::task::JoinHandle<()>,
-    next: u64,
-}
-
-/// `ok`, the reason, the identity status and the data of one answer.
-type Answer = (bool, Option<String>, Value, Value);
-
-impl Worker {
-    /// A helper whose home relay has no known region.
-    fn start(dirs: &Dirs, endpoint: &str) -> Self {
-        Self::start_in(dirs, endpoint, Region::default())
-    }
-
-    /// A helper whose home relay is in whatever region `region` holds when it
-    /// creates a room.
-    fn start_in(dirs: &Dirs, endpoint: &str, region: Region) -> Self {
-        let (sender, events) = mpsc::channel(64);
-        let (handle, task) = tournament::spawn_in(
-            sender,
-            dirs.0.join("identity"),
-            dirs.0.join("tournament"),
-            false,
-            endpoint.to_owned(),
-            Box::new(move || *region.lock().unwrap()),
-        );
-        Self {
-            handle,
-            events,
-            task,
-            next: 100,
-        }
-    }
-
-    /// Sends `request` the way the native side does, as IPC JSON.
-    async fn ask(&mut self, request: Value) -> Answer {
-        self.next += 1;
-        let id = self.next;
-        let command: Command =
-            serde_json::from_value(json!({ "type": "tournament", "request": request })).unwrap();
-        let Command::Tournament { request } = command else {
-            unreachable!()
-        };
-        self.handle.submit(id, request);
-        loop {
-            let event = tokio::time::timeout(Duration::from_secs(30), self.events.recv())
-                .await
-                .expect("an answer")
-                .expect("worker running");
-            if let Event::Tournament {
-                request_id,
-                ok,
-                reason,
-                identity,
-                data,
-                ..
-            } = event
-                && request_id == id
-            {
-                return (
-                    ok,
-                    reason,
-                    identity.unwrap_or(Value::Null),
-                    data.unwrap_or(Value::Null),
-                );
-            }
-        }
-    }
-
-    /// Enables an identity, approves the bridge at `origin` and returns the
-    /// Ember ID and the bridge's ID.
-    async fn join(&mut self, origin: &str) -> (String, String) {
-        let (ok, reason, identity, _) = self.ask(json!({ "op": "identity_enable" })).await;
-        assert!(ok, "{reason:?}");
-        let ember_id = identity["ember_id"].as_str().unwrap().to_owned();
-        (ember_id, self.approve(origin).await)
-    }
-
-    async fn approve(&mut self, origin: &str) -> String {
-        let (ok, _, _, inspected) = self
-            .ask(json!({ "op": "bridge_inspect", "origin": origin }))
-            .await;
-        assert!(ok);
-        let bridge_id = inspected["profile"]["bridge_id"]
-            .as_str()
-            .unwrap()
-            .to_owned();
-        let (ok, reason, _, _) = self
-            .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
-            .await;
-        assert!(ok, "{reason:?}");
-        bridge_id
-    }
-
-    async fn list(&mut self, bridge_id: &str, build: &str) -> Answer {
-        self.ask(json!({ "op": "room_list", "bridge_id": bridge_id, "build": build }))
-            .await
-    }
-
-    async fn create(&mut self, bridge_id: &str, name: &str, capacity: u8) -> Answer {
-        self.ask(json!({ "op": "room_create", "bridge_id": bridge_id, "name": name, "capacity": capacity, "build": BUILD }))
-            .await
-    }
-
-    async fn ticket(&mut self, bridge_id: &str, room_id: &str, build: &str) -> Answer {
-        self.ask(json!({ "op": "room_ticket", "bridge_id": bridge_id, "room_id": room_id, "build": build }))
-            .await
-    }
-}
-
-fn ok(answer: Answer) -> Value {
-    let (ok, reason, _, data) = answer;
-    assert!(ok, "{reason:?}");
-    data
-}
-
-fn refused(answer: Answer) -> String {
-    let (ok, reason, _, data) = answer;
-    assert!(!ok, "{data}");
-    assert_eq!(data, Value::Null);
-    reason.expect("a reason")
-}
-
-fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-}
-
-/// Checks `data` as the game receives it: the admission's ticket verifies
-/// under the key the bridge publishes, and it admits `endpoint` as `ember_id`.
-async fn assert_admits(
-    origin: &str,
-    bridge_id: &str,
-    data: &Value,
-    endpoint: &str,
-    ember_id: &str,
-) {
-    let admission: RoomAdmission = serde_json::from_value(data.clone()).unwrap();
-    admission.check().unwrap();
-    let body = reqwest::get(format!("{origin}/v1/signing-keys"))
-        .await
-        .unwrap()
-        .bytes()
-        .await
-        .unwrap();
-    let keys: SigningKeys = serde_json::from_slice(&body).unwrap();
-    let kid = &admission.ticket.kid;
-    let key = keys
-        .keys
-        .iter()
-        .find(|key| &key.kid == kid)
-        .and_then(|key| key.public_key())
-        .expect("the bridge publishes the ticket's key");
-    let ticket = admission.ticket.verify(&key, kid).unwrap();
-    assert_eq!(ticket.bridge_id, bridge_id);
-    assert_eq!(ticket.endpoint_id, endpoint);
-    assert_eq!(ticket.ember_id.as_str(), ember_id);
-    assert_eq!(ticket.room_id, admission.room.room_id);
-    assert!(ticket.admits(&admission.room.room_id, endpoint, now()));
-    assert!(admission.invitation.starts_with("sf4e3:"));
-}
-
-fn listed(data: &Value) -> Vec<Value> {
-    serde_json::from_value::<RoomList>(data.clone()).unwrap();
-    data["rooms"].as_array().unwrap().clone()
-}
+use tokio::net::TcpListener;
 
 #[tokio::test]
 async fn create_list_and_join_a_public_room() {
@@ -571,6 +176,251 @@ async fn a_room_that_takes_longer_than_an_ordinary_request_is_still_created() {
     // A creator of no known region leaves the room in its host's.
     assert_eq!(created["room"]["region"], "use1");
     assert_eq!(supervisor.lock().unwrap().created.len(), 1);
+    worker.task.abort();
+    running.abort();
+}
+
+/// A room for each player's own input delay, from the helper's request to the
+/// supervisor's body: the field goes on only for that room, comes back in its
+/// admission and in the listing, and a room with the shared delay never has it.
+#[tokio::test]
+async fn a_rooms_own_delay_goes_from_the_helper_through_the_bridge_to_the_supervisor() {
+    let dirs = dirs("own-delay");
+    let (supervisor, url) = fake_supervisor().await;
+    let (running, origin) = bridge(&dirs.0, Some(url)).await;
+    let (kate_endpoint, sam_endpoint) = ("a".repeat(64), "b".repeat(64));
+    let (kate_dirs, sam_dirs) = (Dirs(dirs.0.join("kate")), Dirs(dirs.0.join("sam")));
+    let mut kate = Worker::start(&kate_dirs, &kate_endpoint);
+    let mut sam = Worker::start(&sam_dirs, &sam_endpoint);
+    let (kate_id, bridge_id) = kate.join(&origin).await;
+    let (sam_id, _) = sam.join(&origin).await;
+
+    let own = ok(kate.create_own(&bridge_id, "Own delay", 4).await);
+    assert_admits(&origin, &bridge_id, &own, &kate_endpoint, &kate_id).await;
+    assert_eq!(own["room"]["own_delay"], true);
+    let shared = ok(sam.create(&bridge_id, "Shared delay", 4).await);
+    assert_admits(&origin, &bridge_id, &shared, &sam_endpoint, &sam_id).await;
+    assert!(shared["room"].get("own_delay").is_none(), "{shared}");
+
+    let sent = supervisor.lock().unwrap().created.clone();
+    assert_eq!(sent.len(), 2);
+    assert_eq!(sent[0]["own_delay"], true);
+    assert!(sent[1].get("own_delay").is_none(), "{}", sent[1]);
+
+    let (own_id, shared_id) = (
+        own["room"]["room_id"].as_str().unwrap().to_owned(),
+        shared["room"]["room_id"].as_str().unwrap().to_owned(),
+    );
+    report(&supervisor, &own_id, 1, &[]);
+    report(&supervisor, &shared_id, 1, &[]);
+    ember_bridge::poll_rooms(&running.state).await;
+    let rooms = listed(&ok(sam.list(&bridge_id, BUILD).await));
+    let find = |id: &str| rooms.iter().find(|room| room["room_id"] == id).unwrap();
+    assert_eq!(find(&own_id)["own_delay"], true);
+    assert!(find(&shared_id).get("own_delay").is_none());
+    // Another player's ticket for the room says so too.
+    let admitted = ok(sam.ticket(&bridge_id, &own_id, BUILD).await);
+    assert_eq!(admitted["room"]["own_delay"], true);
+    kate.task.abort();
+    sam.task.abort();
+    running.abort();
+}
+
+/// Kills the supervisor process the chain test starts, whatever the test does.
+struct SupervisorProcess(std::process::Child);
+
+impl Drop for SupervisorProcess {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// The whole create path with the real parts: the helper's request, the real
+/// bridge, the real `ember-rooms` supervisor process, and the real
+/// `sf4e-room-host` it starts. A room for each player's own delay is hosted by
+/// a room host whose own snapshot says so: its status line reports `own_delay`,
+/// the supervisor passes it on and the bridge takes it as the room's word. A
+/// room with the shared delay says nothing anywhere. Needs the public Iroh
+/// relays, so it is ignored unless asked for, with the binaries named by
+/// `EMBER_ROOMS_EXE` (`cargo build -p ember-rooms` in server/ember-rooms),
+/// `SF4E_ROOM_HOST_EXE` and `SF4E_HELPER_EXE`: `cargo test --test
+/// public_rooms_bridge -- --ignored a_rooms_own_delay_reaches`
+#[tokio::test]
+#[ignore = "needs the ember-rooms, sf4e-room-host and sf4-net binaries and the public Iroh relays"]
+async fn a_rooms_own_delay_reaches_the_real_room_host_through_the_real_supervisor() {
+    let path = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"));
+    let (rooms_exe, host_exe, helper_exe) = (
+        path("EMBER_ROOMS_EXE"),
+        path("SF4E_ROOM_HOST_EXE"),
+        path("SF4E_HELPER_EXE"),
+    );
+    let dirs = dirs("chain");
+    // The supervisor wants at least 32 bytes of secret; the bridge is given the same.
+    let secret = "chain-test-secret-0123456789abcdef";
+    std::fs::write(dirs.0.join("supervisor.secret"), secret).unwrap();
+    let port = {
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        probe.local_addr().unwrap().port()
+    };
+    let config = json!({
+        "bind": format!("127.0.0.1:{port}"),
+        "secret_file": dirs.0.join("supervisor.secret"),
+        "max_rooms": 4, "port_range": [45830, 45839], "empty_close_secs": 120, "drain_secs": 5,
+        "builds": { BUILD: { "room_host": host_exe, "helper": helper_exe } },
+    });
+    std::fs::write(dirs.0.join("rooms.json"), config.to_string()).unwrap();
+    let _supervisor = SupervisorProcess(
+        std::process::Command::new(&rooms_exe)
+            .arg(dirs.0.join("rooms.json"))
+            .spawn()
+            .expect("the supervisor starts"),
+    );
+    // The bridge installs this when it starts; this client is built before it.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let http = reqwest::Client::new();
+    let base = format!("http://127.0.0.1:{port}");
+    let mut up = false;
+    for _ in 0..100 {
+        if http
+            .get(format!("{base}/health"))
+            .send()
+            .await
+            .is_ok_and(|reply| reply.status().is_success())
+        {
+            up = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(up, "the supervisor answers");
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let running = bridge_at(
+        &dirs.0,
+        Some(base.clone()),
+        listener,
+        origin.clone(),
+        secret,
+    )
+    .await;
+    let (kate_endpoint, sam_endpoint) = ("a".repeat(64), "b".repeat(64));
+    let (kate_dirs, sam_dirs) = (Dirs(dirs.0.join("kate")), Dirs(dirs.0.join("sam")));
+    let mut kate = Worker::start(&kate_dirs, &kate_endpoint);
+    let mut sam = Worker::start(&sam_dirs, &sam_endpoint);
+    let (_, bridge_id) = kate.join(&origin).await;
+    sam.join(&origin).await;
+
+    // The public create: the helper asks the bridge, which asks the supervisor,
+    // which starts a room host and waits for it to be hosted.
+    let own = ok(kate.create_own(&bridge_id, "Own delay", 4).await);
+    assert_eq!(own["room"]["own_delay"], true);
+    let shared = ok(sam.create(&bridge_id, "Shared delay", 4).await);
+    assert!(shared["room"].get("own_delay").is_none(), "{shared}");
+    let (own_id, shared_id) = (
+        own["room"]["room_id"].as_str().unwrap().to_owned(),
+        shared["room"]["room_id"].as_str().unwrap().to_owned(),
+    );
+
+    // What each real room host says about its room, as the supervisor lists it.
+    let mut reported = Value::Null;
+    for _ in 0..100 {
+        let body = http
+            .get(format!("{base}/rooms"))
+            .bearer_auth(secret)
+            .send()
+            .await
+            .unwrap()
+            .bytes()
+            .await
+            .unwrap();
+        let list: Value = serde_json::from_slice(&body).unwrap();
+        let has = |id: &str| {
+            list.as_array()
+                .unwrap()
+                .iter()
+                .any(|room| room["room_id"] == id && room["details"].is_object())
+        };
+        if has(&own_id) && has(&shared_id) {
+            reported = list;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    assert!(!reported.is_null(), "both room hosts reported their rooms");
+    let details = |id: &str| {
+        reported
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|room| room["room_id"] == id)
+            .unwrap()["details"]
+            .clone()
+    };
+    assert_eq!(details(&own_id)["own_delay"], true, "{reported}");
+    assert!(details(&shared_id).get("own_delay").is_none(), "{reported}");
+
+    // The bridge takes the host's report as the room's word: the row says what
+    // the host's own snapshot said.
+    ember_bridge::poll_rooms(&running.state).await;
+    let stored = |id: String| {
+        let state = running.state.clone();
+        async move {
+            state
+                .db
+                .read(move |tx| {
+                    Ok(tx.query_row(
+                        "SELECT own_delay FROM rooms WHERE room_id = ?1",
+                        [id],
+                        |row| row.get::<_, i64>(0),
+                    )?)
+                })
+                .await
+                .unwrap()
+        }
+    };
+    assert_eq!(stored(own_id.clone()).await, 1);
+    assert_eq!(stored(shared_id.clone()).await, 0);
+    for id in [&own_id, &shared_id] {
+        let _ = http
+            .delete(format!("{base}/rooms/{id}"))
+            .bearer_auth(secret)
+            .send()
+            .await;
+    }
+    kate.task.abort();
+    sam.task.abort();
+    running.abort();
+}
+
+/// A bridge that predates the option refuses the create. The player is told so,
+/// the room is not made with the shared delay instead, and the same bridge
+/// still makes the room with the shared delay.
+#[tokio::test]
+async fn a_create_for_each_players_own_delay_fails_visibly_on_an_older_bridge() {
+    let dirs = dirs("older-bridge");
+    let (supervisor, url) = fake_supervisor().await;
+    let front = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", front.local_addr().unwrap());
+    let behind = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let upstream = behind.local_addr().unwrap().to_string();
+    let running = bridge_at(&dirs.0, Some(url), behind, origin.clone(), SECRET).await;
+    tokio::spawn(older_bridge_in_front(front, upstream));
+    let mut worker = Worker::start(&dirs, &"a".repeat(64));
+    let (_, bridge_id) = worker.join(&origin).await;
+
+    assert_eq!(
+        refused(worker.create_own(&bridge_id, "Own delay", 4).await),
+        "own_delay_unsupported"
+    );
+    assert!(supervisor.lock().unwrap().created.is_empty());
+    // Not retried as a room with the shared delay, and the shared delay still works.
+    let created = ok(worker.create(&bridge_id, "Shared delay", 4).await);
+    assert!(created["room"].get("own_delay").is_none());
+    let sent = supervisor.lock().unwrap().created.clone();
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].get("own_delay").is_none());
     worker.task.abort();
     running.abort();
 }

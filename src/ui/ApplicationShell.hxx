@@ -188,6 +188,8 @@ struct ShellAction {
     std::optional<room::Rules> createdRules;
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
+    // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // What the Replays screen asks of the game: an archived replay (its
     // file, as its row names it) to add or to watch, the game's own list, or
     // no to a replay link. Nothing is sent to the room.

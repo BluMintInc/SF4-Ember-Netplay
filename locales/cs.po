@@ -5125,3 +5125,30 @@ msgstr "Pokračovat v úpravách"
 
 msgid "button_layout.leave"
 msgstr "Odejít"
+
+msgid "room.delay_policy"
+msgstr "Zpoždění vstupu v místnosti"
+
+msgid "room.delay_policy.shared"
+msgstr "Stejné pro oba"
+
+msgid "room.delay_policy.own"
+msgstr "Každého hráče vlastní"
+
+msgid "room.delay_policy.detail"
+msgstr "Stejné pro oba: každý zápas se hraje s vyšším ze zpoždění obou hráčů. Každého hráče vlastní: každý hráč hraje se zpožděním, které si zvolil, a rozdíl vyrovná rollback na druhé straně. Platí po celou dobu, kdy je místnost otevřená."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, vlastní zpoždění"
+
+msgid "room.table_footer_own_delay"
+msgstr "Vlastní zpoždění"
+
+msgid "room.input_delay.own"
+msgstr "Vaše zpoždění: {0}"
+
+msgid "public.own_delay"
+msgstr "Vlastní zpoždění"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Tato služba zatím neumí vytvořit místnost s vlastním zpožděním každého hráče. Zvolte Stejné pro oba, nebo to zkuste později."

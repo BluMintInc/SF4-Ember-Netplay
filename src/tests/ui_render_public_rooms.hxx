@@ -43,6 +43,8 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
         rooms.push_back(detailed(listed("e","Full House",8,8,0),"Gouken",{2,7,12,17,22,27,32,37},1,0));
         rooms.push_back(detailed(listed("f","Big Lobby",9,16,0),"Kate",{1,2,3,4,5,6,7,8,9},0,0));
         rooms.push_back(detailed(listed("g","Euro Night",4,8,0,"euc1"),"Hugo",{10,15,20,25},2,1));
+        // Each fighter plays at their own input delay: a chip on the card and in the preview.
+        rooms.back().ownDelay=true;
         rooms.push_back(listed("h","Old Bridge Room",2,8,0,"aps1"));
         return rooms;};
     const auto settleList=[&](std::vector<netplay::publicrooms::Room> rooms,const std::string& error=std::string()){

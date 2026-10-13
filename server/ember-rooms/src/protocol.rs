@@ -11,6 +11,11 @@
 //!   "coordination_port": 45801 }
 //! ```
 //!
+//! A room whose fighters each play at their own input delay (instead of both
+//! at the higher of the two) also carries `"own_delay": true`. The key is there
+//! only for such a room, so a child that predates it reads the line as it
+//! always did, and a child reads an absent key as the shared delay.
+//!
 //! `port` is the primary endpoint's UDP port and `coordination_port` the
 //! second one the room needs. The supervisor picks the two lowest free ports
 //! of its range (not necessarily adjacent) and holds both until the child
@@ -27,7 +32,7 @@
 //!   which changes as it renews; `tables_playing`, `banned` and `details` may
 //!   be left out. `details` is the room as the room host sees it for the
 //!   listing: `{ "name", "capacity", "locked", "host_name", "fighters",
-//!   "set_format", "rotation" }`. The supervisor does not read it: it passes
+//!   "set_format", "rotation", "own_delay" }` (`own_delay` only when true). The supervisor does not read it: it passes
 //!   a JSON object of at most 2 KB on to the bridge as it is, unknown keys
 //!   included, and drops anything else (another type, a larger object, one
 //!   nested deeper than the supervisor allows) without treating the line as
@@ -87,6 +92,11 @@ pub struct CreateRoom {
     pub bridge_id: String,
     pub ticket_key: String,
     pub ticket_kid: String,
+    /// Each fighter plays at their own input delay, fixed for the room's life.
+    /// Written only when true, to the child as well. A request without it, or
+    /// from a bridge that predates it, is the shared delay.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub own_delay: bool,
 }
 
 fn is_token(text: &str, limit: usize) -> bool {
@@ -314,6 +324,49 @@ mod tests {
             bridge_id: "brg_abc".to_owned(),
             ticket_key: "a2V5".to_owned(),
             ticket_kid: "k1".to_owned(),
+            own_delay: false,
+        }
+    }
+
+    #[test]
+    fn a_rooms_own_delay_goes_to_the_child_only_when_it_is_set() {
+        let helper = |room: &CreateRoom| {
+            serde_json::to_value(ChildConfig {
+                room,
+                helper: "helper-path",
+                port: 45800,
+                coordination_port: 45801,
+            })
+            .unwrap()
+        };
+        // The shared delay: the line is what it always was, with no key at all.
+        let shared = room();
+        let line = helper(&shared);
+        assert!(line.get("own_delay").is_none(), "{line}");
+        assert_eq!(line["port"], 45800);
+        // A request without the key is the shared delay; an explicit false is too.
+        let request = r#"{"room_id":"0123456789abcdef0123456789ABCDEF","name":"Friday night","capacity":8,"build_id":"b1","creator":"emb_abc","bridge_id":"brg_abc","ticket_key":"a2V5","ticket_kid":"k1"}"#;
+        let absent: CreateRoom = serde_json::from_str(request).unwrap();
+        assert!(!absent.own_delay);
+        let explicit: CreateRoom =
+            serde_json::from_str(&request.replacen('}', r#","own_delay":false}"#, 1)).unwrap();
+        assert!(!explicit.own_delay);
+        assert!(helper(&explicit).get("own_delay").is_none());
+        assert_eq!(serde_json::to_string(&absent).unwrap(), request);
+        // The own delay is passed on, once, as a boolean.
+        let own: CreateRoom =
+            serde_json::from_str(&request.replacen('}', r#","own_delay":true}"#, 1)).unwrap();
+        assert!(own.own_delay && own.validate().is_ok());
+        let line = helper(&own);
+        assert_eq!(line["own_delay"], true);
+        assert_eq!(
+            line.as_object().unwrap().len(),
+            helper(&shared).as_object().unwrap().len() + 1
+        );
+        // Anything but a boolean is not a request.
+        for bad in ["1", "\"yes\"", "null"] {
+            let text = request.replacen('}', &format!(r#","own_delay":{bad}}}"#), 1);
+            assert!(serde_json::from_str::<CreateRoom>(&text).is_err(), "{bad}");
         }
     }
 

@@ -5125,3 +5125,30 @@ msgstr "继续编辑"
 
 msgid "button_layout.leave"
 msgstr "离开"
+
+msgid "room.delay_policy"
+msgstr "房间输入延迟"
+
+msgid "room.delay_policy.shared"
+msgstr "双方相同"
+
+msgid "room.delay_policy.own"
+msgstr "各自使用自己的"
+
+msgid "room.delay_policy.detail"
+msgstr "双方相同：每场对战都按两人中较高的延迟进行。各自使用自己的：每位玩家按自己选择的延迟对战，差异由对方的回滚补偿。此设置在房间开放期间一直有效。"
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}，各自延迟"
+
+msgid "room.table_footer_own_delay"
+msgstr "各自延迟"
+
+msgid "room.input_delay.own"
+msgstr "你的延迟：{0}"
+
+msgid "public.own_delay"
+msgstr "各自延迟"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "此房间服务暂时无法创建各自使用自己延迟的房间。请选择“双方相同”，或稍后再试。"

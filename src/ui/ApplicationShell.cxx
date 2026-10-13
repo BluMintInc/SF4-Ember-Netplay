@@ -110,6 +110,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
+    if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
@@ -541,6 +542,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
   else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
+  else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}

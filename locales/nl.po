@@ -5125,3 +5125,30 @@ msgstr "Verder bewerken"
 
 msgid "button_layout.leave"
 msgstr "Verlaten"
+
+msgid "room.delay_policy"
+msgstr "Invoervertraging in de kamer"
+
+msgid "room.delay_policy.shared"
+msgstr "Hetzelfde voor beiden"
+
+msgid "room.delay_policy.own"
+msgstr "Eigen per speler"
+
+msgid "room.delay_policy.detail"
+msgstr "Hetzelfde voor beiden: elke match wordt gespeeld met de hoogste van de twee vertragingen. Eigen per speler: elke speler speelt met de vertraging die hij koos, en de rollback aan de andere kant vangt het verschil op. Dit blijft zo zolang de kamer open is."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, eigen vertraging"
+
+msgid "room.table_footer_own_delay"
+msgstr "Eigen vertraging"
+
+msgid "room.input_delay.own"
+msgstr "Jouw vertraging: {0}"
+
+msgid "public.own_delay"
+msgstr "Eigen vertraging"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Deze kamerdienst kan nog geen kamer maken met de eigen vertraging van elke speler. Kies Hetzelfde voor beiden of probeer het later opnieuw."

@@ -461,6 +461,7 @@ void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::jso
 	if (value.localMatchGenerationsSent) json["local_match_generations"] = value.localMatchGenerations;
 	if (value.serverOwned) json["server_owned"] = true;
 	if (value.practice) json["practice"] = true;
+	if (value.delayPolicy == DelayPolicy::Own) json["delay"] = "own";
 }
 void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100));
@@ -473,6 +474,14 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 		value.serverOwned = json.value("server_owned", false);
 	if (json.contains("practice") && !json.at("practice").is_boolean()) throw std::invalid_argument("room practice field");
 	value.practice = json.value("practice", false);
+	// Absent reads as Shared: only an Own room says so.
+	value.delayPolicy = DelayPolicy::Shared;
+	if (json.contains("delay")) {
+		const auto& policy = json.at("delay");
+		const auto text = policy.is_string() ? policy.get<std::string>() : std::string();
+		if (text != "own" && text != "shared") throw std::invalid_argument("room delay policy");
+		if (text == "own") value.delayPolicy = DelayPolicy::Own;
+	}
 	value.terminalPending.fill(false);
 	if (json.contains("terminal_pending")) {
 		const auto& pending = json.at("terminal_pending");

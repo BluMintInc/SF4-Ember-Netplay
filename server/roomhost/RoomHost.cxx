@@ -77,7 +77,18 @@ bool ParseConfig(const std::string& line, Config& config, std::string& error) {
 	if (value.contains("coordination_port") && !number("coordination_port", 65535, coordinationPort)) return fail("coordination_port");
 	config.port = static_cast<std::uint16_t>(port);
 	config.coordinationPort = static_cast<std::uint16_t>(coordinationPort);
+	// Absent is the shared delay; only a boolean is a choice.
+	config.ownDelay = false;
+	if (const auto found = value.find("own_delay"); found != value.end()) {
+		if (!found->is_boolean()) return fail("own_delay");
+		config.ownDelay = found->get<bool>();
+	}
 	return true;
+}
+
+bool EnableConfiguredRoom(SessionServer& server, const Config& config, std::uint64_t roomEpoch) {
+	return server.EnableServerOwnedRooms(config.name, config.capacity, roomEpoch, room::PublicRoomRules(),
+		config.ownDelay ? room::DelayPolicy::Own : room::DelayPolicy::Shared);
 }
 
 std::string HostedLine(const std::string& invitation, const std::string& region) {
@@ -151,7 +162,7 @@ void RoomHost::Attach() {
 	server_->EnableMatchAuthorization(config_.roomId,
 		[room](session::Connection connection) { return connection == 1 ? std::string() : room->PeerIdentity(connection); },
 		[room](session::Connection connection) { return connection == 1 ? 0 : room->PeerIncarnation(connection); });
-	if (!server_->EnableServerOwnedRooms(config_.name, config_.capacity, room_->Epoch(), room::PublicRoomRules())) {
+	if (!EnableConfiguredRoom(*server_, config_, room_->Epoch())) {
 		server_.reset();
 		Fail("room_model_refused");
 		return;

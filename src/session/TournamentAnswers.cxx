@@ -142,6 +142,8 @@ Room DecodeRoom(const json& view) {
 	room.capacity = Small(view, "capacity", 16);
 	room.playing = Small(view, "tables_playing", 255);
 	room.createdAt = Seconds(view, "created_at");
+	// Only an own-delay room says so; a key of any other kind is not read.
+	if (const auto found = view.find("own_delay"); found != view.end() && found->is_boolean()) room.ownDelay = found->get<bool>();
 	if (!IsHex(room.id, 32) || room.name.empty() || room.capacity < 2 || room.members > room.capacity) throw std::invalid_argument("room");
 	DecodeDetails(view, room);
 	return room;

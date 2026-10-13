@@ -137,6 +137,10 @@ pub enum Request {
         name: String,
         capacity: u8,
         build: String,
+        /// Each fighter plays at their own input delay, fixed for the room's
+        /// life. Sent only when true.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        own_delay: bool,
     },
     /// The ticket and invitation for joining an open public room.
     RoomTicket {
@@ -663,7 +667,8 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             name,
             capacity,
             build,
-        } => rooms::create(shared, &bridge_id, &name, capacity, &build).await,
+            own_delay,
+        } => rooms::create(shared, &bridge_id, &name, capacity, &build, own_delay).await,
         Request::RoomTicket {
             bridge_id,
             room_id,

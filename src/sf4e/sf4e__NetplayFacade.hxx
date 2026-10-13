@@ -112,6 +112,8 @@ namespace sf4e {
             std::optional<room::Rules> createdRules;
             // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
             bool practiceRoom = false;
+            // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
+            room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

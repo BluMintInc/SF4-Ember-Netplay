@@ -5125,3 +5125,30 @@ msgstr "계속 편집"
 
 msgid "button_layout.leave"
 msgstr "나가기"
+
+msgid "room.delay_policy"
+msgstr "방 입력 지연"
+
+msgid "room.delay_policy.shared"
+msgstr "두 사람 동일"
+
+msgid "room.delay_policy.own"
+msgstr "각자 설정"
+
+msgid "room.delay_policy.detail"
+msgstr "두 사람 동일: 모든 대전은 두 사람의 지연 중 더 높은 값으로 진행됩니다. 각자 설정: 각 플레이어가 고른 지연으로 대전하고, 차이는 상대 쪽 롤백이 메웁니다. 이 설정은 방이 열려 있는 동안 유지됩니다."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, 각자 지연"
+
+msgid "room.table_footer_own_delay"
+msgstr "각자 지연"
+
+msgid "room.input_delay.own"
+msgstr "내 지연: {0}"
+
+msgid "public.own_delay"
+msgstr "각자 지연"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "이 방 서비스는 아직 각자 설정 지연으로 방을 만들 수 없습니다. 두 사람 동일을 선택하거나 나중에 다시 시도하세요."

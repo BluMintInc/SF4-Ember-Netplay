@@ -30,10 +30,13 @@ struct RoomDetails {
 	// rotation is room::RotationMode's value: 0 winner stays, 1 loser stays,
 	// 2 both rotate.
 	int setFormat = 0, rotation = 0;
+	// Each fighter plays at their own input delay (room::DelayPolicy::Own). Never
+	// changes during the room's life.
+	bool ownDelay = false;
 	bool operator==(const RoomDetails& other) const {
 		return name == other.name && hostName == other.hostName && capacity == other.capacity &&
 			locked == other.locked && fighters == other.fighters && setFormat == other.setFormat &&
-			rotation == other.rotation;
+			rotation == other.rotation && ownDelay == other.ownDelay;
 	}
 };
 constexpr int NoFighter = 255;
@@ -50,7 +53,8 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot);
 
 // {"type":"status","members":n,"tables_playing":n,"invitation":s,"banned":[...],
 //  "details":{"name":s,"capacity":n,"locked":b,"host_name":s (only with a
-//  moderator),"fighters":[n...],"set_format":n,"rotation":n}}
+//  moderator),"fighters":[n...],"set_format":n,"rotation":n,"own_delay":true (only
+//  for a room whose fighters each play at their own input delay)}}
 std::string StatusLine(std::size_t members, std::size_t tablesPlaying, const std::string& invitation,
 	const std::vector<std::string>& banned, const RoomDetails& details);
 

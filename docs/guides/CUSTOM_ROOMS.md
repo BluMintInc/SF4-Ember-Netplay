@@ -65,6 +65,14 @@ values favored the fighter who chose less. Input delay's detail shows the
 match delay in use; before your opponent readies it shows "At least" your own
 choice. Each fighter's own delay is kept for the next game.
 
+The room can choose otherwise when it is created. **Room input delay** on
+Create (private or public) is **Same for both** to begin with, as above. With
+**Each player's own** every fighter plays at the delay they readied with, and
+the other side's rollback makes up the difference; Input delay's detail then
+reads "Your delay" instead of the match delay. The choice is kept with the room
+defaults, is fixed for as long as the room is open, and shows as "Own delay" in
+the room's rules and on its table cards and, for a public room, in the list.
+
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It follows the median round-trip time, the ping the check
 shows: up to 80 ms is one frame, 81 to 150 ms two, 151 to 220 ms three, 221 to 290 ms four, and

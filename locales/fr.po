@@ -5125,3 +5125,30 @@ msgstr "Continuer à modifier"
 
 msgid "button_layout.leave"
 msgstr "Quitter"
+
+msgid "room.delay_policy"
+msgstr "Délai d'entrée du salon"
+
+msgid "room.delay_policy.shared"
+msgstr "Identique pour les deux"
+
+msgid "room.delay_policy.own"
+msgstr "Propre à chaque joueur"
+
+msgid "room.delay_policy.detail"
+msgstr "Identique pour les deux : chaque combat se joue avec le plus élevé des deux délais. Propre à chaque joueur : chacun joue avec le délai qu'il a choisi, et le rollback de l'autre côté compense l'écart. Ce choix reste valable tant que le salon est ouvert."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, délai propre"
+
+msgid "room.table_footer_own_delay"
+msgstr "Délai propre"
+
+msgid "room.input_delay.own"
+msgstr "Votre délai : {0}"
+
+msgid "public.own_delay"
+msgstr "Délai propre"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Ce service de salons ne peut pas encore créer un salon avec le délai propre à chaque joueur. Choisissez Identique pour les deux, ou réessayez plus tard."

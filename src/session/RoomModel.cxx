@@ -5,9 +5,10 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy) {
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = practice;
+	snapshot_.delayPolicy = delayPolicy;
 	snapshot_.roomEpoch = roomEpoch == 0 ? 1 : roomEpoch;
 	snapshot_.name = (!name.empty() && name.size() <= MaximumRoomNameBytes && IsValidUtf8(name) && IsSingleLineText(name))
 		? std::move(name) : std::string("Private room");

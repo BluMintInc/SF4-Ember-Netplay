@@ -4664,3 +4664,30 @@ msgstr "Continuar editando"
 
 msgid "button_layout.leave"
 msgstr "Sair"
+
+msgid "room.delay_policy"
+msgstr "Atraso de entrada da sala"
+
+msgid "room.delay_policy.shared"
+msgstr "Igual para os dois"
+
+msgid "room.delay_policy.own"
+msgstr "O de cada jogador"
+
+msgid "room.delay_policy.detail"
+msgstr "Igual para os dois: cada partida é jogada com o maior dos dois atrasos. O de cada jogador: cada um joga com o atraso que escolheu, e o rollback do outro lado compensa a diferença. Isso vale enquanto a sala estiver aberta."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, atraso próprio"
+
+msgid "room.table_footer_own_delay"
+msgstr "Atraso próprio"
+
+msgid "room.input_delay.own"
+msgstr "Seu atraso: {0}"
+
+msgid "public.own_delay"
+msgstr "Atraso próprio"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Este serviço de salas ainda não pode criar uma sala com o atraso de cada jogador. Escolha Igual para os dois ou tente de novo mais tarde."

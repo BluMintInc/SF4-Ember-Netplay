@@ -144,8 +144,8 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
 }
 // A Practice room's table page: the host edits its rules there, but every
 // game takes the longest round time, so there is no round time row.
-template<class Draw>
-void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw) {
+template<class Draw,class Page>
+void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
     using namespace sf4e;using namespace ui;
     std::vector<MenuEntry> ruleRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ruleRows=rows;});
@@ -155,6 +155,13 @@ void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw) {
     Require(has("rounds")&&!has("time"),"A Practice room's table offered a round time");
     view.room.practice=false;draw();
     Require(has("rounds")&&has("time"),"A plain room's table lost its round time");
+    // A room whose fighters each play at their own delay: the board's table cards and
+    // the table page say so, and so does Create's row.
+    view.room.delayPolicy=room::DelayPolicy::Own;
+    page("room");draw("room-own-delay");page("room-table");draw("table-own-delay");
+    view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");
+    view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;view.room.delayPolicy=room::DelayPolicy::Shared;
+    page("room-table");draw();
     SetMenuEntriesProbe({});
 }
 }

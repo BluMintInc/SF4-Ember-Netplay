@@ -361,6 +361,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
 		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
+		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -388,6 +389,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         runtime->replacementPending=true;
         // The replacement is the same kind of room as the one it replaces.
         runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
+        runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();

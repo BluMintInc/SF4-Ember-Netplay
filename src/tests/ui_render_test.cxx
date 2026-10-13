@@ -831,7 +831,7 @@ int main(int argc, char** argv) {
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
             // The same table in a Practice room (ui_render_training_room.hxx).
-            CheckPracticeRoomRules(view,draw);
+            CheckPracticeRoomRules(view,draw,page);
             // The opponent's new fighter: a line on the table card, with no modal.
             view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
             const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
@@ -843,6 +843,8 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;view.practiceFight=true;
             view.room.practice=true;page("room");draw("room-practice-fight");view.room.practice=false;
             view.practiceFight=false;view.session.match=netplay::MatchState::None;view.room.tables[0].phase=room::TablePhase::Waiting;
+            // An Own delay room: the table card says so beside the rules, and its page reads the player's own delay.
+            view.room.delayPolicy=room::DelayPolicy::Own;page("room");draw("room-own-delay");page("room-table");draw("table-own-delay");view.room.delayPolicy=room::DelayPolicy::Shared;
             view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
@@ -994,6 +996,7 @@ int main(int argc, char** argv) {
                 ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
+                view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
                 {
                     // Home leads with a tournament match ready to play; Ember ID itself is

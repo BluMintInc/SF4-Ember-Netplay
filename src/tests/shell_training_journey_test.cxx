@@ -207,6 +207,77 @@ void PracticeRoomCreate() {
  Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room");
  SetMenuEntriesProbe({});
 }
+// Create offers the room's delay policy: Same for both to begin with, kept with
+// the defaults once changed, carried by Create room, and offered to a public
+// room and on the gameplay defaults too.
+void DelayPolicyCreate() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ h.Screen("online");h.Choose("create");
+ Check(h.shell.Navigation().Screen()=="create"&&row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.shared"),
+  "Create did not open with the delay the same for both");
+ Check(row("delay-policy")->label==loc::T("room.delay_policy")&&row("delay-policy")->detail==loc::T("room.delay_policy.detail"),"The delay policy did not explain itself");
+ h.Choose("host");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay");
+ Check(!netplay::RoomPreferences(h.actions.back().preferences).contains("delay"),"A Shared delay was written to the saved defaults");
+ h.Screen("online");h.Choose("create");
+ h.FocusOn("delay-policy");h.Press(MenuInput::Right);
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy did not turn to each player's own");
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="own","The delay policy did not reach the saved defaults");
+ // Kept with the defaults: it is still chosen when Create opens again, and a Practice room has it too.
+ h.Screen("online");h.Choose("create");
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy was forgotten when Create opened again");
+ h.FocusOn("practice-room");h.Press(MenuInput::Right);
+ Check(row("delay-policy")!=rows.end(),"A Practice room's Create lost the delay policy");
+ h.Press(MenuInput::Left);
+ // A public room and the gameplay defaults offer it as well.
+ h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("delay-policy")!=rows.end()&&row("practice-room")==rows.end(),"Public Create did not offer the delay policy");
+ h.Press(MenuInput::Left);
+ h.FocusOn("delay-policy");h.Press(MenuInput::Left);
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn back");
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay again");
+ h.Screen("defaults");
+ Check(row("delay-policy")!=rows.end(),"Gameplay defaults did not offer the delay policy");
+ SetMenuEntriesProbe({});
+}
+// An Own room says so on its table page and in its rules, and the delay row
+// shows the player's own delay instead of a match value.
+void DelayPolicyInRoom() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ room::Member me,other;me.id=1;me.name="Me";other.id=2;other.name="Other";
+ JoinedRoom(h,9);h.view.session.control=netplay::Health::Healthy;
+ me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
+ h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
+ h.view.room.host=0;h.view.opponentDelay=4;h.Frame();
+ std::vector<MenuEntry> rows;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.Screen("room-table");
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ const auto& rules=h.view.room.tables[0].rules;
+ const auto shared=loc::Tf("room.rules_summary",static_cast<int>(rules.roundCount),static_cast<int>(rules.roundTime),loc::T(rules.editionSelect?"common.on":"common.off"));
+ Check(row("rules")!=rows.end()&&row("rules")->value==shared,"A Shared room's rules summary changed");
+ Check(row("input-delay")!=rows.end()&&row("input-delay")->detail.find(loc::Tf("room.input_delay.match",""))!=std::string::npos&&
+  row("input-delay")->detail.find(loc::Tf("room.input_delay.own",""))==std::string::npos,"A Shared room's delay row lost its match value");
+ h.view.room.delayPolicy=room::DelayPolicy::Own;h.Frame();
+ Check(row("rules")->value==loc::Tf("room.rules_summary_own_delay",shared),"An Own room's rules summary did not say so");
+ Check(row("input-delay")->detail.find(loc::Tf("room.input_delay.own",""))!=std::string::npos&&
+  row("input-delay")->detail.find(loc::Tf("room.input_delay.match",""))==std::string::npos,"An Own room's delay row showed a match value");
+ // The host edits the rules in place, so an Own room is named by its own read-only row.
+ Check(row("delay-policy")==rows.end(),"A player who is not the host was shown the host's delay row");
+ h.view.room.host=1;h.Frame();
+ Check(row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.own"),"An Own room's host was not told so");
+ h.view.room.delayPolicy=room::DelayPolicy::Shared;h.Frame();
+ Check(row("delay-policy")==rows.end(),"A Shared room's host was shown the delay row");
+ SetMenuEntriesProbe({});
+}
 void TrainingJourneys() {
  using namespace sf4e;
  HeadlessImGui imgui;auto& io=imgui.io;

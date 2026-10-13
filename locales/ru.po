@@ -5126,3 +5126,30 @@ msgstr "Продолжить правку"
 
 msgid "button_layout.leave"
 msgstr "Выйти"
+
+msgid "room.delay_policy"
+msgstr "Задержка ввода в лобби"
+
+msgid "room.delay_policy.shared"
+msgstr "Одинаковая для обоих"
+
+msgid "room.delay_policy.own"
+msgstr "Своя у каждого игрока"
+
+msgid "room.delay_policy.detail"
+msgstr "Одинаковая для обоих: каждый матч идёт с большей из двух задержек. Своя у каждого игрока: каждый играет с выбранной им задержкой, а разницу сглаживает откат на другой стороне. Это действует, пока лобби открыто."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, своя задержка"
+
+msgid "room.table_footer_own_delay"
+msgstr "Своя задержка"
+
+msgid "room.input_delay.own"
+msgstr "Ваша задержка: {0}"
+
+msgid "public.own_delay"
+msgstr "Своя задержка"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Эта служба лобби пока не может создать лобби со своей задержкой у каждого игрока. Выберите «Одинаковая для обоих» или повторите попытку позже."

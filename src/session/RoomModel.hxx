@@ -393,6 +393,10 @@ struct Snapshot {
 	// round time. Chosen by the player who created a private room and fixed
 	// for its life; never a public or tournament room. Serialized only when true.
 	bool practice = false;
+	// Whose input delay a game is played at (DelayPolicy). Chosen when the room
+	// is created and fixed for its life, public or private. Serialized only
+	// when Own, so a Shared room's wire form is unchanged.
+	DelayPolicy delayPolicy = DelayPolicy::Shared;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -430,6 +434,12 @@ inline bool PracticeKindValid(const Snapshot& room) {
 // room the longest, since its games end only when the time runs out.
 inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {
 	return room.practice ? PracticeRoundTime : table.rules.roundTime;
+}
+
+// The input delay `seat` of `table` plays its game at, from the delays captured
+// at Ready: the higher of the two in a Shared room, its own in an Own one.
+inline std::uint8_t SeatMatchDelay(const Snapshot& room, const Table& table, int seat) {
+	return room.delayPolicy == DelayPolicy::Own ? table.inputDelay[seat == 0 ? 0 : 1] : MatchDelay(table);
 }
 
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
@@ -545,9 +555,11 @@ struct Result {
 
 class RoomAuthority {
 public:
-	// practice is the room's for its life (Snapshot::practice); nothing changes it later.
+	// practice and delayPolicy are the room's for its life (Snapshot::practice,
+	// Snapshot::delayPolicy); nothing changes them later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
-		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false);
+		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
+		DelayPolicy delayPolicy = DelayPolicy::Shared);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }

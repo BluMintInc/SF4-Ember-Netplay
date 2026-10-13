@@ -10,6 +10,8 @@ void ChatJourneys();
 void TrainingSettingsAndHome();
 void TrainingFromRoom();
 void PracticeRoomCreate();
+void DelayPolicyCreate();
+void DelayPolicyInRoom();
 void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();
