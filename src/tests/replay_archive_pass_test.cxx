@@ -498,7 +498,10 @@ static void TestArchiveWorkerSchedule() {
 // that cannot be read is looked at again until it can, without a change to
 // the save folder.
 static void TestArchiveWorkerWithPasses() {
-	const files::ArchiveWorker::Schedule schedule{std::chrono::milliseconds(10), std::chrono::milliseconds(40), 3, std::chrono::seconds(1), std::chrono::seconds(1)};
+	// This fixture waits for twenty real filesystem passes before saving the
+	// second replay. Leave enough window for disk contention; bounded expiry
+	// is checked separately by TestArchiveWorkerSchedule without filesystem IO.
+	const files::ArchiveWorker::Schedule schedule{std::chrono::milliseconds(10), std::chrono::milliseconds(40), 3, std::chrono::seconds(10), std::chrono::seconds(1)};
 	Folders folders("ember-archive-worker");
 	folders.SaveMatch(kFirst, Match(1, 1791600000u), 1791600000u, true);
 	std::atomic<int> passes{0};
