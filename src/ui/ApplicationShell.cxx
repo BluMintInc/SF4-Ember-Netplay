@@ -231,8 +231,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   for(const int id:selection::RosterDisplayOrder){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
    rows.back().hint=loc::T("menu.hint.save_main");}
  }else if(screen=="online"){
-  title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom),
-   Row("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail"),v.canOpenRoom),
+  // A room needs a controller and networking; a row blocked by one says which.
+  const char* blocked=!v.controllerReady?loc::T("room.controller_required"):v.network==netplay::NetworkAvailability::Unavailable?loc::T("runtime.networking_unavailable"):nullptr;
+  const auto open=[&](const char* id,const std::string& label,const char* detail){auto r=Row(id,label,blocked?blocked:detail,v.canOpenRoom);r.quiet=blocked!=nullptr;return r;};
+  title=loc::T("online.title");rows={open("create",loc::T("online.create"),loc::T("online.create_detail")),open("join",loc::T("online.join"),loc::T("online.join_detail")),
+   open("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail")),
    Row("identity",loc::T("screen.identity"),identity_.EntryDetail(v))};
   // Where this PC connects and how its network treats a direct path, for information only.
   auto relay=Row("relay",loc::T("network.relay"),loc::T("network.relay_detail"));relay.info=true;relay.value=DescribeRelay(v.netReport);
