@@ -456,6 +456,12 @@ void TrainingJourneys() {
   Check(told("training.command_rejected",true),"A refused reset read as done");
   v.checkpoint=hadCheckpoint;
  }
+ // The pad's chord on standby asks for the recording to start, for its own battle.
+ {
+  commands.clear();input::TrainingPadEvent advance;advance.kind=input::TrainingPadEvent::Kind::Advance;advance.generation=v.generation;
+  ImGui::NewFrame();TrainingPadPosition(v,submit,advance);ImGui::Render();
+  Check(commands.size()==1&&commands[0].action==training::Action::AdvanceRecording&&commands[0].generation==v.generation,"The pad's chord on standby did not start the recording");
+ }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));
  std::filesystem::remove(folder/"recordings");std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);
 }

@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "反撃のプリセット"
 
 msgid "training.reply.move.detail"
-msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。記録はオンの記録を再生し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
+msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。記録はオンの記録で反撃し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
 
 msgid "training.reply.custom"
 msgstr "カスタム"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "左右で記録先のスロットを選びます。下の項目もこのスロットを使います。"
 
 msgid "training.record.standby_detail"
-msgstr "スタンバイ: P1でダミーを操作したまま練習に戻ります。F7で記録を始め、もう一度F7で止めます。"
+msgstr "スタンバイ: P1でダミーを操作したまま練習に戻ります。{0}または{1}で記録を始め、もう一度同じ操作で止めます。"
 
 msgid "training.play"
 msgstr "再生"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "練習の準備完了"
 
 msgid "training.standby_status"
-msgstr "スタンバイ: P1でダミーを操作中。F7で記録を始めます。"
+msgstr "スタンバイ: P1でダミーを操作中。{0}または{1}で記録を始めます。"
 
 msgid "training.standby"
 msgstr "スタンバイ"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "操作画面を開いている間、記録は一時停止します"
 
 msgid "training.playback_suspended"
-msgstr "再生中。録画は操作画面を閉じるまで待機します"
+msgstr "再生中"
 
 msgid "training.applying"
 msgstr "操作を適用中..."

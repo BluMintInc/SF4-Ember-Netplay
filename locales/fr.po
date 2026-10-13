@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Riposte prédéfinie"
 
 msgid "training.reply.move.detail"
-msgstr "Gauche et droite choisissent une riposte courante en notation numpad, lue pour le côté où regarde le mannequin. Enregistrements joue un enregistrement activé ; Personnalisée garde les coups saisis. Sélectionner ouvre Coups de riposte pour en saisir un."
+msgstr "Gauche et droite choisissent une riposte courante en notation numpad, lue pour le côté où regarde le mannequin. Enregistrements riposte avec un enregistrement activé ; Personnalisée garde les coups saisis. Sélectionner ouvre Coups de riposte pour en saisir un."
 
 msgid "training.reply.custom"
 msgstr "Personnalisée"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Gauche et Droite choisissent l'emplacement où enregistrer ; les lignes en dessous l'utilisent aussi."
 
 msgid "training.record.standby_detail"
-msgstr "En attente : P1 contrôle le mannequin et l'entraînement reprend. F7 lance l'enregistrement, F7 à nouveau l'arrête."
+msgstr "En attente : P1 contrôle le mannequin et l'entraînement reprend. {0} ou {1} lance l'enregistrement, et la même chose l'arrête."
 
 msgid "training.play"
 msgstr "Rejouer"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Entraînement prêt"
 
 msgid "training.standby_status"
-msgstr "En attente : P1 contrôle le mannequin. F7 lance l'enregistrement."
+msgstr "En attente : P1 contrôle le mannequin. {0} ou {1} lance l'enregistrement."
 
 msgid "training.standby"
 msgstr "En attente"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Enregistrement suspendu si commandes ouvertes"
 
 msgid "training.playback_suspended"
-msgstr "Lecture en cours ; l'enregistrement attend la fermeture des commandes"
+msgstr "Lecture en cours"
 
 msgid "training.applying"
 msgstr "Commande en cours..."

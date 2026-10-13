@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Reply preset"
 
 msgid "training.reply.move.detail"
-msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Recordings plays a recording that is on; Custom keeps the moves you typed. Select opens Reply moves to type one."
+msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Recordings replies with a recording that is on; Custom keeps the moves you typed. Select opens Reply moves to type one."
 
 msgid "training.reply.custom"
 msgstr "Custom"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Left and Right choose the slot to record into, which the rows below act on too."
 
 msgid "training.record.standby_detail"
-msgstr "Standby: P1 controls the dummy and practice resumes. F7 starts recording, and F7 again stops it."
+msgstr "Standby: P1 controls the dummy and practice resumes. {0} or {1} starts recording, and the same again stops it."
 
 msgid "training.play"
 msgstr "Play"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Practice ready"
 
 msgid "training.standby_status"
-msgstr "Standby: P1 controls the dummy. F7 starts recording."
+msgstr "Standby: P1 controls the dummy. {0} or {1} starts recording."
 
 msgid "training.standby"
 msgstr "Standby"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Recording suspended while controls are open"
 
 msgid "training.playback_suspended"
-msgstr "Playback running; recording waits for the controls to close"
+msgstr "Playback running"
 
 msgid "training.applying"
 msgstr "Applying command..."

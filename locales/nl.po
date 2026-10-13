@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Antwoordvoorkeuze"
 
 msgid "training.reply.move.detail"
-msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Opnames speelt een opname die aan staat; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
+msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Opnames antwoordt met een opname die aan staat; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
 
 msgid "training.reply.custom"
 msgstr "Eigen"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Links en rechts kiezen het slot om in op te nemen; de regels eronder gebruiken het ook."
 
 msgid "training.record.standby_detail"
-msgstr "Stand-by: P1 bestuurt de dummy en de training gaat verder. F7 start de opname, F7 nog eens stopt hem."
+msgstr "Stand-by: P1 bestuurt de dummy en de training gaat verder. {0} of {1} start de opname, en hetzelfde nog eens stopt hem."
 
 msgid "training.play"
 msgstr "Afspelen"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Training klaar"
 
 msgid "training.standby_status"
-msgstr "Stand-by: P1 bestuurt de dummy. F7 start de opname."
+msgstr "Stand-by: P1 bestuurt de dummy. {0} of {1} start de opname."
 
 msgid "training.standby"
 msgstr "Stand-by"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Opname gepauzeerd zolang de besturing open is"
 
 msgid "training.playback_suspended"
-msgstr "Afspelen loopt; opnemen wacht tot de besturing dicht is"
+msgstr "Afspelen bezig"
 
 msgid "training.applying"
 msgstr "Opdracht uitvoeren..."

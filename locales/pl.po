@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Gotowa odpowiedź"
 
 msgid "training.reply.move.detail"
-msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Nagrania odtwarzają włączone nagranie; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
+msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Nagrania odpowiadają włączonym nagraniem; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
 
 msgid "training.reply.custom"
 msgstr "Własna"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Lewo i prawo wybierają slot do nagrania; wiersze poniżej też go używają."
 
 msgid "training.record.standby_detail"
-msgstr "Gotowość: P1 steruje manekinem i trening trwa dalej. F7 zaczyna nagrywanie, kolejne F7 je kończy."
+msgstr "Gotowość: P1 steruje manekinem i trening trwa dalej. {0} lub {1} zaczyna nagrywanie, a to samo ponownie je kończy."
 
 msgid "training.play"
 msgstr "Odtwórz"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Trening gotowy"
 
 msgid "training.standby_status"
-msgstr "Gotowość: P1 steruje manekinem. F7 zaczyna nagrywanie."
+msgstr "Gotowość: P1 steruje manekinem. {0} lub {1} zaczyna nagrywanie."
 
 msgid "training.standby"
 msgstr "Gotowość"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Nagrywanie wstrzymane, gdy panel jest otwarty"
 
 msgid "training.playback_suspended"
-msgstr "Odtwarzanie trwa; nagrywanie czeka na zamknięcie panelu"
+msgstr "Trwa odtwarzanie"
 
 msgid "training.applying"
 msgstr "Wykonywanie polecenia..."

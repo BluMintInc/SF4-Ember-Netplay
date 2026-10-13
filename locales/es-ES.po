@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Respuesta predefinida"
 
 msgid "training.reply.move.detail"
-msgstr "Izquierda y derecha eligen una respuesta común en notación numérica, leída para el lado al que mira el muñeco. Grabaciones reproduce una grabación activada; Personalizada conserva los golpes que escribiste. Elegir abre Golpes de respuesta para escribir uno."
+msgstr "Izquierda y derecha eligen una respuesta común en notación numérica, leída para el lado al que mira el muñeco. Grabaciones responde con una grabación activada; Personalizada conserva los golpes que escribiste. Elegir abre Golpes de respuesta para escribir uno."
 
 msgid "training.reply.custom"
 msgstr "Personalizada"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Izquierda y Derecha eligen la ranura donde grabar; las filas de abajo también la usan."
 
 msgid "training.record.standby_detail"
-msgstr "En espera: P1 controla al muñeco y vuelves al entrenamiento. F7 empieza a grabar y F7 otra vez lo para."
+msgstr "En espera: P1 controla al muñeco y vuelves al entrenamiento. {0} o {1} empieza a grabar, y lo mismo otra vez lo para."
 
 msgid "training.play"
 msgstr "Repro."
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Entrenamiento listo"
 
 msgid "training.standby_status"
-msgstr "En espera: P1 controla al muñeco. F7 empieza a grabar."
+msgstr "En espera: P1 controla al muñeco. {0} o {1} empieza a grabar."
 
 msgid "training.standby"
 msgstr "En espera"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Grabación pausada mientras están abiertos los controles"
 
 msgid "training.playback_suspended"
-msgstr "Reproducción en curso; la grabación espera a que se cierren los controles"
+msgstr "Reproducción en curso"
 
 msgid "training.applying"
 msgstr "Aplicando comando..."

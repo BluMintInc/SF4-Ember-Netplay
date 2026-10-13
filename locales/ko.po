@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "반격 프리셋"
 
 msgid "training.reply.move.detail"
-msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 녹화는 켜진 녹화를 재생하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
+msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 녹화는 켜진 녹화로 반격하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
 
 msgid "training.reply.custom"
 msgstr "사용자 지정"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "좌우로 녹화할 슬롯을 고릅니다. 아래 항목도 이 슬롯을 씁니다."
 
 msgid "training.record.standby_detail"
-msgstr "대기: P1이 더미를 조작하며 연습으로 돌아갑니다. F7로 녹화를 시작하고 F7을 다시 눌러 멈춥니다."
+msgstr "대기: P1이 더미를 조작하며 연습으로 돌아갑니다. {0} 또는 {1}로 녹화를 시작하고, 같은 조작을 다시 하면 멈춥니다."
 
 msgid "training.play"
 msgstr "재생"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "연습 준비 완료"
 
 msgid "training.standby_status"
-msgstr "대기: P1이 더미를 조작합니다. F7로 녹화를 시작합니다."
+msgstr "대기: P1이 더미를 조작합니다. {0} 또는 {1}로 녹화를 시작합니다."
 
 msgid "training.standby"
 msgstr "대기"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "조작 창이 열려 녹화 일시 중지"
 
 msgid "training.playback_suspended"
-msgstr "재생 중. 녹화는 조작 창을 닫을 때까지 대기합니다"
+msgstr "재생 중"
 
 msgid "training.applying"
 msgstr "명령 적용 중..."

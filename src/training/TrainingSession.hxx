@@ -437,6 +437,10 @@ struct View {
 
 // P1's pad plays the dummy: on standby and while recording.
 inline bool PadPlaysDummy(Mode mode) { return mode == Mode::Standby || mode == Mode::Recording; }
+// The pad's chord that opens the controls starts the recording instead, on
+// standby only (TrainingPad.hxx, TrainingPadInput); while recording it opens
+// them, which interrupts the recording and keeps it.
+inline bool ChordStartsRecording(Mode mode) { return mode == Mode::Standby; }
 // Whether Ember plays Player 2 this frame: standby, a recording, or a
 // playback (a reply among them) on its side. The dummy plays from the pad
 // then (DummyControl).

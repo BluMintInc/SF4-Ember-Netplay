@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Předvolba odpovědi"
 
 msgid "training.reply.move.detail"
-msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Nahrávky přehrají zapnutou nahrávku; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
+msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Nahrávky odpovídají zapnutou nahrávkou; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
 
 msgid "training.reply.custom"
 msgstr "Vlastní"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Vlevo a vpravo volí pozici pro nahrávání; řádky níže ji používají také."
 
 msgid "training.record.standby_detail"
-msgstr "Pohotovost: P1 ovládá figurínu a trénink pokračuje. F7 spustí nahrávání, další F7 ho zastaví."
+msgstr "Pohotovost: P1 ovládá figurínu a trénink pokračuje. {0} nebo {1} spustí nahrávání, totéž znovu ho zastaví."
 
 msgid "training.play"
 msgstr "Přehrát"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Trénink připraven"
 
 msgid "training.standby_status"
-msgstr "Pohotovost: P1 ovládá figurínu. F7 spustí nahrávání."
+msgstr "Pohotovost: P1 ovládá figurínu. {0} nebo {1} spustí nahrávání."
 
 msgid "training.standby"
 msgstr "Pohotovost"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Nahrávání je pozastaveno, dokud je otevřené ovládání"
 
 msgid "training.playback_suspended"
-msgstr "Přehrávání běží; nahrávání čeká na zavření ovládání"
+msgstr "Přehrávání běží"
 
 msgid "training.applying"
 msgstr "Provádění příkazu..."

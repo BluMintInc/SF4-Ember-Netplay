@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Risposta predefinita"
 
 msgid "training.reply.move.detail"
-msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Registrazioni riproduce una registrazione attiva; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
+msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Registrazioni risponde con una registrazione attiva; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
 
 msgid "training.reply.custom"
 msgstr "Personalizzata"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Sinistra e Destra scelgono lo slot in cui registrare; anche le righe sotto lo usano."
 
 msgid "training.record.standby_detail"
-msgstr "In attesa: P1 controlla il manichino e l'allenamento riprende. F7 avvia la registrazione, F7 di nuovo la ferma."
+msgstr "In attesa: P1 controlla il manichino e l'allenamento riprende. {0} o {1} avvia la registrazione, e lo stesso di nuovo la ferma."
 
 msgid "training.play"
 msgstr "Riproduci"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Allenamento pronto"
 
 msgid "training.standby_status"
-msgstr "In attesa: P1 controlla il manichino. F7 avvia la registrazione."
+msgstr "In attesa: P1 controlla il manichino. {0} o {1} avvia la registrazione."
 
 msgid "training.standby"
 msgstr "In attesa"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Registrazione sospesa con comandi aperti"
 
 msgid "training.playback_suspended"
-msgstr "Riproduzione in corso; la registrazione attende la chiusura dei comandi"
+msgstr "Riproduzione in corso"
 
 msgid "training.applying"
 msgstr "Applicazione comando..."

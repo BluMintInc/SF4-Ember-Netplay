@@ -1,6 +1,7 @@
 #pragma once
 #include "../training/TrainingSession.hxx"
 #include "../common/TrainingPad.hxx"
+#include "../common/ButtonPrompts.hxx"
 #include <functional>
 #include <string>
 #include <vector>
@@ -24,7 +25,8 @@ void SetTrainingDirectory(std::wstring directory);
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
 // The pad's Back (TrainingPad.hxx): a tap resets the position, a hold saves
-// where the fighters stood as it went down. For the battle it was pressed in only.
+// where the fighters stood as it went down, and with Start on standby it starts
+// the recording. For the battle it was pressed in only.
 void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
@@ -33,6 +35,11 @@ bool TrainingHotkeyBound(int fromF1);
 constexpr int TrainingRecordKey = 6, TrainingPlayKey = 7;
 // A key counted from F1 as the controls and the HUD name it.
 std::string TrainingKeyName(int fromF1);
+// The pad's Back and Start as the prompts name them (an Xbox pad's unless a
+// DirectInput pad is in use), and the two as the chord that, on standby,
+// starts a recording (TrainingPadInput).
+gamepads::PositionNames TrainingPadNames();
+std::string TrainingPadChord();
 // The position hotkeys as the HUD's strip names them: reset then save, each
 // with its key and a short locale key for what it does; a hotkey set to Off
 // is left out.

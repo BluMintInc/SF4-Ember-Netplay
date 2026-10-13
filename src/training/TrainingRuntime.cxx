@@ -239,6 +239,7 @@ Place ReadPlace() {
     Place place; place.generation = published.generation; place.x[0] = published.x[0]; place.x[1] = published.x[1];
     return place;
 }
+bool ChordStartsRecording() { std::lock_guard<std::mutex> lock(mutex); return ChordStartsRecording(published.mode); }
 bool ControlsAvailable() {
     if(!session.GetView().available || Battle::ggpo) return false;
     auto* system=Native::staticMethods.GetSingleton();

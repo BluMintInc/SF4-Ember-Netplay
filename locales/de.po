@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "Antwortvorlage"
 
 msgid "training.reply.move.detail"
-msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Aufnahmen spielt eine eingeschaltete Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
+msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Aufnahmen antwortet mit einer eingeschalteten Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
 
 msgid "training.reply.custom"
 msgstr "Eigene"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "Links und Rechts wählen den Slot für die Aufnahme; die Zeilen darunter nutzen ihn auch."
 
 msgid "training.record.standby_detail"
-msgstr "Bereitschaft: P1 steuert den Dummy, und das Training geht weiter. F7 startet die Aufnahme, F7 erneut beendet sie."
+msgstr "Bereitschaft: P1 steuert den Dummy, und das Training geht weiter. {0} oder {1} startet die Aufnahme, dasselbe erneut beendet sie."
 
 msgid "training.play"
 msgstr "Abspielen"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "Training bereit"
 
 msgid "training.standby_status"
-msgstr "Bereitschaft: P1 steuert den Dummy. F7 startet die Aufnahme."
+msgstr "Bereitschaft: P1 steuert den Dummy. {0} oder {1} startet die Aufnahme."
 
 msgid "training.standby"
 msgstr "Bereitschaft"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "Aufnahme pausiert, solange die Steuerung geöffnet ist"
 
 msgid "training.playback_suspended"
-msgstr "Wiedergabe läuft; Aufnahme wartet, bis die Steuerung geschlossen ist"
+msgstr "Wiedergabe läuft"
 
 msgid "training.applying"
 msgstr "Befehl wird ausgeführt..."

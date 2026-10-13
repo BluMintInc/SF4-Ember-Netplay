@@ -115,7 +115,8 @@ void fSystem::UpdateInputs() {
     // The chord opens or closes the controls in their controller at once, and
     // the capture follows that controller, so the caches cleared below hide
     // its Start from native pause in this same frame; a chord that opens
-    // nothing (under the call) still owns its Start, cleared there as well.
+    // nothing (under the call, or on standby, where it starts the recording)
+    // still owns its Start, cleared there as well.
     // Behind another window the gesture is read only while a call offers go
     // now, for go now: the reset, save and controls it asks for there are
     // refused without the focus (PostTrainingPad, TrainingControls::Accept).
@@ -139,7 +140,7 @@ void fSystem::UpdateInputs() {
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
         sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
-        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x);
+        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording());
         const auto& events=result.events;
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus
@@ -148,8 +149,8 @@ void fSystem::UpdateInputs() {
             sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,offeredCall,goNowGate,sf4e::input::GoNowGate::Source::Pad,free)?"taken":"not taken",
             focused?"":" behind another window");
         using Kind=sf4e::input::TrainingPadEvent::Kind;
-        for(const Kind kind:{Kind::Reset,Kind::Save}) {
-            if(kind==Kind::Reset?!events.reset:!events.save) continue;
+        for(const Kind kind:{Kind::Reset,Kind::Save,Kind::Advance}) {
+            if(!(kind==Kind::Reset?events.reset:kind==Kind::Save?events.save:events.advance)) continue;
             sf4e::input::TrainingPadEvent event;
             event.kind=kind;event.generation=result.owner.generation;event.epoch=result.owner.epoch;
             event.place[0]=result.place[0];event.place[1]=result.place[1];

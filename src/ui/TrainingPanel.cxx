@@ -2,6 +2,7 @@
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
+#include "MenuGlyphs.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../training/MoveInputs.hxx"
@@ -262,6 +263,11 @@ void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit
         SavePosition(view,submit);
     }
     else if(pad.kind==Kind::Reset) ResetPosition(view,submit);
+    // The chord on standby (TrainingPadInput): the recording starts, as F7's second press starts it.
+    else if(pad.kind==Kind::Advance) {
+        Command advance; advance.action=Action::AdvanceRecording; advance.generation=pad.generation;
+        if(!submit||!submit(advance)) Notice(loc::T("training.command_rejected"),true);
+    }
 }
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
     // Called every frame training is available, so a key's save is told even with the controls closed.
@@ -279,6 +285,10 @@ training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter
 void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }
 void SetTrainingPositionKeys(int reset,int save) { LoadPractice(); lab.keys={{reset,save}}; }
 std::string TrainingKeyName(int fromF1) { return "F"+std::to_string(fromF1+1); }
+gamepads::PositionNames TrainingPadNames() {
+    return gamepads::ButtonPositionNames(MenuPromptDevice()==input::PadDirectInput?input::PadDirectInput:input::PadXInput,MenuPromptBrand());
+}
+std::string TrainingPadChord() { const auto names=TrainingPadNames(); return std::string(names.view)+" + "+names.start; }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::vector<TrainingKeyHint> TrainingPositionKeys() {
     LoadPractice();
@@ -419,7 +429,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   }
   // Left and Right choose the slot Record, Clear, Save and Mirror act on.
   auto record=Value("record",loc::T("training.record"),loc::Tf("training.slot",v.selected+1),
-   std::string(loc::T("training.record.choose"))+"\n"+loc::T(v.lengths[v.selected]?"training.record.overwrite":"training.record.standby_detail"),ready);
+   std::string(loc::T("training.record.choose"))+"\n"+(v.lengths[v.selected]?std::string(loc::T("training.record.overwrite")):
+    loc::Tf("training.record.standby_detail",TrainingKeyName(TrainingRecordKey),TrainingPadChord())),ready);
   record.opens=true;record.confirm=v.lengths[v.selected]>0;rows.push_back(record);
   // Select plays a slot that is on; Left and Right choose once or looped.
   rows.push_back(Value("play",loc::T("training.play"),loc::T(v.loop?"training.loop":"training.play.once"),
@@ -470,14 +481,14 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   openReplyEditor=false;
   if(screen=="reply"){nav.Focus("reply-moves",rows);nav.Choose(rows);}
  }
- const char* mode="training.practice_ready";
+ std::string modeStatus;
  switch(v.mode){
- case Mode::Idle: mode="training.practice_ready"; break;
- case Mode::Standby: mode="training.standby_status"; break;
- case Mode::Recording: mode="training.recording_suspended"; break;
- case Mode::Playback: mode="training.playback_suspended"; break;
+ case Mode::Idle: modeStatus=loc::T("training.practice_ready"); break;
+ case Mode::Standby: modeStatus=loc::Tf("training.standby_status",TrainingKeyName(TrainingRecordKey),TrainingPadChord()); break;
+ case Mode::Recording: modeStatus=loc::T("training.recording_suspended"); break;
+ case Mode::Playback: modeStatus=loc::T("training.playback_suspended"); break;
  }
- std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(mode);
+ std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):modeStatus;
  Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
  // A recorded reply with no slot that can be one would do nothing; the page says so.

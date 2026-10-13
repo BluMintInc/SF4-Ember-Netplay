@@ -2,6 +2,7 @@
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
+#include "TextPill.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -400,7 +401,8 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
 // What the lab is doing on standby, or while it records or plays a slot: a
 // hollow or red dot, or a green arrow, the slot, how far along it is and, for
 // the keyboard, the key that moves on from it, over a line that fills as the
-// slot does. Standby has recorded nothing, so its line stays empty.
+// slot does. Standby has recorded nothing, so its line stays empty, and it
+// names both ways to start recording: the pad's Back and Start, and F7.
 static void ModeStrip(const training::View& view, float hudScale) {
     const bool standby = view.mode == training::Mode::Standby, recording = view.mode == training::Mode::Recording;
     const bool padPlays = training::PadPlaysDummy(view.mode);
@@ -420,8 +422,22 @@ static void ModeStrip(const training::View& view, float hudScale) {
     ImGui::SameLine(0, 10 * hudScale);
     if (standby) ImGui::Text("%s", loc::Tf("training.slot", slot + 1).c_str());
     else ImGui::Text("%s  %d / %d f", loc::Tf("training.slot", slot + 1).c_str(), view.cursor, total);
-    if (MenuPromptDevice() == sf4e::input::PadKeyboard) {
-        const std::string next = TrainingKeyName(padPlays ? TrainingRecordKey : TrainingPlayKey) + " " + loc::T(standby ? "training.record" : "training.stop");
+    if (standby) {
+        // [Back] + [Start] / F7 Record, the pad's buttons on pills as the shortcut strip draws them.
+        const auto names = TrainingPadNames();
+        const float unit = ImGui::GetFontSize() / 15.f;
+        const std::string plus = " + ", tail = " / " + TrainingKeyName(TrainingRecordKey) + " " + loc::T("training.record");
+        const auto pill = [&](const char* text) { return ImGui::CalcTextSize(text).x + 12 * unit; };
+        const float width = pill(names.view) + ImGui::CalcTextSize(plus.c_str()).x + pill(names.start) + ImGui::CalcTextSize(tail.c_str()).x;
+        ImGui::SameLine(left + full - width, 0);
+        for (const char* button : {names.view, names.start}) {
+            DrawButtonPill(draw, button, ImGui::GetCursorScreenPos(), pill(button), h, unit, .8f);
+            ImGui::Dummy(ImVec2(pill(button), h)); ImGui::SameLine(0, 0);
+            if (button == names.view) { ImGui::TextDisabled("%s", plus.c_str()); ImGui::SameLine(0, 0); }
+        }
+        ImGui::TextDisabled("%s", tail.c_str());
+    } else if (MenuPromptDevice() == sf4e::input::PadKeyboard) {
+        const std::string next = TrainingKeyName(padPlays ? TrainingRecordKey : TrainingPlayKey) + " " + loc::T("training.stop");
         ImGui::SameLine(left + full - ImGui::CalcTextSize(next.c_str()).x); ImGui::TextDisabled("%s", next.c_str());
     }
     const ImVec2 bar = ImGui::GetCursorScreenPos();

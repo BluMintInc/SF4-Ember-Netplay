@@ -1521,7 +1521,7 @@ msgid "training.reply.move"
 msgstr "预设反击"
 
 msgid "training.reply.move.detail"
-msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。录制播放一段已开启的录制；自定义保留你输入的招式。选择打开反击招式进行输入。"
+msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。录制会用一段已开启的录制反击；自定义保留你输入的招式。选择打开反击招式进行输入。"
 
 msgid "training.reply.custom"
 msgstr "自定义"
@@ -1650,7 +1650,7 @@ msgid "training.record.choose"
 msgstr "左右键选择要录制的槽位，下方各项也使用此槽位。"
 
 msgid "training.record.standby_detail"
-msgstr "待机：P1 操控木桩并返回练习。按 F7 开始录制，再按 F7 停止。"
+msgstr "待机：P1 操控木桩并返回练习。按 {0} 或 {1} 开始录制，再按一次停止。"
 
 msgid "training.play"
 msgstr "播放"
@@ -1707,7 +1707,7 @@ msgid "training.practice_ready"
 msgstr "练习就绪"
 
 msgid "training.standby_status"
-msgstr "待机：P1 正在操控木桩。按 F7 开始录制。"
+msgstr "待机：P1 正在操控木桩。按 {0} 或 {1} 开始录制。"
 
 msgid "training.standby"
 msgstr "待机"
@@ -1716,7 +1716,7 @@ msgid "training.recording_suspended"
 msgstr "打开操作界面时暂停录制"
 
 msgid "training.playback_suspended"
-msgstr "回放进行中；录制等待操作界面关闭"
+msgstr "正在播放"
 
 msgid "training.applying"
 msgstr "正在执行指令..."
