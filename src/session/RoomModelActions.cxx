@@ -262,7 +262,9 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 	if (action.kind == ActionKind::Ready && HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (table->phase != TablePhase::Waiting && table->phase != TablePhase::Ready) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : 1;
-	if (action.inputDelay > MaximumInputDelay) return Reject(RejectReason::Unauthorized);
+	if (action.inputDelay > InputDelayWireCeiling) return Reject(RejectReason::Unauthorized);
+	// What an earlier build could choose above the limit plays at the limit.
+	const auto delay = static_cast<std::uint8_t>((std::min)(static_cast<int>(action.inputDelay), MaximumInputDelay));
 	// Once Ready has captured a value, a second Ready cannot replace it.
 	// Unready is the explicit unlock operation.
 	if (action.kind == ActionKind::Ready && table->ready[seat]) return Reject(RejectReason::WrongPhase);
@@ -281,10 +283,10 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		return Reject(RejectReason::TerminalLedgerFull);
 	if (action.kind == ActionKind::Ready) {
 		table->ready[seat] = true;
-		item->selectedDelay = action.inputDelay;
-		item->frozenDelay = action.inputDelay;
+		item->selectedDelay = delay;
+		item->frozenDelay = delay;
 		item->delayLocked = true;
-		table->inputDelay[seat] = action.inputDelay;
+		table->inputDelay[seat] = delay;
 		table->lowerLag[seat] = action.lowerLag;
 	} else {
 		ReleaseReady(*table, seat, *item);

@@ -264,7 +264,8 @@ int main() {
     preferences.inputDelay = 1; CHECK(preferences.Valid());
     preferences.inputDelay = -1; CHECK(!preferences.Valid());
     preferences.inputDelay = 11; CHECK(!preferences.Valid());
-    preferences.inputDelay = 10;
+    preferences.inputDelay = sf4e::MaximumInputDelay + 1; CHECK(!preferences.Valid());
+    preferences.inputDelay = sf4e::MaximumInputDelay;
     preferences.lobby.roundCount = 99; preferences.lobby.roundTime = 9999; CHECK(preferences.Valid());
     preferences.lobby.roundTime = 0; CHECK(!preferences.Valid());
     preferences.lobby.roundTime = 99; preferences.lobby.roundCount = 2; CHECK(!preferences.Valid());

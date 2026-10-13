@@ -406,9 +406,13 @@ int main() {
 	// current snapshot; the client resends from it, silently, up to three times.
 	// A fourth rejection is surfaced as a Ready reply so the press can fail now.
 	{
+		// A delay above the choice limit is normalized when it is chosen.
+		roomClient.SetSelectedDelay(9);
 		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
 		auto readyPayload = roomTransport->sent.back();
 		CHECK(readyPayload.at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Ready));
+		CHECK(readyPayload.at("action").at("input_delay").get<int>() == MaximumInputDelay);
+		roomClient.SetSelectedDelay(2);
 		auto current = roomClient.GetRoomSnapshot();
 		for (int attempt = 1; attempt <= 4; ++attempt) {
 			protocol::RoomResultMessage stale;

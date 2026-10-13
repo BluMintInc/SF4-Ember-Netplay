@@ -894,10 +894,12 @@ pub fn stable_voter_count(member_count: usize) -> usize {
 }
 
 // RTT bands from players' experience: one frame through 80 ms, then one
-// more frame per 70 ms, capped at ten. Never 0: that is only a player's own
-// choice (InputDelay.hxx: RecommendedInputDelayMinimum).
+// more frame per 70 ms, capped at five (InputDelay.hxx: MaximumInputDelay).
+// Never 0: that is only a player's own choice (InputDelay.hxx:
+// RecommendedInputDelayMinimum).
 const DELAY_FIRST_BAND_MS: u64 = 80;
 const DELAY_BAND_STEP_MS: u64 = 70;
+const DELAY_BAND_MAX: u64 = 5;
 
 fn delay_band(rtt_us: u64) -> u8 {
     // Round to the nearest whole millisecond, with half milliseconds up:
@@ -906,10 +908,10 @@ fn delay_band(rtt_us: u64) -> u8 {
     (1 + rtt_ms
         .saturating_sub(DELAY_FIRST_BAND_MS)
         .div_ceil(DELAY_BAND_STEP_MS))
-    .min(10) as u8
+    .min(DELAY_BAND_MAX) as u8
 }
 
-/// Recommend 1..=10 frames from the displayed median's player-experience
+/// Recommend 1..=5 frames from the displayed median's player-experience
 /// RTT band, tolerating one worse band at p95 so occasional spikes do not
 /// overstate the typical ping. A tail more than one band worse raises it.
 pub fn recommended_delay(p50_rtt_us: u64, p95_rtt_us: u64) -> u8 {
@@ -1134,7 +1136,7 @@ mod tests {
         assert_eq!(complete.sample_count, 100);
         assert_eq!(complete.loss_count, 0);
         assert_eq!(complete.status, "ready");
-        assert_eq!(complete.recommended_delay, 6);
+        assert_eq!(complete.recommended_delay, 5);
 
         let empty = summarize_probe(&[], PROBE_DURATION);
         assert_eq!(empty.status, "unavailable");
@@ -1155,12 +1157,11 @@ mod tests {
             (290_000, 4),
             (291_000, 5),
             (360_000, 5),
-            (361_000, 6),
-            (640_000, 9),
-            (641_000, 10),
-            (710_000, 10),
-            (711_000, 10),
-            (u64::MAX, 10),
+            (361_000, 5),
+            (640_000, 5),
+            (641_000, 5),
+            (711_000, 5),
+            (u64::MAX, 5),
         ] {
             let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
             assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");

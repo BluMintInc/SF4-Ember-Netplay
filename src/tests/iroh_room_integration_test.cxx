@@ -411,9 +411,9 @@ int wmain(int argc, wchar_t** argv) {
 		// Repeatedly Ready/Unready only one fighter. The second fighter never
 		// readies, so this fixture cannot start a native generation.
 		for (int cycle = 0; cycle < (quick?0:30); ++cycle) {
-			hostClient().SetSelectedDelay(static_cast<unsigned>(cycle % 11));
+			hostClient().SetSelectedDelay(static_cast<unsigned>(cycle % (sf4e::MaximumInputDelay + 1)));
             auto ready=makeAction(hostClient(),room::ActionKind::Ready);
-            ready.inputDelay=static_cast<std::uint8_t>(cycle%11);
+            ready.inputDelay=static_cast<std::uint8_t>(cycle%(sf4e::MaximumInputDelay+1));
 			waitAction(hostClient(),ready);
 			CHECK(hostClient().GetRoomSnapshot().tables[0].ready[0] &&
 				hostClient().GetRoomSnapshot().tables[0].phase == room::TablePhase::Waiting);

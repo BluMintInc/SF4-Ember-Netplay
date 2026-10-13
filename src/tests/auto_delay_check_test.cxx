@@ -35,7 +35,7 @@ static void Schedule() {
     check.Observe("a", 5, "complete", 0, 3000);
     CHECK(check.Measured("a") && check.Delay("a") == 1 && !check.Measured("b") && check.Delay("b") == 2 && !check.Holding(3000));
     check.Observe("a", 6, "complete", 7, 3000);
-    CHECK(check.Delay("a") == 4);
+    CHECK(check.Delay("a") == sf4e::AutoInputDelayMaximum);
     // Choosing Auto again leaves a measured opponent alone.
     check.Want(9000);
     CHECK(!check.Wanted(9000 + settle) && !check.Holding(9000));
@@ -210,9 +210,9 @@ static void ChecksCountOnce() {
     check.Seat("a", 10, 1, 0);
     check.Observe("a", 1, "complete", 1, 6000);
     CHECK(check.Delay("a") == 1);
-    CHECK(check.Played(true, Game("a", polls, 300, 300)) && check.Delay("a") == 4);
+    CHECK(check.Played(true, Game("a", polls, 300, 300)) && check.Delay("a") == sf4e::AutoInputDelayMaximum);
     for (int tick = 0; tick < 3; ++tick) check.Observe("a", 1, "complete", 1, 7000 + tick);
-    CHECK(check.Delay("a") == 4);
+    CHECK(check.Delay("a") == sf4e::AutoInputDelayMaximum);
     // The game lowers it too, and the stored check does not raise it back.
     CHECK(check.Played(true, Game("a", polls, 60, 60)) && check.Delay("a") == 1);
     check.Observe("a", 1, "complete", 3, 8000);
@@ -242,7 +242,7 @@ static void Games() {
     check.Seat("a", 15, 2, 60000);
     CHECK(check.Played(true, Game("a", polls, 120, 140)) && check.Delay("a") == 2);
     check.Seat("a", 20, 3, 120000);
-    CHECK(check.Played(true, Game("a", polls, 200, 300)) && check.Delay("a") == 4 && check.Measured("a"));
+    CHECK(check.Played(true, Game("a", polls, 200, 300)) && check.Delay("a") == sf4e::AutoInputDelayMaximum && check.Measured("a"));
     // The link clears: the next game's Auto is the lower delay straight away.
     CHECK(check.Played(true, Game("a", polls * 4, 60, 70)) && check.Delay("a") == 1);
     // Auto stays within its own bounds however bad the link was.
@@ -279,7 +279,7 @@ static void Games() {
     chosen.Seat("a", 10, 1, 0);
     chosen.Observe("a", 1, "complete", 1, 6000);
     CHECK(!chosen.Played(false, Game("a", polls, 300, 300)) && chosen.Delay("a") == 1);
-    CHECK(chosen.Played(true, Game("a", polls, 300, 300)) && chosen.Delay("a") == 4);
+    CHECK(chosen.Played(true, Game("a", polls, 300, 300)) && chosen.Delay("a") == sf4e::AutoInputDelayMaximum);
 }
 
 int main() {

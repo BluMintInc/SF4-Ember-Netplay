@@ -294,13 +294,13 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     const int selectedDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
-    const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
+    const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=InputDelayWireCeiling;
     std::string delayDetail=loc::Tf("room.input_delay.recommended",check.value);
     if(t.p1&&t.p2)delayDetail+="\n"+loc::Tf("room.input_delay.match",opponentReady?
      FramesText(room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf(selectedDelay==1?"room.match_delay.at_least_one":"room.match_delay.at_least",selectedDelay));
     if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);
     else{
-     delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):std::string(loc::T("room.selected_delay.detail")));
+     delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay));
      if(!recommended&&!autoDelay)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
     }
     const std::string delayFrames=FramesText(selectedDelay);

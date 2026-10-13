@@ -45,5 +45,19 @@ int main() {
     { LobbyData plain = lobby; plain.editionSelect = false; MatchData older = match; older.chara[1].unc_edition = 0;
       CHECK(FindMatchProblem(plain, older) == MatchProblem::Fighter); }
 
-    std::cout << "Match problems: settings, stage and either fighter refused; a valid match passes\n";
+    // A seat's delay is accepted through the wire ceiling (a match committed
+    // by an earlier build plays at its record) and refused past it.
+    for (const int side : {0, 1}) {
+        MatchData delayed = match;
+        for (const int delay : {0, 5, 8, sf4e::InputDelayWireCeiling}) {
+            delayed.inputDelay[side] = static_cast<std::uint8_t>(delay);
+            CHECK(FindMatchProblem(lobby, delayed) == MatchProblem::None);
+        }
+        delayed.inputDelay[side] = sf4e::InputDelayWireCeiling + 1;
+        CHECK(FindMatchProblem(lobby, delayed) == MatchProblem::Delay);
+        delayed.inputDelay[side] = 255;
+        CHECK(FindMatchProblem(lobby, delayed) == MatchProblem::Delay);
+    }
+
+    std::cout << "Match problems: settings, stage, either fighter and a delay past the wire ceiling refused; a valid match passes\n";
 }

@@ -2657,7 +2657,7 @@ msgid "room.ready_up"
 msgstr "Připraven"
 
 msgid "room.selected_delay.detail"
-msgstr "Nastavte 0 až 10 snímků, pod 0 je Auto. 0 nepřidává zpoždění a vyžaduje stabilní nízký ping."
+msgstr "Nastavte {0} až {1} snímků, pod 0 je Auto. 0 nepřidává zpoždění a vyžaduje stabilní nízký ping."
 
 msgid "room.selected_delay.locked"
 msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
