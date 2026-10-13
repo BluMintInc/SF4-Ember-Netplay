@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キックで選択、中キックで戻ります。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
+msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キック用に選んだボタンで選択、中キック用に選んだボタンで戻ります。ボタン配置を変更しても同じです。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -4638,11 +4638,7 @@ msgstr "接続中: {0} 台"
 msgid "player.controllers_detail"
 msgstr "{0} でプレイしています。接続中のコントローラーを確認し、ボタンをテストして、Emberがまだ認識していないものを設定できます。"
 
-msgid "player.fight_buttons"
-msgstr "対戦ボタン"
 
-msgid "player.fight_buttons_detail"
-msgstr "Emberを閉じます。ゲームメニューのオプションからコントローラー設定を選んでください。Emberに表示されるコントローラーは、そこでXboxパッドとしてXboxのボタン名で表示されます。すべての操作にボタンを割り当てた場合のみ、ゲームは配置を保存します。"
 
 msgid "player.game_reads"
 msgstr "ゲームにコントローラーを読ませる"
@@ -4918,7 +4914,7 @@ msgid "pad_setup.saved_heading"
 msgstr "コントローラー設定完了"
 
 msgid "pad_setup.saved"
-msgstr "{0} を設定しました。攻撃が正しく出ない場合は、プレイヤーとコントローラーの「対戦ボタン」を確認してください。"
+msgstr "{0} を設定しました。対戦中の各ボタンの攻撃を変更するには「ボタン配置」を選んでください。"
 
 msgid "pad_setup.save_failed"
 msgstr "Ember はこの設定を使用できませんでした。何も保存していません。詳細は sf4e.log にあります。"
@@ -4928,3 +4924,174 @@ msgstr "{0} が切断されたため設定を終了しました。何も保存�
 
 msgid "pad_setup.stopped_idle"
 msgstr "1分間入力がなかったため設定を終了しました。何も保存していません。"
+
+msgid "player.button_layout"
+msgstr "ボタン配置"
+
+msgid "player.button_layout_detail"
+msgstr "{0} の各ボタンで出す攻撃を選びます。対戦相手には影響しません。"
+
+msgid "player.button_layout_setup"
+msgstr "Ember はまだ {0} に対応していません。選択して、先にボタンを設定してください。"
+
+msgid "player.button_layout_keyboard"
+msgstr "ボタン配置はコントローラー用です。キーボードは「ゲームのボタン設定」を使ってください。"
+
+msgid "player.button_layout_game_reads"
+msgstr "ボタン配置を使うには「ゲームにコントローラーを読み取らせる」をオフにしてください。それまでは「ゲームのボタン設定」を使ってください。"
+
+msgid "player.button_layout_failed"
+msgstr "今回は Ember のコントローラー対応を開始できませんでした。「ゲームのボタン設定」を使ってください。"
+
+msgid "player.game_buttons"
+msgstr "ゲームのボタン設定"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember を閉じます。ゲームのメニューでオプション、コントローラー設定の順に選んでください。キーボードとゲームが直接読み取るコントローラー用です。Ember のボタン配置があるコントローラーには、その配置が適用されます。ゲームはすべての操作にボタンがある配置だけを保存します。"
+
+msgid "controllers.choice_layout"
+msgstr "ボタン配置"
+
+msgid "controllers.choice_layout_detail"
+msgstr "各ボタンで出す攻撃を選びます。"
+
+msgid "controllers.choice_layout_setup"
+msgstr "先にボタンを設定してください。"
+
+msgid "controllers.detail_layout"
+msgstr "ボタン配置: {0}。"
+
+msgid "button_layout.title"
+msgstr "ボタン配置"
+
+msgid "button_layout.button_title"
+msgstr "ボタン変更"
+
+msgid "button_layout.test"
+msgstr "ボタンを試す"
+
+msgid "button_layout.test_detail"
+msgstr "{0} のボタンを押して、出る攻撃を確認します。この行では「戻る」だけがメニューを操作します。"
+
+msgid "button_layout.attacks"
+msgstr "攻撃"
+
+msgid "button_layout.throw"
+msgstr "投げ (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "セービングアタック (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "選択してから、{0} に使いたいボタンを押してください。別のボタンに同じ攻撃があれば、2つのボタンの攻撃を入れ替えます。"
+
+msgid "button_layout.row_missing"
+msgstr "この攻撃だけを出すボタンがないため、単独では出せません。"
+
+msgid "button_layout.no_button"
+msgstr "ボタンなし"
+
+msgid "button_layout.edit_button"
+msgstr "1つのボタンを変更"
+
+msgid "button_layout.edit_button_detail"
+msgstr "選択してからボタンを押し、そのボタンの攻撃を細かく選びます。自由に攻撃を組み合わせたり、ボタンを無効にしたりできます。"
+
+msgid "button_layout.preset"
+msgstr "プリセット"
+
+msgid "button_layout.preset_detail"
+msgstr "用意された配置を選びます。「標準」はゲーム本来の配置です。"
+
+msgid "button_layout.custom"
+msgstr "カスタム"
+
+msgid "button_layout.game_layout"
+msgstr "ゲームの配置"
+
+msgid "button_layout.preset.default"
+msgstr "標準"
+
+msgid "button_layout.preset.default_detail"
+msgstr "ゲーム本来の配置。多くのパッドと8ボタンのアーケードスティックに適しています。"
+
+msgid "button_layout.preset.triggers"
+msgstr "トリガーで3つ同時"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "6ボタンのパッド用。右ショルダーボタンが強パンチ、左が強キック。左トリガーがパンチ3つ同時、右がキック3つ同時です。"
+
+msgid "button_layout.preset.focus_throw"
+msgstr "セービングと投げ"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "「標準」の左ショルダーボタンをセービング、左トリガーを投げに変更します。8ボタンのアーケードスティックでは4列目です。パンチ3つ同時とキック3つ同時はスティック押し込みに移ります。"
+
+msgid "button_layout.preset_applied"
+msgstr "配置を {0} にしました。"
+
+msgid "button_layout.remove"
+msgstr "ゲームの配置を使う"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember によるこのコントローラーのボタン変更を止め、「ゲームのボタン設定」の配置を再び適用します。"
+
+msgid "button_layout.removed"
+msgstr "このコントローラーにゲームの配置を再び適用します。"
+
+msgid "button_layout.press_for"
+msgstr "{0} のボタンを押してください"
+
+msgid "button_layout.press_to_change"
+msgstr "変更するボタンを押してください"
+
+msgid "button_layout.press_cancel"
+msgstr "スティックを動かすか Start を押すとキャンセルします。"
+
+msgid "button_layout.assigned"
+msgstr "{0} を {1} に割り当てました。"
+
+msgid "button_layout.swapped"
+msgstr "{0} を {1} に割り当てました。代わりに {2} は {3} を出します。"
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} を {1} に割り当てました。{2} は何も出さなくなりました。"
+
+msgid "button_layout.bit_detail"
+msgstr "左右でこのボタンの {0} をオンまたはオフにします。"
+
+msgid "button_layout.clear"
+msgstr "攻撃なし"
+
+msgid "button_layout.clear_detail"
+msgstr "このボタンは対戦中に何もしません。"
+
+msgid "button_layout.button_does"
+msgstr "対戦中: {0}"
+
+msgid "button_layout.nothing"
+msgstr "なし"
+
+msgid "button_layout.absent"
+msgstr "未接続"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} は接続されていません。配置は保存されています。接続すると変更できます。"
+
+msgid "button_layout.setup_first"
+msgstr "先にボタンを設定"
+
+msgid "button_layout.setup_first_detail"
+msgstr "ゲームが {0} を直接読み取っているため、Ember はまだボタンを変更できません。一度設定すれば、ここで他のコントローラーと同じように使えます。"
+
+msgid "button_layout.missing_heading"
+msgstr "ボタンのない攻撃があります"
+
+msgid "button_layout.missing_text"
+msgstr "専用ボタンのない攻撃: {0}。配置は保存されています。"
+
+msgid "button_layout.keep_editing"
+msgstr "編集を続ける"
+
+msgid "button_layout.leave"
+msgstr "戻る"

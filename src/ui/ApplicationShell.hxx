@@ -25,6 +25,7 @@
 #include "GameMenu.hxx"
 #include "../common/ControllerView.hxx"
 #include "../common/ControllerRequest.hxx"
+#include "../common/ButtonLayoutCapture.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "ReplaysPanel.hxx"
@@ -435,9 +436,25 @@ private:
     std::optional<gamepads::PadView> setupPad_, setupPrompt_;
     std::vector<gamepads::Identity> setupPrompted_;
     std::set<unsigned> setupPromptHeld_;
-    bool setupStarting_=false, setupPromptReleased_=false;
+    bool setupStarting_=false, setupPromptReleased_=false, setupFromLayout_=false;
     std::uint64_t setupRevision_=0, setupMenuSequence_=0;
     gamepads::SetupMode setupPreviousMode_=gamepads::SetupMode::Capture;
+    std::optional<gamepads::PadView> layoutPad_;
+    bool layoutChanged_ = false, layoutAbsent_ = false;
+    unsigned layoutButton_ = 0;
+    std::optional<unsigned> layoutCaptureFunction_;
+    gamepads::LayoutCapture layoutCapture_;
+    bool layoutNeutral_ = false;
+    void SyncLayoutPaths(const ShellView& view);
+    void SetGameplayLayoutPrompts(const ShellView& view);
+    void CancelLayoutCapture(const ShellView& view, const Submit& submit);
+    void OpenButtonLayout(const gamepads::PadView& pad);
+    bool DrawButtonLayout(const ShellView& view, const Submit& submit);
+    bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
+    bool SavePreferences(const ShellView& view, const Submit& submit);
+    bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
+        const ShellView& view, const Submit& submit, const std::string& log);
+    void LayoutLog(const ShellView& view, const Submit& submit, std::string text);
     void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
     void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);
     bool DrawPadSetup(const ShellView& view,const Submit& submit);

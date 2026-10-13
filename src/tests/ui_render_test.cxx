@@ -343,6 +343,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_reports.hxx"
 #include "ui_render_prompts.hxx"
 #include "ui_render_controllers.hxx"
+#include "ui_render_button_layout.hxx"
 #include "ui_render_pad_setup.hxx"
 
 int main(int argc, char** argv) {
@@ -1035,6 +1036,7 @@ int main(int argc, char** argv) {
             ApplyTheme(size.dpi+.25f);ApplyTheme(size.dpi);renderer.Invalidate();
             Require(ImGui::GetStyle().WindowPadding.x==padding,"DPI scaling accumulated");draw();
             renderer.Invalidate();renderer.Resize(size.w,size.h);draw();
+            ShootButtonLayout(shell,view,draw,page);
             renderer.Shutdown();ImGui::DestroyContext();
         }
         }

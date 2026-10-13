@@ -1,4 +1,5 @@
 #include "../netplay/ControllerMappings.hxx"
+#include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
@@ -286,6 +287,11 @@ static void ControllerLayerRoundTrip(const Path& root) {
     CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"]["guid"] == "mapping");
     CHECK(sf4e::netplay::ReadControllerMappings(saved).at("guid") == "mapping");
     CHECK(sf4e::netplay::ReadControllerMappings({{"deviceType", 0}, {"deviceIdx", 2}}).empty());
+    const std::vector<sf4e::gamepads::StoredLayout> layouts = {{{"guid", "serial", "path", "Pad"}, sf4e::gamepads::DefaultLayout, 1234}};
+    CHECK(store.SaveLauncher({{"buttonLayouts", sf4e::gamepads::LayoutsToJson(layouts)}}, error));
+    CHECK(store.LoadLauncher(saved, error));
+    CHECK(sf4e::gamepads::ReadLayouts(saved, [](unsigned, sf4e::gamepads::LayoutLoadError) {}) == layouts);
+    CHECK(store.LoadOverlay(saved, error) && !saved.contains("buttonLayouts"));
     CHECK(store.SaveLauncher({{"controllerLayer", false}, {"controllerMappings", Json::object()}}, error));
     CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == false);
     CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"].empty());
@@ -299,7 +305,7 @@ int main() {
     const Json launcher = {{"displayName", "Saved player"}, {"inputDelay", 3}, {"roundCount", 7},
         {"roundTimeIntegral", 300}, {"editionSelect", 1}, {"sessionPort", 23456},
         {"relayHostSecret", "old-test-secret"}, {"relayRoomCode", "OLD1"}, {"relaySessionPort", 30001},
-        {"unknownPreference", "retain"}};
+        {"unknownPreference", "retain"}, {"buttonLayouts", sf4e::gamepads::LayoutsToJson({{{"migration-guid", "", "migration-path", "Pad"}, sf4e::gamepads::DefaultLayout, 12}})}};
     const Json overlay = {{"diagnostics", {{"heapCheckInterval", 1}}}, {"stageID", 12}, {"lobby", {{"charaID", 23}, {"color", 7}}},
         {"mainMenu", {{"p2", {{"charaID", 9}}}}}, {"device", {{"idx", 2}, {"type", 1}}}};
     Write(path / L"config.json", launcher.dump(4));
@@ -312,6 +318,7 @@ int main() {
     CHECK(result["displayName"] == "Saved player" && result["inputDelay"] == 3);
     CHECK(!result.contains("relayHostSecret") && !result.contains("relayRoomCode") && !result.contains("relaySessionPort"));
     CHECK(result["unknownPreference"] == "retain");
+    CHECK(sf4e::gamepads::ReadLayouts(result, [](unsigned, sf4e::gamepads::LayoutLoadError) {}).size() == 1);
     auto activeOverlay = overlay; activeOverlay.erase("mainMenu");
     CHECK(store.LoadOverlay(result, error) && result == activeOverlay);
     CHECK(store.LoadLauncher(result, error) && !result.contains("sessionPort"));

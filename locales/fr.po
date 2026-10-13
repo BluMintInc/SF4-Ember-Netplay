@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "Commandes"
 
 msgid "about.controls_detail"
-msgstr "Xbox : A sélectionne et B revient en arrière. PlayStation : Croix sélectionne et Rond revient en arrière. Switch : B sélectionne et A revient en arrière, comme dans les menus du jeu. Manette configurée dans Ember : Pied léger sélectionne et Pied moyen revient en arrière. Clavier : flèches, Entrée et Échap. La croix directionnelle déplace ; Gauche et Droite changent une valeur. Revenir en arrière à l'Accueil masque Ember. F10, ou Start sur une manette, l'ouvre à nouveau au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre place vous déclare prêt et B quitte votre place ou la file (sur les autres manettes, les boutons aux mêmes positions). Sur Xbox, X ouvre Combattant, Y Options et View Chat ; appuyez à nouveau pour revenir au salon. PlayStation utilise Carré, Triangle et Share ou Create ; Switch utilise Y, X et Minus.\n\nEn entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. Sur une manette, maintenez View (Share, Create ou Minus) et appuyez sur Start."
+msgstr "Xbox : A sélectionne et B revient en arrière. PlayStation : Croix sélectionne et Rond revient en arrière. Switch : B sélectionne et A revient en arrière, comme dans les menus du jeu. Manette configurée dans Ember : Le bouton choisi pour Pied léger sélectionne et celui de Pied moyen revient en arrière, quelle que soit la disposition des boutons. Clavier : flèches, Entrée et Échap. La croix directionnelle déplace ; Gauche et Droite changent une valeur. Revenir en arrière à l'Accueil masque Ember. F10, ou Start sur une manette, l'ouvre à nouveau au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre place vous déclare prêt et B quitte votre place ou la file (sur les autres manettes, les boutons aux mêmes positions). Sur Xbox, X ouvre Combattant, Y Options et View Chat ; appuyez à nouveau pour revenir au salon. PlayStation utilise Carré, Triangle et Share ou Create ; Switch utilise Y, X et Minus.\n\nEn entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. Sur une manette, maintenez View (Share, Create ou Minus) et appuyez sur Start."
 
 msgid "about.controls_keyboard"
 msgstr "Au clavier, Espace sélectionne aussi et Retour arrière revient aussi. Dans un salon, F ouvre Combattant, T ouvre Options et C ouvre Chat. Échap revient toujours, même sur votre propre place ; Suppr quitte votre place ou votre file."
@@ -4638,11 +4638,7 @@ msgstr "{0} connectées"
 msgid "player.controllers_detail"
 msgstr "Vous jouez avec {0}. Voyez toutes les manettes connectées, testez leurs boutons et configurez celles qu'Ember ne connaît pas encore."
 
-msgid "player.fight_buttons"
-msgstr "Boutons de combat"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember se ferme. Dans le menu du jeu, choisissez Options, puis les paramètres de manette. Chaque manette répertoriée par Ember y apparaît comme une manette Xbox avec les noms des boutons Xbox. Le jeu conserve une configuration uniquement si chaque action a un bouton."
 
 msgid "player.game_reads"
 msgstr "Laisser le jeu lire les manettes"
@@ -4918,7 +4914,7 @@ msgid "pad_setup.saved_heading"
 msgstr "Manette configurée"
 
 msgid "pad_setup.saved"
-msgstr "{0} est configurée. Si une attaque est incorrecte, vérifiez Boutons de combat dans Joueur et manette."
+msgstr "{0} est configurée. Pour changer les attaques de ses boutons, choisissez Disposition des boutons."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember n'a pas pu utiliser cette configuration. Rien n'a été enregistré. Les détails sont dans sf4e.log."
@@ -4928,3 +4924,174 @@ msgstr "Configuration arrêtée car {0} s'est déconnectée. Rien n'a été enre
 
 msgid "pad_setup.stopped_idle"
 msgstr "Configuration arrêtée après une minute sans entrée. Rien n'a été enregistré."
+
+msgid "player.button_layout"
+msgstr "Disposition des boutons"
+
+msgid "player.button_layout_detail"
+msgstr "Choisissez les attaques des boutons de {0}. Cela ne change rien pour votre adversaire."
+
+msgid "player.button_layout_setup"
+msgstr "Ember ne gère pas encore {0}. Sélectionnez pour configurer ses boutons d'abord."
+
+msgid "player.button_layout_keyboard"
+msgstr "Les dispositions sont réservées aux manettes. Pour le clavier, utilisez les réglages des boutons du jeu."
+
+msgid "player.button_layout_game_reads"
+msgstr "Désactivez Laisser le jeu lire les manettes pour utiliser les dispositions. En attendant, utilisez les réglages des boutons du jeu."
+
+msgid "player.button_layout_failed"
+msgstr "La prise en charge des manettes d'Ember n'a pas démarré cette fois. Utilisez les réglages des boutons du jeu."
+
+msgid "player.game_buttons"
+msgstr "Réglages des boutons du jeu"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember se ferme. Dans le jeu, choisissez Options, puis les réglages de manette. Utilisez-les pour le clavier et les manettes lues par le jeu. Une manette ayant une disposition Ember utilise celle-ci. Le jeu ne conserve une disposition que si chaque action a un bouton."
+
+msgid "controllers.choice_layout"
+msgstr "Disposition des boutons"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Choisissez les attaques de chaque bouton."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Configurez les boutons d'abord."
+
+msgid "controllers.detail_layout"
+msgstr "Disposition des boutons : {0}."
+
+msgid "button_layout.title"
+msgstr "DISPOSITION DES BOUTONS"
+
+msgid "button_layout.button_title"
+msgstr "MODIFIER UN BOUTON"
+
+msgid "button_layout.test"
+msgstr "Testez vos boutons"
+
+msgid "button_layout.test_detail"
+msgstr "Appuyez sur les boutons de {0} pour voir leurs attaques. Sur cette ligne, seul Retour agit sur le menu."
+
+msgid "button_layout.attacks"
+msgstr "Attaques"
+
+msgid "button_layout.throw"
+msgstr "Projection (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Attaque Focus (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Sélectionnez, puis appuyez sur le bouton souhaité pour {0}. Si un autre bouton a cette attaque, les deux s'échangent."
+
+msgid "button_layout.row_missing"
+msgstr "Aucun bouton ne fait uniquement cette attaque. Vous ne pouvez donc pas l'effectuer seule."
+
+msgid "button_layout.no_button"
+msgstr "Aucun bouton"
+
+msgid "button_layout.edit_button"
+msgstr "Modifier un bouton"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Sélectionnez, puis appuyez sur un bouton pour choisir précisément ses attaques. Vous pouvez combiner toutes les attaques ou désactiver le bouton."
+
+msgid "button_layout.preset"
+msgstr "Préréglage"
+
+msgid "button_layout.preset_detail"
+msgstr "Sélectionnez une disposition prédéfinie. Par défaut correspond à la disposition du jeu."
+
+msgid "button_layout.custom"
+msgstr "Personnalisée"
+
+msgid "button_layout.game_layout"
+msgstr "Disposition du jeu"
+
+msgid "button_layout.preset.default"
+msgstr "Par défaut"
+
+msgid "button_layout.preset.default_detail"
+msgstr "La disposition du jeu. Convient à la plupart des manettes et sticks à 8 boutons."
+
+msgid "button_layout.preset.triggers"
+msgstr "Trois attaques sur les gâchettes"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Pour les manettes à six boutons. Poing fort sur le bouton d'épaule droit et pied fort à gauche. Les trois poings sur la gâchette gauche, les trois pieds sur la droite."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus et projection"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Comme Par défaut, mais le bouton d'épaule gauche fait l'attaque Focus et la gâchette gauche projette. C'est la quatrième colonne d'un stick à 8 boutons. Les trois poings et les trois pieds passent aux clics des sticks."
+
+msgid "button_layout.preset_applied"
+msgstr "Disposition réglée sur {0}."
+
+msgid "button_layout.remove"
+msgstr "Utiliser la disposition du jeu"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember ne modifie plus les boutons de cette manette. La disposition des réglages des boutons du jeu s'applique à nouveau."
+
+msgid "button_layout.removed"
+msgstr "La disposition du jeu s'applique à nouveau à cette manette."
+
+msgid "button_layout.press_for"
+msgstr "Appuyez sur le bouton pour {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Appuyez sur le bouton à modifier"
+
+msgid "button_layout.press_cancel"
+msgstr "Bougez le stick ou appuyez sur Start pour annuler."
+
+msgid "button_layout.assigned"
+msgstr "{0} est maintenant sur {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} est maintenant sur {1}. {2} fait {3} à la place."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} est maintenant sur {1}. {2} ne fait plus rien."
+
+msgid "button_layout.bit_detail"
+msgstr "Gauche ou Droite active ou désactive {0} pour ce bouton."
+
+msgid "button_layout.clear"
+msgstr "Aucune attaque"
+
+msgid "button_layout.clear_detail"
+msgstr "Ce bouton ne fait rien en combat."
+
+msgid "button_layout.button_does"
+msgstr "En combat : {0}"
+
+msgid "button_layout.nothing"
+msgstr "Rien"
+
+msgid "button_layout.absent"
+msgstr "Non connectée"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} n'est pas connectée. Sa disposition est enregistrée. Connectez-la pour la modifier."
+
+msgid "button_layout.setup_first"
+msgstr "Configurez les boutons d'abord"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Le jeu lit {0} lui-même. Ember ne peut donc pas encore modifier ses boutons. Configurez-la une fois et elle fonctionnera ici comme les autres manettes."
+
+msgid "button_layout.missing_heading"
+msgstr "Certaines attaques n'ont pas de bouton"
+
+msgid "button_layout.missing_text"
+msgstr "Ces attaques n'ont aucun bouton dédié : {0}. La disposition est enregistrée."
+
+msgid "button_layout.keep_editing"
+msgstr "Continuer à modifier"
+
+msgid "button_layout.leave"
+msgstr "Quitter"

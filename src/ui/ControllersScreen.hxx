@@ -13,7 +13,7 @@ std::vector<MenuEntry> ControllerRows(gamepads::Layer layer, const std::vector<g
 std::optional<gamepads::ControllerRequest> ControllerAction(const MenuAction& action, const std::vector<gamepads::PadView>& pads);
 std::vector<MenuEntry> PlayerControllerRows(const netplay::PlayerPreferences& preferences,
     const std::string& controller, int deviceType, gamepads::PromptBrand brand,
-    const std::vector<gamepads::PadView>& pads, bool pending, bool canChange, bool canEdit, bool idle);
+    const std::vector<gamepads::PadView>& pads, bool pending, bool canChange, bool canEdit, bool idle, gamepads::Layer layer = gamepads::Layer::Active);
 void DrawControllerDetail(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts);
 void DrawCaptureDetail(input::Capture capture, const std::vector<gamepads::PadView>& pads, unsigned candidate);
 } }

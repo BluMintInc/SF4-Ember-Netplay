@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un control configurado en Ember: Patada débil selecciona y Patada media vuelve atrás. Teclado: flechas, Enter y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un control, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A sobre una mesa permite elegir asiento, A en tu asiento te marca como listo y B abandona tu asiento o lugar en la cola (en otros controles, los botones en las mismas posiciones). En Xbox, X abre Luchador, Y Opciones y View Chat; pulsa de nuevo para volver a la sala. PlayStation usa Cuadrado, Triángulo y Share o Create; Switch usa Y, X y Minus.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un control, mantén View (Share, Create o Minus) y pulsa Start."
+msgstr "Xbox: A selecciona y B vuelve atrás. PlayStation: Cruz selecciona y Círculo vuelve atrás. Switch: B selecciona y A vuelve atrás, como en los menús del juego. Un control configurado en Ember: El botón que elegiste para Patada débil selecciona y el de Patada media vuelve atrás, sea cual sea la distribución de botones. Teclado: flechas, Enter y Escape. La cruceta mueve; Izquierda y Derecha cambian un valor. Volver atrás en Inicio oculta Ember. F10, o Start en un control, lo abre de nuevo en el menú principal del juego.\n\nEn una sala, A sobre una mesa permite elegir asiento, A en tu asiento te marca como listo y B abandona tu asiento o lugar en la cola (en otros controles, los botones en las mismas posiciones). En Xbox, X abre Luchador, Y Opciones y View Chat; pulsa de nuevo para volver a la sala. PlayStation usa Cuadrado, Triángulo y Share o Create; Switch usa Y, X y Minus.\n\nEn entrenamiento, F6 abre los controles, F5 oculta el HUD, F7 graba y F8 reproduce. En un control, mantén View (Share, Create o Minus) y pulsa Start."
 
 msgid "about.controls_keyboard"
 msgstr "En el teclado, Espacio también selecciona y Retroceso también regresa. En una sala, F abre Luchador, T abre Opciones y C abre Chat. Escape siempre regresa, incluso en tu propio asiento; Supr deja tu asiento o tu lugar en la fila."
@@ -4178,11 +4178,7 @@ msgstr "{0} conectados"
 msgid "player.controllers_detail"
 msgstr "Juegas con {0}. Consulta todos los controles conectados, prueba sus botones y configura los que Ember aún no conoce."
 
-msgid "player.fight_buttons"
-msgstr "Botones de pelea"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember se cierra. En el menú del juego, elige Opciones y luego la configuración del control. Cada control que muestra Ember aparece allí como un control Xbox con nombres de botones Xbox. El juego solo conserva una configuración si cada acción tiene un botón."
 
 msgid "player.game_reads"
 msgstr "Dejar que el juego lea los controles"
@@ -4458,7 +4454,7 @@ msgid "pad_setup.saved_heading"
 msgstr "Control configurado"
 
 msgid "pad_setup.saved"
-msgstr "{0} está configurado. Si un ataque no hace lo esperado, revisa Botones de pelea en Jugador y control."
+msgstr "{0} está configurado. Para cambiar los ataques de sus botones, elige Distribución de botones."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember no pudo usar esta configuración. No se ha guardado nada. Los detalles están en sf4e.log."
@@ -4468,3 +4464,174 @@ msgstr "Configuración detenida porque {0} se desconectó. No se ha guardado nad
 
 msgid "pad_setup.stopped_idle"
 msgstr "Configuración detenida tras un minuto sin presionar nada. No se ha guardado nada."
+
+msgid "player.button_layout"
+msgstr "Distribución de botones"
+
+msgid "player.button_layout_detail"
+msgstr "Elige qué ataques hacen los botones de {0}. No cambia nada para tu oponente."
+
+msgid "player.button_layout_setup"
+msgstr "Ember aún no gestiona {0}. Selecciona para configurar primero sus botones."
+
+msgid "player.button_layout_keyboard"
+msgstr "Las distribuciones son para controles. Para el teclado, usa Ajustes de botones del juego."
+
+msgid "player.button_layout_game_reads"
+msgstr "Desactiva Dejar que el juego lea los controles para usar distribuciones. Mientras tanto, usa Ajustes de botones del juego."
+
+msgid "player.button_layout_failed"
+msgstr "El soporte de controles de Ember no inició esta vez. Usa Ajustes de botones del juego."
+
+msgid "player.game_buttons"
+msgstr "Ajustes de botones del juego"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember se cierra. En el menú del juego, elige Opciones y luego los ajustes del control. Úsalos para el teclado y los controles que lee el juego. Un control con una distribución de Ember usa esa distribución. El juego solo conserva una distribución si cada acción tiene un botón."
+
+msgid "controllers.choice_layout"
+msgstr "Distribución de botones"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Elige qué ataques hace cada botón."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Configura primero sus botones."
+
+msgid "controllers.detail_layout"
+msgstr "Distribución de botones: {0}."
+
+msgid "button_layout.title"
+msgstr "DISTRIBUCIÓN DE BOTONES"
+
+msgid "button_layout.button_title"
+msgstr "CAMBIAR BOTÓN"
+
+msgid "button_layout.test"
+msgstr "Prueba tus botones"
+
+msgid "button_layout.test_detail"
+msgstr "Pulsa los botones de {0} para ver qué ataques hacen. En esta fila, solo Atrás actúa sobre el menú."
+
+msgid "button_layout.attacks"
+msgstr "Ataques"
+
+msgid "button_layout.throw"
+msgstr "Agarre (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Ataque Focus (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Selecciona y pulsa el botón que quieras para {0}. Si otro botón tiene ese ataque, los dos se intercambian."
+
+msgid "button_layout.row_missing"
+msgstr "Ningún botón hace solo este ataque, así que no puedes ejecutarlo por separado."
+
+msgid "button_layout.no_button"
+msgstr "Sin botón"
+
+msgid "button_layout.edit_button"
+msgstr "Cambiar un botón"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Selecciona y pulsa un botón para elegir exactamente sus ataques. Puedes usar cualquier combinación o desactivar el botón."
+
+msgid "button_layout.preset"
+msgstr "Preajuste"
+
+msgid "button_layout.preset_detail"
+msgstr "Selecciona una distribución preparada. Predeterminada es la distribución del juego."
+
+msgid "button_layout.custom"
+msgstr "Personalizada"
+
+msgid "button_layout.game_layout"
+msgstr "Distribución del juego"
+
+msgid "button_layout.preset.default"
+msgstr "Predeterminada"
+
+msgid "button_layout.preset.default_detail"
+msgstr "La distribución del juego. Sirve para la mayoría de controles y sticks de 8 botones."
+
+msgid "button_layout.preset.triggers"
+msgstr "Tres ataques en los gatillos"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Para controles de seis botones. Puño fuerte en el botón superior derecho y patada fuerte en el izquierdo. Los tres puños en el gatillo izquierdo y las tres patadas en el derecho."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus y agarre"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Como Predeterminada, pero el botón superior izquierdo hace Focus y el gatillo izquierdo un agarre. Es la cuarta columna de un stick de 8 botones. Los tres puños y las tres patadas pasan a las pulsaciones de las palancas."
+
+msgid "button_layout.preset_applied"
+msgstr "Distribución cambiada a {0}."
+
+msgid "button_layout.remove"
+msgstr "Usar la distribución del juego"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember deja de cambiar los botones de este control y vuelve a aplicarse la distribución de Ajustes de botones del juego."
+
+msgid "button_layout.removed"
+msgstr "La distribución del juego vuelve a aplicarse a este control."
+
+msgid "button_layout.press_for"
+msgstr "Pulsa el botón para {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Pulsa el botón que quieras cambiar"
+
+msgid "button_layout.press_cancel"
+msgstr "Mueve la palanca o pulsa Start para cancelar."
+
+msgid "button_layout.assigned"
+msgstr "{0} está ahora en {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} está ahora en {1}. {2} hace {3} en su lugar."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} está ahora en {1}. {2} ya no hace nada."
+
+msgid "button_layout.bit_detail"
+msgstr "Izquierda o Derecha activa o desactiva {0} en este botón."
+
+msgid "button_layout.clear"
+msgstr "Sin ataques"
+
+msgid "button_layout.clear_detail"
+msgstr "Este botón no hace nada en pelea."
+
+msgid "button_layout.button_does"
+msgstr "En pelea: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nada"
+
+msgid "button_layout.absent"
+msgstr "No conectado"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} no está conectado. Su distribución está guardada. Conéctalo para cambiarla."
+
+msgid "button_layout.setup_first"
+msgstr "Configura primero sus botones"
+
+msgid "button_layout.setup_first_detail"
+msgstr "El juego lee {0} directamente, así que Ember aún no puede cambiar sus botones. Configúralo una vez y funcionará aquí como los demás controles."
+
+msgid "button_layout.missing_heading"
+msgstr "Algunos ataques no tienen botón"
+
+msgid "button_layout.missing_text"
+msgstr "Estos ataques no tienen botón propio: {0}. La distribución está guardada."
+
+msgid "button_layout.keep_editing"
+msgstr "Seguir editando"
+
+msgid "button_layout.leave"
+msgstr "Salir"

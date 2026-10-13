@@ -1,5 +1,6 @@
 #include "ControllersScreen.hxx"
 #include "ButtonPromptSetting.hxx"
+#include "ButtonLayoutScreen.hxx"
 #include "GameMenu.hxx"
 #include "../netplay/InputAssignment.hxx"
 
@@ -52,18 +53,21 @@ MenuEntry ControllerRow(const PadView& pad, bool canChange, bool canEdit, Layer 
     case RowState::GameRead:
         if (pad.gameplay) row.value = loc::T("controllers.value_yours");
         row.detail = loc::T("controllers.detail_game_read");
-        if (layer == Layer::Active) row.choices = {{"setup", loc::T("controllers.choice_setup"),
+        if (layer == Layer::Active) row.choices = {{"layout", loc::T("controllers.choice_layout"), loc::T("controllers.choice_layout_setup"), false}, {"setup", loc::T("controllers.choice_setup"),
             loc::T(canEdit ? "controllers.choice_setup_detail" : "settings.leave_room_to_edit"), canEdit}};
         else row.info = true;
         return row;
     }
+    if (pad.layout) row.detail += "\n" + loc::Tf("controllers.detail_layout", LayoutName(pad.layout));
     row.choices = {
         {"play", loc::T("controllers.choice_play"), loc::T(pad.gameplay ? "controllers.choice_play_current" :
             canChange ? "controllers.choice_play_detail" : "settings.leave_room_to_edit"), !pad.gameplay && canChange},
+        {"layout", loc::T("controllers.choice_layout"), loc::T("controllers.choice_layout_detail")},
         {"setup", loc::T("controllers.choice_setup"), loc::T(!canEdit ? "settings.leave_room_to_edit" :
             pad.state == RowState::Steam ? "controllers.choice_setup_steam" : "controllers.choice_setup_detail"), canEdit && pad.state != RowState::Steam}
     };
-    if (pad.customMapping) row.choices.push_back({"forget", loc::T("controllers.choice_forget"), loc::T("controllers.choice_forget_detail")});
+    if (pad.customMapping) row.choices.push_back({"forget", loc::T("controllers.choice_forget"),
+        loc::T(canEdit ? "controllers.choice_forget_detail" : "settings.leave_room_to_edit"), canEdit});
     return row;
 }
 std::vector<MenuEntry> ControllerRows(Layer layer, const std::vector<PadView>& pads, bool canChange, bool canEdit) {
@@ -83,13 +87,14 @@ std::optional<ControllerRequest> ControllerAction(const MenuAction& action, cons
     using Kind = ControllerRequest::Kind;
     if (action.kind == MenuAction::Activate && pad->state == RowState::Unmapped) return ControllerRequest{Kind::Setup, pad->id};
     if (action.kind != MenuAction::Chosen) return {};
+    if (action.text == "layout") return ControllerRequest{Kind::OpenLayout, pad->id};
     if (action.text == "play") return ControllerRequest{Kind::Play, pad->id};
     if (action.text == "setup") return ControllerRequest{Kind::Setup, pad->id};
     if (action.text == "forget") return ControllerRequest{Kind::Forget, pad->id};
     return {};
 }
 std::vector<MenuEntry> PlayerControllerRows(const netplay::PlayerPreferences& p, const std::string& controller,
-    int deviceType, PromptBrand brand, const std::vector<PadView>& pads, bool pending, bool canChange, bool canEdit, bool idle) {
+    int deviceType, PromptBrand brand, const std::vector<PadView>& pads, bool pending, bool canChange, bool canEdit, bool idle, Layer layer) {
     NoteUserText(controller.c_str());
     const auto count = std::count_if(pads.begin(), pads.end(), [](const PadView& pad) { return pad.state != RowState::Absent; });
     auto controllers = Row("controllers", loc::T("player.controllers"), loc::Tf("player.controllers_detail", controller));
@@ -102,10 +107,18 @@ std::vector<MenuEntry> PlayerControllerRows(const netplay::PlayerPreferences& p,
         promptDetail += "\n" + loc::Tf("player.prompts_showing", PromptBrandWord(brand.brand));
     auto gameDetail = std::string(loc::T(canEdit ? "player.game_reads_detail" : "settings.leave_room_to_edit"));
     if (canEdit && pending) gameDetail += "\n\n" + std::string(loc::T("player.game_reads_pending"));
+    const auto pad = std::find_if(pads.begin(), pads.end(), [](const PadView& pad) { return pad.gameplay; });
+    const bool keyboard = deviceType == input::PadKeyboard;
+    const bool covered = pad != pads.end() && (pad->state == RowState::Recognised || pad->state == RowState::Steam || pad->state == RowState::Absent);
+    const char* detail = layer == Layer::GameReads ? "player.button_layout_game_reads" : layer == Layer::Failed ? "player.button_layout_failed" :
+        keyboard ? "player.button_layout_keyboard" : covered ? "player.button_layout_detail" : "player.button_layout_setup";
+    auto layout = Row("controls", loc::T("player.button_layout"), loc::Tf(detail, controller), layer == Layer::Active && !keyboard);
+    layout.quiet = !layout.enabled; layout.detailText = DetailText::Name;
+    if (covered && layer == Layer::Active) layout.value = LayoutName(pad->layout);
     return {TextRow("name", loc::T("profile.player_name"), p.displayName, 31, canEdit), std::move(controllers), std::move(capture),
         ConfirmRow("keyboard", loc::T("player.use_keyboard"), loc::T("player.use_keyboard_detail"), canChange),
         Value("button-prompts", loc::T("player.button_prompts"), ButtonPromptValue(p.buttonPrompts), promptDetail, canEdit),
-        Row("controls", loc::T("player.fight_buttons"), loc::T("player.fight_buttons_detail"), idle),
+        std::move(layout), Row("game-buttons", loc::T("player.game_buttons"), loc::T("player.game_buttons_detail"), idle),
         Value("background-play", loc::T("player.background_play"), loc::T(p.backgroundPlay ? "common.on" : "common.off"), loc::T("player.background_play_detail"), canEdit),
         Value("lower-input-lag", loc::T("player.lower_input_lag"), loc::T(p.lowerInputLag ? "common.on" : "common.off"), loc::T("player.lower_input_lag_detail"), canEdit),
         Value("lower-keyboard-lag", loc::T("player.lower_keyboard_lag"), loc::T(p.lowerKeyboardLag ? "common.on" : "common.off"), loc::T("player.lower_keyboard_lag_detail"), canEdit),
@@ -127,9 +140,13 @@ void TestLine(const PadView& pad, PromptBrand brand, const std::vector<const cha
     auto* draw = ImGui::GetWindowDrawList();
     const float s = Scale(), size = 32 * s;
     auto at = ImGui::GetCursorScreenPos();
+    const auto names = NamesOf(pad.table);
     for (const char* id : ids) {
+        bool has = true;
+        for (unsigned i = 0; i < LayoutGlyphs.size(); ++i) if (!std::strcmp(id, LayoutGlyphs[i])) has = pad.has[i];
+        if (!has) continue;
         const bool held = std::find(pad.held.begin(), pad.held.end(), id) != pad.held.end();
-        DrawPromptGlyph(draw, id, at, size, MenuArt(), s, 0, brand, held ? 1.f : .35f);
+        DrawPromptGlyph(draw, id, at, size, MenuArt(), s, 0, brand, held ? 1.f : .35f, &names);
         if (held) draw->AddRectFilled(ImVec2(at.x, at.y + size + 2 * s), ImVec2(at.x + size, at.y + size + 4 * s), palette::Ember);
         at.x += size + 8 * s;
     }
@@ -142,7 +159,7 @@ void DrawControllerDetail(const PadView& pad, ButtonPrompts prompts) {
         ImGui::TextUnformatted(loc::T("controllers.test_heading"));
         const auto brand = ResolvePrompts(prompts, input::PadXInput, pad.brand);
         TestLine(pad, brand, {"up", "down", "left", "right"});
-        TestLine(pad, brand, {"A", "B", "X", "Y", "LB", "RB", "LT", "RT", "View", "Start"});
+        TestLine(pad, brand, {"A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LS", "RS", "View", "Start"});
     } else if (pad.state == RowState::Unmapped) {
         ImGui::TextUnformatted(loc::T("controllers.test_heading"));
         const auto text = pad.raw.empty() ? std::string(loc::T("controllers.test_nothing")) : loc::Tf("controllers.test_raw", RawInputList(pad.raw));

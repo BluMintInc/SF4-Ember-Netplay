@@ -2,6 +2,7 @@
 #include "GamepadBrand.hxx"
 #include "XInputMapping.hxx"
 #include "PadSetup.hxx"
+#include "ButtonLayoutTypes.hxx"
 #include <string>
 #include <vector>
 
@@ -22,6 +23,7 @@ inline std::vector<std::string> HeldGlyphs(const State& state) {
         {"left", Button::Left, state.leftX < -16384}, {"right", Button::Right, state.leftX > 16383},
         {"A", Button::South, false}, {"B", Button::East, false}, {"X", Button::West, false}, {"Y", Button::North, false},
         {"LB", Button::LeftShoulder, false}, {"RB", Button::RightShoulder, false},
+        {"LS", Button::LeftStick, false}, {"RS", Button::RightStick, false},
         {"View", Button::Back, false}, {"Start", Button::Start, false}
     };
     for (const auto& input : inputs)
@@ -52,12 +54,18 @@ struct PadView {
     std::string name, picture;
     PromptBrand brand;
     Type artVariant = Type::Unknown;
+    FightNames buttonNames;
     int slot = -1, directInputIndex = -1;
     RowState state = RowState::Recognised;
     bool gameplay = false, customMapping = false, pressed = false;
     std::vector<std::string> held;
     std::vector<RawInput> raw;
     bool rawAtRest = true;
+    std::string mapping;
+    bool numberedHats = false;
+    ListedButtons has = AllLayoutButtons;
+    ButtonLayout table = DefaultLayout;
+    std::optional<ButtonLayout> layout;
 };
 struct PadFrame {
     Pad pad;
@@ -65,6 +73,11 @@ struct PadFrame {
     std::vector<RawInput> raw;
     bool pressed = false;
     bool rawAtRest = true;
+    std::string mapping;
+    bool numberedHats = false;
+    ListedButtons has = AllLayoutButtons;
+    ButtonLayout table = DefaultLayout;
+    std::optional<ButtonLayout> layout;
 };
 struct NativeController {
     int index;

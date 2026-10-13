@@ -71,6 +71,7 @@ const char* promptAssets[]={
     "xbox_dpad_left",
     "xbox_dpad_right",
     "xbox_dpad_up",
+    "xbox_ls", "xbox_rs", "playstation_button_l3", "playstation_button_r3", "switch_stick_l_press", "switch_stick_r_press",
     "xbox_lb",
     "xbox_lt",
     "xbox_rb",

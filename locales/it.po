@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "Comandi"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Calcio leggero seleziona e Calcio medio torna indietro. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nIn una stanza, A su un tavolo permette di scegliere un posto, A sul proprio posto segnala che si è pronti e B lascia il posto o la coda (sugli altri controller, i pulsanti nelle stesse posizioni). Su Xbox, X apre Combattente, Y Opzioni e View Chat; premi di nuovo per tornare alla stanza. PlayStation usa Quadrato, Triangolo e Share o Create; Switch usa Y, X e Minus.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start."
+msgstr "Xbox: A seleziona e B torna indietro. PlayStation: Croce seleziona e Cerchio torna indietro. Switch: B seleziona e A torna indietro, come nei menu del gioco. Un controller configurato in Ember: Il pulsante scelto per Calcio leggero seleziona e quello per Calcio medio torna indietro, qualunque sia la disposizione dei pulsanti. Tastiera: frecce, Invio ed Escape. La croce direzionale muove; Sinistra e Destra cambiano un valore. Tornare indietro in Home nasconde Ember. F10, o Start su un controller, lo apre di nuovo nel menu principale del gioco.\n\nIn una stanza, A su un tavolo permette di scegliere un posto, A sul proprio posto segnala che si è pronti e B lascia il posto o la coda (sugli altri controller, i pulsanti nelle stesse posizioni). Su Xbox, X apre Combattente, Y Opzioni e View Chat; premi di nuovo per tornare alla stanza. PlayStation usa Quadrato, Triangolo e Share o Create; Switch usa Y, X e Minus.\n\nIn allenamento, F6 apre i controlli, F5 nasconde l'HUD, F7 registra e F8 riproduce. Su un controller, tieni premuto View (Share, Create o Minus) e premi Start."
 
 msgid "about.controls_keyboard"
 msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
@@ -4638,11 +4638,7 @@ msgstr "{0} connessi"
 msgid "player.controllers_detail"
 msgstr "Giochi con {0}. Vedi tutti i controller connessi, prova i loro pulsanti e configura quelli che Ember non conosce ancora."
 
-msgid "player.fight_buttons"
-msgstr "Pulsanti di combattimento"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember si chiude. Nel menu del gioco, scegli Opzioni, poi le impostazioni del controller. Ogni controller elencato da Ember appare lì come un controller Xbox con nomi dei pulsanti Xbox. Il gioco conserva una configurazione solo quando ogni azione ha un pulsante."
 
 msgid "player.game_reads"
 msgstr "Lascia leggere i controller al gioco"
@@ -4918,7 +4914,7 @@ msgid "pad_setup.saved_heading"
 msgstr "Controller configurato"
 
 msgid "pad_setup.saved"
-msgstr "{0} è configurato. Se un attacco è sbagliato, controlla Pulsanti di combattimento in Giocatore e controller."
+msgstr "{0} è configurato. Per cambiare gli attacchi dei suoi pulsanti, scegli Disposizione pulsanti."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember non ha potuto usare questa configurazione. Non è stato salvato nulla. I dettagli sono in sf4e.log."
@@ -4928,3 +4924,174 @@ msgstr "Configurazione interrotta perché {0} si è scollegato. Non è stato sal
 
 msgid "pad_setup.stopped_idle"
 msgstr "Configurazione interrotta dopo un minuto senza comandi. Non è stato salvato nulla."
+
+msgid "player.button_layout"
+msgstr "Disposizione pulsanti"
+
+msgid "player.button_layout_detail"
+msgstr "Scegli quali attacchi eseguono i pulsanti di {0}. Non cambia nulla per l'avversario."
+
+msgid "player.button_layout_setup"
+msgstr "Ember non gestisce ancora {0}. Seleziona per configurare prima i pulsanti."
+
+msgid "player.button_layout_keyboard"
+msgstr "Le disposizioni sono per i controller. Per la tastiera, usa le impostazioni pulsanti del gioco."
+
+msgid "player.button_layout_game_reads"
+msgstr "Disattiva Lascia leggere i controller al gioco per usare le disposizioni. Nel frattempo, usa le impostazioni pulsanti del gioco."
+
+msgid "player.button_layout_failed"
+msgstr "Il supporto controller di Ember non è partito questa volta. Usa le impostazioni pulsanti del gioco."
+
+msgid "player.game_buttons"
+msgstr "Impostazioni pulsanti del gioco"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember si chiude. Nel menu del gioco scegli Opzioni, poi le impostazioni controller. Usale per la tastiera e i controller letti dal gioco. Un controller con una disposizione Ember usa quella. Il gioco conserva una disposizione solo se ogni azione ha un pulsante."
+
+msgid "controllers.choice_layout"
+msgstr "Disposizione pulsanti"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Scegli gli attacchi di ogni pulsante."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Configura prima i pulsanti."
+
+msgid "controllers.detail_layout"
+msgstr "Disposizione pulsanti: {0}."
+
+msgid "button_layout.title"
+msgstr "DISPOSIZIONE PULSANTI"
+
+msgid "button_layout.button_title"
+msgstr "CAMBIA PULSANTE"
+
+msgid "button_layout.test"
+msgstr "Prova i pulsanti"
+
+msgid "button_layout.test_detail"
+msgstr "Premi i pulsanti di {0} per vedere quali attacchi eseguono. Su questa riga, solo Indietro agisce sul menu."
+
+msgid "button_layout.attacks"
+msgstr "Attacchi"
+
+msgid "button_layout.throw"
+msgstr "Presa (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Attacco Focus (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Seleziona, poi premi il pulsante desiderato per {0}. Se un altro pulsante ha questo attacco, i due si scambiano."
+
+msgid "button_layout.row_missing"
+msgstr "Nessun pulsante esegue solo questo attacco, quindi non puoi eseguirlo da solo."
+
+msgid "button_layout.no_button"
+msgstr "Nessun pulsante"
+
+msgid "button_layout.edit_button"
+msgstr "Cambia un pulsante"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Seleziona, poi premi un pulsante per scegliere esattamente i suoi attacchi. Puoi usare qualsiasi combinazione o disattivare il pulsante."
+
+msgid "button_layout.preset"
+msgstr "Preimpostazione"
+
+msgid "button_layout.preset_detail"
+msgstr "Seleziona una disposizione pronta. Predefinita è la disposizione del gioco."
+
+msgid "button_layout.custom"
+msgstr "Personalizzata"
+
+msgid "button_layout.game_layout"
+msgstr "Disposizione del gioco"
+
+msgid "button_layout.preset.default"
+msgstr "Predefinita"
+
+msgid "button_layout.preset.default_detail"
+msgstr "La disposizione del gioco. Adatta alla maggior parte dei controller e agli stick a 8 pulsanti."
+
+msgid "button_layout.preset.triggers"
+msgstr "Tre attacchi sui grilletti"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Per controller a sei pulsanti. Pugno forte sul dorsale destro e calcio forte sul sinistro. Tutti e tre i pugni sul grilletto sinistro, tutti e tre i calci sul destro."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus e presa"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Come Predefinita, ma il dorsale sinistro esegue l'attacco Focus e il grilletto sinistro la presa. È la quarta colonna di uno stick a 8 pulsanti. I tre pugni e i tre calci passano alle pressioni degli stick."
+
+msgid "button_layout.preset_applied"
+msgstr "Disposizione impostata su {0}."
+
+msgid "button_layout.remove"
+msgstr "Usa la disposizione del gioco"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember smette di modificare i pulsanti di questo controller. Torna la disposizione delle impostazioni pulsanti del gioco."
+
+msgid "button_layout.removed"
+msgstr "La disposizione del gioco si applica di nuovo a questo controller."
+
+msgid "button_layout.press_for"
+msgstr "Premi il pulsante per {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Premi il pulsante da cambiare"
+
+msgid "button_layout.press_cancel"
+msgstr "Muovi lo stick o premi Start per annullare."
+
+msgid "button_layout.assigned"
+msgstr "{0} è ora su {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} è ora su {1}. {2} esegue invece {3}."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} è ora su {1}. {2} non esegue più nulla."
+
+msgid "button_layout.bit_detail"
+msgstr "Sinistra o Destra attiva o disattiva {0} per questo pulsante."
+
+msgid "button_layout.clear"
+msgstr "Nessun attacco"
+
+msgid "button_layout.clear_detail"
+msgstr "Questo pulsante non fa nulla in combattimento."
+
+msgid "button_layout.button_does"
+msgstr "In combattimento: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nulla"
+
+msgid "button_layout.absent"
+msgstr "Non connesso"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} non è connesso. La disposizione è salvata. Collegalo per modificarla."
+
+msgid "button_layout.setup_first"
+msgstr "Configura prima i pulsanti"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Il gioco legge {0} direttamente, quindi Ember non può ancora modificarne i pulsanti. Configuralo una volta e funzionerà qui come gli altri controller."
+
+msgid "button_layout.missing_heading"
+msgstr "Alcuni attacchi non hanno pulsante"
+
+msgid "button_layout.missing_text"
+msgstr "Questi attacchi non hanno un pulsante dedicato: {0}. La disposizione è salvata."
+
+msgid "button_layout.keep_editing"
+msgstr "Continua a modificare"
+
+msgid "button_layout.leave"
+msgstr "Esci"

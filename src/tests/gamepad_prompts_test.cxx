@@ -98,6 +98,15 @@ static void Glyphs() {
     }
     CHECK(Same(ui::PhysicalGlyph(input::PadDirectInput,input::xinput::A,"LP"),"LP"));
 }
+static void RelayoutNames() {
+    auto layout = DefaultLayout; Assign(layout, 5, 0x10); SetMask(layout, 0, 0);
+    const auto names = NamesOf(layout);
+    CHECK(Same(ui::BrandGlyph("RB", {Brand::Stick}, &names).name, "LP"));
+    CHECK(Same(ui::BrandGlyph("X", {Brand::Stick}, &names).name, "HP"));
+    CHECK(ui::PromptLabel("A", "Select", {Brand::Stick}, &names) == "Select");
+    CHECK(Same(ui::BrandGlyph("LS", {Brand::PlayStation}).asset, "playstation_button_l3"));
+    CHECK(Same(ui::BrandGlyph("RS", {Brand::Nintendo}).asset, "switch_stick_r_press"));
+}
 static void Names() {
     const PositionNames expected[]={{"Back","Start"},{"Select","Start"},{"Share","Options"},{"Create","Options"},
         {"Minus","Plus"},{"Select","Start"},{"Back","Start"}};
@@ -108,4 +117,4 @@ static void Names() {
         CHECK(Same(direct.view,"Select")&&Same(direct.start,"Start"));
     }
 }
-int main() { Detection(); Resolution(); Glyphs(); Names(); }
+int main() { Detection(); Resolution(); Glyphs(); Names(); RelayoutNames(); }

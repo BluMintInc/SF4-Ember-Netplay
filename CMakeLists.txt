@@ -237,7 +237,7 @@ set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMP
 target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
-target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx)
 add_library(sf4e_problem_report STATIC src/platform/ProblemReport.cxx)
 target_compile_features(sf4e_problem_report PUBLIC cxx_std_17)
 target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
@@ -256,6 +256,7 @@ if(BUILD_TESTING)
     target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME GamepadPrompts SOURCES src/tests/gamepad_prompts_test.cxx LIBS sf4e_ui STD 17)
+    sf4e_add_unit_test(NAME ButtonLayout SOURCES src/tests/button_layout_test.cxx LIBS sf4e_settings STD 17)
     sf4e_add_unit_test(NAME PadSetup SOURCES src/tests/pad_setup_test.cxx STD 17)
     sf4e_add_unit_test(NAME PadSetupMapping SOURCES src/tests/pad_setup_mapping_test.cxx LIBS SDL3::SDL3-static sf4e_settings STD 17)
     sf4e_add_unit_test(NAME GamepadSlots SOURCES src/tests/gamepad_slots_test.cxx STD 17)
@@ -264,7 +265,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
-        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx
+        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
         src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
@@ -369,6 +370,8 @@ endif()
 
 add_library(sf4e STATIC
     "src/sf4e/sf4e__Gamepads.cxx"
+    "src/sf4e/sf4e__GamepadLayouts.cxx"
+    "src/sf4e/sf4e__OptionUIController.cxx"
     "src/sf4e/sf4e__DirectInputFilter.cxx"
     "src/sf4e/sf4e__ImportPatch.cxx"
     "src/sf4e/sf4e__InputDevices.cxx"

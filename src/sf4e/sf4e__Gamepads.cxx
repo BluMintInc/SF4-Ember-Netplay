@@ -1,4 +1,5 @@
 #include "sf4e__Gamepads.hxx"
+#include "sf4e__GamepadLayouts.hxx"
 #include "sf4e__ImportPatch.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__OverlayPrefs.hxx"
@@ -301,6 +302,7 @@ void UpdateLocked(bool rebuild) {
             rebuild = true;
         }
     if (rebuild) Rebuild();
+    GamepadLayouts::Update(inventory);
     std::array<Snapshot, 4> next{};
     frames.clear();
     RawState setupRaw; bool setupConnected = false;
@@ -310,6 +312,17 @@ void UpdateLocked(bool rebuild) {
         auto handle = handles.find(pad.id);
         if (handle != handles.end() && SDL_GamepadConnected(handle->second)) {
             frame.state = ReadState(handle->second);
+            if (pad.hasEmberMapping) {
+                char* mapping = SDL_GetGamepadMapping(handle->second);
+                frame.mapping = Text(mapping); SDL_free(mapping);
+                frame.numberedHats = SDL_GetNumJoystickHats(SDL_GetGamepadJoystick(handle->second)) > 1;
+            }
+            const SDL_GamepadButton buttons[] = {SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER};
+            for (unsigned i = 0; i < 6; ++i) frame.has[i] = SDL_GamepadHasButton(handle->second, buttons[i]);
+            frame.has[6] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+            frame.has[7] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+            frame.has[8] = !pad.hasEmberMapping && SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+            frame.has[9] = !pad.hasEmberMapping && SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
             frame.pressed = std::any_of(frame.state.buttons.begin(), frame.state.buttons.end(), [](bool held) { return held; }) ||
                 frame.state.leftTrigger > 16383 || frame.state.rightTrigger > 16383;
             if (pad.slot >= 0) {
@@ -333,6 +346,7 @@ void UpdateLocked(bool rebuild) {
             setupConnected = (handle != handles.end() && SDL_GamepadConnected(handle->second)) ||
                 (raw != rawHandles.end() && SDL_JoystickConnected(raw->second.handle));
         }
+        GamepadLayouts::Read(frame, inventory);
         frames.push_back(std::move(frame));
     }
     const bool wasSetupActive = setup.state.active;
@@ -429,11 +443,12 @@ void Start() {
     std::unique_lock lock(mutex);
     if (started) return;
     started = true;
-    if (!requested) { startupNote = "Input: controller layer off (game imports could not be patched)"; return; }
+    GamepadLayouts::Load();
+    if (!requested) { GamepadLayouts::Started({}, false); startupNote = "Input: controller layer off (game imports could not be patched)"; return; }
     OverlayPrefs::Data prefs;
     OverlayPrefs::Load(prefs);
     layerSetting = prefs.controllerLayer;
-    if (!layerSetting) { startupNote = "Input: the game reads controllers itself (setting)"; return; }
+    if (!layerSetting) { GamepadLayouts::Started({}, false); startupNote = "Input: the game reads controllers itself (setting)"; return; }
     preferred = prefs.deviceIdentity;
     // Only GAMEPAD is initialized, so SDL owns no video or game window. Keep
     // SDL's default backend deduplication; disabling it can expose Xbox pads twice.
@@ -442,6 +457,7 @@ void Start() {
         SDL_HINT_JOYSTICK_HIDAPI_SWITCH, SDL_HINT_JOYSTICK_HIDAPI_STEAM, SDL_HINT_JOYSTICK_HIDAPI_XBOX,
         SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS, SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS}) SDL_SetHint(hint, "1");
     if (!SDL_Init(SDL_INIT_GAMEPAD)) {
+        GamepadLayouts::Started({}, false);
         startupWarning = true;
         startupNote = "Input: SDL failed to start (" + Text(SDL_GetError()) + "); the game reads controllers itself";
         SDL_Quit();
@@ -456,6 +472,7 @@ void Start() {
         }
     UpdateLocked(true);
     active = true;
+    GamepadLayouts::Started(inventory, true);
     const int version = SDL_GetVersion();
     startupNote = fmt::format("Input: SDL {}.{}.{} started, hidapi {}, background events on, {} saved mappings loaded",
         SDL_VERSIONNUM_MAJOR(version), SDL_VERSIONNUM_MINOR(version), SDL_VERSIONNUM_MICRO(version),
@@ -475,6 +492,7 @@ void Shutdown() {
 void LogInventory() {
     std::unique_lock lock(mutex);
     logReady = true;
+    GamepadLayouts::FlushLogs();
     LogLocked();
 }
 
@@ -499,7 +517,18 @@ std::vector<Pad> ReadPads() {
 
 LayerFrame ReadFrame() {
     std::shared_lock lock(mutex);
-    return {active ? Layer::Active : layerSetting ? Layer::Failed : Layer::GameReads, layerSetting, frames, setup};
+    return {active ? Layer::Active : layerSetting ? Layer::Failed : Layer::GameReads, layerSetting, frames, setup, GamepadLayouts::Stored()};
+}
+
+void SetLayouts(std::vector<StoredLayout> layouts) {
+    std::unique_lock lock(mutex);
+    GamepadLayouts::Set(std::move(layouts));
+}
+void GameButtonScreen(bool open) {
+    std::unique_lock lock(mutex);
+    if (!active) return;
+    if (open) GamepadLayouts::OpenGameScreen();
+    else GamepadLayouts::CloseGameScreen();
 }
 
 void SetupPrompt(const Identity& identity) {

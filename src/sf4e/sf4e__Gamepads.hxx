@@ -19,8 +19,11 @@ struct LayerFrame {
     bool requested = true;
     std::vector<gamepads::PadFrame> pads;
     gamepads::SetupSnapshot setup;
+    std::vector<gamepads::StoredLayout> layouts;
 };
 LayerFrame ReadFrame();
+void SetLayouts(std::vector<gamepads::StoredLayout> layouts);
+void GameButtonScreen(bool open);
 void SetupPrompt(const gamepads::Identity& identity);
 void BeginSetup(const gamepads::Identity& identity, unsigned padId);
 void ControlSetup(gamepads::SetupCommand command, int step);

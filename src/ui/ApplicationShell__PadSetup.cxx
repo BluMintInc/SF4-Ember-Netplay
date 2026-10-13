@@ -14,19 +14,23 @@ void ApplicationShell::BeginPadSetup(const PadView& pad, const ShellView& view, 
     ShellAction action; action.command.generation = view.session.generation;
     action.padAction = {ControllerRequest::Kind::Setup, pad.id};
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return; }
+    setupFromLayout_ = menu_.navigation.Screen() == "button-layout";
     reopenScreen_ = "pad-setup";
     setupPad_ = pad; setupStarting_ = true; setupRevision_ = view.padSetup.revision;
     setupMenuSequence_ = 0; setupPreviousMode_ = SetupMode::Capture; menu_.navigation.Push("pad-setup");
 }
 void ApplicationShell::ClosePadSetup(const ShellView& view, bool controllers) {
     auto& nav = menu_.navigation;
+    controllers = controllers && !setupFromLayout_;
     if (nav.Screen() == "pad-setup") { nav.Cancel(); nav.Return(); }
+    if (setupFromLayout_ && view.padSetup.outcome == SetupEnd::Saved) nav.Prefer("test");
     if (controllers && nav.Screen() != "controllers") nav.Push("controllers");
     if (controllers && setupPad_) nav.Focus("pad-" + std::to_string(setupPad_->id), ControllerRows(view.padLayer, view.pads, view.canChangeController, view.canEditPreferences));
     if (reopenScreen_ && *reopenScreen_ == "pad-setup") reopenScreen_.reset();
     setupPad_.reset(); setupStarting_ = false;
     menu_.listEnabled = true; menu_.ownsBack = false; menu_.customDetail = false; menu_.compactDetailHeight = 0; menu_.additionalInput = 0; menu_.shortcutHints.clear();
     SetMenuGlyphs(view.inputDevice.type, input::xinput::A, input::xinput::B, "LP", "LK", view.promptBrand);
+    SetGameplayLayoutPrompts(view);
 }
 void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submit, bool visible) {
     auto& nav = menu_.navigation;
@@ -48,8 +52,13 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
             if (outcome == SetupEnd::SaveFailed) menu_.ShowError(loc::T("pad_setup.save_failed"));
             else if (outcome != SetupEnd::None) {
                 const auto name = setupPad_->name;
+                const auto savedPad = *setupPad_;
+                const bool fromLayout = setupFromLayout_;
                 ClosePadSetup(view, outcome == SetupEnd::Saved);
-                if (outcome == SetupEnd::Saved) menu_.ShowNotice(loc::Tf("pad_setup.saved", name), loc::T("pad_setup.saved_heading"));
+                if (outcome == SetupEnd::Saved) {
+                    if (fromLayout) menu_.ShowNotice(loc::Tf("pad_setup.saved", name), loc::T("pad_setup.saved_heading"));
+                    else menu_.ShowNotice(loc::Tf("pad_setup.saved", name), loc::T("pad_setup.saved_heading"), loc::T("player.button_layout"), [this, savedPad] { OpenButtonLayout(savedPad); });
+                }
                 else if (outcome == SetupEnd::Disconnect) menu_.ShowNotice(loc::Tf("pad_setup.stopped_disconnect", name));
                 else if (outcome == SetupEnd::Idle) menu_.ShowNotice(loc::T("pad_setup.stopped_idle"));
                 else if (outcome != SetupEnd::LeftMenu) { notice_ = loc::T("pad_setup.cancelled"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4; }
@@ -108,7 +117,10 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
     menu_.backHint = capture ? loc::T("common.cancel") : loc::T("pad_setup.cancel");
     menu_.footerNote.clear(); menu_.typesText = false; menu_.wideListShare = .46f; menu_.compactDetailHeight = 280;
     if (capture) SetMenuGlyphs(input::PadKeyboard, 0, 0);
-    else SetMenuGlyphs(input::PadXInput, input::xinput::A, input::xinput::B, "LP", "LK", {Brand::Stick});
+    else {
+        SetMenuGlyphs(input::PadXInput, input::xinput::A, input::xinput::B, "LP", "LK", {Brand::Stick});
+        SetMenuPromptBrand({Brand::Stick}, NamesOf(setupPad_->table));
+    }
     SetupCommand command = SetupCommand::None; int step = 0;
     if (capture && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) command = SetupCommand::Escape;
     else if (capture && ImGui::IsKeyPressed(ImGuiKey_Backspace, false)) command = SetupCommand::Backspace;

@@ -1,4 +1,5 @@
 #include "sf4e__OverlayPrefs.hxx"
+#include "../common/ButtonLayoutJson.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
@@ -266,6 +267,7 @@ namespace OverlayPrefs {
         netplay::WriteBoolPreferences(preferences, values);
         netplay::WriteButtonPrompts(preferences, values);
         values["controllerMappings"] = preferences.controllerMappings;
+        values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));
 	}

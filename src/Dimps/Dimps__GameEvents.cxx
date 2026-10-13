@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <cstdint>
 
 #include "Dimps__Event.hxx"
 #include "Dimps__Game.hxx"
@@ -37,7 +38,16 @@ VsStageSelect::__publicMethods VsStageSelect::publicMethods;
 VsStageSelect::__staticMethods VsStageSelect::staticMethods;
 StageSelect::Control::__publicMethods StageSelect::Control::publicMethods;
 
+GameEvents::OptionUIController::Methods GameEvents::OptionUIController::methods;
+void GameEvents::OptionUIController::Locate(HMODULE module) {
+    const auto base = reinterpret_cast<std::uintptr_t>(module);
+    // Steam 1.05: thiscall constructor takes two dwords (ret 8);
+    // destructor takes only this (ret). Both run on the game thread.
+    *(PVOID*)&methods.Construct = (PVOID)(base + 0xCC280);
+    *(PVOID*)&methods.Destroy = (PVOID)(base + 0xCC0D0);
+}
 void GameEvents::Locate(HMODULE peRoot) {
+    OptionUIController::Locate(peRoot);
 	MainMenu::Locate(peRoot);
 	RootEvent::Locate(peRoot);
 	StageSelect::Locate(peRoot);

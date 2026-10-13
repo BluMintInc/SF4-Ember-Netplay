@@ -1,4 +1,5 @@
 #include "../ui/ControllersScreen.hxx"
+#include "../ui/ButtonLayoutScreen.hxx"
 #include "../netplay/ControllerInventory.hxx"
 #include "../common/ControllerHints.hxx"
 #include "test_support.hxx"
@@ -21,20 +22,21 @@ static void Rows() {
     auto row = ControllerRow(pad, true, true);
     CHECK(row.id == "pad-1" && row.userText && row.detailText == DetailText::Name);
     CHECK(row.value == "Yours" && row.detail == loc::Tf("controllers.detail_yours", 1));
-    CHECK(row.choices.size() == 2 && row.choices[0].id == "play" && !row.choices[0].enabled);
+    CHECK(row.choices.size() == 3 && row.choices[0].id == "play" && !row.choices[0].enabled);
     CHECK(row.choices[0].detail == loc::T("controllers.choice_play_current"));
-    CHECK(row.choices[1].id == "setup" && row.choices[1].enabled);
+    CHECK(row.choices[2].id == "setup" && row.choices[2].enabled);
     pad.gameplay = false; pad.customMapping = true;
     row = ControllerRow(pad, true, true);
     CHECK(row.value.empty() && row.detail == loc::Tf("controllers.detail_other", 1) + "\n" + loc::T("controllers.detail_custom"));
-    CHECK(row.choices.size() == 3 && row.choices[2].id == "forget" && row.choices[2].enabled);
+    CHECK(row.choices.size() == 4 && row.choices[3].id == "forget" && row.choices[3].enabled);
     row = ControllerRow(pad, false, false);
     CHECK(!row.choices[0].enabled && row.choices[0].detail == loc::T("settings.leave_room_to_edit"));
-    CHECK(!row.choices[1].enabled && row.choices[1].detail == loc::T("settings.leave_room_to_edit"));
+    CHECK(!row.choices[2].enabled && row.choices[2].detail == loc::T("settings.leave_room_to_edit"));
+    CHECK(row.choices[1].enabled && !row.choices[3].enabled && row.choices[3].detail == loc::T("settings.leave_room_to_edit"));
     pad.customMapping = false; pad.state = RowState::Steam;
     row = ControllerRow(pad, true, true);
     CHECK(row.value == "Steam Input" && row.detail == loc::T("controllers.detail_steam"));
-    CHECK(!row.choices[1].enabled && row.choices[1].detail == loc::T("controllers.choice_setup_steam"));
+    CHECK(!row.choices[2].enabled && row.choices[2].detail == loc::T("controllers.choice_setup_steam"));
     pad.state = RowState::Unmapped;
     row = ControllerRow(pad, false, true);
     CHECK(row.value == "Not set up" && row.detail == loc::T("controllers.detail_unmapped") && row.choices.empty() && row.enabled && !row.info);
@@ -48,14 +50,14 @@ static void Rows() {
     row = ControllerRow(pad, true, true, Layer::GameReads);
     CHECK(row.info && row.value == "Yours" && row.detail == loc::T("controllers.detail_game_read") && row.choices.empty());
     row = ControllerRow(pad, true, true, Layer::Active);
-    CHECK(!row.info && row.choices.size() == 1 && row.choices[0].id == "setup");
+    CHECK(!row.info && row.choices.size() == 2 && row.choices[0].id == "layout" && !row.choices[0].enabled && row.choices[1].id == "setup");
     CHECK(ControllerRows(Layer::Active, {}, true, true)[0].id == "pads-none");
     const auto off = ControllerRows(Layer::GameReads, {}, true, true);
     CHECK(off.size() == 2 && off[0].id == "pads-game" && off[1].id == "pads-none");
     CHECK(ControllerRows(Layer::Failed, {pad}, true, true)[0].id == "pads-unavailable");
     CHECK(LayerPending(false, true) && LayerPending(true, false) && !LayerPending(true, true) && !LayerPending(false, false));
     auto player = PlayerControllerRows({}, "DualSense", input::PadXInput, {Brand::PlayStation}, pads, true, true, true, true);
-    const char* ids[] = {"name", "controllers", "capture", "keyboard", "button-prompts", "controls", "background-play", "lower-input-lag", "lower-keyboard-lag", "faster-display", "game-reads-pads"};
+    const char* ids[] = {"name", "controllers", "capture", "keyboard", "button-prompts", "controls", "game-buttons", "background-play", "lower-input-lag", "lower-keyboard-lag", "faster-display", "game-reads-pads"};
     CHECK(player.size() == std::size(ids));
     for (unsigned i = 0; i < player.size(); ++i) CHECK(player[i].id == ids[i]);
     CHECK(player[1].value == "7 connected" && !player[1].adjustable && player[1].detailText == DetailText::Name && player[2].detailText == DetailText::Name);
@@ -73,6 +75,26 @@ static void Rows() {
     pads[0].connectionOrder = 30; pads[1].connectionOrder = 20;
     OrderPadRows(pads); CHECK(pads[0].id == 2 && pads[1].id == 1);
 }
+static void LayoutEntryStates() {
+    auto pad = View(1, RowState::Recognised, 0); pad.gameplay = true; pad.brand = {Brand::PlayStation, PlayStationArt::PS5};
+    const auto player = [&](int device, Layer layer) {
+        return PlayerControllerRows({}, pad.name, device, pad.brand, {pad}, false, false, false, false, layer)[5];
+    };
+    auto row = player(input::PadXInput, Layer::Active);
+    CHECK(row.enabled && row.value == loc::T("button_layout.game_layout") && row.detail == loc::Tf("player.button_layout_detail", pad.name));
+    pad.layout = DefaultLayout; row = player(input::PadXInput, Layer::Active); CHECK(row.value == loc::T("button_layout.preset.default"));
+    pad.state = RowState::GameRead; row = player(input::PadDirectInput, Layer::Active);
+    CHECK(row.enabled && row.value.empty() && row.detail == loc::Tf("player.button_layout_setup", pad.name));
+    row = player(input::PadKeyboard, Layer::Active); CHECK(!row.enabled && row.quiet && row.detail == loc::T("player.button_layout_keyboard"));
+    row = player(input::PadXInput, Layer::GameReads); CHECK(!row.enabled && row.detail == loc::T("player.button_layout_game_reads"));
+    row = player(input::PadXInput, Layer::Failed); CHECK(!row.enabled && row.detail == loc::T("player.button_layout_failed"));
+    pad.brand = {Brand::Stick}; pad.mapping = "guid,Stick,a:b3,b:h1.2,x:+a0,y:-a1,leftshoulder:a2~,platform:Windows,"; pad.numberedHats = true;
+    const auto physical = LayoutButtonNames(pad, ButtonPrompts::Automatic, {});
+    CHECK(physical[0] == "Button 4" && physical[1] == "Hat right 2" && physical[2] == "Axis 1 +" && physical[3] == "Axis 2 -" && physical[4] == "Trigger axis 3");
+    CHECK(LayoutButtonNames(pad, ButtonPrompts::Nintendo, {})[0] == "B");
+    netplay::PlayerPreferences a, b; a.buttonLayouts = b.buttonLayouts = {{pad.identity, DefaultLayout, 1}};
+    CHECK(SamePreferences(a, b)); b.buttonLayouts[0].buttons[0] = 0; CHECK(!SamePreferences(a, b) && OnlyLayoutsChanged(a, b));
+}
 static void Held() {
     State state;
     CHECK(HeldGlyphs(state).empty());
@@ -87,7 +109,7 @@ static void Held() {
     CHECK(HeldGlyphs(state) == std::vector<std::string>({"up", "left"}));
     state = {};
     for (auto& button : state.buttons) button = true;
-    CHECK(HeldGlyphs(state) == std::vector<std::string>({"up", "down", "left", "right", "A", "B", "X", "Y", "LB", "RB", "View", "Start"}));
+    CHECK(HeldGlyphs(state) == std::vector<std::string>({"up", "down", "left", "right", "A", "B", "X", "Y", "LB", "RB", "LS", "RS", "View", "Start"}));
     RawState raw; raw.buttons = {false, false, false, true}; raw.hats = {1};
     raw.axes = {16000, -16000, -32768, 32767}; raw.rest = {0, 0, -32768, 32767};
     CHECK(RawInputList(HeldRaw(raw)) == "Button 4, Hat up");
@@ -167,4 +189,4 @@ static void InventoryProjection() {
     pads = inventory.Build(Layer::Active, {raw}, {game}, {{7, "Native stick", "SDL stick", "path"}}, game, {});
     CHECK(pads.size() == 1 && pads[0].directInputIndex == 7 && pads[0].gameplay && pads[0].name == "SDL stick");
 }
-int main() { Rows(); Held(); Hints(); InventoryProjection(); }
+int main() { Rows(); LayoutEntryStates(); Held(); Hints(); InventoryProjection(); }

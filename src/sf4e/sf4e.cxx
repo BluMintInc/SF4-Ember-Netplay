@@ -238,6 +238,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Event::Install();
 	Game::Install();
 	GameEvents::Install();
+    GameEvents::OptionUIController::Install();
 	Pad::Install();
 	Gamepads::Install();
 	BackgroundPlay::Install();

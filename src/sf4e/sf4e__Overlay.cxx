@@ -482,6 +482,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
+    for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical,"LP","LK",snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();
     // The game's battle log was opened from the Replays screen: Ember's menu

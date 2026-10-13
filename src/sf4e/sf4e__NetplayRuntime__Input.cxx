@@ -3,6 +3,8 @@
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__Overlay.hxx"
+#include <ctime>
+#include "../ui/ButtonLayoutScreen.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -111,11 +113,17 @@ void CaptureMenuInput() {
     } else runtime->input.Cancel();
     if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0);
     const auto layer = Gamepads::ReadFrame();
+    if (layer.mode == gamepads::Layer::Active) runtime->preferences.buttonLayouts = layer.layouts;
     runtime->padLayer = layer.mode; runtime->runningControllerLayer = layer.requested;
     OverlayPrefs::Data prefs; OverlayPrefs::Load(prefs);
     const auto native = DirectInputFilter::ReadControllers();
     runtime->pads = runtime->padInventory.Build(layer.mode, layer.pads, runtime->inputDevices, native, runtime->input.Selected(), prefs.deviceIdentity);
     for (auto& pad : runtime->pads) {
+        if (pad.state == gamepads::RowState::Absent) {
+            const auto match = std::find_if(runtime->preferences.buttonLayouts.begin(), runtime->preferences.buttonLayouts.end(), [&](const gamepads::StoredLayout& layout) { return gamepads::Same(layout.identity, pad.identity); });
+            if (match != runtime->preferences.buttonLayouts.end()) { pad.layout = match->buttons; pad.table = match->buttons; }
+        }
+        pad.buttonNames = ui::LayoutButtonNames(pad, runtime->preferences.buttonPrompts, runtime->preferences.controllerMappings);
         if (pad.name.empty() && pad.state == gamepads::RowState::Steam) pad.name = loc::T("controllers.steam_name");
         if (pad.state == gamepads::RowState::GameRead && pad.slot >= 0)
             for (const auto& device : runtime->inputDevices) if (device.type == input::PadXInput && device.index == pad.slot) pad.name = DeviceName(device);
@@ -144,8 +152,26 @@ bool CanChooseControllerNow() {
         !current.readyPending && (current.match == netplay::MatchState::None || current.match == netplay::MatchState::PostMatch);
 }
 
+bool CanEditButtonLayoutNow() {
+    const auto view = GetRuntimeSnapshotShared();
+    return AtMainMenu() && !netplay::Fighting(runtime->controller.GetSnapshot().match) &&
+        (view->canEditPreferences || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle);
+}
+
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     using Kind = gamepads::ControllerRequest::Kind;
+    if (request.kind == Kind::LayoutLog) { spdlog::info("Input: {}", request.log); return; }
+    if (request.kind == Kind::SaveLayouts) {
+        if (!CanEditButtonLayoutNow()) return;
+        auto preferences = runtime->preferences;
+        preferences.buttonLayouts = request.layouts;
+        if (!preferences.Valid()) return;
+        if (OverlayPrefs::SavePlayerPreferences(preferences)) {
+            runtime->preferences = std::move(preferences);
+            Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+        } else runtime->error = loc::T("runtime.preferences_queue_failed");
+        return;
+    }
     if (request.kind == Kind::DeclinePrompt) { spdlog::info("Input: setup prompt declined"); return; }
     if (request.kind == Kind::SetupControl) {
         const auto current = Gamepads::ReadFrame().setup;
@@ -166,6 +192,19 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     if (found == runtime->pads.end()) return;
     const auto& pad = *found;
     const auto view = GetRuntimeSnapshotShared();
+    if (request.kind == Kind::Layout || request.kind == Kind::RemoveLayout) {
+        if (!CanEditButtonLayoutNow() || runtime->padLayer != gamepads::Layer::Active ||
+            (pad.state != gamepads::RowState::Recognised && pad.state != gamepads::RowState::Steam)) return;
+        if (request.kind == Kind::Layout) {
+            if (!gamepads::ValidLayout(request.buttons)) return;
+            const auto dropped = gamepads::UpsertLayout(runtime->preferences.buttonLayouts,
+                {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr))});
+            if (dropped) spdlog::info("Input: layout for id {} dropped, oldest of 33", gamepads::IdentityHash(*dropped));
+        } else gamepads::RemoveLayout(runtime->preferences.buttonLayouts, pad.identity);
+        Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+        if (!request.log.empty()) spdlog::info("Input: {}", request.log);
+        return;
+    }
     if (request.kind == Kind::Prompt) { Gamepads::SetupPrompt(pad.identity); return; }
     if (request.kind == Kind::Setup) {
         if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && view->canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
@@ -178,7 +217,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         return;
     }
     if (request.kind == Kind::Forget) {
-        if (runtime->padLayer != gamepads::Layer::Active || !runtime->preferences.controllerMappings.count(pad.identity.guid)) return;
+        if (!view->canEditPreferences || runtime->padLayer != gamepads::Layer::Active || !runtime->preferences.controllerMappings.count(pad.identity.guid)) return;
         auto preferences = runtime->preferences; preferences.controllerMappings.erase(pad.identity.guid);
         if (!OverlayPrefs::SavePlayerPreferences(preferences)) return;
         runtime->preferences = std::move(preferences);

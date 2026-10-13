@@ -4,6 +4,7 @@
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ButtonPrompts.hxx"
+#include "../common/ButtonLayout.hxx"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -14,13 +15,14 @@ namespace sf4e { namespace ui {
 inline const char* PhysicalGlyph(int type,unsigned mask,const char* fallback) {
     if(type!=input::PadXInput)return fallback;
     switch(mask){case input::xinput::A:return "A";case input::xinput::B:return "B";case input::xinput::X:return "X";case input::xinput::Y:return "Y";
-    case input::xinput::LB:return "LB";case input::xinput::RB:return "RB";case input::xinput::LT:return "LT";case input::xinput::RT:return "RT";default:return fallback;}
+    case input::xinput::LB:return "LB";case input::xinput::RB:return "RB";case input::xinput::LT:return "LT";case input::xinput::RT:return "RT";case input::xinput::LS:return "LS";case input::xinput::RS:return "RS";default:return fallback;}
 }
 gamepads::PromptBrand MenuPromptBrand();
 // A shell's unsaved value takes effect before the normal autosave deadline.
-void SetMenuPromptBrand(gamepads::PromptBrand brand);
+const gamepads::FightNames* MenuPromptNames();
+void SetMenuPromptBrand(gamepads::PromptBrand brand, const gamepads::FightNames& names = gamepads::NamesOf(gamepads::DefaultLayout));
 struct BrandedGlyph { const char* asset; const char* name; };
-inline BrandedGlyph BrandGlyph(const char* id, gamepads::PromptBrand brand) {
+inline BrandedGlyph BrandGlyph(const char* id, gamepads::PromptBrand brand, const gamepads::FightNames* names = nullptr) {
     struct Position { const char* id; const char* xbox; const char* playStation; const char* nintendo; const char* stick; const char* fight; };
     static constexpr Position positions[] = {
         {"A", "xbox_button_color_a", "playstation_button_color_cross", "switch_button_b", "generic_button_circle_fill", "LK"},
@@ -31,6 +33,8 @@ inline BrandedGlyph BrandGlyph(const char* id, gamepads::PromptBrand brand) {
         {"RB", "xbox_rb", "playstation_trigger_r1", "switch_button_r", "generic_button_circle_fill", "HP"},
         {"LT", "xbox_lt", "playstation_trigger_l2", "switch_button_zl", "generic_button_circle_fill", "3K"},
         {"RT", "xbox_rt", "playstation_trigger_r2", "switch_button_zr", "generic_button_circle_fill", "HK"},
+        {"LS", "xbox_ls", "playstation_button_l3", "switch_stick_l_press", "generic_button_circle_fill", ""},
+        {"RS", "xbox_rs", "playstation_button_r3", "switch_stick_r_press", "generic_button_circle_fill", ""},
         {"View", "xbox_button_back", "playstation4_button_share", "switch_button_minus", "generic_button_circle_fill", "Select"},
         {"Start", "xbox_button_start", "playstation4_button_options", "switch_button_plus", "generic_button_circle_fill", "Start"},
         {"dpad", "xbox_dpad", "playstation_dpad", "switch_dpad", "generic_joystick", ""},
@@ -43,6 +47,8 @@ inline BrandedGlyph BrandGlyph(const char* id, gamepads::PromptBrand brand) {
     for (const auto& position : positions) if (!std::strcmp(id, position.id)) {
         switch (brand.brand) {
         case gamepads::Brand::Stick:
+            if (names) for (unsigned i = 0; i < gamepads::LayoutGlyphs.size(); ++i)
+                if (!std::strcmp(id, gamepads::LayoutGlyphs[i])) return {position.stick, (*names)[i].c_str()};
             return {position.stick, position.fight};
         case gamepads::Brand::PlayStation:
             if (!std::strcmp(id, "View")) return {
@@ -73,15 +79,15 @@ inline bool KeyCapGlyph(const char* glyph) {
     const bool function=glyph[0]=='F'&&glyph[1]>='1'&&glyph[1]<='9'&&(!glyph[2]||(glyph[1]=='1'&&glyph[2]>='0'&&glyph[2]<='2'&&!glyph[3]));
     return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del")||!std::strcmp(glyph,"Bksp")||!std::strcmp(glyph,"Space");
 }
-inline std::string PromptLabel(const char* glyph,const std::string& label,gamepads::PromptBrand brand) {
+inline std::string PromptLabel(const char* glyph,const std::string& label,gamepads::PromptBrand brand,const gamepads::FightNames* names=MenuPromptNames()) {
     if(!std::strcmp(glyph,"Ctrl+Enter"))return "Ctrl+Enter "+label;
-    const auto translated=BrandGlyph(glyph,brand);
+    const auto translated=BrandGlyph(glyph,brand,names);
     return !KeyCapGlyph(glyph)&&*translated.name?std::string(translated.name)+" "+label:label;
 }
 // One prompt in a size-by-size square at `at`: a key cap with its name, the
 // prompt art, or, with neither, the glyph's name. `s` is the caller's scale; `keyFont`,
 // when given, sizes a key cap's name.
-inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size,SelectionArt* art,float s,float keyFont=0,gamepads::PromptBrand brand=MenuPromptBrand(),float alpha=1) {
+inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size,SelectionArt* art,float s,float keyFont=0,gamepads::PromptBrand brand=MenuPromptBrand(),float alpha=1,const gamepads::FightNames* names=MenuPromptNames()) {
     auto textColor=ImGui::ColorConvertU32ToFloat4(palette::Ivory);textColor.w*=alpha;
     const auto ivory=ImGui::GetColorU32(textColor);
     if(KeyCapGlyph(glyph)){
@@ -98,7 +104,7 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
     const auto tint=ImGui::GetColorU32(ImVec4(1,1,1,alpha));
     if(icon.texture){
         d->AddImage(icon.texture,at,ImVec2(at.x+size,at.y+size),icon.uvMin,icon.uvMax,tint);
-        const auto name=BrandGlyph(glyph,brand).name;
+        const auto name=BrandGlyph(glyph,brand,names).name;
         if(brand.brand==gamepads::Brand::Stick&&*name){
             const float base=12*size/32;
             const float measured=ImGui::GetFont()->CalcTextSizeA(base,FLT_MAX,0,name).x;
@@ -108,7 +114,7 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
         }
     }
     else {
-        const char* name=BrandGlyph(glyph,brand).name;
+        const char* name=BrandGlyph(glyph,brand,names).name;
         d->AddText(ImGui::GetFont(),12*size/32,ImVec2(at.x,at.y+8*size/32),ivory,*name?name:glyph);
     }
 }

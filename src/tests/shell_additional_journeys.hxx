@@ -2,6 +2,7 @@
 void RoomJourneys();
 void ButtonPromptJourneys();
 void ControllerJourneys();
+void ButtonLayoutJourneys();
 void KeyboardJourneys();
 void PresentationJourneys();
 void AppearanceGalleries();

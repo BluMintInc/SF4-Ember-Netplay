@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Slabý kop vybírá a Střední kop se vrací. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vám A na stole umožní vybrat místo, A na vlastním místě vás připraví a B opustí místo nebo frontu (na jiných ovladačích tlačítka na stejných pozicích). Na Xbox X otevře Bojovníka, Y Možnosti a View Chat; dalším stiskem se vrátíte do místnosti. PlayStation používá Čtverec, Trojúhelník a Share nebo Create; Switch Y, X a Minus.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start."
+msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Tlačítko zvolené pro Lehký kop vybírá a tlačítko pro Střední kop se vrací bez ohledu na rozložení tlačítek. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vám A na stole umožní vybrat místo, A na vlastním místě vás připraví a B opustí místo nebo frontu (na jiných ovladačích tlačítka na stejných pozicích). Na Xbox X otevře Bojovníka, Y Možnosti a View Chat; dalším stiskem se vrátíte do místnosti. PlayStation používá Čtverec, Trojúhelník a Share nebo Create; Switch Y, X a Minus.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
@@ -4638,11 +4638,7 @@ msgstr "Připojeno: {0}"
 msgid "player.controllers_detail"
 msgstr "Hrajete s {0}. Prohlédněte si všechny připojené ovladače, vyzkoušejte jejich tlačítka a nastavte ty, které Ember ještě nezná."
 
-msgid "player.fight_buttons"
-msgstr "Bojová tlačítka"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember se zavře. V nabídce hry vyberte Možnosti a poté nastavení ovladače. Každý ovladač v seznamu Ember se tam zobrazuje jako ovladač Xbox s názvy tlačítek Xbox. Hra uloží rozložení jen tehdy, když má každá akce tlačítko."
 
 msgid "player.game_reads"
 msgstr "Nechat hru číst ovladače"
@@ -4918,7 +4914,7 @@ msgid "pad_setup.saved_heading"
 msgstr "Ovladač nastaven"
 
 msgid "pad_setup.saved"
-msgstr "{0} je nastaven. Pokud útok nefunguje správně, zkontrolujte Bojová tlačítka v nabídce Hráč a ovladač."
+msgstr "{0} je nastaven. Pro změnu útoků jeho tlačítek vyberte Rozložení tlačítek."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember nemohl toto nastavení použít. Nic nebylo uloženo. Podrobnosti jsou v sf4e.log."
@@ -4928,3 +4924,174 @@ msgstr "Nastavení zastaveno, protože {0} byl odpojen. Nic nebylo uloženo."
 
 msgid "pad_setup.stopped_idle"
 msgstr "Nastavení zastaveno po minutě bez vstupu. Nic nebylo uloženo."
+
+msgid "player.button_layout"
+msgstr "Rozložení tlačítek"
+
+msgid "player.button_layout_detail"
+msgstr "Vyberte útoky tlačítek ovladače {0}. Pro soupeře se nic nemění."
+
+msgid "player.button_layout_setup"
+msgstr "Ember zatím ovladač {0} neobsluhuje. Vyberte pro nastavení jeho tlačítek."
+
+msgid "player.button_layout_keyboard"
+msgstr "Rozložení jsou pro ovladače. Pro klávesnici použijte Nastavení tlačítek hry."
+
+msgid "player.button_layout_game_reads"
+msgstr "Pro rozložení vypněte Nechat hru číst ovladače. Do té doby použijte Nastavení tlačítek hry."
+
+msgid "player.button_layout_failed"
+msgstr "Podpora ovladačů Ember se tentokrát nespustila. Použijte Nastavení tlačítek hry."
+
+msgid "player.game_buttons"
+msgstr "Nastavení tlačítek hry"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember se zavře. V nabídce hry vyberte Možnosti a nastavení ovladače. Použijte je pro klávesnici a ovladače čtené hrou. Ovladač s rozložením Ember používá toto rozložení. Hra uloží rozložení pouze tehdy, když každá akce má tlačítko."
+
+msgid "controllers.choice_layout"
+msgstr "Rozložení tlačítek"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Vyberte útoky každého tlačítka."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Nejdříve nastavte tlačítka."
+
+msgid "controllers.detail_layout"
+msgstr "Rozložení tlačítek: {0}."
+
+msgid "button_layout.title"
+msgstr "ROZLOŽENÍ TLAČÍTEK"
+
+msgid "button_layout.button_title"
+msgstr "ZMĚNIT TLAČÍTKO"
+
+msgid "button_layout.test"
+msgstr "Vyzkoušejte tlačítka"
+
+msgid "button_layout.test_detail"
+msgstr "Stiskněte tlačítka ovladače {0} a uvidíte jejich útoky. Na tomto řádku ovládá nabídku pouze Zpět."
+
+msgid "button_layout.attacks"
+msgstr "Útoky"
+
+msgid "button_layout.throw"
+msgstr "Hod (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Focus útok (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Vyberte a stiskněte požadované tlačítko pro {0}. Pokud útok má jiné tlačítko, obě se prohodí."
+
+msgid "button_layout.row_missing"
+msgstr "Žádné tlačítko neprovádí pouze tento útok, takže jej nelze provést samostatně."
+
+msgid "button_layout.no_button"
+msgstr "Žádné tlačítko"
+
+msgid "button_layout.edit_button"
+msgstr "Změnit jedno tlačítko"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Vyberte a stiskněte tlačítko pro přesnou volbu jeho útoků. Lze kombinovat libovolné útoky nebo tlačítko vypnout."
+
+msgid "button_layout.preset"
+msgstr "Předvolba"
+
+msgid "button_layout.preset_detail"
+msgstr "Vyberte připravené rozložení. Výchozí je rozložení samotné hry."
+
+msgid "button_layout.custom"
+msgstr "Vlastní"
+
+msgid "button_layout.game_layout"
+msgstr "Rozložení hry"
+
+msgid "button_layout.preset.default"
+msgstr "Výchozí"
+
+msgid "button_layout.preset.default_detail"
+msgstr "Rozložení hry. Vhodné pro většinu ovladačů a sticků s 8 tlačítky."
+
+msgid "button_layout.preset.triggers"
+msgstr "Trojité útoky na spouštích"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Pro ovladače se šesti tlačítky. Silný úder na pravém horním tlačítku, silný kop na levém. Všechny tři údery na levé spoušti, všechny tři kopy na pravé."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus a hod"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Jako Výchozí, ale levé horní tlačítko provádí Focus útok a levá spoušť hod. Na sticku s 8 tlačítky je to čtvrtý sloupec. Všechny tři údery a kopy se přesunou na stisky páček."
+
+msgid "button_layout.preset_applied"
+msgstr "Rozložení nastaveno na {0}."
+
+msgid "button_layout.remove"
+msgstr "Použít rozložení hry"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember přestane měnit tlačítka tohoto ovladače. Opět platí rozložení z Nastavení tlačítek hry."
+
+msgid "button_layout.removed"
+msgstr "Pro tento ovladač opět platí rozložení hry."
+
+msgid "button_layout.press_for"
+msgstr "Stiskněte tlačítko pro {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Stiskněte tlačítko ke změně"
+
+msgid "button_layout.press_cancel"
+msgstr "Pohněte páčkou nebo stiskněte Start pro zrušení."
+
+msgid "button_layout.assigned"
+msgstr "{0} je nyní na {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} je nyní na {1}. {2} místo toho provádí {3}."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} je nyní na {1}. {2} nyní nedělá nic."
+
+msgid "button_layout.bit_detail"
+msgstr "Vlevo nebo Vpravo zapíná či vypíná {0} pro toto tlačítko."
+
+msgid "button_layout.clear"
+msgstr "Žádné útoky"
+
+msgid "button_layout.clear_detail"
+msgstr "Toto tlačítko v boji nedělá nic."
+
+msgid "button_layout.button_does"
+msgstr "V boji: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nic"
+
+msgid "button_layout.absent"
+msgstr "Nepřipojen"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} není připojen. Rozložení je uloženo. Připojte jej pro změnu."
+
+msgid "button_layout.setup_first"
+msgstr "Nejdříve nastavte tlačítka"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Hra čte {0} sama, takže Ember zatím nemůže měnit jeho tlačítka. Nastavte jej jednou a bude zde fungovat jako ostatní ovladače."
+
+msgid "button_layout.missing_heading"
+msgstr "Některé útoky nemají tlačítko"
+
+msgid "button_layout.missing_text"
+msgstr "Tyto útoky nemají vlastní tlačítko: {0}. Rozložení je uloženo."
+
+msgid "button_layout.keep_editing"
+msgstr "Pokračovat v úpravách"
+
+msgid "button_layout.leave"
+msgstr "Odejít"

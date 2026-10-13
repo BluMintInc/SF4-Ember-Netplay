@@ -1,5 +1,6 @@
 #include "TrainingPanel.hxx"
 #include "Theme.hxx"
+#include "TextPill.hxx"
 #include "GameMenu.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
@@ -101,10 +102,12 @@ void DrawCap(const Piece& piece, const Layout& layout) {
     const float h = ImGui::GetTextLineHeight(), w = Width(piece, layout), unit = layout.unit;
     const ImVec2 at = ImGui::GetCursorScreenPos();
     auto* draw = ImGui::GetWindowDrawList();
-    // The name a little brighter than the dim label beside it, so the key is what the eye finds.
-    draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), IM_COL32(243, 235, 221, 130),
-        pill ? h / 2 : 3 * unit, 0, (std::max)(1.f, unit));
-    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + (pill ? PillPadding : CapPadding) * unit, at.y), IM_COL32(243, 235, 221, 215), piece.text.c_str());
+    if (pill) DrawButtonPill(draw, piece.text.c_str(), at, w, h, unit);
+    else {
+        draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), IM_COL32(243, 235, 221, 130),
+            3 * unit, 0, (std::max)(1.f, unit));
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + CapPadding * unit, at.y), IM_COL32(243, 235, 221, 215), piece.text.c_str());
+    }
     ImGui::Dummy(ImVec2(w, h));
 }
 TrainingStripShown shown;

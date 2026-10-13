@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayStore.hxx"
@@ -333,6 +334,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         command.preferences.record=runtime->preferences.record;
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
+            Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");

@@ -1153,7 +1153,7 @@ msgid "about.controls"
 msgstr "Управление"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Слабый удар ногой выбирает, Средний удар ногой возвращает назад. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на столе позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
+msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Кнопка, выбранная для слабого удара ногой, выбирает, а для среднего удара ногой возвращает назад независимо от раскладки кнопок. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на столе позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
 
 msgid "about.controls_keyboard"
 msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В лобби F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
@@ -4639,11 +4639,7 @@ msgstr "Подключено: {0}"
 msgid "player.controllers_detail"
 msgstr "Вы играете с {0}. Посмотрите все подключённые контроллеры, проверьте их кнопки и настройте те, которые Ember ещё не знает."
 
-msgid "player.fight_buttons"
-msgstr "Кнопки боя"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember закроется. В меню игры выберите Настройки, затем настройки контроллера. Каждый контроллер в списке Ember отображается там как контроллер Xbox с названиями кнопок Xbox. Игра сохраняет раскладку, только если каждому действию назначена кнопка."
 
 msgid "player.game_reads"
 msgstr "Разрешить игре читать контроллеры"
@@ -4919,7 +4915,7 @@ msgid "pad_setup.saved_heading"
 msgstr "Контроллер настроен"
 
 msgid "pad_setup.saved"
-msgstr "{0} настроен. Если атака выполняется неверно, проверьте Кнопки боя в разделе Игрок и контроллер."
+msgstr "{0} настроен. Чтобы изменить атаки его кнопок, выберите Раскладка кнопок."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember не смог использовать эту настройку. Ничего не сохранено. Подробности в sf4e.log."
@@ -4929,3 +4925,174 @@ msgstr "Настройка остановлена, потому что {0} от�
 
 msgid "pad_setup.stopped_idle"
 msgstr "Настройка остановлена после минуты без ввода. Ничего не сохранено."
+
+msgid "player.button_layout"
+msgstr "Раскладка кнопок"
+
+msgid "player.button_layout_detail"
+msgstr "Выберите атаки кнопок {0}. Для соперника ничего не меняется."
+
+msgid "player.button_layout_setup"
+msgstr "Ember пока не обслуживает {0}. Выберите, чтобы сначала настроить кнопки."
+
+msgid "player.button_layout_keyboard"
+msgstr "Раскладки предназначены для контроллеров. Для клавиатуры используйте Настройки кнопок игры."
+
+msgid "player.button_layout_game_reads"
+msgstr "Отключите Чтение контроллеров игрой, чтобы использовать раскладки. Пока используйте Настройки кнопок игры."
+
+msgid "player.button_layout_failed"
+msgstr "Поддержка контроллеров Ember в этот раз не запустилась. Используйте Настройки кнопок игры."
+
+msgid "player.game_buttons"
+msgstr "Настройки кнопок игры"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember закроется. В меню игры выберите Параметры, затем настройки контроллера. Используйте их для клавиатуры и контроллеров, которые читает игра. Контроллер с раскладкой Ember использует её. Игра сохраняет раскладку только при наличии кнопки для каждого действия."
+
+msgid "controllers.choice_layout"
+msgstr "Раскладка кнопок"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Выберите атаки каждой кнопки."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Сначала настройте кнопки."
+
+msgid "controllers.detail_layout"
+msgstr "Раскладка кнопок: {0}."
+
+msgid "button_layout.title"
+msgstr "РАСКЛАДКА КНОПОК"
+
+msgid "button_layout.button_title"
+msgstr "ИЗМЕНИТЬ КНОПКУ"
+
+msgid "button_layout.test"
+msgstr "Проверьте кнопки"
+
+msgid "button_layout.test_detail"
+msgstr "Нажимайте кнопки {0}, чтобы увидеть их атаки. В этой строке только Назад управляет меню."
+
+msgid "button_layout.attacks"
+msgstr "Атаки"
+
+msgid "button_layout.throw"
+msgstr "Бросок (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Фокус-атака (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Выберите строку, затем нажмите кнопку для {0}. Если атака есть у другой кнопки, они поменяются."
+
+msgid "button_layout.row_missing"
+msgstr "Ни одна кнопка не выполняет только эту атаку, поэтому её нельзя выполнить отдельно."
+
+msgid "button_layout.no_button"
+msgstr "Нет кнопки"
+
+msgid "button_layout.edit_button"
+msgstr "Изменить одну кнопку"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Выберите строку, затем нажмите кнопку, чтобы точно выбрать её атаки. Можно задать любую комбинацию или отключить кнопку."
+
+msgid "button_layout.preset"
+msgstr "Шаблон"
+
+msgid "button_layout.preset_detail"
+msgstr "Выберите готовую раскладку. Стандартная соответствует раскладке игры."
+
+msgid "button_layout.custom"
+msgstr "Своя"
+
+msgid "button_layout.game_layout"
+msgstr "Раскладка игры"
+
+msgid "button_layout.preset.default"
+msgstr "Стандартная"
+
+msgid "button_layout.preset.default_detail"
+msgstr "Раскладка игры. Подходит большинству контроллеров и стикам с 8 кнопками."
+
+msgid "button_layout.preset.triggers"
+msgstr "Тройные атаки на триггерах"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Для контроллеров с шестью кнопками. Сильный удар рукой на правой плечевой кнопке, сильный удар ногой на левой. Три удара рукой на левом триггере, три удара ногой на правом."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Фокус и бросок"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Как Стандартная, но левая плечевая кнопка выполняет фокус-атаку, а левый триггер бросок. На стике с 8 кнопками это четвёртый столбец. Три удара рукой и ногой переходят на нажатия стиков."
+
+msgid "button_layout.preset_applied"
+msgstr "Установлена раскладка {0}."
+
+msgid "button_layout.remove"
+msgstr "Использовать раскладку игры"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember перестаёт менять кнопки этого контроллера. Снова применяется раскладка из Настроек кнопок игры."
+
+msgid "button_layout.removed"
+msgstr "Для этого контроллера снова применяется раскладка игры."
+
+msgid "button_layout.press_for"
+msgstr "Нажмите кнопку для {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Нажмите кнопку для изменения"
+
+msgid "button_layout.press_cancel"
+msgstr "Двиньте стик или нажмите Start для отмены."
+
+msgid "button_layout.assigned"
+msgstr "{0} теперь на {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} теперь на {1}. {2} вместо этого выполняет {3}."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} теперь на {1}. {2} теперь ничего не выполняет."
+
+msgid "button_layout.bit_detail"
+msgstr "Влево или Вправо включает или выключает {0} для этой кнопки."
+
+msgid "button_layout.clear"
+msgstr "Без атак"
+
+msgid "button_layout.clear_detail"
+msgstr "Эта кнопка ничего не делает в бою."
+
+msgid "button_layout.button_does"
+msgstr "В бою: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Ничего"
+
+msgid "button_layout.absent"
+msgstr "Не подключён"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} не подключён. Раскладка сохранена. Подключите его для изменения."
+
+msgid "button_layout.setup_first"
+msgstr "Сначала настройте кнопки"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Игра сама читает {0}, поэтому Ember пока не может менять его кнопки. Настройте его один раз, и он будет работать здесь как остальные контроллеры."
+
+msgid "button_layout.missing_heading"
+msgstr "У некоторых атак нет кнопки"
+
+msgid "button_layout.missing_text"
+msgstr "У этих атак нет отдельной кнопки: {0}. Раскладка сохранена."
+
+msgid "button_layout.keep_editing"
+msgstr "Продолжить правку"
+
+msgid "button_layout.leave"
+msgstr "Выйти"

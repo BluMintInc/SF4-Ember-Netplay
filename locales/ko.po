@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "조작법"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A로 선택하고 B로 돌아갑니다. PlayStation: 크로스로 선택하고 서클로 돌아갑니다. Switch: 게임 메뉴와 같이 B로 선택하고 A로 돌아갑니다. Ember에서 설정한 컨트롤러: 약한 발차기로 선택하고 중간 발차기로 돌아갑니다. 키보드: 방향키, Enter, Escape. 방향 패드로 이동하고 왼쪽과 오른쪽으로 값을 바꿉니다. 홈에서 돌아가면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10 또는 컨트롤러의 Start를 누르면 다시 열립니다.\n\n방에서는 테이블에서 A를 눌러 자리를 고르고 자기 자리에서 A를 눌러 준비합니다. B를 누르면 자리나 대기열에서 나갑니다. 다른 컨트롤러에서는 같은 위치의 버튼을 사용합니다. Xbox에서 X는 파이터, Y는 옵션, View는 채팅을 엽니다. 다시 누르면 방으로 돌아갑니다. PlayStation은 스퀘어, 트라이앵글, Share 또는 Create를 사용하고 Switch는 Y, X, Minus를 사용합니다.\n\n훈련에서 F6은 조작을 열고 F5는 HUD를 숨기며 F7은 녹화하고 F8은 재생합니다. 컨트롤러에서는 View(Share, Create 또는 Minus)를 누른 채 Start를 누르세요."
+msgstr "Xbox: A로 선택하고 B로 돌아갑니다. PlayStation: 크로스로 선택하고 서클로 돌아갑니다. Switch: 게임 메뉴와 같이 B로 선택하고 A로 돌아갑니다. Ember에서 설정한 컨트롤러: 약 킥에 선택한 버튼으로 선택하고 중 킥에 선택한 버튼으로 돌아갑니다. 버튼 배치를 바꿔도 같습니다. 키보드: 방향키, Enter, Escape. 방향 패드로 이동하고 왼쪽과 오른쪽으로 값을 바꿉니다. 홈에서 돌아가면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10 또는 컨트롤러의 Start를 누르면 다시 열립니다.\n\n방에서는 테이블에서 A를 눌러 자리를 고르고 자기 자리에서 A를 눌러 준비합니다. B를 누르면 자리나 대기열에서 나갑니다. 다른 컨트롤러에서는 같은 위치의 버튼을 사용합니다. Xbox에서 X는 파이터, Y는 옵션, View는 채팅을 엽니다. 다시 누르면 방으로 돌아갑니다. PlayStation은 스퀘어, 트라이앵글, Share 또는 Create를 사용하고 Switch는 Y, X, Minus를 사용합니다.\n\n훈련에서 F6은 조작을 열고 F5는 HUD를 숨기며 F7은 녹화하고 F8은 재생합니다. 컨트롤러에서는 View(Share, Create 또는 Minus)를 누른 채 Start를 누르세요."
 
 msgid "about.controls_keyboard"
 msgstr "키보드에서는 Space로도 선택하고 Backspace로도 돌아갑니다. 방에서는 F로 캐릭터, T로 옵션, C로 채팅을 엽니다. Esc는 내 자리에서도 항상 돌아가며, Delete로 자리나 대기열에서 나갑니다."
@@ -4638,11 +4638,7 @@ msgstr "{0}개 연결됨"
 msgid "player.controllers_detail"
 msgstr "{0}로 플레이합니다. 연결된 모든 컨트롤러를 확인하고 버튼을 시험하며 Ember가 아직 모르는 컨트롤러를 설정하세요."
 
-msgid "player.fight_buttons"
-msgstr "대전 버튼"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember가 닫힙니다. 게임 메뉴에서 옵션을 선택한 뒤 컨트롤러 설정으로 이동하세요. Ember가 표시하는 모든 컨트롤러는 Xbox 버튼 이름을 사용하는 Xbox 패드로 표시됩니다. 모든 동작에 버튼이 지정되어야 게임이 배치를 저장합니다."
 
 msgid "player.game_reads"
 msgstr "게임이 컨트롤러를 읽게 하기"
@@ -4918,7 +4914,7 @@ msgid "pad_setup.saved_heading"
 msgstr "컨트롤러 설정 완료"
 
 msgid "pad_setup.saved"
-msgstr "{0} 설정이 완료되었습니다. 공격이 잘못 나가면 플레이어 및 컨트롤러의 대전 버튼을 확인하세요."
+msgstr "{0} 설정이 완료되었습니다. 대전 중 버튼의 공격을 바꾸려면 버튼 배치를 선택하세요."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember가 이 설정을 사용할 수 없어 저장하지 않았습니다. 자세한 내용은 sf4e.log에 있습니다."
@@ -4928,3 +4924,174 @@ msgstr "{0} 연결이 끊겨 설정을 중단했습니다. 저장되지 않았�
 
 msgid "pad_setup.stopped_idle"
 msgstr "1분 동안 입력이 없어 설정을 중단했습니다. 저장되지 않았습니다."
+
+msgid "player.button_layout"
+msgstr "버튼 배치"
+
+msgid "player.button_layout_detail"
+msgstr "{0}의 각 버튼으로 할 공격을 고르세요. 상대에게는 아무 영향도 없습니다."
+
+msgid "player.button_layout_setup"
+msgstr "Ember가 아직 {0}을 처리하지 않습니다. 선택해서 먼저 버튼을 설정하세요."
+
+msgid "player.button_layout_keyboard"
+msgstr "버튼 배치는 컨트롤러용입니다. 키보드는 게임 버튼 설정을 사용하세요."
+
+msgid "player.button_layout_game_reads"
+msgstr "버튼 배치를 사용하려면 게임이 컨트롤러 읽기를 끄세요. 그전에는 게임 버튼 설정을 사용하세요."
+
+msgid "player.button_layout_failed"
+msgstr "이번에는 Ember의 컨트롤러 지원이 시작되지 않았습니다. 게임 버튼 설정을 사용하세요."
+
+msgid "player.game_buttons"
+msgstr "게임 버튼 설정"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember가 닫힙니다. 게임 메뉴에서 옵션, 컨트롤러 설정을 선택하세요. 키보드와 게임이 직접 읽는 컨트롤러에 사용합니다. Ember 버튼 배치가 있는 컨트롤러는 그 배치를 사용합니다. 게임은 모든 동작에 버튼이 있을 때만 배치를 저장합니다."
+
+msgid "controllers.choice_layout"
+msgstr "버튼 배치"
+
+msgid "controllers.choice_layout_detail"
+msgstr "각 버튼으로 할 공격을 고르세요."
+
+msgid "controllers.choice_layout_setup"
+msgstr "먼저 버튼을 설정하세요."
+
+msgid "controllers.detail_layout"
+msgstr "버튼 배치: {0}."
+
+msgid "button_layout.title"
+msgstr "버튼 배치"
+
+msgid "button_layout.button_title"
+msgstr "버튼 변경"
+
+msgid "button_layout.test"
+msgstr "버튼 시험"
+
+msgid "button_layout.test_detail"
+msgstr "{0}의 버튼을 눌러 어떤 공격이 나가는지 확인하세요. 이 행에서는 뒤로만 메뉴를 조작합니다."
+
+msgid "button_layout.attacks"
+msgstr "공격"
+
+msgid "button_layout.throw"
+msgstr "잡기 (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "세이빙 어택 (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "선택한 다음 {0}에 사용할 버튼을 누르세요. 다른 버튼에 같은 공격이 있으면 두 버튼의 공격이 서로 바뀝니다."
+
+msgid "button_layout.row_missing"
+msgstr "이 공격만 하는 버튼이 없으므로 단독으로 사용할 수 없습니다."
+
+msgid "button_layout.no_button"
+msgstr "버튼 없음"
+
+msgid "button_layout.edit_button"
+msgstr "버튼 하나 변경"
+
+msgid "button_layout.edit_button_detail"
+msgstr "선택한 다음 버튼을 눌러 그 버튼의 공격을 정확히 고르세요. 모든 공격 조합을 쓰거나 버튼을 끌 수 있습니다."
+
+msgid "button_layout.preset"
+msgstr "프리셋"
+
+msgid "button_layout.preset_detail"
+msgstr "미리 만든 배치를 선택하세요. 기본은 게임의 원래 배치입니다."
+
+msgid "button_layout.custom"
+msgstr "사용자 지정"
+
+msgid "button_layout.game_layout"
+msgstr "게임 배치"
+
+msgid "button_layout.preset.default"
+msgstr "기본"
+
+msgid "button_layout.preset.default_detail"
+msgstr "게임의 원래 배치. 대부분의 패드와 8버튼 스틱에 적합합니다."
+
+msgid "button_layout.preset.triggers"
+msgstr "트리거에 세 개 동시"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "6버튼 패드용. 오른쪽 숄더 버튼에 강 펀치, 왼쪽에 강 킥을 둡니다. 왼쪽 트리거에 펀치 세 개 동시, 오른쪽에 킥 세 개 동시를 둡니다."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "세이빙과 잡기"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "기본에서 왼쪽 숄더 버튼은 세이빙 어택, 왼쪽 트리거는 잡기로 바뀝니다. 8버튼 스틱에서는 네 번째 열입니다. 펀치 세 개 동시와 킥 세 개 동시는 스틱 클릭으로 이동합니다."
+
+msgid "button_layout.preset_applied"
+msgstr "배치를 {0}(으)로 설정했습니다."
+
+msgid "button_layout.remove"
+msgstr "게임 배치 사용"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember가 이 컨트롤러의 버튼을 바꾸지 않습니다. 게임 버튼 설정의 배치가 다시 적용됩니다."
+
+msgid "button_layout.removed"
+msgstr "이 컨트롤러에 게임 배치가 다시 적용됩니다."
+
+msgid "button_layout.press_for"
+msgstr "{0}에 쓸 버튼을 누르세요"
+
+msgid "button_layout.press_to_change"
+msgstr "바꿀 버튼을 누르세요"
+
+msgid "button_layout.press_cancel"
+msgstr "스틱을 움직이거나 Start를 눌러 취소하세요."
+
+msgid "button_layout.assigned"
+msgstr "{0}이(가) 이제 {1}에 있습니다."
+
+msgid "button_layout.swapped"
+msgstr "{0}이(가) 이제 {1}에 있습니다. {2}은(는) 대신 {3}을(를) 합니다."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0}이(가) 이제 {1}에 있습니다. {2}은(는) 이제 아무것도 하지 않습니다."
+
+msgid "button_layout.bit_detail"
+msgstr "왼쪽 또는 오른쪽으로 이 버튼의 {0}을(를) 켜거나 끕니다."
+
+msgid "button_layout.clear"
+msgstr "공격 없음"
+
+msgid "button_layout.clear_detail"
+msgstr "이 버튼은 대전 중 아무것도 하지 않습니다."
+
+msgid "button_layout.button_does"
+msgstr "대전 중: {0}"
+
+msgid "button_layout.nothing"
+msgstr "없음"
+
+msgid "button_layout.absent"
+msgstr "연결 안 됨"
+
+msgid "button_layout.absent_detail"
+msgstr "{0}이(가) 연결되지 않았습니다. 배치는 저장되어 있습니다. 연결하면 바꿀 수 있습니다."
+
+msgid "button_layout.setup_first"
+msgstr "먼저 버튼 설정"
+
+msgid "button_layout.setup_first_detail"
+msgstr "게임이 {0}을(를) 직접 읽으므로 Ember가 아직 버튼을 바꿀 수 없습니다. 한 번 설정하면 다른 컨트롤러처럼 여기서 사용할 수 있습니다."
+
+msgid "button_layout.missing_heading"
+msgstr "일부 공격에 버튼이 없습니다"
+
+msgid "button_layout.missing_text"
+msgstr "전용 버튼이 없는 공격: {0}. 배치는 저장되었습니다."
+
+msgid "button_layout.keep_editing"
+msgstr "계속 편집"
+
+msgid "button_layout.leave"
+msgstr "나가기"

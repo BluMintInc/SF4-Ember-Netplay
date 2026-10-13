@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：轻踢选择，中踢返回。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
+msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：为轻脚选定的按钮负责选择，为中脚选定的按钮负责返回，无论按钮布局如何。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
 
 msgid "about.controls_keyboard"
 msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
@@ -4638,11 +4638,7 @@ msgstr "已连接 {0} 个"
 msgid "player.controllers_detail"
 msgstr "你正在使用 {0} 游玩。查看所有已连接的控制器，测试按钮，并设置 Ember 尚未识别的控制器。"
 
-msgid "player.fight_buttons"
-msgstr "格斗按钮"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember 将关闭。在游戏菜单中选择选项，然后进入控制器设置。Ember 列出的每个控制器都会在那里显示为使用 Xbox 按钮名称的 Xbox 手柄。只有每项操作都分配了按钮，游戏才会保存布局。"
 
 msgid "player.game_reads"
 msgstr "让游戏读取控制器"
@@ -4918,7 +4914,7 @@ msgid "pad_setup.saved_heading"
 msgstr "控制器设置完成"
 
 msgid "pad_setup.saved"
-msgstr "{0} 已设置好。如果攻击不正确，请检查“玩家与控制器”中的“格斗按钮”。"
+msgstr "{0} 已设置好。要更改各个按钮在格斗中使用的攻击，请选择“按钮布局”。"
 
 msgid "pad_setup.save_failed"
 msgstr "Ember 无法使用此设置，因此未保存。详情请见 sf4e.log。"
@@ -4928,3 +4924,174 @@ msgstr "由于 {0} 断开连接，设置已停止。未保存任何内容。"
 
 msgid "pad_setup.stopped_idle"
 msgstr "由于一分钟没有输入，设置已停止。未保存任何内容。"
+
+msgid "player.button_layout"
+msgstr "按钮布局"
+
+msgid "player.button_layout_detail"
+msgstr "选择 {0} 的各个按钮在格斗中使用的攻击。这不会影响对手。"
+
+msgid "player.button_layout_setup"
+msgstr "Ember 尚未接管 {0}。请选择，先设置它的按钮。"
+
+msgid "player.button_layout_keyboard"
+msgstr "按钮布局适用于控制器。键盘请使用“游戏按钮设置”。"
+
+msgid "player.button_layout_game_reads"
+msgstr "请关闭“让游戏读取控制器”以使用按钮布局。在此之前，请使用“游戏按钮设置”。"
+
+msgid "player.button_layout_failed"
+msgstr "Ember 的控制器支持本次未能启动。请使用“游戏按钮设置”。"
+
+msgid "player.game_buttons"
+msgstr "游戏按钮设置"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember 将关闭。在游戏菜单中选择“选项”，再进入控制器设置。键盘和由游戏直接读取的控制器请使用此设置。有 Ember 按钮布局的控制器会使用该布局。只有每项操作都有按钮时，游戏才会保存布局。"
+
+msgid "controllers.choice_layout"
+msgstr "按钮布局"
+
+msgid "controllers.choice_layout_detail"
+msgstr "选择各个按钮在格斗中使用的攻击。"
+
+msgid "controllers.choice_layout_setup"
+msgstr "请先设置它的按钮。"
+
+msgid "controllers.detail_layout"
+msgstr "按钮布局：{0}。"
+
+msgid "button_layout.title"
+msgstr "按钮布局"
+
+msgid "button_layout.button_title"
+msgstr "更改按钮"
+
+msgid "button_layout.test"
+msgstr "测试按钮"
+
+msgid "button_layout.test_detail"
+msgstr "按下 {0} 的按钮，查看它们使用的攻击。在此行中，只有“返回”会操作菜单。"
+
+msgid "button_layout.attacks"
+msgstr "攻击"
+
+msgid "button_layout.throw"
+msgstr "投技 (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "蓄力攻击 (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "选择后，按下要用于 {0} 的按钮。如果其他按钮已有该攻击，两个按钮的功能会互换。"
+
+msgid "button_layout.row_missing"
+msgstr "没有按钮只使用这项攻击，因此无法单独使用它。"
+
+msgid "button_layout.no_button"
+msgstr "无按钮"
+
+msgid "button_layout.edit_button"
+msgstr "更改单个按钮"
+
+msgid "button_layout.edit_button_detail"
+msgstr "选择后按下一个按钮，以准确指定它使用的攻击。可使用任意攻击组合，也可停用按钮。"
+
+msgid "button_layout.preset"
+msgstr "预设"
+
+msgid "button_layout.preset_detail"
+msgstr "选择现成的布局。“默认”是游戏原本的布局。"
+
+msgid "button_layout.custom"
+msgstr "自定义"
+
+msgid "button_layout.game_layout"
+msgstr "游戏布局"
+
+msgid "button_layout.preset.default"
+msgstr "默认"
+
+msgid "button_layout.preset.default_detail"
+msgstr "游戏原本的布局。适用于大多数手柄和八按钮街机摇杆。"
+
+msgid "button_layout.preset.triggers"
+msgstr "扳机使用三键同时"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "用于六按钮手柄。右肩键使用重拳，左肩键使用重脚。左扳机使用三拳同时，右扳机使用三脚同时。"
+
+msgid "button_layout.preset.focus_throw"
+msgstr "蓄力与投技"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "与“默认”相同，但左肩键使用蓄力攻击，左扳机使用投技。八按钮街机摇杆上对应第四列。三拳同时和三脚同时移到摇杆按键。"
+
+msgid "button_layout.preset_applied"
+msgstr "布局已设为 {0}。"
+
+msgid "button_layout.remove"
+msgstr "使用游戏布局"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember 将不再更改此控制器的按钮，重新使用“游戏按钮设置”中的布局。"
+
+msgid "button_layout.removed"
+msgstr "此控制器已重新使用游戏布局。"
+
+msgid "button_layout.press_for"
+msgstr "请按下用于 {0} 的按钮"
+
+msgid "button_layout.press_to_change"
+msgstr "请按下要更改的按钮"
+
+msgid "button_layout.press_cancel"
+msgstr "移动摇杆或按 Start 取消。"
+
+msgid "button_layout.assigned"
+msgstr "{0} 现已分配到 {1}。"
+
+msgid "button_layout.swapped"
+msgstr "{0} 现已分配到 {1}。{2} 改为使用 {3}。"
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} 现已分配到 {1}。{2} 现在不使用任何攻击。"
+
+msgid "button_layout.bit_detail"
+msgstr "按左或右为此按钮开启或关闭 {0}。"
+
+msgid "button_layout.clear"
+msgstr "无攻击"
+
+msgid "button_layout.clear_detail"
+msgstr "此按钮在格斗中不执行任何操作。"
+
+msgid "button_layout.button_does"
+msgstr "格斗中：{0}"
+
+msgid "button_layout.nothing"
+msgstr "无"
+
+msgid "button_layout.absent"
+msgstr "未连接"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} 未连接。布局已保存。连接后即可更改。"
+
+msgid "button_layout.setup_first"
+msgstr "请先设置按钮"
+
+msgid "button_layout.setup_first_detail"
+msgstr "游戏正在直接读取 {0}，因此 Ember 暂时无法更改它的按钮。设置一次后，它就能在这里像其他控制器一样使用。"
+
+msgid "button_layout.missing_heading"
+msgstr "部分攻击没有按钮"
+
+msgid "button_layout.missing_text"
+msgstr "以下攻击没有单独的按钮：{0}。布局已保存。"
+
+msgid "button_layout.keep_editing"
+msgstr "继续编辑"
+
+msgid "button_layout.leave"
+msgstr "离开"

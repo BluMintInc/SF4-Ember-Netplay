@@ -259,9 +259,10 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
  }
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
+ SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&v.canEditPreferences&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
-  if(Send(CommandKind::SavePreferences,v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&(v.canEditPreferences||(v.atMainMenu&&v.session.room!=RoomState::Idle&&!netplay::Fighting(v.session.match)&&OnlyLayoutsChanged(v.preferences,preferences_)))&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+  if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
@@ -366,7 +367,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="player"){
   title=loc::T("player.title");
   rows=PlayerControllerRows(preferences_,v.controller,v.inputDevice.type,v.gameplayBrand,v.pads,
-   gamepads::LayerPending(preferences_.controllerLayer,v.runningControllerLayer),v.canChangeController,v.canEditPreferences,idle);
+   gamepads::LayerPending(preferences_.controllerLayer,v.runningControllerLayer),v.canChangeController,v.canEditPreferences,idle,v.padLayer);
  }else if(screen=="controllers"){
   title=loc::T("controllers.title");rows=ControllerRows(v.padLayer,v.pads,v.canChangeController,v.canEditPreferences);
  }else if(screen=="interface"){
@@ -568,17 +569,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(publicRooms_.Activate(a,nav))return;
  }
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
- if(screen=="controllers"&&a.id.compare(0,4,"pad-")==0){
-  const auto action=ControllerAction(a,v.pads);if(!action)return;
-  if(action->kind==gamepads::ControllerRequest::Kind::Setup){
-   const auto pad=std::find_if(v.pads.begin(),v.pads.end(),[&](const gamepads::PadView& p){return p.id==action->id;});
-   if(pad!=v.pads.end())BeginPadSetup(*pad,v,submit);
-   return;
-  }
-  ShellAction request;request.command.generation=v.session.generation;request.padAction=*action;
-  if(!submit(std::move(request)))error_=loc::T("error.queue_failed");
-  return;
- }
+ if(ControllerActivate(a,v,submit))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
@@ -595,7 +586,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
- else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
+ else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
@@ -715,6 +706,8 @@ void ApplicationShell::SetLanguage(std::string preference) {
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
+ CancelLayoutCapture(v,submit);
+ if(preferencesDirty_&&OnlyLayoutsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
@@ -844,11 +837,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
- if(DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
+ if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
- SetMenuPromptBrand(gamepads::ResolvePrompts(preferences_.buttonPrompts,v.inputDevice.type,v.gameplayBrand));
+ SetGameplayLayoutPrompts(v);
  const bool keys=KeyboardPrompts();
  std::vector<LegendHint> roomHints=keys?std::vector<LegendHint>{{"F",loc::T("room.legend_fighter")},{"T",loc::T("room.legend_options")},{"C",loc::T("room.chat")}}:
   std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"View",loc::T("room.chat")}};

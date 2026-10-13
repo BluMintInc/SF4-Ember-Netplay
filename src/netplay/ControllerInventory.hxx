@@ -36,6 +36,8 @@ public:
                     if (twin != frames.end()) row.name = twin->pad.identity.name;
                     else if (pad.type == Type::Unknown || pad.type == Type::Standard) row.name.clear(); // localized by the runtime
                 }
+                row.mapping = frame.mapping; row.numberedHats = frame.numberedHats;
+                row.has = frame.has; row.table = frame.table; row.layout = frame.layout;
                 row.held = HeldGlyphs(frame.state); row.raw = frame.raw; row.rawAtRest = frame.rawAtRest; row.pressed = frame.pressed;
                 if (row.state == RowState::Unmapped || row.state == RowState::GameRead) {
                     const auto match = [&](const NativeController& n) {
@@ -53,6 +55,7 @@ public:
                     }
                 } else row.gameplay = gameplay.type == input::PadXInput && !gameplay.identity.guid.empty() && Same(gameplay.identity, pad.identity);
                 row.id = Number(row.identity);
+                remembered_[row.id - 1] = row;
                 result.push_back(std::move(row));
             }
         } else for (const auto& device : devices) if (device.connected && device.type != input::PadKeyboard) {
@@ -65,11 +68,15 @@ public:
             row.brand = GameplayBrand(device.type);
             row.picture = device.type == input::PadXInput ? "controller_xboxseries" : "controller_generic";
             row.pressed = device.buttons != 0;
+            remembered_[row.id - 1] = row;
             result.push_back(std::move(row));
         }
         if (layer == Layer::Active && saved && std::none_of(result.begin(), result.end(), [&](const PadView& row) { return Same(row.identity, *saved); })) {
-            PadView row; row.id = Number(*saved); row.identity = *saved; row.name = saved->name;
-            row.picture = "controller_disconnected"; row.state = RowState::Absent;
+            const auto id = Number(*saved);
+            auto row = remembered_[id - 1]; row.id = id; row.identity = *saved; row.name = saved->name;
+            row.picture = "controller_disconnected"; row.state = RowState::Absent; row.slot = -1;
+            row.held.clear(); row.raw.clear(); row.pressed = false;
+            row.gameplay = gameplay.type == input::PadXInput && Same(gameplay.identity, *saved);
             result.push_back(std::move(row));
         }
         OrderPadRows(result);
@@ -77,9 +84,11 @@ public:
     }
 private:
     unsigned Number(const Identity& identity) {
-        for (unsigned i = 0; i < identities_.size(); ++i) if (Same(identities_[i], identity)) { if (!identity.serial.empty()) identities_[i] = identity; return i + 1; }
-        identities_.push_back(identity); return static_cast<unsigned>(identities_.size());
+        for (unsigned i = 0; i < remembered_.size(); ++i) if (Same(remembered_[i].identity, identity)) return i + 1;
+        PadView row; row.identity = identity; row.id = static_cast<unsigned>(remembered_.size()) + 1;
+        remembered_.push_back(std::move(row));
+        return static_cast<unsigned>(remembered_.size());
     }
-    std::vector<Identity> identities_;
+    std::vector<PadView> remembered_;
 };
 } }

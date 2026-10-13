@@ -1152,7 +1152,7 @@ msgid "about.controls"
 msgstr "Controls"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A selects and B goes back. PlayStation: Cross selects and Circle goes back. Switch: B selects and A goes back, as in the game's own menus. A controller set up in Ember: Light kick selects and Medium kick goes back. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Going back at Home hides Ember. F10, or Start on a controller, opens it again at the game's main menu.\n\nIn a room, A on a table lets you pick a seat, A on your own seat readies up, and B leaves your seat or queue place (on other controllers, the buttons in the same places). On Xbox, X opens Fighter, Y opens Options and View opens Chat; press it again to return to the room. PlayStation uses Square, Triangle and Share or Create; Switch uses Y, X and Minus.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays. On a controller, hold View (Share, Create or Minus) and press Start."
+msgstr "Xbox: A selects and B goes back. PlayStation: Cross selects and Circle goes back. Switch: B selects and A goes back, as in the game's own menus. A controller set up in Ember: the button you chose for Light kick selects and the one you chose for Medium kick goes back, whatever its button layout. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Going back at Home hides Ember. F10, or Start on a controller, opens it again at the game's main menu.\n\nIn a room, A on a table lets you pick a seat, A on your own seat readies up, and B leaves your seat or queue place (on other controllers, the buttons in the same places). On Xbox, X opens Fighter, Y opens Options and View opens Chat; press it again to return to the room. PlayStation uses Square, Triangle and Share or Create; Switch uses Y, X and Minus.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays. On a controller, hold View (Share, Create or Minus) and press Start."
 
 msgid "about.controls_keyboard"
 msgstr "On the keyboard, Space also selects and Backspace also goes back. In a room, F opens Fighter, T opens Options and C opens Chat. Escape always goes back, even on your own seat; Delete leaves your seat or queue place."
@@ -4294,11 +4294,7 @@ msgstr "{0} connected"
 msgid "player.controllers_detail"
 msgstr "You play with {0}. See every connected controller, test its buttons, and set up ones Ember does not know yet."
 
-msgid "player.fight_buttons"
-msgstr "Fighting buttons"
 
-msgid "player.fight_buttons_detail"
-msgstr "Ember closes. In the game's menu, choose Options, then the controller settings. Every controller Ember lists shows there as an Xbox pad with Xbox button names. The game keeps a layout only when every action has a button."
 
 msgid "player.game_reads"
 msgstr "Let the game read controllers"
@@ -4574,7 +4570,7 @@ msgid "pad_setup.saved_heading"
 msgstr "Controller set up"
 
 msgid "pad_setup.saved"
-msgstr "{0} is set up. If an attack does the wrong thing, check Fighting buttons in Player & controller."
+msgstr "{0} is set up. To change what its buttons do in fights, choose Button layout."
 
 msgid "pad_setup.save_failed"
 msgstr "Ember could not use this setup, so nothing was saved. sf4e.log has the details."
@@ -4584,3 +4580,174 @@ msgstr "Setup stopped because {0} disconnected. Nothing was saved."
 
 msgid "pad_setup.stopped_idle"
 msgstr "Setup stopped because nothing was pressed for a minute. Nothing was saved."
+
+msgid "player.button_layout"
+msgstr "Button layout"
+
+msgid "player.button_layout_detail"
+msgstr "Choose what each button on {0} does in fights. It changes nothing for your opponent."
+
+msgid "player.button_layout_setup"
+msgstr "Ember does not handle {0} yet. Select to set up its buttons first."
+
+msgid "player.button_layout_keyboard"
+msgstr "Button layouts are for controllers. For the keyboard, use Game's button settings."
+
+msgid "player.button_layout_game_reads"
+msgstr "Turn off Let the game read controllers to use button layouts. Until then, use Game's button settings."
+
+msgid "player.button_layout_failed"
+msgstr "Ember's controller support did not start this time. Use Game's button settings."
+
+msgid "player.game_buttons"
+msgstr "Game's button settings"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember closes. In the game's menu, choose Options, then the controller settings. Use it for the keyboard and for controllers the game reads itself. A controller with an Ember button layout uses that layout instead. The game keeps a layout only when every action has a button."
+
+msgid "controllers.choice_layout"
+msgstr "Button layout"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Choose what each button does in fights."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Set up its buttons first."
+
+msgid "controllers.detail_layout"
+msgstr "Button layout: {0}."
+
+msgid "button_layout.title"
+msgstr "BUTTON LAYOUT"
+
+msgid "button_layout.button_title"
+msgstr "CHANGE BUTTON"
+
+msgid "button_layout.test"
+msgstr "Try your buttons"
+
+msgid "button_layout.test_detail"
+msgstr "Press buttons on {0} to see which attacks they do. On this row, only Back acts on the menu."
+
+msgid "button_layout.attacks"
+msgstr "Attacks"
+
+msgid "button_layout.throw"
+msgstr "Throw (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Focus attack (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Select, then press the button you want for {0}. If another button has it, the two buttons swap."
+
+msgid "button_layout.row_missing"
+msgstr "No button does only this, so you cannot press it on its own."
+
+msgid "button_layout.no_button"
+msgstr "No button"
+
+msgid "button_layout.edit_button"
+msgstr "Change one button"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Select, then press a button to choose exactly which attacks it does. Use it for any mix of attacks, or to turn a button off."
+
+msgid "button_layout.preset"
+msgstr "Preset"
+
+msgid "button_layout.preset_detail"
+msgstr "Select to use a ready-made layout. Default is the game's own layout."
+
+msgid "button_layout.custom"
+msgstr "Custom"
+
+msgid "button_layout.game_layout"
+msgstr "Game's layout"
+
+msgid "button_layout.preset.default"
+msgstr "Default"
+
+msgid "button_layout.preset.default_detail"
+msgstr "The game's own layout. It suits most pads and 8-button sticks."
+
+msgid "button_layout.preset.triggers"
+msgstr "Triggers for all three"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "For six-button pads. Heavy punch on the right shoulder button and heavy kick on the left. All three punches on the left trigger, all three kicks on the right."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus and throw"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Like Default, but the left shoulder button does Focus attack and the left trigger throws. On an 8-button stick, that is the fourth column. All three punches and all three kicks move to the stick clicks."
+
+msgid "button_layout.preset_applied"
+msgstr "Layout set to {0}."
+
+msgid "button_layout.remove"
+msgstr "Use the game's layout"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember stops changing this controller's buttons, and the layout from Game's button settings applies again."
+
+msgid "button_layout.removed"
+msgstr "The game's layout applies to this controller again."
+
+msgid "button_layout.press_for"
+msgstr "Press the button for {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Press the button to change"
+
+msgid "button_layout.press_cancel"
+msgstr "Move the stick or press Start to cancel."
+
+msgid "button_layout.assigned"
+msgstr "{0} is on {1} now."
+
+msgid "button_layout.swapped"
+msgstr "{0} is on {1} now. {2} does {3} instead."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} is on {1} now. {2} does nothing now."
+
+msgid "button_layout.bit_detail"
+msgstr "Left or Right turns {0} on or off for this button."
+
+msgid "button_layout.clear"
+msgstr "No attacks"
+
+msgid "button_layout.clear_detail"
+msgstr "This button does nothing in fights."
+
+msgid "button_layout.button_does"
+msgstr "In fights: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nothing"
+
+msgid "button_layout.absent"
+msgstr "Not connected"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} is not connected. Its layout is saved. Connect it to change it."
+
+msgid "button_layout.setup_first"
+msgstr "Set up its buttons first"
+
+msgid "button_layout.setup_first_detail"
+msgstr "The game reads {0} itself, so Ember cannot change its buttons yet. Set it up once and it works like any other controller here."
+
+msgid "button_layout.missing_heading"
+msgstr "Some attacks have no button"
+
+msgid "button_layout.missing_text"
+msgstr "These attacks have no button of their own: {0}. The layout is saved."
+
+msgid "button_layout.keep_editing"
+msgstr "Keep editing"
+
+msgid "button_layout.leave"
+msgstr "Leave"
