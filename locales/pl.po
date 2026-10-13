@@ -1829,6 +1829,15 @@ msgstr "Trafienie"
 msgid "training.meter.block"
 msgstr "Blok"
 
+msgid "training.meter.focus_forward"
+msgstr "Anulowanie Focus, dash do przodu"
+
+msgid "training.meter.focus_back"
+msgstr "Anulowanie Focus, dash do tyłu"
+
+msgid "training.meter.cancelled"
+msgstr "Anulowany"
+
 msgid "training.meter.whiff"
 msgstr "Pudło"
 
@@ -1904,6 +1913,9 @@ msgstr "Powr. {0} kl."
 msgid "training.recovery_unknown"
 msgstr "Powr. --"
 
+msgid "training.recovery_cancelled"
+msgstr "Powr. anulowany"
+
 msgid "training.neutral"
 msgstr "Neutralnie"
 
@@ -1948,6 +1960,12 @@ msgstr "Przewaga"
 
 msgid "training.last_advantage"
 msgstr "Ostatnia przewaga"
+
+msgid "training.last_focus_forward"
+msgstr "Ostatnie anulowanie Focus, dash do przodu"
+
+msgid "training.last_focus_back"
+msgstr "Ostatnie anulowanie Focus, dash do tyłu"
 
 msgid "selection.preview_unavailable"
 msgstr "Podgląd\nniedostępny"

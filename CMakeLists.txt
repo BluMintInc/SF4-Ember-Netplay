@@ -34,6 +34,7 @@ if(BUILD_TESTING)
     find_package(Threads REQUIRED)
     sf4e_add_unit_test(NAME TrainingSession SOURCES "src/tests/training_session_test.cxx" STD 14)
     sf4e_add_unit_test(NAME FrameMeterRun SOURCES "src/tests/frame_meter_run_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME FocusCancel SOURCES "src/tests/focus_cancel_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingReply SOURCES "src/tests/training_reply_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.cxx" STD 14)
     # The bank's test includes RecordingBank.hxx alone, so it fails to build

@@ -1829,6 +1829,15 @@ msgstr "Hit"
 msgid "training.meter.block"
 msgstr "Block"
 
+msgid "training.meter.focus_forward"
+msgstr "Focus cancel, forward dash"
+
+msgid "training.meter.focus_back"
+msgstr "Focus cancel, back dash"
+
+msgid "training.meter.cancelled"
+msgstr "Cancelled"
+
 msgid "training.meter.whiff"
 msgstr "Whiff"
 
@@ -1904,6 +1913,9 @@ msgstr "Rec {0} f"
 msgid "training.recovery_unknown"
 msgstr "Rec --"
 
+msgid "training.recovery_cancelled"
+msgstr "Rec cancelled"
+
 msgid "training.neutral"
 msgstr "Neutral"
 
@@ -1948,6 +1960,12 @@ msgstr "Advantage"
 
 msgid "training.last_advantage"
 msgstr "Last advantage"
+
+msgid "training.last_focus_forward"
+msgstr "Last focus cancel, forward dash"
+
+msgid "training.last_focus_back"
+msgstr "Last focus cancel, back dash"
 
 msgid "selection.preview_unavailable"
 msgstr "Preview\nnot available"

@@ -1830,6 +1830,15 @@ msgstr "Попадание"
 msgid "training.meter.block"
 msgstr "Блок"
 
+msgid "training.meter.focus_forward"
+msgstr "Фокус-отмена, рывок вперёд"
+
+msgid "training.meter.focus_back"
+msgstr "Фокус-отмена, рывок назад"
+
+msgid "training.meter.cancelled"
+msgstr "Отменено"
+
 msgid "training.meter.whiff"
 msgstr "Мимо"
 
@@ -1905,6 +1914,9 @@ msgstr "Восст.: {0} к."
 msgid "training.recovery_unknown"
 msgstr "Восст.: --"
 
+msgid "training.recovery_cancelled"
+msgstr "Восст.: отменено"
+
 msgid "training.neutral"
 msgstr "Нейтраль"
 
@@ -1949,6 +1961,12 @@ msgstr "Преимущество"
 
 msgid "training.last_advantage"
 msgstr "Последнее преимущество"
+
+msgid "training.last_focus_forward"
+msgstr "Последняя фокус-отмена, рывок вперёд"
+
+msgid "training.last_focus_back"
+msgstr "Последняя фокус-отмена, рывок назад"
 
 msgid "selection.preview_unavailable"
 msgstr "Превью\nнедоступно"

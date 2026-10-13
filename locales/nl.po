@@ -1829,6 +1829,15 @@ msgstr "Hit"
 msgid "training.meter.block"
 msgstr "Block"
 
+msgid "training.meter.focus_forward"
+msgstr "Focus-cancel, dash vooruit"
+
+msgid "training.meter.focus_back"
+msgstr "Focus-cancel, dash achteruit"
+
+msgid "training.meter.cancelled"
+msgstr "Geannuleerd"
+
 msgid "training.meter.whiff"
 msgstr "Mis"
 
@@ -1904,6 +1913,9 @@ msgstr "Herst. {0} f"
 msgid "training.recovery_unknown"
 msgstr "Herst. --"
 
+msgid "training.recovery_cancelled"
+msgstr "Herst. geannuleerd"
+
 msgid "training.neutral"
 msgstr "Neutraal"
 
@@ -1948,6 +1960,12 @@ msgstr "Voordeel"
 
 msgid "training.last_advantage"
 msgstr "Laatste voordeel"
+
+msgid "training.last_focus_forward"
+msgstr "Laatste focus-cancel, dash vooruit"
+
+msgid "training.last_focus_back"
+msgstr "Laatste focus-cancel, dash achteruit"
 
 msgid "selection.preview_unavailable"
 msgstr "Voorbeeld\nniet beschikbaar"

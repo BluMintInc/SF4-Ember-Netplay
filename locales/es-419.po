@@ -1608,6 +1608,12 @@ msgstr "Ventaja"
 msgid "training.last_advantage"
 msgstr "Última ventaja"
 
+msgid "training.last_focus_forward"
+msgstr "Última cancelación con Focus, dash adelante"
+
+msgid "training.last_focus_back"
+msgstr "Última cancelación con Focus, dash atrás"
+
 msgid "training.meter.active"
 msgstr "Activo"
 
@@ -1619,6 +1625,15 @@ msgstr "Golpe"
 
 msgid "training.meter.block"
 msgstr "Bloqueo"
+
+msgid "training.meter.focus_forward"
+msgstr "Cancelación con Focus, dash adelante"
+
+msgid "training.meter.focus_back"
+msgstr "Cancelación con Focus, dash atrás"
+
+msgid "training.meter.cancelled"
+msgstr "Cancelada"
 
 msgid "training.meter.whiff"
 msgstr "Al aire"
@@ -1694,6 +1709,9 @@ msgstr "Rec. {0} f"
 
 msgid "training.recovery_unknown"
 msgstr "Rec. --"
+
+msgid "training.recovery_cancelled"
+msgstr "Rec. cancelada"
 
 msgid "training.save_recording"
 msgstr "Guardar grabación como"

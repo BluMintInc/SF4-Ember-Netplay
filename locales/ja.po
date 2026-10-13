@@ -1829,6 +1829,15 @@ msgstr "ヒット"
 msgid "training.meter.block"
 msgstr "ガード"
 
+msgid "training.meter.focus_forward"
+msgstr "セービングキャンセル、前ダッシュ"
+
+msgid "training.meter.focus_back"
+msgstr "セービングキャンセル、バックステップ"
+
+msgid "training.meter.cancelled"
+msgstr "キャンセル"
+
 msgid "training.meter.whiff"
 msgstr "空振り"
 
@@ -1904,6 +1913,9 @@ msgstr "硬直{0}F"
 msgid "training.recovery_unknown"
 msgstr "硬直--"
 
+msgid "training.recovery_cancelled"
+msgstr "硬直キャンセル"
+
 msgid "training.neutral"
 msgstr "入力なし"
 
@@ -1948,6 +1960,12 @@ msgstr "硬直差"
 
 msgid "training.last_advantage"
 msgstr "前回の硬直差"
+
+msgid "training.last_focus_forward"
+msgstr "前回のセービングキャンセル、前ダッシュ"
+
+msgid "training.last_focus_back"
+msgstr "前回のセービングキャンセル、バックステップ"
 
 msgid "selection.preview_unavailable"
 msgstr "プレビューを\n表示できません"

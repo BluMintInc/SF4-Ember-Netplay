@@ -1829,6 +1829,15 @@ msgstr "命中"
 msgid "training.meter.block"
 msgstr "防御"
 
+msgid "training.meter.focus_forward"
+msgstr "蓄力取消，前冲"
+
+msgid "training.meter.focus_back"
+msgstr "蓄力取消，后撤步"
+
+msgid "training.meter.cancelled"
+msgstr "已取消"
+
 msgid "training.meter.whiff"
 msgstr "挥空"
 
@@ -1904,6 +1913,9 @@ msgstr "硬直 {0} 帧"
 msgid "training.recovery_unknown"
 msgstr "硬直 --"
 
+msgid "training.recovery_cancelled"
+msgstr "硬直 已取消"
+
 msgid "training.neutral"
 msgstr "待机"
 
@@ -1948,6 +1960,12 @@ msgstr "优势"
 
 msgid "training.last_advantage"
 msgstr "上次优势"
+
+msgid "training.last_focus_forward"
+msgstr "上次蓄力取消，前冲"
+
+msgid "training.last_focus_back"
+msgstr "上次蓄力取消，后撤步"
 
 msgid "selection.preview_unavailable"
 msgstr "预览\n不可用"

@@ -1,6 +1,7 @@
 #include "TrainingRuntime.hxx"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include "TrainingCapture.hxx"
 #include "FighterPlacement.hxx"
 #include "BacFile.hxx"
@@ -426,6 +427,12 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
             if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
             if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
         }
+        // A focus or a dash, by the category of the command move the Skill plays,
+        // as the game tells its own (docs/design/FOCUS_CANCEL_MARKER.md).
+        const unsigned char* command = sample.status == Actor::AS_SKILL ? (actor->*Actor::publicMethods.GetCommandMove)() : nullptr;
+        std::uint32_t category = 0;
+        if (command) std::memcpy(&category, command + 0x28, sizeof category);
+        sample.actionClass = ResolveActionClass(true, sample.status, command != nullptr, category);
         (actor->*Actor::publicMethods.GetDamage)(&value);
         sample.damage = Dimps::Math::FixedToFloat(&value);
         (actor->*Actor::publicMethods.GetComboDamage)(&value);
