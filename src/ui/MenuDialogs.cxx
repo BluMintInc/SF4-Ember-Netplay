@@ -87,11 +87,20 @@ const MenuEntry* FindEntry(const std::vector<MenuEntry>& entries,const std::stri
     return it==entries.end()?nullptr:&*it;
 }
 }
+void GameMenu::ShowNotice(NoticeDialog notice) {
+    notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
+    // A notice always has a button to close it by.
+    if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
+    noticeSelected_=0; noticeError_=false; noticeResult_=NoticeResult::None;
+}
+void GameMenu::ShowNotice(std::string text,std::string heading,std::string okLabel) {
+    ShowNotice(NoticeDialog{std::move(text),std::move(heading),{{okLabel.empty()?std::string(loc::T("common.ok")):std::move(okLabel)}}});
+}
 bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& select,std::string& back) const {
     back=loc::T("common.cancel");
     if(!notice_.empty()) {
-        // Back declines a notice's alternative, so it reads as closing it.
-        select=noticeAlternativeSelected_?noticeAlternative_:(noticeOkLabel_.empty()?loc::T("common.ok"):noticeOkLabel_);back=loc::T("common.close");
+        // Back declines whichever button is highlighted, so it reads as closing the notice.
+        select=noticeButtons_[noticeSelected_].label;back=loc::T("common.close");
     } else if(navigation.Editing()) select=KeyboardPrompts()||navigation.EditAccepts()?loc::T("common.accept"):loc::T("edit.cancel");
     else if(navigation.Reading()) { select.clear(); back=loc::T("common.close"); }
     else if(navigation.Choosing()) {
@@ -249,12 +258,12 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
             NoteUserText(notice_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));
-            std::vector<DialogButton> buttons{{noticeOkLabel_.empty()?loc::T("common.ok"):noticeOkLabel_}};
-            if(!noticeAlternative_.empty())buttons.push_back({noticeAlternative_});
-            int selected=noticeAlternativeSelected_?1:0;
+            std::vector<DialogButton> buttons;
+            for(const auto& button:noticeButtons_) buttons.push_back({button.label});
+            int selected=noticeSelected_;
             const int clicked=DrawDialogButtons("notice",buttons,&selected,48*Scale());
-            noticeAlternativeSelected_=selected==1;
-            if(clicked>=0) DismissNotice(clicked==1);
+            noticeSelected_=selected;
+            if(clicked>=0) DismissNotice(noticeButtons_[clicked].result);
             if(notice_.empty()) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

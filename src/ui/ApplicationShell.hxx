@@ -275,6 +275,17 @@ private:
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
     void SetLanguage(std::string preference);
+    // A notice's buttons carry results, not actions (GameMenu::TakeNoticeResult). Every
+    // draw of the menu is followed by AnswerDialog, which does what the result says with
+    // what the notice's owner left in dialogContext_.
+    void AnswerDialog(const Submit& submit);
+    struct DialogContext {
+        // The pad the Button layout button opens.
+        std::optional<gamepads::PadView> pad;
+        // What leaving a layout with unassigned attacks logs, and for which session.
+        std::string log;
+        netplay::Generation generation;
+    } dialogContext_;
     // Whether the selector the shell is about to show was opened just now, not
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
@@ -293,6 +304,11 @@ private:
         const auto kind=publicRooms_.OpeningKind();
         return kind?*kind==PublicRoomsPanel::OpenKind::Create:view.session.isHost;
     }
+    // The Create screen and its neighbours (ApplicationShell__Create.cxx).
+    // RoomSetupRows builds Create and Defaults, which edit the same room settings.
+    std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
+    void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
+    bool CreateAdjust(const MenuAction& action);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.

@@ -158,6 +158,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             if (editor) DrawButtonEditorDetail(pad, preferences_.buttonPrompts, layoutButton_);
             else DrawButtonLayoutDetail(pad, preferences_.buttonPrompts, capturing);
         }, 1, {}, {}, 0, 100, false, !error_.empty() || saveFailed_ ? Tone::Error : notice ? noticeTone_ : preferencesDirty_ || saveQueued_ || view.settingsPending ? Tone::Pending : Tone::Neutral);
+    AnswerDialog(submit);
     if (capturing) {
         const auto cancel = !editable ? LayoutCancel::State : ImGui::IsKeyPressed(ImGuiKey_Escape, false) ? LayoutCancel::Escape : action.kind == MenuAction::Back ? LayoutCancel::Back : LayoutCancel::None;
         const auto press = layoutCapture_.Read(ImGui::GetTime(), pad.held, pad.has, cancel);
@@ -195,11 +196,10 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             if (layoutChanged_ && !missing.empty()) {
                 std::string names, shortNames;
                 for (auto mask : missing) { if (!names.empty()) { names += ", "; shortNames += ", "; } names += AttackLongName(mask); shortNames += FightName(mask); }
-                menu_.ShowNotice(loc::Tf("button_layout.missing_text", names), loc::T("button_layout.missing_heading"), loc::T("button_layout.leave"),
-                    [this, submit, generation = view.session.generation, id = pad.id, shortNames] {
-                        ShellAction log; log.command.generation = generation; log.padAction.kind = ControllerRequest::Kind::LayoutLog;
-                        log.padAction.log = fmt::format("layout for id {} left with no button for {}", id, shortNames); submit(std::move(log)); menu_.navigation.Return();
-                    }, loc::T("button_layout.keep_editing"));
+                dialogContext_.generation = view.session.generation;
+                dialogContext_.log = fmt::format("layout for id {} left with no button for {}", pad.id, shortNames);
+                menu_.ShowNotice(NoticeDialog{loc::Tf("button_layout.missing_text", names), loc::T("button_layout.missing_heading"),
+                    {{loc::T("button_layout.keep_editing")}, {loc::T("button_layout.leave"), NoticeResult::LeaveButtonLayout}}});
             } else nav.Return();
         }
     } else if (action.kind == MenuAction::Activate && action.id == "setup") BeginPadSetup(pad, view, submit);

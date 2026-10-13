@@ -672,10 +672,24 @@ void DialogContract(){
  Check(menu.navigation.Editing()&&!menu.navigation.EditAccepts()&&has("Cancel edit"),"The pointer's Cancel highlight was not kept or shown");
  Check(press(MenuInput::Select).kind==MenuAction::None&&!menu.navigation.Editing(),"Select after the pointer chose Cancel accepted the draft");
  imgui.io.AddMousePosEvent(1,1);frame();
- bool hidden=false;menu.ShowNotice("Advice","Heading","Don't show again",[&]{hidden=true;});frame();frame();
+ menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
  Check(has("OK")&&has("Close")&&!has("Fighter"),"A notice kept the screen's legend");
  press(MenuInput::Right);frame();Check(has("Don't show again"),"The notice legend did not follow its highlighted button");
- press(MenuInput::Select);Check(hidden&&!menu.NoticeOpen(),"The notice's alternative was not taken");
+ press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::HideGameSettings&&!menu.NoticeOpen(),"The notice's second button was not taken");
+ Check(menu.TakeNoticeResult()==NoticeResult::None,"A notice result was read twice");
+ // The first button is highlighted first and Select takes it; Back never takes the highlighted one.
+ menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
+ press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::Acknowledged&&!menu.NoticeOpen(),"The first button did not read as acknowledged");
+ menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
+ press(MenuInput::Right);press(MenuInput::Back);Check(menu.TakeNoticeResult()==NoticeResult::Dismissed&&!menu.NoticeOpen(),"Back took the highlighted button");
+ // More than two buttons stop at both ends, and a new notice drops an answer nobody took.
+ menu.ShowNotice(NoticeDialog{"Three","Heading",{{"First"},{"Second",NoticeResult::CreatePublicRoom},{"Third",NoticeResult::OpenButtonLayout}}});frame();frame();
+ press(MenuInput::Left);press(MenuInput::Right);press(MenuInput::Right);press(MenuInput::Right);frame();
+ Check(has("Third"),"The last button was not reached or was passed");
+ press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::OpenButtonLayout,"The third button's result was lost");
+ menu.ShowNotice("One");frame();frame();press(MenuInput::Select);menu.ShowNotice("Two");
+ Check(menu.TakeNoticeResult()==NoticeResult::None,"A new notice inherited the last one's result");
+ menu.CloseNotice();frame();frame();
  menu.navigation.Focus("record",rows);frame();frame();
  Check(!has("Review")&&!has("Select")&&press(MenuInput::Select).kind==MenuAction::None,"An information row offers Select");
  menu.navigation.Focus("licence",rows);frame();frame();Check(has("Read"),"A reader row does not say Read");

@@ -249,13 +249,11 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool noticeOpen=!notice_.empty();
     if(noticeOpen) {
         const unsigned pressed=menuInput.held&~noticePrevious_; noticePrevious_=menuInput.held;
-        if(!noticeAlternative_.empty()) {
-            if(pressed&(MenuInput::Up|MenuInput::Left)) noticeAlternativeSelected_=false;
-            if(pressed&(MenuInput::Down|MenuInput::Right)) noticeAlternativeSelected_=true;
-        }
-        // Back always declines: only Select on the alternative chooses it.
-        if(pressed&(MenuInput::Select|MenuInput::Back))
-            DismissNotice(noticeAlternativeSelected_&&!(pressed&MenuInput::Back));
+        if(pressed&(MenuInput::Up|MenuInput::Left)) noticeSelected_=(std::max)(0,noticeSelected_-1);
+        if(pressed&(MenuInput::Down|MenuInput::Right)) noticeSelected_=(std::min)(static_cast<int>(noticeButtons_.size())-1,noticeSelected_+1);
+        // Back always declines: only Select takes the highlighted button.
+        if(pressed&MenuInput::Back) DismissNotice(NoticeResult::Dismissed);
+        else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
     held_=menuInput.held;
@@ -322,7 +320,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(ImGui::Button((backLabel+"###MenuBack").c_str())) {
             // A modal dialog blocks this button; a choice or the flyout's
             // confirmation leaves it live, so it cancels them.
-            if(!notice_.empty()) DismissNotice(false);
+            if(!notice_.empty()) DismissNotice(NoticeResult::Dismissed);
             else if(dialog) navigation.Cancel();
             else backRequested=true;
         }

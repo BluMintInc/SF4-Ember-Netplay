@@ -57,7 +57,11 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
                 ClosePadSetup(view, outcome == SetupEnd::Saved);
                 if (outcome == SetupEnd::Saved) {
                     if (fromLayout) menu_.ShowNotice(loc::Tf("pad_setup.saved", name), loc::T("pad_setup.saved_heading"));
-                    else menu_.ShowNotice(loc::Tf("pad_setup.saved", name), loc::T("pad_setup.saved_heading"), loc::T("player.button_layout"), [this, savedPad] { OpenButtonLayout(savedPad); });
+                    else {
+                        dialogContext_.pad = savedPad;
+                        menu_.ShowNotice(NoticeDialog{loc::Tf("pad_setup.saved", name), loc::T("pad_setup.saved_heading"),
+                            {{loc::T("common.ok")}, {loc::T("player.button_layout"), NoticeResult::OpenButtonLayout}}});
+                    }
                 }
                 else if (outcome == SetupEnd::Disconnect) menu_.ShowNotice(loc::Tf("pad_setup.stopped_disconnect", name));
                 else if (outcome == SetupEnd::Idle) menu_.ShowNotice(loc::T("pad_setup.stopped_idle"));
@@ -87,7 +91,7 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
         if (pad.state != RowState::Unmapped || !press || std::any_of(setupPrompted_.begin(), setupPrompted_.end(), [&](const Identity& identity) { return Same(identity, pad.identity); })) continue;
         setupPrompted_.push_back(pad.identity); setupPrompt_ = pad; setupPromptReleased_ = false;
         NoteUserText(pad.name.c_str());
-        menu_.ShowNotice(loc::Tf("pad_setup.prompt_text", pad.name), loc::T("pad_setup.prompt_heading"), {}, {}, loc::T("pad_setup.not_now"));
+        menu_.ShowNotice(loc::Tf("pad_setup.prompt_text", pad.name), loc::T("pad_setup.prompt_heading"), loc::T("pad_setup.not_now"));
         ShellAction action; action.command.generation = view.session.generation; action.padAction = {ControllerRequest::Kind::Prompt, pad.id}; submit(std::move(action));
         break;
     }
@@ -133,6 +137,7 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
             if (row != rows.end()) ImGui::TextWrapped("%s", row->detail.c_str());
         }
     });
+    AnswerDialog(submit);
     if (action.kind == MenuAction::Back) {
         if (capture) command = SetupCommand::Cancel;
         else { nav.Focus("cancel", rows); nav.Choose(rows); }

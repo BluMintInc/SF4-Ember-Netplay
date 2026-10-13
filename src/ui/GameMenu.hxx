@@ -69,6 +69,12 @@ struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHi
 void SetEmbeddedReturn(EmbeddedReturn context);
 const EmbeddedReturn& EmbeddedReturnContext();
 bool TakeEmbeddedFresh();
+// What a notice's button does when it closes the notice. The shell reads it
+// from GameMenu::TakeNoticeResult and acts on it. Dismissed is Back or the
+// header's Close; Acknowledged is a button that only closes it.
+enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout };
+struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
+struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; };
 class GameMenu {
 public:
     MenuNavigation navigation;
@@ -133,22 +139,26 @@ public:
     MenuAction Draw(const char* title,const std::vector<MenuEntry>& entries,
                     const char* status = "",const Detail& detail = {},int columns=1,const Card& card = {},const Body& body = {},float flyoutScale=0,float cardHeight=100,bool stableStatus=false,
                     Tone statusTone=Tone::Neutral,bool home=false);
-    // A modal notice: owns menu input until Select, Back or OK dismisses it.
+    // A modal notice: owns menu input until a button, Back or the header's Close
+    // ends it. A notice has one or more buttons, each with its own result;
+    // Left and Right choose between them, the first is highlighted when it
+    // opens, and Select takes the highlighted one. Back always declines
+    // (NoticeResult::Dismissed). The result waits for TakeNoticeResult, which
+    // the notice's owner reads after the menu has drawn, so a notice can never
+    // claim another's outcome: opening one drops a result nobody took.
     // An empty heading reads "Notice"; only ShowError gives the error heading
     // and colour.
-    // An alternative adds a second button beside OK; Left and Right choose it,
-    // and onAlternative runs when the notice closes through it. The action
-    // belongs to the notice that asked for it, so notices cannot claim each
-    // other's outcome.
-    void ShowNotice(std::string text,std::string heading={},std::string alternative={},std::function<void()> onAlternative={},std::string okLabel={}) {
-        noticeOkLabel_=std::move(okLabel); notice_=std::move(text); noticeHeading_=std::move(heading); noticeAlternative_=std::move(alternative);
-        noticeAlternativeAction_=std::move(onAlternative); noticeAlternativeSelected_=false; noticeError_=false;
-    }
+    void ShowNotice(NoticeDialog notice);
+    // The usual notice: one button, OK unless okLabel names it.
+    void ShowNotice(std::string text,std::string heading={},std::string okLabel={});
     // Something failed: the notice says so in its heading.
     void ShowError(std::string text) { ShowNotice(std::move(text)); noticeError_=true; }
     bool NoticeError() const { return !notice_.empty()&&noticeError_; }
-    void CloseNotice() { DismissNotice(false); navigation.NeutralGate(); }
+    // Closes the notice without an answer.
+    void CloseNotice() { notice_.clear(); noticeSelected_=0; noticeResult_=NoticeResult::None; navigation.NeutralGate(); }
     bool NoticeOpen() const { return !notice_.empty(); }
+    // How the last notice closed, once; None while it is open or nobody closed one.
+    NoticeResult TakeNoticeResult() { const auto result=noticeResult_; noticeResult_=NoticeResult::None; return result; }
     // The menu buttons held this frame (a notice that owns the input holds none), for a body
     // that scrolls with them.
     unsigned Held() const { return held_; }
@@ -174,16 +184,13 @@ private:
     void DrawNoticeModal(bool noticeOpen);
     void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const;
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
-    // Clears the notice and runs its action exactly once, whichever of the
-    // controller and pointer paths dismissed it.
-    void DismissNotice(bool alternative) {
-        notice_.clear(); noticeAlternativeSelected_=false;
-        auto action=std::move(noticeAlternativeAction_); noticeAlternativeAction_=nullptr;
-        if(alternative&&action) action();
-    }
-    std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeAlternative_,noticeOkLabel_;
-    std::function<void()> noticeAlternativeAction_;
-    bool noticeAlternativeSelected_=false,noticeError_=false;
+    // Closes the notice with the result of the button, or Back, that did it.
+    void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
+    std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_;
+    std::vector<NoticeButton> noticeButtons_;
+    int noticeSelected_=0;
+    NoticeResult noticeResult_=NoticeResult::None;
+    bool noticeError_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
     unsigned held_ = 0;
