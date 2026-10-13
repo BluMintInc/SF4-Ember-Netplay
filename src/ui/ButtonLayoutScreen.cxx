@@ -12,6 +12,18 @@ std::string AttackLongName(std::uint32_t mask) {
     for (const auto& function : LayoutFunctions) if (mask == function.mask) return loc::T(function.key);
     return FightName(mask);
 }
+namespace {
+// The wizard's name for a bound input. A hat mask of more than one direction has none.
+std::optional<RawInput> BoundInput(const SdlInput& input) {
+    if (input.type == SdlBindType::Button) return RawInput{RawKind::Button, input.index};
+    if (input.type == SdlBindType::Hat) {
+        for (unsigned bit = 0; bit < 4; ++bit) if (input.hatMask == 1 << bit) return RawInput{static_cast<RawKind>(bit + 1), input.index};
+        return {};
+    }
+    const int half = AxisHalf(input.min, input.max);
+    return RawInput{!half ? RawKind::Trigger : half > 0 ? RawKind::AxisPlus : RawKind::AxisMinus, input.index};
+}
+}
 FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const std::map<std::string, std::string>& mappings) {
     const auto brand = ResolvePrompts(prompts, input::PadXInput, pad.brand).brand;
     if (brand == Brand::PlayStation) return {"Cross", "Circle", "Square", "Triangle", "L1", "R1", "L2", "R2", "L3", "R3"};
@@ -21,9 +33,9 @@ FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const st
     const auto mapping = mappings.find(pad.identity.guid);
     if (pad.mapping.empty() && mapping == mappings.end()) return names;
     constexpr std::array<const char*, 10> targets = {"a", "b", "x", "y", "leftshoulder", "rightshoulder", "lefttrigger", "righttrigger", "leftstick", "rightstick"};
-    for (const auto& binding : ParseMapping(pad.mapping.empty() ? mapping->second : pad.mapping).bindings)
-        for (unsigned i = 0; i < targets.size(); ++i) if (MappingTarget(binding.output) == targets[i])
-            if (auto raw = ToRawInput(binding.input)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
+    for (const auto& binding : ReadSdlMapping(pad.mapping.empty() ? mapping->second : pad.mapping).bindings)
+        for (unsigned i = 0; i < targets.size(); ++i) if (SameTarget(binding.output, ParseSdlOutput(targets[i]).value()))
+            if (auto raw = BoundInput(binding.input)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
     return names;
 }
 namespace {

@@ -28,11 +28,29 @@ static_assert(std::string_view(SetupSteps[UpStep].target) == "dpup" && std::stri
     std::string_view(SetupSteps[LeftStep].target) == "dpleft" && std::string_view(SetupSteps[RightStep].target) == "dpright" &&
     std::string_view(SetupSteps[LkStep].target) == "a" && std::string_view(SetupSteps[MkStep].target) == "b", "named steps moved");
 using SetupInputs = std::array<std::optional<RawInput>, SetupSteps.size()>;
-// A stick step maps the full axis: a push to plus gives aN, a push to minus aN~.
-inline RawInput MappedInput(int step, RawInput input) {
-    if (SetupSteps[step].kind == StepKind::Stick && (input.kind == RawKind::AxisPlus || input.kind == RawKind::AxisMinus))
-        input = {RawKind::Trigger, input.index, false, input.kind == RawKind::AxisMinus};
-    return input;
+// A step's binding as SDL reads it. A stick step maps the full axis: a push to
+// plus gives aN, a push to minus aN~, and a button, hat or trigger drives the plus half.
+inline SdlBinding SetupBinding(int step, RawInput input) {
+    const auto& setup = SetupSteps[step];
+    std::string key = setup.target;
+    if (setup.kind == StepKind::Stick) {
+        if (input.kind == RawKind::AxisPlus || input.kind == RawKind::AxisMinus)
+            input = {RawKind::Trigger, input.index, false, input.kind == RawKind::AxisMinus};
+        else key = "+" + key;
+    }
+    return ParseSdlElement(key.c_str(), RawBinding(input).c_str()).value();
+}
+// The same output, either half of an axis: a stick step takes its whole axis.
+inline bool SameTarget(const SdlOutput& a, const SdlOutput& b) { return a.type == b.type && a.index == b.index; }
+// Whether one physical movement can drive both: the same button, hat masks that
+// share a direction, or axis ranges on the same side of 0 (a full axis covers both).
+inline bool Overlaps(const SdlInput& a, const SdlInput& b) {
+    if (a.type != b.type || a.index != b.index) return false;
+    switch (a.type) {
+    case SdlBindType::Hat: return (a.hatMask & b.hatMask) != 0;
+    case SdlBindType::Axis: return (std::min)(a.min, a.max) < (std::max)(b.min, b.max) && (std::min)(b.min, b.max) < (std::max)(a.min, a.max);
+    default: return true;
+    }
 }
 enum class SetupMode { Capture, Summary };
 enum class SetupFeedback { None, Conflict, Required, Idle, Reconnect };
@@ -190,7 +208,7 @@ private:
         if (state_.step > RightStep && state_.recorded[RightStep] && input == *state_.recorded[RightStep]) { Skip(now); return; }
         // A stick step's full axis also conflicts with either half recorded elsewhere.
         for (int i = 0; i < SetupStepCount; ++i) if (i != state_.step && state_.recorded[i] &&
-            SharesInput(MappedInput(state_.step, input), MappedInput(i, *state_.recorded[i]))) {
+            Overlaps(SetupBinding(state_.step, input).input, SetupBinding(i, *state_.recorded[i]).input)) {
             state_.feedback = SetupFeedback::Conflict; state_.conflictStep = i; state_.conflictInput = input; feedbackUntil_ = now + 2000;
             events_.push_back({SetupEventKind::Conflict, state_.step, i, input}); return;
         }
@@ -209,32 +227,43 @@ private:
     std::uint64_t lastInput_ = 0, pressedAt_ = 0, feedbackUntil_ = 0;
     bool redo_ = false;
 };
-// A stick step that recorded a button, hat or trigger drives the plus half of its axis.
-inline MappingBinding SetupBinding(int step, const RawInput& input) {
-    const auto& setup = SetupSteps[step];
-    const auto mapped = MappedInput(step, input);
-    const bool plusHalf = setup.kind == StepKind::Stick && input.kind != RawKind::AxisPlus && input.kind != RawKind::AxisMinus;
-    return {(plusHalf ? "+" : "") + std::string(setup.target), RawBinding(mapped), ToMappingInput(mapped)};
+// A binding as text SDL reads back as the same binding. A trigger reads 0 to
+// max whatever its sign; SDL's ~ swaps a range, so an inverted half starts away from 0.
+inline std::string FormatBinding(const SdlBinding& binding) {
+    const auto& input = binding.input;
+    const auto& output = binding.output;
+    const auto sign = [](int half) { return std::string(half > 0 ? "+" : half < 0 ? "-" : ""); };
+    std::string text = output.type == SdlBindType::Button ? std::string(SdlButtonNames[output.index]) :
+        (output.index < SdlLeftTrigger ? sign(AxisHalf(output.min, output.max)) : "") + std::string(SdlAxisNames[output.index]);
+    const auto index = std::to_string(input.index);
+    if (input.type == SdlBindType::Button) return text + ":b" + index;
+    if (input.type == SdlBindType::Hat) return text + ":h" + index + "." + std::to_string(input.hatMask);
+    const int half = AxisHalf(input.min, input.max);
+    return text + ":" + sign(half) + "a" + index + ((half ? input.min != 0 : input.min > input.max) ? "~" : "");
 }
 // Over the mapping SDL already uses for the pad (its own or an earlier Ember
 // setup), recorded steps take their targets and the inputs they read: an old
 // binding to the same target, or to an input one of them reads, goes. Every
-// other binding stays, so a skipped step keeps the pad's own binding (5.9),
-// and the metadata stays as it was.
+// other binding SDL makes stays, so a skipped step keeps the pad's own binding
+// (5.9), and the fields SDL does not bind stay as written. Fields past where SDL
+// stops reading are dropped, so none becomes a binding here. Label hints cannot
+// change which bindings go: SDL rewrites the names when it stores a mapping, and
+// a hint it applies while binding swaps the names of every field alike.
 inline std::string BuildSetupMapping(const std::string& guid, std::string name, const SetupState& state, const std::string& existing = {}) {
     // Commas delimit SDL fields; driver names must not create mapping fields.
     std::replace(name.begin(), name.end(), ',', ' ');
-    SdlMapping mapping{guid, name};
-    for (int i = 0; i < SetupStepCount; ++i) if (state.recorded[i]) mapping.bindings.push_back(SetupBinding(i, *state.recorded[i]));
-    const auto recorded = mapping.bindings.size();
-    auto old = ParseMapping(existing);
-    for (auto& binding : old.bindings) {
-        const bool replaced = std::any_of(mapping.bindings.begin(), mapping.bindings.begin() + recorded, [&](const MappingBinding& step) {
-            return MappingTarget(step.output) == MappingTarget(binding.output) || Overlaps(step.input, binding.input);
-        });
-        if (!replaced) mapping.bindings.push_back(std::move(binding));
-    }
-    mapping.metadata = std::move(old.metadata);
-    return FormatMapping(mapping);
+    std::vector<SdlBinding> bindings;
+    for (int i = 0; i < SetupStepCount; ++i) if (state.recorded[i]) bindings.push_back(SetupBinding(i, *state.recorded[i]));
+    const auto recorded = bindings.size();
+    const auto old = ReadSdlMapping(existing);
+    for (const auto& binding : old.bindings)
+        if (std::none_of(bindings.begin(), bindings.begin() + recorded, [&](const SdlBinding& step) {
+            return SameTarget(step.output, binding.output) || Overlaps(step.input, binding.input);
+        })) bindings.push_back(binding);
+    auto text = guid + "," + name + ",";
+    for (const auto& binding : bindings) text += FormatBinding(binding) + ",";
+    // platform goes once, last: SDL cuts a returned mapping at a second one (CreateMappingString).
+    for (const auto& field : old.metadata) if (SdlFold(field.key) != "platform") text += field.text + ",";
+    return text + "platform:Windows,";
 }
 } }

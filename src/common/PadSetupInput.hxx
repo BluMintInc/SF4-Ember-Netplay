@@ -29,14 +29,6 @@ inline std::string RawBinding(const RawInput& input) {
     default: return "h" + i + "." + std::to_string(1u << (static_cast<unsigned>(input.kind) - 1));
     }
 }
-// Whether two bindings read the same physical input. A full axis (aN or aN~)
-// covers both of its halves.
-inline bool SharesInput(const RawInput& a, const RawInput& b) {
-    const auto axis = [](RawKind kind) { return kind >= RawKind::AxisPlus; };
-    if (axis(a.kind) && axis(b.kind))
-        return a.index == b.index && (a.kind == b.kind || a.kind == RawKind::Trigger || b.kind == RawKind::Trigger);
-    return a.kind == b.kind && a.index == b.index;
-}
 inline std::vector<RawInput> HeldRaw(const RawState& state, int threshold = 16000) {
     std::vector<RawInput> held;
     for (unsigned i = 0; i < state.buttons.size(); ++i)
@@ -87,7 +79,9 @@ public:
         RawState state = raw; state.rest = rest_;
         for (unsigned i = 0; i < state.buttons.size() && i < ignored_.size(); ++i)
             if (ignored_[i]) state.buttons[i] = false;
+        // A diagonal is not recordable, nor is a hat past h9: SDL reads one digit.
         auto activeState = state;
+        if (activeState.hats.size() > 10) activeState.hats.resize(10);
         for (auto& hat : activeState.hats) if (hat != 1 && hat != 2 && hat != 4 && hat != 8) hat = 0;
         auto active = HeldRaw(activeState);
         // Axis hysteresis retains the active direction until within 8000 of rest.
