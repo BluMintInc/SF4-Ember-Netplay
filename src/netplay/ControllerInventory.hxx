@@ -1,14 +1,9 @@
 #pragma once
 #include "InputAssignment.hxx"
 #include "../common/ControllerView.hxx"
-#include <cctype>
 #include <optional>
 
 namespace sf4e { namespace gamepads {
-inline bool SameDriverPath(const std::string& a, const std::string& b) {
-    if (a.empty() || a.size() != b.size()) return false;
-    return std::equal(a.begin(), a.end(), b.begin(), [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
-}
 // Only the game thread builds rows. Retained identities keep pad-N stable
 // through disconnects, slot changes, and the saved-controller placeholder.
 class ControllerInventory {

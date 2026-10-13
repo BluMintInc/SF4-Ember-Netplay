@@ -41,7 +41,10 @@ struct FakeDevice : Api::Device {
     ULONG refs = 1, added = 0, released = 0;
     unsigned queries = 0;
     unsigned reads = 0, events = 0, polls = 0, acquires = 0;
+    unsigned pathReads = 0;
     HRESULT propertyResult = DI_OK, formatResult = DI_OK;
+    HRESULT pathResult = DI_OK, infoResult = DI_OK;
+    std::wstring path;
     std::vector<DIOBJECTDATAFORMAT> objects;
     typename Api::Instance info{};
     FakeDevice() {
@@ -77,12 +80,23 @@ struct FakeDevice : Api::Device {
         }
         return DIERR_OBJECTNOTFOUND;
     }
-    HRESULT STDMETHODCALLTYPE GetDeviceInfo(typename Api::Instance* out) override { *out = info; return DI_OK; }
+    HRESULT STDMETHODCALLTYPE GetDeviceInfo(typename Api::Instance* out) override { *out = info; return infoResult; }
     HRESULT STDMETHODCALLTYPE Acquire() override { ++acquires; return DIERR_OTHERAPPHASPRIO; }
     HRESULT STDMETHODCALLTYPE Poll() override { ++polls; return DI_NOEFFECT; }
     HRESULT STDMETHODCALLTYPE GetCapabilities(DIDEVCAPS*) override { return E_NOTIMPL; }
     HRESULT STDMETHODCALLTYPE EnumObjects(typename Api::Objects, void*, DWORD) override { return E_NOTIMPL; }
-    HRESULT STDMETHODCALLTYPE GetProperty(REFGUID, DIPROPHEADER*) override { return E_NOTIMPL; }
+    HRESULT STDMETHODCALLTYPE GetProperty(REFGUID property, DIPROPHEADER* header) override {
+        if (&property != &DIPROP_GUIDANDPATH) return E_NOTIMPL;
+        ++pathReads;
+        CHECK(header->dwSize == sizeof(DIPROPGUIDANDPATH) && header->dwHeaderSize == sizeof(DIPROPHEADER));
+        CHECK(header->dwHow == DIPH_DEVICE && header->dwObj == 0);
+        if (FAILED(pathResult)) return pathResult;
+        CHECK(path.size() < MAX_PATH);
+        auto* out = reinterpret_cast<DIPROPGUIDANDPATH*>(header);
+        std::fill(std::begin(out->wszPath), std::end(out->wszPath), L'\0');
+        std::copy(path.begin(), path.end(), out->wszPath);
+        return pathResult;
+    }
     HRESULT STDMETHODCALLTYPE Unacquire() override { return E_NOTIMPL; }
     HRESULT STDMETHODCALLTYPE SetEventNotification(HANDLE) override { return E_NOTIMPL; }
     HRESULT STDMETHODCALLTYPE SetCooperativeLevel(HWND, DWORD) override { return E_NOTIMPL; }
@@ -107,19 +121,28 @@ template<class Api>
 struct FakeInput : Api::Input {
     ULONG refs = 1;
     unsigned queries = 0;
+    unsigned creates = 0;
+    HRESULT createResult = DI_OK;
     FakeDevice<Api>& device;
-    explicit FakeInput(FakeDevice<Api>& device) : device(device) {}
+    FakeDevice<Api>* second;
+    explicit FakeInput(FakeDevice<Api>& device, FakeDevice<Api>* second = nullptr) : device(device), second(second) {}
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void** out) override { ++queries; if(out)*out=nullptr; return E_NOINTERFACE; }
     ULONG STDMETHODCALLTYPE AddRef() override { return ++refs; }
     ULONG STDMETHODCALLTYPE Release() override { return --refs; }
-    HRESULT STDMETHODCALLTYPE CreateDevice(REFGUID, typename Api::Device** out, IUnknown*) override {
-        *out = &device; device.AddRef(); return DI_OK;
+    HRESULT STDMETHODCALLTYPE CreateDevice(REFGUID instance, typename Api::Device** out, IUnknown*) override {
+        ++creates; *out = nullptr;
+        if (FAILED(createResult)) return createResult;
+        if (instance == device.info.guidInstance) *out = &device;
+        else if (second && instance == second->info.guidInstance) *out = second;
+        else return DIERR_DEVICENOTREG;
+        (*out)->AddRef(); return createResult;
     }
     HRESULT STDMETHODCALLTYPE EnumDevices(DWORD, typename Api::Devices callback, void* context, DWORD) override {
         if (!callback) return DIERR_INVALIDPARAM;
         auto instance = device.info;
         if (callback(&instance, context) == DIENUM_STOP) return DI_OK;
-        instance.guidInstance.Data1 = 43; instance.guidProduct.Data1 = 0x56781234;
+        if (second) instance = second->info;
+        else { instance.guidInstance.Data1 = 43; instance.guidProduct.Data1 = 0x56781234; }
         callback(&instance, context); return DI_OK;
     }
     HRESULT STDMETHODCALLTYPE GetDeviceStatus(REFGUID) override { return DI_NOTATTACHED; }
@@ -131,7 +154,7 @@ struct FakeInput : Api::Input {
 };
 
 static std::vector<pads::Pad> inventory;
-static bool Serves(const GUID&, DWORD product) { return pads::Served(product, inventory); }
+static bool Serves(const GUID&, DWORD product, const std::string& path) { return pads::Served(product, path, inventory); }
 static pads::Pad Controller() {
     pads::Pad pad; pad.vid = 0x054C; pad.pid = 0x05C4; pad.status = pads::Status::Slotted; return pad;
 }
@@ -139,16 +162,40 @@ static pads::Pad Controller() {
 static void Decision() {
     const DWORD product = 0x05C4054C;
     auto pad = Controller();
-    CHECK(!pads::Served(product, {}));
+    CHECK(!pads::Served(product, "", {}));
     for (auto status : {pads::Status::Slotted, pads::Status::NotInUse, pads::Status::SteamTwin,
         pads::Status::Unmapped, pads::Status::GameRead}) {
         pad.status = status;
-        CHECK(pads::Served(product, {pad}) == (status != pads::Status::Unmapped && status != pads::Status::GameRead));
-        CHECK(!pads::Served(0x054C05C4, {pad}));
-        CHECK(!pads::Served(product + 1, {pad}));
+        CHECK(pads::Served(product, "", {pad}) == (status != pads::Status::Unmapped && status != pads::Status::GameRead));
+        CHECK(!pads::Served(0x054C05C4, "", {pad}));
+        CHECK(!pads::Served(product + 1, "", {pad}));
     }
     pad.status = pads::Status::NotInUse; pad.available = false;
-    CHECK(!pads::Served(product, {pad}));
+    CHECK(!pads::Served(product, "", {pad}));
+
+    auto a = Controller(), b = Controller();
+    a.identity.path = R"(\\?\hid#vid_054c&pid_05c4#controller-a)";
+    b.identity.path = R"(\\?\hid#vid_054c&pid_05c4#controller-b)"; b.available = false;
+    CHECK(pads::Served(product, a.identity.path, {a, b}));
+    CHECK(!pads::Served(product, b.identity.path, {a, b}));
+    CHECK(!pads::Served(product, "", {a, b}));
+    CHECK(!pads::Served(product, "different-backend", {a, b}));
+    CHECK(pads::Served(product, R"(\\.\HID#VID_054C&PID_05C4#CONTROLLER-A)", {b, a}));
+    CHECK(pads::Served(product, "//./HID#VID_054C&PID_05C4#CONTROLLER-A", {a, b}));
+    CHECK(pads::SameDriverPath(R"(\\?\hid#device\a)", "//./HID#DEVICE/A"));
+    CHECK(!pads::SameDriverPath("", "") && !pads::SameDriverPath("a", "ab"));
+    CHECK(!pads::SameDriverPath(a.identity.path, b.identity.path));
+    for (auto status : {pads::Status::Unmapped, pads::Status::GameRead}) {
+        b.available = true; b.status = status;
+        CHECK(pads::Served(product, a.identity.path, {a, b}));
+        CHECK(!pads::Served(product, b.identity.path, {a, b}));
+        CHECK(!pads::Served(product, "", {a, b}));
+    }
+    b.status = pads::Status::NotInUse;
+    CHECK(pads::Served(product, "", {a, b}));
+    CHECK(pads::Served(product, "different-backend", {a}));
+    b.vid = 0x1234; b.available = false;
+    CHECK(pads::Served(product, "", {a, b}));
 }
 
 struct JoystickFormat {
@@ -186,6 +233,7 @@ static void DeviceWrapper() {
     CHECK(filter::Wrap(Api::DeviceIid(), &object, Serves) == S_OK);
     auto* device = static_cast<typename Api::Device*>(object);
     CHECK(inner.refs == 1 && inner.added == 0);
+    CHECK(inner.pathReads == 1);
     void* queried = nullptr;
     CHECK(device->QueryInterface(Api::DeviceIid(), &queried) == S_OK && queried == object);
     CHECK(static_cast<IUnknown*>(queried)->Release() == 1);
@@ -252,11 +300,40 @@ static void DeviceWrapper() {
     CHECK(device->SetDataFormat(&custom) == DI_OK);
     std::array<DWORD, 3> customState{1,2,3};
     CHECK(device->GetDeviceState(sizeof(customState), customState.data()) == DI_OK);
+    CHECK(inner.pathReads == 1);
     CHECK(customState[0] == 0xFFFFFFFF && customState[1] == 0 && customState[2] == 0);
     inner.formatResult = DIERR_ACQUIRED;
     CHECK(device->SetDataFormat(&layout.format) == DIERR_ACQUIRED);
     CHECK(device->GetDeviceState(sizeof(customState), customState.data()) == DI_OK);
     CHECK(device->Release() == 0 && inner.refs == 0 && inner.released == 1 && inner.added == 0);
+}
+
+template<class Api>
+static void UnavailableInstance() {
+    FakeDevice<Api> inner;
+    inner.info.guidInstance.Data1 = 43;
+    inner.path = L"controller-b";
+    void* object = static_cast<typename Api::Device*>(&inner);
+    CHECK(filter::Wrap(Api::DeviceIid(), &object, Serves) == S_OK);
+    auto* device = static_cast<typename Api::Device*>(object);
+    JoystickFormat layout(false);
+    CHECK(device->SetDataFormat(&layout.format) == DI_OK);
+    auto a = Controller(), b = Controller();
+    a.identity.path = "controller-a";
+    b.identity.path = "controller-b"; b.available = false;
+    inventory = {a, b};
+    DIJOYSTATE state{};
+    CHECK(device->GetDeviceState(sizeof(state), &state) == DIERR_INPUTLOST && inner.reads == 1);
+    CHECK(state.rgbButtons[0] == 0xA5);
+    DWORD count = 0; DIDEVICEOBJECTDATA event{};
+    CHECK(device->GetDeviceData(sizeof(event), &event, &count, 0) == DI_BUFFEROVERFLOW && count == 1 && inner.events == 1);
+    // Ownership remains live, but the physical identity is captured only once.
+    inventory[1].available = true;
+    CHECK(device->GetDeviceState(sizeof(state), &state) == DI_OK && inner.reads == 1);
+    inventory[1].available = false;
+    CHECK(device->GetDeviceState(sizeof(state), &state) == DIERR_INPUTLOST && inner.reads == 2);
+    CHECK(inner.pathReads == 1);
+    CHECK(device->Release() == 0 && inner.refs == 0);
 }
 
 template<class Api>
@@ -266,6 +343,11 @@ static BOOL CALLBACK Count(const typename Api::Instance*, void* context) {
 template<class Api>
 static BOOL CALLBACK Stop(const typename Api::Instance*, void* context) {
     ++*static_cast<unsigned*>(context); return DIENUM_STOP;
+}
+template<class Api>
+static BOOL CALLBACK Collect(const typename Api::Instance* device, void* context) {
+    static_cast<std::vector<GUID>*>(context)->push_back(device->guidInstance);
+    return DIENUM_CONTINUE;
 }
 template<class Api>
 static void InputWrapper() {
@@ -296,6 +378,70 @@ static void InputWrapper() {
     CHECK(created->Release() == 0 && device.refs == 1);
     CHECK(input->Release() == 0 && inner.refs == 0);
     CHECK(device.Release() == 0);
+}
+
+template<class Api>
+static void PerInstanceEnumeration() {
+    FakeDevice<Api> a, b;
+    a.path = LR"(\\?\hid#controller-a)";
+    b.path = LR"(\\?\hid#controller-b)"; b.info.guidInstance.Data1 = 43;
+    FakeInput<Api> inner(a, &b);
+    void* object = static_cast<typename Api::Input*>(&inner);
+    CHECK(filter::Wrap(Api::InputIid(), &object, Serves) == S_OK);
+    auto* input = static_cast<typename Api::Input*>(object);
+    auto owned = Controller(), unavailable = Controller();
+    owned.identity.path = R"(\\.\HID#CONTROLLER-A)";
+    unavailable.identity.path = R"(\\.\HID#CONTROLLER-B)"; unavailable.available = false;
+    inventory = {owned, unavailable};
+    std::vector<GUID> seen;
+    CHECK(input->EnumDevices(DI8DEVCLASS_GAMECTRL, Collect<Api>, &seen, 0) == DI_OK);
+    CHECK(seen.size() == 1 && seen.front() == b.info.guidInstance);
+    CHECK(inner.creates == 2 && a.pathReads == 1 && b.pathReads == 1);
+    CHECK(a.refs == 1 && b.refs == 1 && a.added == 1 && b.added == 1 && a.released == 1 && b.released == 1);
+    inventory[1].available = true; seen.clear();
+    CHECK(input->EnumDevices(DI8DEVCLASS_GAMECTRL, Collect<Api>, &seen, 0) == DI_OK && seen.empty());
+    CHECK(inner.creates == 2 && a.pathReads == 1 && b.pathReads == 1);
+    inventory[1].available = false;
+    typename Api::Device* created = nullptr;
+    CHECK(input->CreateDevice(b.info.guidInstance, &created, nullptr) == DI_OK);
+    DIJOYSTATE state{};
+    CHECK(created->GetDeviceState(sizeof(state), &state) == DIERR_INPUTLOST && b.reads == 1);
+    CHECK(created->Release() == 0 && b.refs == 1);
+    CHECK(input->Release() == 0 && inner.refs == 0);
+    CHECK(a.Release() == 0 && b.Release() == 0);
+}
+
+template<class Api>
+static void FailedIdentityQueries() {
+    auto a = Controller(), b = Controller(); b.available = false;
+    inventory = {a, b};
+    for (bool failCreate : {false, true}) {
+        FakeDevice<Api> device;
+        device.pathResult = DIERR_UNSUPPORTED;
+        FakeInput<Api> inner(device);
+        if (failCreate) inner.createResult = DIERR_DEVICENOTREG;
+        void* object = static_cast<typename Api::Input*>(&inner);
+        CHECK(filter::Wrap(Api::InputIid(), &object, Serves) == S_OK);
+        auto* input = static_cast<typename Api::Input*>(object);
+        for (int i = 0; i < 2; ++i) {
+            unsigned seen = 0;
+            CHECK(input->EnumDevices(DI8DEVCLASS_GAMECTRL, Count<Api>, &seen, 0) == DI_OK && seen == 2);
+        }
+        CHECK(inner.creates == 2 && device.pathReads == (failCreate ? 0u : 1u) && device.refs == 1);
+        CHECK(device.added == device.released);
+        CHECK(input->Release() == 0 && inner.refs == 0);
+        CHECK(device.Release() == 0);
+    }
+    // Failure to identify the device cannot turn a partial product match into suppression.
+    FakeDevice<Api> device;
+    device.infoResult = DIERR_NOTINITIALIZED;
+    void* object = static_cast<typename Api::Device*>(&device);
+    CHECK(filter::Wrap(Api::DeviceIid(), &object, Serves) == S_OK);
+    inventory = {a};
+    DIJOYSTATE state{};
+    auto* wrapped = static_cast<typename Api::Device*>(object);
+    CHECK(wrapped->GetDeviceState(sizeof(state), &state) == DIERR_INPUTLOST && device.reads == 1);
+    CHECK(wrapped->Release() == 0 && device.refs == 0);
 }
 
 static FakeInput<Ansi>* factoryInput = nullptr;
@@ -334,7 +480,10 @@ static void EarlyFactory() {
 int main() {
     Decision(); NeutralBuilder();
     DeviceWrapper<Ansi>(); DeviceWrapper<Wide>();
+    UnavailableInstance<Ansi>(); UnavailableInstance<Wide>();
     InputWrapper<Ansi>(); InputWrapper<Wide>();
+    PerInstanceEnumeration<Ansi>(); PerInstanceEnumeration<Wide>();
+    FailedIdentityQueries<Ansi>(); FailedIdentityQueries<Wide>();
     EarlyFactory();
-    std::cout << "DirectInput filtering, neutral layouts/ranges, live serving changes and A/W COM ownership passed\n";
+    std::cout << "DirectInput per-device filtering, cached paths, neutral layouts/ranges, live serving changes and A/W COM ownership passed\n";
 }

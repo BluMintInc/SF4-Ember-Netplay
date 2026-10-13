@@ -8,7 +8,7 @@
 
 namespace sf4e { namespace DirectInputFilter {
 
-using Serves = bool (*)(const GUID& instance, DWORD vidpid);
+using Serves = bool (*)(const GUID& instance, DWORD vidpid, const std::string& path);
 extern std::atomic<void*> originalCreate;
 HRESULT WINAPI Create(HINSTANCE instance, DWORD version, REFIID iid, void** out, IUnknown* outer);
 

@@ -10,10 +10,20 @@
 namespace sf4e { namespace DirectInputFilter {
 std::atomic<void*> originalCreate{nullptr};
 namespace {
-bool ServesDevice(const GUID& instance, DWORD product);
+bool ServesDevice(const GUID& instance, DWORD product, const std::string& path);
 std::mutex controllersMutex;
-struct EnumeratedController { GUID instance; gamepads::NativeController controller; };
-std::vector<EnumeratedController> nativeControllers;
+std::vector<gamepads::NativeController> nativeControllers;
+struct GuidLess {
+    bool operator()(const GUID& a, const GUID& b) const { return std::memcmp(&a, &b, sizeof(GUID)) < 0; }
+};
+template<class Device>
+std::string DevicePath(Device* device) {
+    DIPROPGUIDANDPATH path{};
+    path.diph = {sizeof(path), sizeof(path.diph), 0, DIPH_DEVICE};
+    if (FAILED(device->GetProperty(DIPROP_GUIDANDPATH, &path.diph))) return {};
+    return platform::WideToUtf8(std::wstring(path.wszPath,
+        std::find(std::begin(path.wszPath), std::end(path.wszPath), L'\0')));
+}
 std::string Utf8(const char* text) { return text; }
 std::string Utf8(const wchar_t* text) {
     return platform::WideToUtf8(text);
@@ -88,9 +98,10 @@ class Device final : public OwnedCom<typename Api::Device> {
     using Base = OwnedCom<typename Api::Device>;
     using Base::inner_;
 public:
-    Device(typename Api::Device* inner, Serves serves) : Base(inner, Api::DeviceIid()), serves_(serves) {
+    Device(typename Api::Device* inner, Serves serves) :
+        Base(inner, Api::DeviceIid()), serves_(serves), path_(DevicePath(inner)) {
         info_.dwSize = sizeof(info_);
-        inner_->GetDeviceInfo(&info_);
+        if (FAILED(inner_->GetDeviceInfo(&info_))) info_ = {};
     }
     HRESULT STDMETHODCALLTYPE GetDeviceState(DWORD size, void* out) override {
         if (!Served()) return inner_->GetDeviceState(size, out);
@@ -165,8 +176,9 @@ public:
     HRESULT STDMETHODCALLTYPE SetActionMap(typename Api::ActionFormat* a, typename Api::String b, DWORD c) override { return inner_->SetActionMap(a,b,c); }
     HRESULT STDMETHODCALLTYPE GetImageInfo(typename Api::ImageInfo* a) override { return inner_->GetImageInfo(a); }
 private:
-    bool Served() const { return serves_(info_.guidInstance, info_.guidProduct.Data1); }
+    bool Served() const { return info_.dwSize && serves_(info_.guidInstance, info_.guidProduct.Data1, path_); }
     const Serves serves_;
+    const std::string path_;
     typename Api::Instance info_{};
     gamepads::NeutralState neutral_;
 };
@@ -180,13 +192,6 @@ public:
     HRESULT STDMETHODCALLTYPE CreateDevice(REFGUID guid, typename Api::Device** out, IUnknown* outer) override {
         const HRESULT result = inner_->CreateDevice(guid, out, outer);
         if (FAILED(result) || !out || !*out || outer) return result;
-        if (serves_ == ServesDevice) {
-            DIPROPGUIDANDPATH path{}; path.diph = {sizeof(path), sizeof(path.diph), 0, DIPH_DEVICE};
-            if (SUCCEEDED((*out)->GetProperty(DIPROP_GUIDANDPATH, &path.diph))) {
-                std::lock_guard lock(controllersMutex);
-                for (auto& entry : nativeControllers) if (entry.instance == guid) entry.controller.path = platform::WideToUtf8(path.wszPath);
-            }
-        }
         auto* wrapped = new(std::nothrow) Device<Api>(*out, serves_);
         if (!wrapped) { (*out)->Release(); *out = nullptr; return E_OUTOFMEMORY; }
         *out = wrapped;
@@ -197,7 +202,7 @@ public:
         if (serves_ == ServesDevice && type == DI8DEVCLASS_GAMECTRL) {
             std::lock_guard lock(controllersMutex); nativeControllers.clear();
         }
-        Enumeration enumeration{serves_, callback, context};
+        Enumeration enumeration{*this, callback, context};
         return inner_->EnumDevices(type, Enumerate, &enumeration, flags);
     }
     HRESULT STDMETHODCALLTYPE GetDeviceStatus(REFGUID a) override { return inner_->GetDeviceStatus(a); }
@@ -207,18 +212,35 @@ public:
     HRESULT STDMETHODCALLTYPE EnumDevicesBySemantics(typename Api::String a, typename Api::ActionFormat* b, typename Api::Semantics c, void* d, DWORD e) override { return inner_->EnumDevicesBySemantics(a,b,c,d,e); }
     HRESULT STDMETHODCALLTYPE ConfigureDevices(LPDICONFIGUREDEVICESCALLBACK a, typename Api::ConfigureParams* b, DWORD c, void* d) override { return inner_->ConfigureDevices(a,b,c,d); }
 private:
-    struct Enumeration { Serves serves; typename Api::EnumDevices callback; void* context; };
+    std::string Path(const GUID& instance) {
+        std::lock_guard lock(pathsMutex_);
+        const auto cached = paths_.find(instance);
+        if (cached != paths_.end()) return cached->second;
+        typename Api::Device* device = nullptr;
+        std::string path;
+        const HRESULT result = inner_->CreateDevice(instance, &device, nullptr);
+        if (SUCCEEDED(result) && device) {
+            path = DevicePath(device);
+            device->Release();
+        }
+        paths_.emplace(instance, path);
+        return path;
+    }
+    struct Enumeration { Input& input; typename Api::EnumDevices callback; void* context; };
     static BOOL CALLBACK Enumerate(const typename Api::Instance* device, void* context) {
         auto& enumeration = *static_cast<Enumeration*>(context);
-        if (enumeration.serves(device->guidInstance, device->guidProduct.Data1)) return DIENUM_CONTINUE;
-        if (enumeration.serves == ServesDevice && GET_DIDEVICE_TYPE(device->dwDevType) >= DI8DEVTYPE_JOYSTICK) {
+        const auto path = enumeration.input.Path(device->guidInstance);
+        if (enumeration.input.serves_(device->guidInstance, device->guidProduct.Data1, path)) return DIENUM_CONTINUE;
+        if (enumeration.input.serves_ == ServesDevice && GET_DIDEVICE_TYPE(device->dwDevType) >= DI8DEVTYPE_JOYSTICK) {
             std::lock_guard lock(controllersMutex);
-            nativeControllers.push_back({device->guidInstance, {4 + static_cast<int>(nativeControllers.size()),
-                Utf8(device->tszInstanceName), Utf8(device->tszProductName), {}}});
+            nativeControllers.push_back({4 + static_cast<int>(nativeControllers.size()),
+                Utf8(device->tszInstanceName), Utf8(device->tszProductName), path});
         }
         return enumeration.callback(device, enumeration.context);
     }
     const Serves serves_;
+    std::mutex pathsMutex_;
+    std::map<GUID, std::string, GuidLess> paths_;
 };
 
 template<class Wrapper, class Interface>
@@ -229,21 +251,15 @@ HRESULT WrapOwned(void** object, Serves serves) {
     return S_OK;
 }
 
-struct GuidLess {
-    bool operator()(const GUID& a, const GUID& b) const { return std::memcmp(&a, &b, sizeof(GUID)) < 0; }
-};
-bool ServesDevice(const GUID& instance, DWORD product) {
+bool ServesDevice(const GUID& instance, DWORD product, const std::string& path) {
     // ReadPads releases the layer lock before logging or calling any COM method.
     const auto pads = Gamepads::ReadPads();
-    if (!gamepads::Served(product, pads)) return false;
+    if (!gamepads::Served(product, path, pads)) return false;
     static std::mutex logMutex;
     static std::set<GUID, GuidLess> hidden;
     std::lock_guard lock(logMutex);
     if (hidden.insert(instance).second) {
-        const auto pad = std::find_if(pads.begin(), pads.end(), [&](const gamepads::Pad& pad) {
-            return product == (DWORD(pad.pid) << 16 | pad.vid);
-        });
-        spdlog::info("Input: hiding DirectInput copy of '{}' {:04X}:{:04X}", pad->identity.name, pad->vid, pad->pid);
+        spdlog::info("Input: hiding DirectInput copy {:04X}:{:04X}", product & 0xFFFF, product >> 16);
     }
     return true;
 }
@@ -260,9 +276,7 @@ HRESULT Wrap(REFIID iid, void** object, Serves serves) {
 
 std::vector<gamepads::NativeController> ReadControllers() {
     std::lock_guard lock(controllersMutex);
-    std::vector<gamepads::NativeController> result;
-    for (const auto& entry : nativeControllers) result.push_back(entry.controller);
-    return result;
+    return nativeControllers;
 }
 
 HRESULT WINAPI Create(HINSTANCE instance, DWORD version, REFIID iid, void** out, IUnknown* outer) {

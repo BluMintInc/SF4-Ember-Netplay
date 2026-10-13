@@ -5,11 +5,21 @@
 
 namespace sf4e { namespace gamepads {
 
-inline bool Served(std::uint32_t vidpid, const std::vector<Pad>& inventory) {
-    return std::any_of(inventory.begin(), inventory.end(), [&](const Pad& pad) {
-        return pad.available && vidpid == (std::uint32_t(pad.pid) << 16 | pad.vid) &&
-            pad.status != Status::Unmapped && pad.status != Status::GameRead;
+inline bool Served(std::uint32_t vidpid, const std::string& path, const std::vector<Pad>& inventory) {
+    const auto owned = [](const Pad& pad) {
+        return pad.available && pad.status != Status::Unmapped && pad.status != Status::GameRead;
+    };
+    const auto device = std::find_if(inventory.begin(), inventory.end(), [&](const Pad& pad) {
+        return SameDriverPath(path, pad.identity.path);
     });
+    if (device != inventory.end()) return owned(*device);
+    // An uncertain identity must not hide a pad that SDL could not take over.
+    bool matched = false;
+    for (const auto& pad : inventory) if (vidpid == (std::uint32_t(pad.pid) << 16 | pad.vid)) {
+        if (!owned(pad)) return false;
+        matched = true;
+    }
+    return matched;
 }
 
 struct AxisRange {
