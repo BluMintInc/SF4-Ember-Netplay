@@ -370,6 +370,14 @@ void RoomJourneys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.fasterDisplay&&h.actions.back().preferences.backgroundPlay,"Faster display did not save off");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("settings");h.Choose("training-replays");h.Choose("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ // Show my Steam profile to room members: on until the player turns it off, saved with the other preferences.
+ Check(h.view.preferences.shareSteamProfile,"Steam profile sharing was not on by default");
+ h.Screen("profile");h.FocusOn("share-steam");
+ h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.shareSteamProfile,"Hiding the Steam profile did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().preferences.shareSteamProfile,"Showing the Steam profile did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.

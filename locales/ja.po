@@ -283,6 +283,15 @@ msgstr "ブラウザーで開きました。切り替えてサーバーに参加
 msgid "services.community_failed"
 msgstr "ブラウザーを開けませんでした。{0}にアクセスして参加してください。"
 
+msgid "services.opening_steam_profile"
+msgstr "ブラウザーでSteamプロフィールを開いています..."
+
+msgid "services.steam_profile_opened"
+msgstr "ブラウザーで開きました。"
+
+msgid "services.steam_profile_failed"
+msgstr "ブラウザーを開けませんでした。"
+
 msgid "settings.language"
 msgstr "言語"
 
@@ -857,6 +866,12 @@ msgstr "メインキャラ"
 
 msgid "profile.main_character_detail"
 msgstr "{0}。対戦時の選択とは別に、プレイヤーカードに表示されます。"
+
+msgid "profile.share_steam"
+msgstr "自分のSteamプロフィールを表示"
+
+msgid "profile.share_steam_detail"
+msgstr "ルームのメンバーは、メンバー画面からあなたのSteamプロフィールを開けます。次にルームに参加したときから反映されます。"
 
 msgid "profile.record"
 msgstr "勝敗記録"
@@ -2876,6 +2891,15 @@ msgstr "ホストを移譲"
 msgid "room.transfer_host.detail"
 msgstr "{0}をルームのホストにします。"
 
+msgid "room.steam_profile"
+msgstr "Steamプロフィール"
+
+msgid "room.steam_profile.detail"
+msgstr "このメンバーのSteamプロフィールを開きます。"
+
+msgid "room.steam_profile.none"
+msgstr "このメンバーはSteamプロフィールを共有していません。"
+
 msgid "room.compose_message"
 msgstr "メッセージを作成"
 
@@ -3016,6 +3040,9 @@ msgstr "ルームへの接続に失敗しました。ルームを閉じます。
 
 msgid "runtime.operation_busy"
 msgstr "操作を実行中です。再試行してください。"
+
+msgid "runtime.steam_profile_failed"
+msgstr "Steamプロフィールを開けませんでした。"
 
 msgid "discord.invitation_expired"
 msgstr "Discordの招待は期限切れです。新しい招待を依頼してください。"

@@ -431,6 +431,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.mainFighter = profile.mainFighter;
 	member.link = NetworkLinkFromWire(static_cast<long long>(profile.link));
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
+	member.steamId = profile.steamId;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
 	member.joinOrder = nextJoinOrder_++;

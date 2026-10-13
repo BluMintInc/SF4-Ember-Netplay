@@ -156,6 +156,8 @@ struct ShellAction {
     platform::ServiceAction service = platform::ServiceAction::None;
     // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
     std::string servicePath;
+    // With OpenSteamProfile: the member's profile to open.
+    SteamId steamProfile;
     reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     gamepads::ControllerRequest padAction;

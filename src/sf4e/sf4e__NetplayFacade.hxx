@@ -14,6 +14,7 @@
 
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/SteamId.hxx"
 #include "../common/MatchSide.hxx"
 #include "../platform/HelperProcess.hxx"
 #include "../netplay/SessionController.hxx"
@@ -86,6 +87,8 @@ namespace sf4e {
             platform::ServiceAction service = platform::ServiceAction::None;
             // With ShowReplayFile: the archived replay whose folder opens.
             std::string servicePath;
+            // With OpenSteamProfile: the member's profile to open.
+            SteamId steamProfile;
             reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
             gamepads::ControllerRequest padAction;

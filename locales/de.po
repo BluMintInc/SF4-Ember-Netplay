@@ -283,6 +283,15 @@ msgstr "Im Browser geöffnet. Wechseln Sie dorthin, um dem Server beizutreten."
 msgid "services.community_failed"
 msgstr "Browser konnte nicht öffnen. Beitreten unter {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Steam-Profil wird im Browser geöffnet..."
+
+msgid "services.steam_profile_opened"
+msgstr "Im Browser geöffnet."
+
+msgid "services.steam_profile_failed"
+msgstr "Browser konnte nicht geöffnet werden."
+
 msgid "settings.language"
 msgstr "Sprache"
 
@@ -857,6 +866,12 @@ msgstr "Hauptcharakter"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Für Ihre Spielerkarte, unabhängig von der Auswahl im Kampf."
+
+msgid "profile.share_steam"
+msgstr "Mein Steam-Profil anzeigen"
+
+msgid "profile.share_steam_detail"
+msgstr "Raummitglieder können Ihr Steam-Profil über den Mitglieder-Bildschirm öffnen. Gilt ab dem nächsten Raumbeitritt."
 
 msgid "profile.record"
 msgstr "Siege / Niederlagen"
@@ -2876,6 +2891,15 @@ msgstr "Host übertragen"
 msgid "room.transfer_host.detail"
 msgstr "{0} zum Raum-Host machen."
 
+msgid "room.steam_profile"
+msgstr "Steam-Profil"
+
+msgid "room.steam_profile.detail"
+msgstr "Steam-Profil dieses Mitglieds öffnen."
+
+msgid "room.steam_profile.none"
+msgstr "Dieses Mitglied hat kein Steam-Profil geteilt."
+
 msgid "room.compose_message"
 msgstr "Nachricht verfassen"
 
@@ -3016,6 +3040,9 @@ msgstr "Raumverbindung fehlgeschlagen. Raum wird geschlossen; unbestätigte Erge
 
 msgid "runtime.operation_busy"
 msgstr "Vorgang läuft. Erneut versuchen."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Steam-Profil konnte nicht geöffnet werden."
 
 msgid "discord.invitation_expired"
 msgstr "Discord-Einladung abgelaufen. Bitten Sie um eine neue."

@@ -283,6 +283,15 @@ msgstr "Aperto nel browser. Passa al browser per unirti al server."
 msgid "services.community_failed"
 msgstr "Impossibile aprire il browser. Visita {0} per unirti."
 
+msgid "services.opening_steam_profile"
+msgstr "Apertura del profilo Steam nel browser..."
+
+msgid "services.steam_profile_opened"
+msgstr "Aperto nel browser."
+
+msgid "services.steam_profile_failed"
+msgstr "Impossibile aprire il browser."
+
 msgid "settings.language"
 msgstr "Lingua"
 
@@ -857,6 +866,12 @@ msgstr "Main"
 
 msgid "profile.main_character_detail"
 msgstr "{0}. Appare sulla scheda, a prescindere dalla scelta per la partita."
+
+msgid "profile.share_steam"
+msgstr "Mostra il mio profilo Steam"
+
+msgid "profile.share_steam_detail"
+msgstr "I membri della sala possono aprire il tuo profilo Steam dalla schermata del membro. Vale dalla prossima volta che entri in una sala."
 
 msgid "profile.record"
 msgstr "Vittorie / sconfitte"
@@ -2876,6 +2891,15 @@ msgstr "Trasferisci host"
 msgid "room.transfer_host.detail"
 msgstr "Rendi {0} l'host della sala."
 
+msgid "room.steam_profile"
+msgstr "Profilo Steam"
+
+msgid "room.steam_profile.detail"
+msgstr "Apri il profilo Steam di questo membro."
+
+msgid "room.steam_profile.none"
+msgstr "Questo membro non ha condiviso un profilo Steam."
+
 msgid "room.compose_message"
 msgstr "Scrivi messaggio"
 
@@ -3016,6 +3040,9 @@ msgstr "Connessione alla sala fallita. La sala si chiuderà; i risultati non con
 
 msgid "runtime.operation_busy"
 msgstr "Operazione occupata. Riprova."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Impossibile aprire il profilo Steam."
 
 msgid "discord.invitation_expired"
 msgstr "L'invito Discord è scaduto. Chiedine un altro."

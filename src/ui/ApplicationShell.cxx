@@ -219,6 +219,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[2].info=true;
   rows[1].value=selection::FindFighter(preferences_.mainFighter)->name;
   rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
+  rows.push_back(Value("share-steam",loc::T("profile.share_steam"),preferences_.shareSteamProfile?loc::T("common.on"):loc::T("common.off"),loc::T("profile.share_steam_detail"),v.canEditPreferences));
  }else if(screen=="main-character"){
   title=loc::T("profile.choose_main_title");
   for(const int id:selection::RosterDisplayOrder){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
@@ -535,6 +536,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
+  else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;

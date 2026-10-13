@@ -3,6 +3,7 @@
 #include "../platform/ReplayPath.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
@@ -137,6 +138,17 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
                 input::AssignToSide(device, 0, false); break;
             }
         }
+        return DispatchOutcome::Dropped;
+    }
+    if (command.service == platform::ServiceAction::OpenSteamProfile) {
+        // Steam's overlay when it is up, otherwise the profile page in the browser.
+        SteamProfileOpeners openers;
+        openers.overlayAvailable = [] { return steam::OverlayAvailable(); };
+        openers.overlay = [](const SteamId& id) { return steam::OpenProfileOverlay(id); };
+        openers.browser = [](const SteamId& id) { return runtime->services.OpenSteamProfilePage(id); };
+        const auto route = OpenSteamProfile(command.steamProfile, openers);
+        spdlog::info("Room: Steam profile opened by {}", route == SteamProfileRoute::Overlay ? "the overlay" : route == SteamProfileRoute::Browser ? "the browser" : "no route");
+        if (route == SteamProfileRoute::Refused || route == SteamProfileRoute::Failed) runtime->error = loc::T("runtime.steam_profile_failed");
         return DispatchOutcome::Dropped;
     }
     if (command.service != platform::ServiceAction::None) {

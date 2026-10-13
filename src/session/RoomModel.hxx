@@ -18,6 +18,7 @@
 #include "../common/RoomLimits.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
+#include "../common/SteamId.hxx"
 #include "TournamentBinding.hxx"
 
 // The room model is deliberately independent from the game and transport
@@ -142,6 +143,9 @@ struct MemberProfile {
 	// The player's Ember ID. Only server-owned rooms use it: it is the identity
 	// a kick and a duplicate join are keyed on. Never part of a snapshot.
 	std::string account;
+	// The player's Steam profile, only when they chose to show it to the room;
+	// none otherwise.
+	SteamId steamId;
 };
 
 struct ConnectionRef {
@@ -178,6 +182,8 @@ struct Member {
     // How this member's network treats a direct connection, as its own helper
     // reported it when it joined. Unknown while that check was still running.
     NatClass nat = NatClass::Unknown;
+    // The Steam profile this member showed the room when it joined, or none.
+    SteamId steamId;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization
     // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.

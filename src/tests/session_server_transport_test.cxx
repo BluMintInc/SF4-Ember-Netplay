@@ -1531,12 +1531,15 @@ static void TestCustomRoomDepartures() {
 		json requestJson=request;requestJson["mainFighter"]=static_cast<int>(connection)+8;
 		requestJson["link"]=static_cast<int>(connection%3);
 		requestJson["nat"]=static_cast<int>(connection%4);
+		if(connection==2)requestJson["steamId"]="76561200000000000";
 		transport->Push(connection, requestJson);
 		step();
 		CHECK(server.roomMembers.count(connection) == 1);
 		for(const auto& member:server.RoomSnapshot()->members)if(member.id==server.roomMembers.at(connection))
 			CHECK(json(member).value("main_fighter",-1)==static_cast<int>(connection)+8&&
-				json(member).value("link",-1)==static_cast<int>(connection%3)&&json(member).value("nat",-1)==static_cast<int>(connection%4));
+				json(member).value("link",-1)==static_cast<int>(connection%3)&&json(member).value("nat",-1)==static_cast<int>(connection%4)&&
+				// Only the member who sent a profile has one in the snapshot.
+				json(member).value("steam_id",std::string())==std::string(connection==2?"76561200000000000":""));
 	};
 	for (session::Connection connection = 1; connection <= 6; ++connection) {
 		hello(connection);
@@ -1551,7 +1554,8 @@ static void TestCustomRoomDepartures() {
     }
     json older=profile;older.erase("mainFighter");older.erase("link");older.erase("nat");transport->Push(7,older);step();
     CHECK(server.roomMembers.count(7)==1&&server.RoomSnapshot()->members.back().mainFighter==-1&&
-        server.RoomSnapshot()->members.back().link==NetworkLink::Unknown&&server.RoomSnapshot()->members.back().nat==NatClass::Unknown);
+        server.RoomSnapshot()->members.back().link==NetworkLink::Unknown&&server.RoomSnapshot()->members.back().nat==NatClass::Unknown&&
+        !server.RoomSnapshot()->members.back().steamId.Present());
     const auto profileMember=server.roomMembers.at(7);
     CHECK(server.roomIncarnations.count(profileMember)==1);
     transport->disconnected.push_back(7);step();CHECK(server.roomMembers.count(7)==0);

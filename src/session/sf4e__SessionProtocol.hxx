@@ -236,11 +236,19 @@ namespace sf4e {
 			int link = 0;
 			// A NatClass value; older clients omit it.
 			int nat = 0;
+			// The player's Steam profile as exact decimal text; absent when they
+			// do not show it, and read as none when it is not a SteamId.
+			std::string steamId;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
-			room::MemberProfile Profile() const { return {mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)}; }
+			room::MemberProfile Profile() const {
+				room::MemberProfile profile{mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)};
+				profile.steamId = SteamId::Parsed(steamId);
+				return profile;
+			}
 			void SetProfile(const room::MemberProfile& profile) {
 				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
+				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
 			}
 		};
 
@@ -407,7 +415,30 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionDataUpdate, type, lobbyData, matchData, matchGeneration, authorityTerm, authorityRevision);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinReject, type, result);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter, link, nat, roomChatDelta);
+		// Written by hand so that a player who shows no profile sends no steamId key.
+		inline void to_json(nlohmann::json& j, const SessionJoinRequest& value) {
+			j = nlohmann::json{{"type", value.type}, {"sidecarHash", value.sidecarHash}, {"username", value.username}, {"port", value.port},
+				{"customRooms", value.customRooms}, {"roomProtocol", value.roomProtocol}, {"mainFighter", value.mainFighter},
+				{"link", value.link}, {"nat", value.nat}, {"roomChatDelta", value.roomChatDelta}};
+			if (!value.steamId.empty()) j["steamId"] = value.steamId;
+		}
+		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
+			const SessionJoinRequest defaults{};
+			value.type = j.value("type", defaults.type);
+			value.sidecarHash = j.value("sidecarHash", defaults.sidecarHash);
+			value.username = j.value("username", defaults.username);
+			value.port = j.value("port", defaults.port);
+			value.customRooms = j.value("customRooms", defaults.customRooms);
+			value.roomProtocol = j.value("roomProtocol", defaults.roomProtocol);
+			value.mainFighter = j.value("mainFighter", defaults.mainFighter);
+			value.link = j.value("link", defaults.link);
+			value.nat = j.value("nat", defaults.nat);
+			value.roomChatDelta = j.value("roomChatDelta", defaults.roomChatDelta);
+			// Not a string, or not a SteamId: no profile, the join itself is unaffected.
+			const auto steam = j.find("steamId");
+			value.steamId.clear();
+			if (steam != j.end() && steam->is_string() && SteamId::Parsed(steam->get<std::string>()).Present()) value.steamId = steam->get<std::string>();
+		}
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);

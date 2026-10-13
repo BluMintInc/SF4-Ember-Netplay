@@ -2,6 +2,7 @@
 #include "../launcher/update/github_release_client.hxx"
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/SteamId.hxx"
 #include "ReportWorkflow.hxx"
 #include <memory>
 #include <chrono>
@@ -20,7 +21,9 @@ namespace sf4e { namespace platform {
 // names, then checks for an update on it.
 // ShowReplayFile opens, in Explorer, the folder that holds the archived
 // replay the request names; only a folder of the archive is opened.
-enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile,
+// OpenSteamProfile opens a member's Steam profile page in the browser; only
+// OpenSteamProfilePage starts it, with a SteamId.
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash };
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
@@ -113,6 +116,8 @@ public:
     ~ApplicationServices();
     // target: the file a ShowReplayFile request names; nothing else reads it.
     bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {}, std::wstring target = {});
+    // The member's Steam profile page in the default browser (SteamProfileUrl).
+    bool OpenSteamProfilePage(const SteamId& id);
     // Saves `channel` as the update channel, then checks for an update on it.
     bool SwitchUpdateChannel(launcher::UpdateChannel channel);
     // The crash's report in a preview, sent only from it.

@@ -98,6 +98,8 @@ namespace sf4e {
 		void SetProfileMain(int fighter) { _profile.mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
 		void SetProfileLink(NetworkLink link) { _profile.link = link; }
 		void SetProfileNat(NatClass nat) { _profile.nat = nat; }
+		// None sends no profile at all.
+		void SetProfileSteam(const SteamId& id) { _profile.steamId = id; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);
