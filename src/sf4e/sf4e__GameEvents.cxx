@@ -217,7 +217,7 @@ int fMainMenu::GetItemObserverState() {
 }
 
 void fMainMenu::OnModeSelected(int mode) {
-	if (OnModeSelectedOverride(mode)) {
+	if (OnModeSelectedOverride && OnModeSelectedOverride(mode)) {
 		return;
 	}
 

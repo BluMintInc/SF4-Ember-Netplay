@@ -105,6 +105,17 @@ void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const,
 }
 // Game thread: the native menu's Network item opens the room shell instead.
 static int OnMainMenuModeSelected(int mode) {
+    spdlog::info("Main menu: native selection {}", mode);
+    if (mode == rMainMenu::MainMenuItemID::MMI_BENCHMARK) {
+        // A button still held from the end of a room match can land on Benchmark
+        // as the menu comes back, and Benchmark then reads the battle system the
+        // game has just freed. It has no place in a room, so it is refused there.
+        const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+        if (snapshot->session.room != sf4e::netplay::RoomState::Idle || sf4e::netplay::Fighting(snapshot->session.match)) {
+            spdlog::warn("Main menu: Benchmark refused while a room or match is open");
+            return 1;
+        }
+    }
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
     s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
 }
