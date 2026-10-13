@@ -69,9 +69,16 @@ static void InputDelayMigrations(const Path& root) {
     CHECK(automatic.autoInputDelay && automatic.inputDelay == 1);
     // A number chosen after Auto existed stays that number, 0 included: the
     // flag tells a chosen 0 from a 1.0.x one.
-    for (int chosen : {0, 1, 2, 5, sf4e::MaximumInputDelay}) {
+    for (int chosen : {0, 1, 2, 3, sf4e::MaximumInputDelay}) {
         const auto manual = LoadDelay(root, L"delay-chosen-" + std::to_wstring(chosen), {{"inputDelay", chosen}, {"autoInputDelay", false}});
         CHECK(!manual.autoInputDelay && manual.inputDelay == chosen && manual.Valid());
+    }
+    // An earlier build let a fighter choose up to the wire ceiling: those
+    // load as the choice limit, in the game and in the launcher.
+    for (int saved = sf4e::MaximumInputDelay + 1; saved <= sf4e::InputDelayWireCeiling; ++saved) {
+        const auto clamped = LoadDelay(root, L"delay-saved-" + std::to_wstring(saved), {{"inputDelay", saved}, {"autoInputDelay", false}});
+        CHECK(!clamped.autoInputDelay && clamped.inputDelay == sf4e::MaximumInputDelay && clamped.Valid());
+        CHECK(sf4e::netplay::ReadSavedInputDelay({{"inputDelay", saved}}) == sf4e::MaximumInputDelay);
     }
     // A value the game never writes under autoInputDelay is Auto.
     const auto odd = LoadDelay(root, L"delay-odd", {{"inputDelay", 3}, {"autoInputDelay", 0}});
@@ -387,7 +394,8 @@ int main() {
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
-    discordDefaults.inputDelay = 10; CHECK(discordDefaults.Valid());
+    discordDefaults.inputDelay = sf4e::MaximumInputDelay; CHECK(discordDefaults.Valid());
+    discordDefaults.inputDelay = sf4e::MaximumInputDelay + 1; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = -1; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = 11; CHECK(!discordDefaults.Valid());
     CHECK(store.SaveLauncher({{"inputDelay", 0}}, error));

@@ -73,6 +73,9 @@ static const char* RejectedMatch(const SessionClient& client, const char* where)
         spdlog::error("{}: rejected match settings rounds={} time={}.{}", where,
             lobby.roundCount, lobby.roundTime.integral, lobby.roundTime.fractional);
         break;
+    case SessionProtocol::MatchProblem::Delay:
+        spdlog::error("{}: rejected input delay {}/{}", where, match.inputDelay[0], match.inputDelay[1]);
+        break;
     case SessionProtocol::MatchProblem::Fighter:
         spdlog::error("{}: rejected fighters {}/{}/{} and {}/{}/{} (fighter/costume/edition)", where,
             match.chara[0].charaID, match.chara[0].costume, match.chara[0].unc_edition,
@@ -229,7 +232,7 @@ static bool StartRuntimeGgpo() {
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         if (netplay->client.IsCustomRoom()) {
             const auto committedDelay=netplay->client._matchData.inputDelay[endpoints.localSlot];
-            if (committedDelay>sf4e::MaximumInputDelay) return false;
+            if (committedDelay>sf4e::InputDelayWireCeiling) return false;
             netplay->delay=committedDelay;
         }
         // Both seats carry the shared match delay; the two players' logs

@@ -2657,7 +2657,7 @@ msgid "room.ready_up"
 msgstr "Klaar melden"
 
 msgid "room.selected_delay.detail"
-msgstr "Stel in van 0 tot 10 frames, of ga onder 0 voor Auto. 0 voegt geen vertraging toe en vraagt een stabiele, lage ping."
+msgstr "Stel in van {0} tot {1} frames, of ga onder 0 voor Auto. 0 voegt geen vertraging toe en vraagt een stabiele, lage ping."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."

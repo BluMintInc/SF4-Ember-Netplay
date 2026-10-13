@@ -179,7 +179,8 @@ struct Member {
     // reported it when it joined. Unknown while that check was still running.
     NatClass nat = NatClass::Unknown;
     // The selected delay belongs to this fighter until Ready captures it.
-    // Values are deliberately bounded by Action deserialization (0..10).
+    // Values are deliberately bounded by Action deserialization
+    // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.
     std::uint8_t selectedDelay = 2;
     std::uint8_t frozenDelay = 2;
     bool delayLocked = false;

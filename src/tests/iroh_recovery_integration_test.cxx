@@ -593,7 +593,7 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 return false;
             });
         };
-        const unsigned fighterOneDelay=3, fighterTwoDelay=8;
+        const unsigned fighterOneDelay=3, fighterTwoDelay=sf4e::MaximumInputDelay;
         ready(1,fighterOneDelay); ready(2,fighterTwoDelay);
         using MatchPhase=session::IrohMatchSession::Phase;
         const auto terminalAcks=[&](std::uint64_t generation,unsigned score) {

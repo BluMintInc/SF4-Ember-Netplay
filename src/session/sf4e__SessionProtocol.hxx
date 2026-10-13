@@ -100,9 +100,11 @@ namespace sf4e {
 		};
 
 		// What the game could not take in a room's match: its round count or
-		// time, its stage, or either fighter. Every value is one the game's own
-		// menus offer, or it is refused before any of it is written.
-		enum class MatchProblem { None, Settings, Stage, Fighter };
+		// time, its stage, either fighter, or a seat's input delay past
+		// InputDelayWireCeiling. Every value is one the game's own menus offer
+		// (a delay, one a room can record), or it is refused before any of it
+		// is written.
+		enum class MatchProblem { None, Settings, Stage, Fighter, Delay };
 		MatchProblem FindMatchProblem(const LobbyData& lobby, const MatchData& match);
 
 		enum MessageType {

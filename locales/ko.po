@@ -2657,7 +2657,7 @@ msgid "room.ready_up"
 msgstr "준비"
 
 msgid "room.selected_delay.detail"
-msgstr "0~10프레임으로 조정하세요. 0 아래는 자동입니다. 0은 지연을 더하지 않으며 낮고 안정적인 핑이 필요합니다."
+msgstr "{0}~{1}프레임으로 조정하세요. 0 아래는 자동입니다. 0은 지연을 더하지 않으며 낮고 안정적인 핑이 필요합니다."
 
 msgid "room.selected_delay.locked"
 msgstr "이번 대전의 지연 시간이 고정되었습니다."

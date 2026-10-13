@@ -2657,7 +2657,7 @@ msgid "room.ready_up"
 msgstr "Mettiti pronto"
 
 msgid "room.selected_delay.detail"
-msgstr "Regola da 0 a 10 frame, o scendi sotto 0 per Auto. 0 non aggiunge ritardo e richiede un ping basso e stabile."
+msgstr "Regola da {0} a {1} frame, o scendi sotto 0 per Auto. 0 non aggiunge ritardo e richiede un ping basso e stabile."
 
 msgid "room.selected_delay.locked"
 msgstr "Il ritardo scelto è bloccato per questa partita."

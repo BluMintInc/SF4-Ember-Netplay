@@ -417,8 +417,8 @@ int wmain(int argc, wchar_t** argv) {
 	});
 	using Phase = session::IrohMatchSession::Phase;
 	for (std::uint64_t cycle = 1; cycle <= 3; ++cycle) {
-		const unsigned p1Delay = static_cast<unsigned>(cycle % 11);
-		const unsigned p2Delay = static_cast<unsigned>((cycle * 3) % 11);
+		const unsigned p1Delay = static_cast<unsigned>(cycle % (sf4e::MaximumInputDelay + 1));
+		const unsigned p2Delay = static_cast<unsigned>((cycle * 3) % (sf4e::MaximumInputDelay + 1));
 		clients[0]->SetSelectedDelay(p1Delay);
 		clients[1]->SetSelectedDelay(p2Delay);
 		for (std::size_t player=0;player<2;++player) {

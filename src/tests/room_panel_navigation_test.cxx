@@ -264,11 +264,20 @@ int main() try {
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
         "Left from one frame did not choose 0 frames");
     view.selectedDelay = 0; frame();
-    Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::T("room.selected_delay.detail")) != std::string::npos,
+    Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::Tf("room.selected_delay.detail", MinimumInputDelay, MaximumInputDelay)) != std::string::npos &&
+        row("input-delay").detail.find("from 0 to 5 frames") != std::string::npos,
         "Input delay did not show 0 frames and what it needs");
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
         "Right from 0 frames did not choose one frame");
+    // The choice stops at MaximumInputDelay; a larger delay a room still holds shows as that.
+    view.selectedDelay = MaximumInputDelay; frame(); press(MenuInput::Right);
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == MaximumInputDelay,
+        "Right at the largest delay did not stay there");
+    view.selectedDelay = InputDelayWireCeiling; frame();
+    Check(row("input-delay").value == "5 frames",
+        "A held delay above the choice limit was not shown at the limit");
+    view.selectedDelay = 0; frame();
     // Auto sits before 0 frames. With it on, the row shows its bounds and,
     // once the opponent is measured, the delay it resolves to; Select no longer
     // takes the recommendation, and Right returns to 0 frames.

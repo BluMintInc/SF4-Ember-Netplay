@@ -1,14 +1,23 @@
 #pragma once
 
 namespace sf4e {
-// The largest input delay a fighter can choose, in frames. Preferences, the
-// room authority, its checkpoints and the connection check all share it.
-constexpr int MaximumInputDelay = 10;
+// Three limits are kept apart.
+//
+// Wire: the largest delay any snapshot, checkpoint or match record may hold.
+// Earlier builds let a fighter choose up to 10, so stored data from them
+// still loads, and a committed match plays at the delay it recorded.
+constexpr int InputDelayWireCeiling = 10;
+// Choice: the largest input delay a fighter can choose now, in frames.
+// Anything higher is unplayable. Preferences, the room authority when it
+// records Ready and the connection check all share it.
+constexpr int MaximumInputDelay = 5;
+static_assert(MaximumInputDelay <= InputDelayWireCeiling, "a choice always fits the wire");
 // The smallest. 0 adds no delay and is only ever a player's own choice: the
 // connection check never recommends it and Auto never readies with it.
 constexpr int MinimumInputDelay = 0;
 // Where a new profile's chosen delay starts, and what a saved delay that is
-// not a whole number in range loads as (InputDelayPreference.hxx).
+// not a whole number from 0 to InputDelayWireCeiling loads as
+// (InputDelayPreference.hxx).
 constexpr int DefaultInputDelay = 2;
 // The connection check recommends from this to MaximumInputDelay
 // (recovery.rs: recommended_delay); a 0 from it is no recommendation.
@@ -16,12 +25,13 @@ constexpr int RecommendedInputDelayMinimum = 1;
 
 // Auto takes the connection check's recommendation, held between these.
 constexpr int AutoInputDelayMinimum = 1;
-constexpr int AutoInputDelayMaximum = 4;
+constexpr int AutoInputDelayMaximum = 3;
+static_assert(AutoInputDelayMaximum <= MaximumInputDelay, "Auto stays within the choice");
 static_assert(AutoInputDelayMinimum >= RecommendedInputDelayMinimum, "Auto never readies at 0 frames");
 // The delay Auto readies with. Without a recommendation (-1) it is the
 // default, where a chosen delay starts.
 constexpr int AutoInputDelay(int recommended) {
-    return recommended < 0 || recommended > MaximumInputDelay ? DefaultInputDelay :
+    return recommended < 0 || recommended > InputDelayWireCeiling ? DefaultInputDelay :
         recommended < AutoInputDelayMinimum ? AutoInputDelayMinimum :
         recommended > AutoInputDelayMaximum ? AutoInputDelayMaximum : recommended;
 }
