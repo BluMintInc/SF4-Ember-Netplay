@@ -34,7 +34,7 @@ namespace sf4e {
 			settings.roundCount = lobby.roundCount;
 			settings.roundTime = lobby.roundTime.integral;
 			if (!settings.Valid() || lobby.roundTime.fractional != 0) return MatchProblem::Settings;
-			if (!selection::FindStage(match.stageID)) return MatchProblem::Stage;
+			if (!selection::ValidStage(match.stageID)) return MatchProblem::Stage;
 			for (const auto& chara : match.chara)
 				if (!selection::Valid(selection::FromNative(chara), lobby.editionSelect)) return MatchProblem::Fighter;
 			return MatchProblem::None;
