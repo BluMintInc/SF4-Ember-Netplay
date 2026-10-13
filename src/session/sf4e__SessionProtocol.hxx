@@ -239,16 +239,21 @@ namespace sf4e {
 			// The player's Steam profile as exact decimal text; absent when they
 			// do not show it, and read as none when it is not a SteamId.
 			std::string steamId;
+			// The country the player shows, as its code; absent when none, and read
+			// as none when the table lacks it.
+			std::string country;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
 			room::MemberProfile Profile() const {
 				room::MemberProfile profile{mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)};
 				profile.steamId = SteamId::Parsed(steamId);
+				profile.country = CountryCode::Parsed(country);
 				return profile;
 			}
 			void SetProfile(const room::MemberProfile& profile) {
 				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
 				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
+				country = profile.country.ToString();
 			}
 		};
 
@@ -415,12 +420,13 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionDataUpdate, type, lobbyData, matchData, matchGeneration, authorityTerm, authorityRevision);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinReject, type, result);
-		// Written by hand so that a player who shows no profile sends no steamId key.
+		// Written by hand so that a player who shows no profile or country sends no key for it.
 		inline void to_json(nlohmann::json& j, const SessionJoinRequest& value) {
 			j = nlohmann::json{{"type", value.type}, {"sidecarHash", value.sidecarHash}, {"username", value.username}, {"port", value.port},
 				{"customRooms", value.customRooms}, {"roomProtocol", value.roomProtocol}, {"mainFighter", value.mainFighter},
 				{"link", value.link}, {"nat", value.nat}, {"roomChatDelta", value.roomChatDelta}};
 			if (!value.steamId.empty()) j["steamId"] = value.steamId;
+			if (!value.country.empty()) j["country"] = value.country;
 		}
 		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
 			const SessionJoinRequest defaults{};
@@ -438,6 +444,10 @@ namespace sf4e {
 			const auto steam = j.find("steamId");
 			value.steamId.clear();
 			if (steam != j.end() && steam->is_string() && SteamId::Parsed(steam->get<std::string>()).Present()) value.steamId = steam->get<std::string>();
+			// Likewise a country the table lacks.
+			const auto country = j.find("country");
+			value.country.clear();
+			if (country != j.end() && country->is_string() && CountryCode::Parsed(country->get<std::string>()).Present()) value.country = country->get<std::string>();
 		}
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);

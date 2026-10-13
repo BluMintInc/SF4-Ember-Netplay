@@ -32,6 +32,8 @@ constexpr UINT MaximumImageSide = 512;
 // art for the rest of the session. An image with no file at all is final.
 constexpr int MaximumAttempts = 3;
 constexpr std::uint64_t RetryFrames = 60;
+// A request's side that keeps the image at its own size.
+constexpr UINT NativeSide = 0;
 using platform::WideToUtf8;
 std::string Hex(HRESULT value) {
     char text[16];
@@ -120,13 +122,21 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
             pixels.Fail(path, "decode " + Hex(hr) + " " + std::to_string(width) + "x" + std::to_string(height));
             continue;
         }
-        const double ratio = (std::min)(1.0, double(side) / (std::max)(width, height));
-        width = (std::max)(1u, static_cast<UINT>(width * ratio));
-        height = (std::max)(1u, static_cast<UINT>(height * ratio));
-        if (FAILED(hr = factory->CreateBitmapScaler(&scaler)) ||
-            FAILED(hr = scaler->Initialize(frame.Get(), width, height, WICBitmapInterpolationModeFant)) ||
-            FAILED(hr = factory->CreateFormatConverter(&converter)) ||
-            FAILED(hr = converter->Initialize(scaler.Get(), GUID_WICPixelFormat32bppBGRA,
+        // NativeSide: an atlas, whose cells are addressed in its own pixels, is
+        // converted at its own size and never goes through the scaler.
+        if (side != NativeSide) {
+            const double ratio = (std::min)(1.0, double(side) / (std::max)(width, height));
+            width = (std::max)(1u, static_cast<UINT>(width * ratio));
+            height = (std::max)(1u, static_cast<UINT>(height * ratio));
+            if (FAILED(hr = factory->CreateBitmapScaler(&scaler)) ||
+                FAILED(hr = scaler->Initialize(frame.Get(), width, height, WICBitmapInterpolationModeFant))) {
+                pixels.Fail(path, "scale " + Hex(hr));
+                continue;
+            }
+        }
+        IWICBitmapSource* source = side == NativeSide ? static_cast<IWICBitmapSource*>(frame.Get()) : scaler.Get();
+        if (FAILED(hr = factory->CreateFormatConverter(&converter)) ||
+            FAILED(hr = converter->Initialize(source, GUID_WICPixelFormat32bppBGRA,
                 WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom))) {
             pixels.Fail(path, "convert " + Hex(hr));
             continue;
@@ -148,7 +158,8 @@ struct SelectionArt::Impl {
     struct Job { std::string key; std::vector<std::wstring> paths; UINT side; };
     // Portraits fit their painted content rather than the transparent canvas,
     // and every fighter should have one, so an absent portrait is reported.
-    struct Policy { bool cropToContent = false, reportAbsence = false; };
+    // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
+    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
@@ -278,6 +289,21 @@ SelectionImage SelectionArt::MenuBackdrop() {
 SelectionImage SelectionArt::InputPrompt(const std::string& name) {
     return impl_->Request("input-"+name,[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../input/"+std::wstring(name.begin(),name.end())+L".png"}; },128);
 }
+SelectionImage SelectionArt::Flag(const CountryCode& country) {
+    if (!country.Present()) return {};
+    Impl::Policy atlas; atlas.reportAbsence = true;
+    atlas.exactWidth = countries::AtlasWidth; atlas.exactHeight = countries::AtlasHeight;
+    auto image = impl_->Request("flags/atlas", [&] { return std::vector<std::wstring>{impl_->assetRoot + L"/../flags/flags.png"}; }, NativeSide, atlas);
+    if (!image.texture) return image;
+    // The cell, inset half a texel so a flag drawn smaller never samples its
+    // neighbour or the transparent padding.
+    const float x = float(country.Index() % countries::Columns * countries::SlotWidth + countries::Padding);
+    const float y = float(country.Index() / countries::Columns * countries::SlotHeight + countries::Padding);
+    image.uvMin = ImVec2((x + .5f) / countries::AtlasWidth, (y + .5f) / countries::AtlasHeight);
+    image.uvMax = ImVec2((x + countries::CellWidth - .5f) / countries::AtlasWidth, (y + countries::CellHeight - .5f) / countries::AtlasHeight);
+    image.width = countries::CellWidth; image.height = countries::CellHeight;
+    return image;
+}
 void SelectionArt::Pump() {
     auto& state = *impl_;
     if (!state.requested) return;
@@ -290,6 +316,11 @@ void SelectionArt::Pump() {
         state.wake.notify_one();
         auto& entry = state.entries[pixels.key];
         if (pixels.outcome != Outcome::Decoded) { state.Failed(entry, pixels.key, pixels.outcome, pixels.failure); continue; }
+        if (entry.policy.exactWidth && (pixels.width != entry.policy.exactWidth || pixels.height != entry.policy.exactHeight)) {
+            state.Failed(entry, pixels.key, Outcome::Failed, std::to_string(pixels.width) + "x" + std::to_string(pixels.height) + ", not " +
+                std::to_string(entry.policy.exactWidth) + "x" + std::to_string(entry.policy.exactHeight));
+            continue;
+        }
         ComPtr<IDirect3DTexture9> texture;
         HRESULT hr = state.device->CreateTexture(pixels.width, pixels.height, 1, 0, D3DFMT_A8R8G8B8,
             D3DPOOL_MANAGED, &texture, nullptr);

@@ -231,7 +231,7 @@ void RequireAtlasWithinBudget(const char* what, float dpi) {
 // must keep the active catalog and the language picker in all three sizes.
 void RequireAtlasCoverage(sf4e::loc::Locale locale, float dpi) {
     using namespace sf4e;
-    std::string text = loc::DisplayText(locale);
+    std::string text = loc::InterfaceText(locale);
     for (int i = 0; i < static_cast<int>(loc::Locale::Count); ++i)
         text += loc::NativeName(static_cast<loc::Locale>(i));
     ImFontGlyphRangesBuilder characters;
@@ -346,6 +346,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_controllers.hxx"
 #include "ui_render_button_layout.hxx"
 #include "ui_render_pad_setup.hxx"
+#include "ui_render_flags.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -764,6 +765,7 @@ int main(int argc, char** argv) {
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
+            ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");

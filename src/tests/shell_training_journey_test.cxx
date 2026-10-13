@@ -20,7 +20,7 @@ void TrainingSettingsAndHome() {
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","defaults","interface","training-replays","discord","problem-reports","about"};
+ const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","discord","problem-reports","about"};
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
@@ -34,6 +34,13 @@ void TrainingSettingsAndHome() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchFrameMeter,"Match frame meter did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ // Country opens its picker on the saved choice; a country saves and goes back to Settings.
+ h.Screen("settings");h.Choose("country");
+ Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");
+ h.shell.Navigation().Focus("country-JP",rows);h.Press(MenuInput::Select);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.country==CountryPreference::Of(CountryCode::Parsed("JP")),"A picked country did not save");
+ Check(h.shell.Navigation().Screen()=="settings","Choosing a country did not go back to Settings");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("home");
  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");

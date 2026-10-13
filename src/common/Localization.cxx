@@ -249,6 +249,13 @@ std::string DisplayText(Locale locale) {
     for (const auto& entry : catalogs[IndexOf(locale)]) text += entry.second;
     return text;
 }
+std::string InterfaceText(Locale locale) {
+    EnsureCatalogs();
+    std::string text;
+    for (const auto& entry : catalogs[IndexOf(locale)])
+        if (entry.first.size() != 10 || entry.first.compare(0, 8, "country.") != 0) text += entry.second;
+    return text;
+}
 
 namespace detail {
 // The catalog test proves every translation keeps the English placeholder

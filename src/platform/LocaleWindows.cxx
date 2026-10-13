@@ -47,4 +47,12 @@ std::string GameLanguage() {
 loc::Locale ResolveUiLocale(std::string_view preference) {
     return loc::ResolveLocale(preference, GameLanguage(), WindowsUiLanguages());
 }
+
+CountryCode WindowsCountry() {
+    const GEOID nation = GetUserGeoID(GEOCLASS_NATION);
+    if (nation == GEOID_NOT_AVAILABLE) return {};
+    wchar_t code[8] = {};
+    if (!GetGeoInfoW(nation, GEO_ISO2, code, static_cast<int>(sizeof(code) / sizeof(code[0])), 0)) return {};
+    return CountryFromGeoIso2(code);
+}
 } }

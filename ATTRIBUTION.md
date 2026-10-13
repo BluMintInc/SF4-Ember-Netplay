@@ -123,3 +123,12 @@ and the selected asset directories are recorded in `assets/input/README.md`.
 
 The Ember menu background was generated specifically for this project. Its
 generation prompt and content hash are recorded in `assets/brand/README.md`.
+
+## Country flags
+
+Country flags are rendered from the 4x3 SVGs of
+[flag-icons](https://github.com/lipis/flag-icons) v7.5.0 by Panayiotis Lipiridis,
+licensed MIT. The distributed license is `assets/flags/LICENSE`, also shipped as
+`notices/flag-icons-MIT.txt`; the release archive, its hash and how the atlas is
+built are recorded in `assets/flags/README.md`. Country names come from the
+Unicode CLDR data in ICU.

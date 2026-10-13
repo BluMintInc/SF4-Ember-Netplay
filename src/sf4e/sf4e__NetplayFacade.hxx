@@ -207,6 +207,8 @@ namespace sf4e {
 			std::string languagePreference = "auto";
 			// The Settings row's value: check for an update at launch.
 			bool checkUpdatesAtLaunch = true;
+			// The country Automatic shows: Windows' region, or none.
+			CountryCode automaticCountry;
 			int localSlot = -1;
 			bool offlineRequested = false;
 			std::string displayName;

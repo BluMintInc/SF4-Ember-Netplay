@@ -247,6 +247,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("problem-reports",loc::T("reports.settings_title"),loc::T("reports.settings_detail")),Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
+  // The flag beside the player's name; Select opens the country picker.
+  rows.insert(rows.begin()+1,Row("country",loc::T("settings.country"),v.canEditPreferences?loc::T("settings.country_detail"):reason,v.canEditPreferences));
+  rows[1].value=CountryPicker::ChoiceText(preferences_.country,v.automaticCountry);
+ }else if(screen==CountryPicker::Screen){
+  title=loc::T("settings.country");rows=countryPicker_.Rows(preferences_.country,v.automaticCountry,v.canEditPreferences);
  }else if(screen=="problem-reports"){
   // The setting's pane says what a report holds; Select reads it in full.
   title=loc::T("reports.settings_title");
@@ -346,7 +351,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports";
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -457,6 +462,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.fighterName=selection::FindFighter(preferences_.mainFighter)->name;card.inputDelay=preferences_.inputDelay;
  card.wins=v.preferences.record.wins;card.losses=v.preferences.record.losses;card.recordAvailable=v.preferences.record.available;
  card.controllerReady=v.controllerReady;card.connected=v.session.control==Health::Healthy;
+ card.country=ShownCountry(preferences_.country,v.automaticCountry);
  card.members=static_cast<int>(v.room.members.size());
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
  SetMenuPlayerCard(std::move(card));
@@ -480,6 +486,9 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // The matches screen, by way of Online play and Ember ID so Back goes there.
  else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
+ else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}
+ // A choice is saved like any setting, and the picker closes on it.
+ else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
@@ -515,6 +524,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
  else if(a.id=="launch-update-check")SetLaunchCheck(a.delta>0);
+ else if(a.id=="country-search")countryPicker_.Search(a.text);
  else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
  else if(CreateAdjust(a)){}
  else{
@@ -784,6 +794,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
    return DrawPublicCard(v,publicRooms_,publicSetup,publicRooms_.PhaseOf(e.id),e,min,max,e.id==menu_.navigation.Focus(),now);};
  }
+ if(screen==CountryPicker::Screen)portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return countryPicker_.DrawRow(e,v.automaticCountry,min,max);};
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id.compare(0,5,"main-")!=0)return false;
   const int id=std::stoi(e.id.substr(5));DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
@@ -821,6 +832,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
  menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
+ // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
+ if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();

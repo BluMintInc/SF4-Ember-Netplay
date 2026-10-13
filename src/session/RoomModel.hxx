@@ -19,6 +19,7 @@
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
 #include "../common/SteamId.hxx"
+#include "../common/Country.hxx"
 #include "TournamentBinding.hxx"
 
 // The room model is deliberately independent from the game and transport
@@ -146,6 +147,8 @@ struct MemberProfile {
 	// The player's Steam profile, only when they chose to show it to the room;
 	// none otherwise.
 	SteamId steamId;
+	// The country the player shows, or none when it is Hidden or unknown.
+	CountryCode country;
 };
 
 struct ConnectionRef {
@@ -184,6 +187,8 @@ struct Member {
     NatClass nat = NatClass::Unknown;
     // The Steam profile this member showed the room when it joined, or none.
     SteamId steamId;
+    // The country this member showed when it joined, or none.
+    CountryCode country;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization
     // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.

@@ -5,6 +5,7 @@
 #include "MenuGlyphs.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
+#include "../common/Country.hxx"
 #include <functional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
@@ -21,6 +22,8 @@ struct PlayerCardView {
     bool controllerReady=false, connected=false;
     std::uint64_t wins=0,losses=0;
     bool recordAvailable=true;
+    // The flag before the name: the country the player shows, or none.
+    CountryCode country;
 };
 void SetMenuPlayerCard(PlayerCardView view);
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);

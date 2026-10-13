@@ -31,6 +31,7 @@
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
 #include "UpdatePrompt.hxx"
+#include "CountryPicker.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -79,6 +80,8 @@ struct ShellView {
     std::string languagePreference = "auto";
     // The Settings row "Check for updates at launch", as saved.
     bool checkUpdatesAtLaunch = true;
+    // The country Automatic shows: Windows' region, or none.
+    CountryCode automaticCountry;
     // This PC's clock, unix seconds, to tell a match past its expiry (0 when unknown).
     std::uint64_t unixNow = 0;
     // The game's own config.ini as read at launch, and whether the player has
@@ -273,6 +276,7 @@ private:
     PublicRoomsPanel publicRooms_;
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
+    CountryPicker countryPicker_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);

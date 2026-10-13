@@ -147,12 +147,13 @@ int main() {
 		roomTransport->sent.back().at("admission").value("link", -1) == static_cast<int>(NetworkLink::Wired) &&
 		roomTransport->sent.back().at("admission").value("nat", -1) == static_cast<int>(NatClass::Strict));
 	// The player showed no Steam profile (the default), so the admission carries no key for it.
-	CHECK(!roomTransport->sent.back().at("admission").contains("steamId"));
+	CHECK(!roomTransport->sent.back().at("admission").contains("steamId")&&!roomTransport->sent.back().at("admission").contains("country"));
 	{
 		// One who shows it sends the exact decimal text, and the server's profile reads it back.
 		SessionClient sharing(callbacks, "build", 30000, roomName);
 		sharing.RequireCustomRooms();
 		sharing.SetProfileSteam(sf4e::SteamId::Parsed("76561200000000000"));
+		sharing.SetProfileCountry(sf4e::CountryCode::Parsed("JP"));
 		auto* sharingTransport = new MockClient();
 		CHECK(sharing.Connect(std::unique_ptr<session::ClientTransport>(sharingTransport), false) == 0);
 		sharingTransport->state = session::ConnectionState::Connected;
@@ -160,6 +161,8 @@ int main() {
 		const auto& admission = sharingTransport->sent.back().at("admission");
 		CHECK(admission.at("steamId").is_string() && admission.at("steamId").get<std::string>() == "76561200000000000");
 		CHECK(admission.get<protocol::SessionJoinRequest>().Profile().steamId.ToString() == "76561200000000000");
+		// The country it shows travels the same way.
+		CHECK(admission.at("country") == "JP" && admission.get<protocol::SessionJoinRequest>().Profile().country.ToString() == "JP");
 		// A value that is not a SteamId, or not text, joins as nobody sharing.
 		for (const json invalid : { json("76561190000000000"), json("x"), json(76561200000000000ull), json(nullptr) }) {
 			json forged = admission;

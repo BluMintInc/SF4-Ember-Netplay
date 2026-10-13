@@ -181,6 +181,7 @@ void AttachRoom() {
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
 	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
+	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
@@ -202,6 +203,8 @@ void StartHelper() {
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
+    runtime->automaticCountry = platform::WindowsCountry();
+    spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
@@ -232,6 +235,7 @@ void StartHelper() {
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
+            runtime->preferences.country = netplay::ReadCountryPreference(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;

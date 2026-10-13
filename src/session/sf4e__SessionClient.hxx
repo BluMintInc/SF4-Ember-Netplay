@@ -100,6 +100,8 @@ namespace sf4e {
 		void SetProfileNat(NatClass nat) { _profile.nat = nat; }
 		// None sends no profile at all.
 		void SetProfileSteam(const SteamId& id) { _profile.steamId = id; }
+		// None sends no country.
+		void SetProfileCountry(const CountryCode& country) { _profile.country = country; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);

@@ -4,6 +4,7 @@
 #include <vector>
 #include "../common/ButtonPrompts.hxx"
 #include "../common/ButtonLayoutTypes.hxx"
+#include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/InputDelay.hxx"
 #include "../common/RoomRules.hxx"
@@ -81,6 +82,10 @@ struct PlayerPreferences {
     // Room members can open this player's Steam profile from the room's member
     // screen. Sent when they join a room; nothing is sent when it is off.
     bool shareSteamProfile = true;
+    // The flag beside this player's name in rooms and on the player card:
+    // Windows' region (Automatic), a country they picked, or Hidden. Sent when
+    // they join a room; nothing is sent while it is Hidden or Windows names none.
+    CountryPreference country;
     bool discordPresence = true, discordInvites = true;
     // The launcher sends a crash's report without asking, logs only and at most
     // three a day (platform/ReportWorkflow.hxx). Off until the player turns it
@@ -105,7 +110,7 @@ struct PlayerPreferences {
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

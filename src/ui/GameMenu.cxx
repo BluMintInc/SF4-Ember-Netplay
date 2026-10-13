@@ -5,6 +5,7 @@
 #include "MenuGlyphs.hxx"
 #include "MenuPresentation.hxx"
 #include "MenuDialogs.hxx"
+#include "CountryFlag.hxx"
 #include "../common/FighterCatalog.hxx"
 #include <imgui.h>
 #include <cstring>
@@ -65,7 +66,9 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
         }
         d->AddText(ImGui::GetFont(),font,ImVec2(p.x+x,p.y+y),color,shown.c_str());};
     NoteUserText(playerCard.name);
-    text(portrait+24*s,13*s,playerCard.name.empty()?loc::T("card.player"):playerCard.name,18*s,palette::Ivory);
+    const auto flag=DrawCountryFlagBeside(d,p.x+portrait+24*s,p.y+13*s,18*s,playerCard.country);
+    if(flag.hovered)ImGui::SetTooltip("%s",CountryName(playerCard.country).c_str());
+    text(portrait+24*s+flag.width,13*s,playerCard.name.empty()?loc::T("card.player"):playerCard.name,18*s,palette::Ivory);
     text(portrait+24*s,38*s,playerCard.fighterName.empty()?loc::T("card.choose_fighter"):playerCard.fighterName,12*s,palette::Muted,"card-fighter");
     if(!compact)text(12*s,82*s,playerCard.controllerReady?loc::T("card.controller_ready"):loc::T("card.assign_controller"),11*s,playerCard.controllerReady?palette::Ready:palette::Ember,"card-controller");
     const float y=(compact?70:116)*s;

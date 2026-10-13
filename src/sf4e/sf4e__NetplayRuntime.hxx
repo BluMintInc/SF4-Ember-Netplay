@@ -46,6 +46,7 @@
 #include "../netplay/InputDelayPreference.hxx"
 #include "../netplay/MatchHudPreference.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
+#include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
@@ -287,6 +288,8 @@ struct Runtime {
 	std::string displayName;
 	std::string languagePreference = "auto";
 	bool checkUpdatesAtLaunch = true;
+	// Windows' region, read once at start: what Automatic shows.
+	CountryCode automaticCountry;
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;

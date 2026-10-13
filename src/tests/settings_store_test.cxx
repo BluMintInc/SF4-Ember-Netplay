@@ -9,6 +9,7 @@
 #include "../platform/DurableFile.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
+#include "../netplay/CountryPreferenceJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -277,6 +278,27 @@ static void ButtonPromptRoundTrips(const Path& root) {
             Json(1.5),Json("Xbox"),Json(false),Json(nullptr),Json::array({1})})
         CHECK(netplay::ReadButtonPrompts({{"buttonPrompts",bad}})==gamepads::ButtonPrompts::Automatic);
     netplay::PlayerPreferences invalid; invalid.buttonPrompts=static_cast<gamepads::ButtonPrompts>(4); CHECK(!invalid.Valid());
+}
+
+// The country is kept in the netplay section as "auto", "hidden" or a code;
+// an older profile has none and anything else loads as Automatic.
+static void CountryRoundTrips(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"country";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    for (const auto& choice : {CountryPreference::Hidden(), CountryPreference::Of(CountryCode::Parsed("NZ")), CountryPreference::Automatic()}) {
+        netplay::PlayerPreferences prefs; prefs.country=choice; CHECK(prefs.Valid());
+        Json saved; netplay::WriteCountryPreference(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["country"]==choice.ToString());
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadCountryPreference(loaded)==choice);
+    }
+    CHECK(netplay::ReadCountryPreference(Json::object())==CountryPreference::Automatic());
+    for (const Json& bad : {Json("nz"),Json("XK"),Json(""),Json(64),Json(nullptr),Json::array({"NZ"})})
+        CHECK(netplay::ReadCountryPreference({{"country",bad}})==CountryPreference::Automatic());
+    netplay::PlayerPreferences invalid; invalid.country.kind=CountryPreference::Kind::Code; CHECK(!invalid.Valid());
 }
 
 static void ControllerLayerRoundTrip(const Path& root) {
@@ -604,6 +626,7 @@ int main() {
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);
+    CountryRoundTrips(root);
     ControllerLayerRoundTrip(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";

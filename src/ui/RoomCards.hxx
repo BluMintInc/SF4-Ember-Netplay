@@ -3,6 +3,7 @@
 // board prepared and says what the pointer did to it. It reads no room state and
 // changes none: the board owns navigation, selection, focus and dispatch, and
 // applies the CardInteraction it gets back.
+#include "../common/Country.hxx"
 #include "../common/NetworkLink.hxx"
 #include <imgui.h>
 #include <array>
@@ -46,6 +47,8 @@ struct TableCardSeat {
     std::string streak,idle;
     int fighter=-1;
     NetworkLink link=NetworkLink::Unknown;
+    // Its flag goes under the fighter's name; none draws none.
+    CountryCode country;
     // Ready badge on the portrait, and the banner's outline around it.
     bool ready=false,marked=false;
 };
@@ -68,6 +71,8 @@ struct MemberCardView {
     std::string id,name,label,status;
     int mainFighter=-1;
     NetworkLink link=NetworkLink::Unknown;
+    // Its flag goes before the name; none draws none.
+    CountryCode country;
     bool focused=false,focusChanged=false,disabled=false;
 };
 CardInteraction DrawMemberCard(const MemberCardView& card);

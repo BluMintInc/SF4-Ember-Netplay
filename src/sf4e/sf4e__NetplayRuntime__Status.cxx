@@ -464,6 +464,7 @@ PostPublishState Publish() {
 	snapshot.preferences = runtime->preferences;
 	snapshot.languagePreference = runtime->languagePreference;
 	snapshot.checkUpdatesAtLaunch = runtime->checkUpdatesAtLaunch;
+	snapshot.automaticCountry = runtime->automaticCountry;
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
 		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
