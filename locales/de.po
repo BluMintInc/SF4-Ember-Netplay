@@ -1002,11 +1002,7 @@ msgstr "Schnellere Anzeige (1 Frame weniger)"
 msgid "player.faster_display_detail"
 msgstr "Das Spiel zeigt jeden Frame, sobald er fertig ist, statt einen Frame später. Schalten Sie es aus, wenn das Spiel auf diesem PC unter 60 fps fällt. Es betrifft nur diesen PC: Der andere Spieler muss es nicht einschalten. Änderungen gelten ab dem nächsten Spielstart."
 
-msgid "player.native_menus"
-msgstr "Native Menüs öffnen"
 
-msgid "player.native_menus_detail"
-msgstr "Ember wird geschlossen. Wählen Sie im Spielmenü OPTIONEN, um die Kampftasten zu belegen."
 
 msgid "settings.interface_title"
 msgstr "OBERFLÄCHE"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Steuerung"
 
 msgid "about.controls_detail"
-msgstr "Xbox-Controller: A wählt aus, B geht zurück, unabhängig von der Kampfbelegung. Andere Controller: das zugewiesene LP wählt aus, LK geht zurück. Tastatur: Pfeiltasten, Enter und Escape. Das D-pad bewegt; Links und Rechts ändern einen Wert. Zurück auf der Startseite blendet Ember aus. F10, oder Start am Controller, öffnet es wieder im Hauptmenü des Spiels.\n\nIn einem Raum wählen Sie mit A auf einem Tisch einen Platz, A auf Ihrem eigenen Platz setzt Sie auf Bereit und B verlässt Ihren Platz oder die Warteliste. Am Xbox-Controller öffnet X Kämpfer, Y Optionen und View Chat; erneutes Drücken führt zurück in den Raum.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Am Controller: View oder Select halten und Start drücken."
+msgstr "Xbox: A wählt aus und B geht zurück. PlayStation: Kreuz wählt aus und Kreis geht zurück. Switch: B wählt aus und A geht zurück, wie in den Menüs des Spiels. Ein in Ember eingerichteter Controller: Die für Leichter Tritt gewählte Taste wählt aus, die für Mittlerer Tritt geht zurück, unabhängig von der Tastenbelegung. Tastatur: Pfeile, Enter und Escape. Das Steuerkreuz bewegt; Links und Rechts ändern einen Wert. Zurück auf Home blendet Ember aus. F10 oder Start am Controller öffnet es wieder im Hauptmenü des Spiels.\n\nIm Raum lässt dich A auf einem Tisch einen Platz wählen, A auf deinem eigenen Platz meldet dich bereit und B verlässt deinen Platz oder die Warteschlange (auf anderen Controllern die Tasten an denselben Positionen). Auf Xbox öffnet X Kämpfer, Y Optionen und View Chat; erneut drücken kehrt zum Raum zurück. PlayStation nutzt Quadrat, Dreieck und Share oder Create; Switch nutzt Y, X und Minus.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Halte am Controller View (Share, Create oder Minus) und drücke Start."
 
 msgid "about.controls_keyboard"
 msgstr "Auf der Tastatur wählt auch die Leertaste und Rücktaste geht ebenfalls zurück. Im Raum öffnet F den Kämpfer, T die Optionen und C den Chat. Escape geht immer zurück, auch auf dem eigenen Platz; Entf verlässt deinen Platz oder die Warteschlange."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Tisch geschlossen"
 
 msgid "controller.disconnected"
-msgstr "Controller getrennt. Erneut verbinden oder zuweisen."
+msgstr "Controller getrennt. Verbinde ihn erneut oder wähle einen anderen unter Einstellungen > Spieler & Controller."
 
 msgid "controller.none"
 msgstr "Spielgerät wählen"
@@ -1277,6 +1273,12 @@ msgstr "Tastatur"
 
 msgid "controller.numbered"
 msgstr "Controller {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} ist nicht verbunden. Vorerst wird {1} verwendet."
+
+msgid "controller.connected_adopted"
+msgstr "{0} ist verbunden. Du spielst damit."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (getrennt)"
@@ -2977,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Spielgerät getrennt. Verbinden Sie es vor dem nächsten Kampf erneut."
 
 msgid "runtime.match_input_blocked"
-msgstr "Kampfeingabe blockiert: {0} erneut verbinden. Hat sich der Slot geändert, kehren Sie in den Raum zurück und weisen Sie ihn neu zu."
+msgstr "{0} wurde getrennt. Dein Kämpfer erhält keine Eingaben, bis du ihn wieder verbindest."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Controller-Zuweisung für Kämpfe konnte nicht geprüft werden. Weisen Sie ihn erneut zu."
@@ -4583,3 +4585,513 @@ msgstr "Immer senden ließ sich nicht einschalten, daher wurde dieser Bericht ni
 
 msgid "reports.automatic_unavailable"
 msgstr "Die automatischen Berichte für heute sind aufgebraucht oder der Verlauf ist unlesbar, daher wurde dieser Bericht nicht gesendet. Wählen Sie Diesen Bericht senden, um ihn aus der Vorschau zu senden."
+
+msgid "player.button_prompts"
+msgstr "Tastensymbole"
+
+msgid "player.button_prompts_detail"
+msgstr "Die Tastenbilder, die Ember zeigt. Automatisch passt sie an den Controller an, mit dem du spielst. Welche Taste was macht, bleibt gleich."
+
+msgid "player.prompts_auto"
+msgstr "Automatisch"
+
+
+msgid "controller.brand.stick"
+msgstr "Kampftasten"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} ist verbunden."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} ist verbunden. Du spielst mit der Tastatur; zum Wechseln nutze Controller wechseln unter Einstellungen > Spieler & Controller."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} ist verbunden. Öffne Ember, um seine Tasten einzurichten."
+
+msgid "controller.connected_full"
+msgstr "{0} ist verbunden, aber vier Controller werden bereits genutzt. Trenne einen, um diesen zu nutzen."
+
+msgid "controller.disconnected_named"
+msgstr "{0} wurde getrennt."
+
+msgid "controller.reconnected"
+msgstr "{0} ist wieder verbunden."
+
+msgid "controller.release_to_use"
+msgstr "Lass die Taste los, um mit {0} zu spielen."
+
+msgid "player.controllers"
+msgstr "Controller"
+
+msgid "player.controllers_value"
+msgstr "{0} verbunden"
+
+msgid "player.controllers_detail"
+msgstr "Du spielst mit {0}. Sieh alle verbundenen Controller, teste ihre Tasten und richte die ein, die Ember noch nicht kennt."
+
+
+
+msgid "player.game_reads"
+msgstr "Controller vom Spiel lesen lassen"
+
+msgid "player.game_reads_detail"
+msgstr "Aus: Ember liest alle Controller und das Spiel sieht jeden als Xbox-Controller. Ein: Das Spiel liest Controller selbst, wie ohne Ember; PlayStation- und Switch-Controller benötigen dann Steam Input. Änderungen gelten beim nächsten Spielstart."
+
+msgid "player.game_reads_pending"
+msgstr "Starte das Spiel neu, um dies anzuwenden."
+
+msgid "player.prompts_showing"
+msgstr "Es werden {0}-Tasten angezeigt."
+
+msgid "controllers.title"
+msgstr "CONTROLLER"
+
+msgid "controllers.unavailable"
+msgstr "Controller-Unterstützung ist aus"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember konnte seine Controller-Unterstützung nicht starten, daher liest das Spiel Controller diesmal selbst. Xbox-Controller funktionieren wie gewohnt; andere benötigen eventuell Steam Input. Details stehen in sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Das Spiel liest Controller"
+
+msgid "controllers.game_reads_detail"
+msgstr "Controller vom Spiel lesen lassen ist eingeschaltet, daher richtet Ember Controller weder ein noch testet es sie. Schalte es unter Spieler & Controller aus und starte das Spiel neu."
+
+msgid "controllers.none"
+msgstr "Keine Controller verbunden"
+
+msgid "controllers.none_detail"
+msgstr "Verbinde einen Controller und er erscheint hier. Die Tastatur funktioniert auch ohne."
+
+msgid "controllers.value_yours"
+msgstr "Deiner"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Nicht eingerichtet"
+
+msgid "controllers.value_full"
+msgstr "Nicht genutzt"
+
+msgid "controllers.value_absent"
+msgstr "Nicht verbunden"
+
+msgid "controllers.detail_yours"
+msgstr "Du spielst mit diesem Controller. Spielslot {0}. Drücke seine Tasten, um sie zu testen."
+
+msgid "controllers.detail_other"
+msgstr "Spielslot {0}. Drücke seine Tasten, um sie zu testen. Wähle ihn aus, um damit zu spielen oder seine Tasten einzurichten."
+
+msgid "controllers.detail_custom"
+msgstr "Nutzt deine gespeicherte Tastenbelegung."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input steuert diesen Controller, daher folgen seine Tasten deinen Steam-Einstellungen. Damit Ember ihn steuert, starte Ember außerhalb von Steam oder schalte Steam Input für Ultra Street Fighter IV in Steam aus."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember kennt die Tasten dieses Controllers noch nicht. Bis zur Einrichtung liest das Spiel ihn direkt und Embers Menüs nutzen die als LP und LK belegten Tasten. Wähle ihn zum Einrichten aus."
+
+msgid "controllers.detail_full"
+msgstr "Das Spiel hat Platz für vier Controller. Trenne einen anderen, um diesen zu nutzen."
+
+msgid "controllers.detail_absent"
+msgstr "Dein gespeicherter Controller. Verbinde ihn, um wieder damit zu spielen."
+
+msgid "controllers.detail_game_read"
+msgstr "Das Spiel liest diesen Controller selbst."
+
+msgid "controllers.steam_name"
+msgstr "Steam-Controller"
+
+msgid "controllers.test_heading"
+msgstr "Drücke Tasten, um sie zu testen"
+
+msgid "controllers.test_raw"
+msgstr "Gedrückt: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Gedrückt: nichts"
+
+msgid "controllers.choice_play"
+msgstr "Mit diesem Controller spielen"
+
+msgid "controllers.choice_play_detail"
+msgstr "Nutze ihn für Online-Spiele und Embers Menüs."
+
+msgid "controllers.choice_play_current"
+msgstr "Du spielst bereits mit diesem Controller."
+
+msgid "controllers.choice_setup"
+msgstr "Tasten einrichten"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Drücke jede Taste nacheinander, um Ember ihre Funktion mitzuteilen."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input legt die Tasten dieses Controllers fest."
+
+msgid "controllers.choice_forget"
+msgstr "Tastenbelegung vergessen"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Kehre zur Funktion dieses Controllers vor der Einrichtung zurück. Gilt beim nächsten Spielstart."
+
+msgid "controllers.now_playing"
+msgstr "Du spielst mit {0}."
+
+msgid "controllers.forgotten"
+msgstr "Tastenbelegung vergessen. Dies gilt beim nächsten Spielstart."
+
+msgid "pad_setup.input.button"
+msgstr "Taste {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Steuerkreuz oben"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Steuerkreuz rechts"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Steuerkreuz unten"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Steuerkreuz links"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Achse {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Achse {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Triggerachse {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controller getrennt. Verbinde ihn erneut oder verlasse den Raum, um einen anderen zu wählen."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} ist wieder da, aber in einem anderen Spielslot. Er funktioniert ab dem nächsten Spiel wieder."
+
+msgid "pad_setup.title"
+msgstr "CONTROLLER EINRICHTEN"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Neuer Controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember kennt die Tasten von {0} noch nicht. Drücke eine beliebige Taste darauf, um ihn jetzt einzurichten. Es dauert etwa eine Minute."
+
+msgid "pad_setup.not_now"
+msgstr "Nicht jetzt"
+
+msgid "pad_setup.step_count"
+msgstr "Schritt {0} von {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Oben"
+
+msgid "pad_setup.step.down"
+msgstr "Unten"
+
+msgid "pad_setup.step.left"
+msgstr "Links"
+
+msgid "pad_setup.step.right"
+msgstr "Rechts"
+
+msgid "pad_setup.step.lp"
+msgstr "Leichter Schlag"
+
+msgid "pad_setup.step.mp"
+msgstr "Mittlerer Schlag"
+
+msgid "pad_setup.step.hp"
+msgstr "Schwerer Schlag"
+
+msgid "pad_setup.step.lk"
+msgstr "Leichter Tritt"
+
+msgid "pad_setup.step.mk"
+msgstr "Mittlerer Tritt"
+
+msgid "pad_setup.step.hk"
+msgstr "Schwerer Tritt"
+
+msgid "pad_setup.step.3p"
+msgstr "Alle drei Schläge"
+
+msgid "pad_setup.step.3k"
+msgstr "Alle drei Tritte"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Bewege den Stick oder drücke die Taste für diese Richtung und lasse dann los."
+
+msgid "pad_setup.press_button"
+msgstr "Drücke die gewünschte Taste für diese Aktion und lasse dann los."
+
+msgid "pad_setup.optional"
+msgstr "Wenn dein Controller dafür keine Taste hat, überspringe diesen Schritt."
+
+msgid "pad_setup.lk_selects"
+msgstr "Diese Taste wählt auch in Menüs aus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Diese Taste geht auch in Menüs zurück."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Halte weiter gedrückt, um die Einrichtung abzubrechen."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Beliebige Taste halten: Abbrechen"
+
+msgid "pad_setup.back_step"
+msgstr "Einen Schritt zurück"
+
+msgid "pad_setup.skip"
+msgstr "Überspringen"
+
+msgid "pad_setup.required"
+msgstr "Diese Eingabe wird benötigt."
+
+msgid "pad_setup.conflict"
+msgstr "{0} ist bereits {1}. Drücke eine andere Eingabe."
+
+msgid "pad_setup.idle_hint"
+msgstr "Noch keine Eingabe. Halte eine beliebige Taste 3 Sekunden lang zum Abbrechen oder drücke Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller getrennt. Verbinde ihn innerhalb von {0} Sekunden erneut, um fortzufahren."
+
+msgid "pad_setup.skipped"
+msgstr "Übersprungen"
+
+msgid "pad_setup.summary_detail"
+msgstr "Drücke eine beliebige Taste, um ihren Schritt zu sehen. Hier wählt Leichter Tritt aus und Mittlerer Tritt geht zurück, wie in jedem Menü."
+
+msgid "pad_setup.redo_detail"
+msgstr "Auswählen, um diese Eingabe erneut festzulegen."
+
+msgid "pad_setup.save"
+msgstr "Speichern"
+
+msgid "pad_setup.save_detail"
+msgstr "Diese Einrichtung speichern und jetzt verwenden."
+
+msgid "pad_setup.start_over"
+msgstr "Neu beginnen"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Alle Schritte löschen und von vorn beginnen."
+
+msgid "pad_setup.cancel"
+msgstr "Einrichtung abbrechen"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Ohne Speichern verlassen."
+
+msgid "pad_setup.cancelled"
+msgstr "Einrichtung abgebrochen. Nichts wurde gespeichert."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller eingerichtet"
+
+msgid "pad_setup.saved"
+msgstr "{0} ist eingerichtet. Wähle Tastenbelegung, um die Angriffe seiner Tasten zu ändern."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember konnte diese Einrichtung nicht verwenden. Nichts wurde gespeichert. Details stehen in sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Einrichtung gestoppt, weil {0} getrennt wurde. Nichts wurde gespeichert."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Einrichtung gestoppt, weil eine Minute lang keine Eingabe erfolgte. Nichts wurde gespeichert."
+
+msgid "player.button_layout"
+msgstr "Tastenbelegung"
+
+msgid "player.button_layout_detail"
+msgstr "Wähle, welche Angriffe die Tasten von {0} ausführen. Für deinen Gegner ändert sich nichts."
+
+msgid "player.button_layout_setup"
+msgstr "Ember unterstützt {0} noch nicht. Wähle diese Zeile, um zuerst die Tasten einzurichten."
+
+msgid "player.button_layout_keyboard"
+msgstr "Tastenbelegungen sind für Controller. Für die Tastatur nutze die Tasteneinstellungen des Spiels."
+
+msgid "player.button_layout_game_reads"
+msgstr "Schalte Controller vom Spiel lesen lassen aus, um Tastenbelegungen zu nutzen. Bis dahin nutze die Tasteneinstellungen des Spiels."
+
+msgid "player.button_layout_failed"
+msgstr "Embers Controller-Unterstützung konnte diesmal nicht starten. Nutze die Tasteneinstellungen des Spiels."
+
+msgid "player.game_buttons"
+msgstr "Tasteneinstellungen des Spiels"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember schließt sich. Wähle im Spiel Optionen und dann die Controller-Einstellungen. Nutze sie für die Tastatur und Controller, die das Spiel selbst liest. Controller mit einer Ember-Tastenbelegung nutzen stattdessen diese. Das Spiel behält eine Belegung nur, wenn jede Aktion eine Taste hat."
+
+msgid "controllers.choice_layout"
+msgstr "Tastenbelegung"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Wähle, welche Angriffe die einzelnen Tasten ausführen."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Richte zuerst die Tasten ein."
+
+msgid "controllers.detail_layout"
+msgstr "Tastenbelegung: {0}."
+
+msgid "button_layout.title"
+msgstr "TASTENBELEGUNG"
+
+msgid "button_layout.button_title"
+msgstr "TASTE ÄNDERN"
+
+msgid "button_layout.test"
+msgstr "Teste deine Tasten"
+
+msgid "button_layout.test_detail"
+msgstr "Drücke Tasten auf {0}, um ihre Angriffe zu sehen. In dieser Zeile wirkt nur Zurück auf das Menü."
+
+msgid "button_layout.attacks"
+msgstr "Angriffe"
+
+msgid "button_layout.throw"
+msgstr "Wurf (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Fokusangriff (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Wähle diese Zeile und drücke die gewünschte Taste für {0}. Hat eine andere Taste diesen Angriff, tauschen die beiden Tasten."
+
+msgid "button_layout.row_missing"
+msgstr "Keine Taste führt nur diesen Angriff aus. Du kannst ihn deshalb nicht einzeln ausführen."
+
+msgid "button_layout.no_button"
+msgstr "Keine Taste"
+
+msgid "button_layout.edit_button"
+msgstr "Einzelne Taste ändern"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Wähle diese Zeile und drücke eine Taste, um ihre Angriffe genau festzulegen. Jede Kombination ist möglich; du kannst die Taste auch ausschalten."
+
+msgid "button_layout.preset"
+msgstr "Vorlage"
+
+msgid "button_layout.preset_detail"
+msgstr "Wähle eine fertige Belegung. Standard entspricht der Belegung des Spiels."
+
+msgid "button_layout.custom"
+msgstr "Eigene"
+
+msgid "button_layout.game_layout"
+msgstr "Belegung des Spiels"
+
+msgid "button_layout.preset.default"
+msgstr "Standard"
+
+msgid "button_layout.preset.default_detail"
+msgstr "Die Belegung des Spiels. Geeignet für die meisten Controller und Sticks mit 8 Tasten."
+
+msgid "button_layout.preset.triggers"
+msgstr "Dreierangriffe auf Triggern"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Für Controller mit sechs Tasten. Starker Schlag auf der rechten Schultertaste, starker Tritt auf der linken. Alle drei Schläge auf dem linken Trigger, alle drei Tritte auf dem rechten."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Fokus und Wurf"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Wie Standard, aber die linke Schultertaste führt den Fokusangriff aus, der linke Trigger einen Wurf. Auf einem Stick mit 8 Tasten ist das die vierte Spalte. Alle drei Schläge und Tritte liegen auf den Stick-Klicks."
+
+msgid "button_layout.preset_applied"
+msgstr "Belegung auf {0} gesetzt."
+
+msgid "button_layout.remove"
+msgstr "Belegung des Spiels verwenden"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember ändert die Tasten dieses Controllers nicht mehr. Die Belegung aus den Tasteneinstellungen des Spiels gilt wieder."
+
+msgid "button_layout.removed"
+msgstr "Die Belegung des Spiels gilt wieder für diesen Controller."
+
+msgid "button_layout.press_for"
+msgstr "Drücke die Taste für {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Drücke die zu ändernde Taste"
+
+msgid "button_layout.press_cancel"
+msgstr "Bewege den Stick oder drücke Start zum Abbrechen."
+
+msgid "button_layout.assigned"
+msgstr "{0} liegt jetzt auf {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} liegt jetzt auf {1}. {2} führt stattdessen {3} aus."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} liegt jetzt auf {1}. {2} führt jetzt nichts aus."
+
+msgid "button_layout.bit_detail"
+msgstr "Links oder Rechts schaltet {0} für diese Taste ein oder aus."
+
+msgid "button_layout.clear"
+msgstr "Keine Angriffe"
+
+msgid "button_layout.clear_detail"
+msgstr "Diese Taste führt im Kampf nichts aus."
+
+msgid "button_layout.button_does"
+msgstr "Im Kampf: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nichts"
+
+msgid "button_layout.absent"
+msgstr "Nicht verbunden"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} ist nicht verbunden. Die Belegung ist gespeichert. Verbinde den Controller, um sie zu ändern."
+
+msgid "button_layout.setup_first"
+msgstr "Zuerst Tasten einrichten"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Das Spiel liest {0} selbst, deshalb kann Ember seine Tasten noch nicht ändern. Richte ihn einmal ein, dann funktioniert er hier wie jeder andere Controller."
+
+msgid "button_layout.missing_heading"
+msgstr "Einige Angriffe haben keine Taste"
+
+msgid "button_layout.missing_text"
+msgstr "Diese Angriffe haben keine eigene Taste: {0}. Die Belegung ist gespeichert."
+
+msgid "button_layout.keep_editing"
+msgstr "Weiter bearbeiten"
+
+msgid "button_layout.leave"
+msgstr "Verlassen"

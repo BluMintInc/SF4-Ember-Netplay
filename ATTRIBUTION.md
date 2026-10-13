@@ -57,6 +57,9 @@ converted to WOFF2 by [scripts/build-web-assets.py](scripts/build-web-assets.py)
 Subsetting keeps Inter's name, which is not a Reserved Font Name. The license is
 served beside them as `/assets/fonts/OFL.txt`.
 
+Controller support links [SDL 3](https://www.libsdl.org/) statically into Sidecar.dll,
+under the zlib license. Its notice is in `notices/THIRD_PARTY_LICENSES.txt`.
+
 Problem-report redaction matches names with case folding and word-character
 tables generated from Unicode Character Database data
 ([scripts/generate-report-unicode.py](scripts/generate-report-unicode.py)), under

@@ -15,6 +15,7 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__InputLag.hxx"
 #include "sf4e__Pad.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__NetplayFacade.hxx"
@@ -237,7 +238,9 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Event::Install();
 	Game::Install();
 	GameEvents::Install();
+    GameEvents::OptionUIController::Install();
 	Pad::Install();
+	Gamepads::Install();
 	BackgroundPlay::Install();
 	InputLag::Install();
 	Platform::Install();

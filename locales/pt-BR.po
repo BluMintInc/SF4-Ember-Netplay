@@ -1002,11 +1002,7 @@ msgstr "Imagem mais rápida (1 quadro a menos)"
 msgid "player.faster_display_detail"
 msgstr "O jogo mostra cada quadro assim que fica pronto, em vez de um quadro depois. Desative se o jogo cair abaixo de 60 fps neste PC. Afeta só este PC: o outro jogador não precisa ativar. As mudanças valem na próxima vez que o jogo iniciar."
 
-msgid "player.native_menus"
-msgstr "Abrir menus nativos"
 
-msgid "player.native_menus_detail"
-msgstr "O Ember será fechado. Escolha Opções no menu do jogo para configurar os botões de luta."
 
 msgid "settings.interface_title"
 msgstr "INTERFACE"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Controle Xbox: A seleciona e B volta, independentemente dos botões de luta. Outros controles: o LP mapeado seleciona e o LK volta. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start no controle, o abre de novo no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um lugar, A no seu próprio lugar marca Pronto e B sai do seu lugar ou da fila. Em um controle Xbox, X abre Lutador, Y abre Opções e View abre Bate-papo; pressione de novo para voltar à sala.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. No controle, segure View ou Select e pressione Start."
+msgstr "Xbox: A seleciona e B volta. PlayStation: Cruz seleciona e Círculo volta. Switch: B seleciona e A volta, como nos menus do jogo. Um controle configurado no Ember: O botão escolhido para Chute fraco seleciona e o de Chute médio volta, qualquer que seja o layout de botões. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start em um controle, abre-o novamente no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um assento, A no seu assento indica que está pronto e B deixa seu assento ou lugar na fila (em outros controles, os botões nas mesmas posições). No Xbox, X abre Lutador, Y Opções e View Chat; pressione novamente para voltar à sala. PlayStation usa Quadrado, Triângulo e Share ou Create; Switch usa Y, X e Minus.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. Em um controle, segure View (Share, Create ou Minus) e pressione Start."
 
 msgid "about.controls_keyboard"
 msgstr "No teclado, Espaço também seleciona e Backspace também volta. Numa sala, F abre Lutador, T abre Opções e C abre Bate-papo. Esc sempre volta, mesmo no seu próprio lugar; Delete deixa seu lugar ou a fila."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Mesa fechada"
 
 msgid "controller.disconnected"
-msgstr "Controle desconectado. Reconecte ou atribua explicitamente."
+msgstr "Controle desconectado. Reconecte-o ou escolha outro em Configurações > Jogador e controle."
 
 msgid "controller.none"
 msgstr "Escolha um dispositivo de jogo"
@@ -1277,6 +1273,12 @@ msgstr "Teclado"
 
 msgid "controller.numbered"
 msgstr "Controle {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} não está conectado. Usando {1} por enquanto."
+
+msgid "controller.connected_adopted"
+msgstr "{0} conectado. Você joga com ele."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (desconectado)"
@@ -2586,7 +2588,7 @@ msgstr "Discord indisponível. O jogo não foi afetado."
 msgid "runtime.gameplay_device_disconnected"
 msgstr "Controle de jogo desconectado. Reconecte-o antes da próxima partida."
 msgid "runtime.match_input_blocked"
-msgstr "Entrada da partida bloqueada: reconecte {0}. Se o slot mudou, volte à sala para atribuí-lo de novo."
+msgstr "{0} desconectado. Seu lutador não recebe entradas até você reconectá-lo."
 msgid "runtime.controller_assignment_unverified"
 msgstr "Não foi possível verificar a atribuição do controle na partida. Atribua-o novamente."
 msgid "runtime.recovery_state_failed"
@@ -4123,3 +4125,513 @@ msgstr "Não foi possível ligar Sempre enviar, então este relatório não foi 
 
 msgid "reports.automatic_unavailable"
 msgstr "Os relatórios automáticos de hoje acabaram ou o histórico de relatórios enviados não pode ser lido, então este relatório não foi enviado. Escolha Enviar este relatório para enviá-lo pela prévia."
+
+msgid "player.button_prompts"
+msgstr "Símbolos dos botões"
+
+msgid "player.button_prompts_detail"
+msgstr "As imagens dos botões que o Ember mostra. Automático usa as do controle com que você joga. A função de cada botão continua a mesma."
+
+msgid "player.prompts_auto"
+msgstr "Automático"
+
+
+msgid "controller.brand.stick"
+msgstr "Botões de luta"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} conectado."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} conectado. Você joga com o teclado; para trocar, use Alterar controle em Configurações > Jogador e controle."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} conectado. Abra o Ember para configurar seus botões."
+
+msgid "controller.connected_full"
+msgstr "{0} conectado, mas quatro controles já estão em uso. Desconecte um para usar este."
+
+msgid "controller.disconnected_named"
+msgstr "{0} desconectado."
+
+msgid "controller.reconnected"
+msgstr "{0} reconectado."
+
+msgid "controller.release_to_use"
+msgstr "Solte o botão para jogar com {0}."
+
+msgid "player.controllers"
+msgstr "Controles"
+
+msgid "player.controllers_value"
+msgstr "{0} conectados"
+
+msgid "player.controllers_detail"
+msgstr "Você joga com {0}. Veja todos os controles conectados, teste seus botões e configure os que o Ember ainda não conhece."
+
+
+
+msgid "player.game_reads"
+msgstr "Deixar o jogo ler os controles"
+
+msgid "player.game_reads_detail"
+msgstr "Desligado: o Ember lê todos os controles e o jogo vê cada um como um controle Xbox. Ligado: o jogo lê os controles por conta própria, como sem o Ember; controles PlayStation e Switch passam a precisar do Steam Input. As mudanças valem na próxima vez que o jogo iniciar."
+
+msgid "player.game_reads_pending"
+msgstr "Reinicie o jogo para aplicar isto."
+
+msgid "player.prompts_showing"
+msgstr "Exibindo botões de {0}."
+
+msgid "controllers.title"
+msgstr "CONTROLES"
+
+msgid "controllers.unavailable"
+msgstr "Suporte a controles desligado"
+
+msgid "controllers.unavailable_detail"
+msgstr "O Ember não conseguiu iniciar o suporte a controles, então o jogo os lê por conta própria desta vez. Controles Xbox funcionam como sempre; outros podem precisar do Steam Input. Os detalhes estão em sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "O jogo lê os controles"
+
+msgid "controllers.game_reads_detail"
+msgstr "Deixar o jogo ler os controles está ligado, então o Ember não configura nem testa controles. Desligue em Jogador e controle e reinicie o jogo."
+
+msgid "controllers.none"
+msgstr "Nenhum controle conectado"
+
+msgid "controllers.none_detail"
+msgstr "Conecte um controle e ele aparece aqui. O teclado funciona sem um."
+
+msgid "controllers.value_yours"
+msgstr "Seu"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Não configurado"
+
+msgid "controllers.value_full"
+msgstr "Não está em uso"
+
+msgid "controllers.value_absent"
+msgstr "Não conectado"
+
+msgid "controllers.detail_yours"
+msgstr "Você joga com este controle. Slot de jogo {0}. Pressione seus botões para testá-los."
+
+msgid "controllers.detail_other"
+msgstr "Slot de jogo {0}. Pressione seus botões para testá-los. Selecione para jogar com ele ou configurar seus botões."
+
+msgid "controllers.detail_custom"
+msgstr "Usa a configuração de botões que você salvou."
+
+msgid "controllers.detail_steam"
+msgstr "O Steam Input gerencia este controle, então seus botões seguem suas configurações do Steam. Para deixar o Ember gerenciá-lo, inicie o Ember fora do Steam ou desligue o Steam Input para Ultra Street Fighter IV no Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "O Ember ainda não conhece os botões deste controle. Até configurá-lo, o jogo o lê diretamente e os menus do Ember usam os botões definidos como LP e LK. Selecione para configurá-lo."
+
+msgid "controllers.detail_full"
+msgstr "O jogo tem espaço para quatro controles. Desconecte outro para usar este."
+
+msgid "controllers.detail_absent"
+msgstr "Seu controle salvo. Conecte-o para voltar a jogar com ele."
+
+msgid "controllers.detail_game_read"
+msgstr "O jogo lê este controle por conta própria."
+
+msgid "controllers.steam_name"
+msgstr "Controle Steam"
+
+msgid "controllers.test_heading"
+msgstr "Pressione botões para testá-los"
+
+msgid "controllers.test_raw"
+msgstr "Pressionando: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Pressionando: nada"
+
+msgid "controllers.choice_play"
+msgstr "Jogar com este controle"
+
+msgid "controllers.choice_play_detail"
+msgstr "Use-o para jogar online e nos menus do Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Você já joga com este controle."
+
+msgid "controllers.choice_setup"
+msgstr "Configurar botões"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Pressione cada botão por vez para informar ao Ember o que ele faz."
+
+msgid "controllers.choice_setup_steam"
+msgstr "O Steam Input define os botões deste controle."
+
+msgid "controllers.choice_forget"
+msgstr "Esquecer configuração de botões"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Volte ao funcionamento deste controle antes de configurá-lo. Vale na próxima vez que o jogo iniciar."
+
+msgid "controllers.now_playing"
+msgstr "Você joga com {0}."
+
+msgid "controllers.forgotten"
+msgstr "Configuração de botões esquecida. Isto vale na próxima vez que o jogo iniciar."
+
+msgid "pad_setup.input.button"
+msgstr "Botão {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Direcional para cima"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Direcional para a direita"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Direcional para baixo"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Direcional para a esquerda"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Eixo {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Eixo {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Eixo do gatilho {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controle desconectado. Reconecte-o ou saia da sala para escolher outro."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} voltou, mas em outro slot de jogo. Ele volta a funcionar a partir da próxima partida."
+
+msgid "pad_setup.title"
+msgstr "CONFIGURAR CONTROLE"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Novo controle"
+
+msgid "pad_setup.prompt_text"
+msgstr "O Ember ainda não conhece os botões de {0}. Pressione qualquer botão nele para configurar agora. Leva cerca de um minuto."
+
+msgid "pad_setup.not_now"
+msgstr "Agora não"
+
+msgid "pad_setup.step_count"
+msgstr "Etapa {0} de {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Cima"
+
+msgid "pad_setup.step.down"
+msgstr "Baixo"
+
+msgid "pad_setup.step.left"
+msgstr "Esquerda"
+
+msgid "pad_setup.step.right"
+msgstr "Direita"
+
+msgid "pad_setup.step.lp"
+msgstr "Soco fraco"
+
+msgid "pad_setup.step.mp"
+msgstr "Soco médio"
+
+msgid "pad_setup.step.hp"
+msgstr "Soco forte"
+
+msgid "pad_setup.step.lk"
+msgstr "Chute fraco"
+
+msgid "pad_setup.step.mk"
+msgstr "Chute médio"
+
+msgid "pad_setup.step.hk"
+msgstr "Chute forte"
+
+msgid "pad_setup.step.3p"
+msgstr "Os três socos"
+
+msgid "pad_setup.step.3k"
+msgstr "Os três chutes"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Mova a alavanca ou pressione o botão desta direção e solte."
+
+msgid "pad_setup.press_button"
+msgstr "Pressione o botão desejado para esta ação e solte."
+
+msgid "pad_setup.optional"
+msgstr "Se o controle não tiver um botão para esta ação, pule."
+
+msgid "pad_setup.lk_selects"
+msgstr "Este botão também selecionará nos menus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Este botão também voltará nos menus."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Continue segurando para cancelar a configuração."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Segurar qualquer botão: cancelar"
+
+msgid "pad_setup.back_step"
+msgstr "Voltar uma etapa"
+
+msgid "pad_setup.skip"
+msgstr "Pular"
+
+msgid "pad_setup.required"
+msgstr "Esta ação é necessária."
+
+msgid "pad_setup.conflict"
+msgstr "{0} já é {1}. Use outra entrada."
+
+msgid "pad_setup.idle_hint"
+msgstr "Nenhuma entrada ainda. Segure qualquer botão por 3 segundos para cancelar ou pressione Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controle desconectado. Reconecte em até {0} segundos para continuar."
+
+msgid "pad_setup.skipped"
+msgstr "Pulado"
+
+msgid "pad_setup.summary_detail"
+msgstr "Pressione qualquer botão para ver sua etapa. Aqui, Chute fraco seleciona e Chute médio volta, como em todos os menus."
+
+msgid "pad_setup.redo_detail"
+msgstr "Selecione para definir esta entrada novamente."
+
+msgid "pad_setup.save"
+msgstr "Salvar"
+
+msgid "pad_setup.save_detail"
+msgstr "Salve esta configuração e use agora."
+
+msgid "pad_setup.start_over"
+msgstr "Recomeçar"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Limpe todas as etapas e comece novamente."
+
+msgid "pad_setup.cancel"
+msgstr "Cancelar configuração"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Sair sem salvar."
+
+msgid "pad_setup.cancelled"
+msgstr "Configuração cancelada. Nada foi salvo."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controle configurado"
+
+msgid "pad_setup.saved"
+msgstr "{0} está configurado. Para mudar os ataques de seus botões, escolha Layout de botões."
+
+msgid "pad_setup.save_failed"
+msgstr "O Ember não conseguiu usar esta configuração. Nada foi salvo. Os detalhes estão em sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Configuração interrompida porque {0} desconectou. Nada foi salvo."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Configuração interrompida após um minuto sem entradas. Nada foi salvo."
+
+msgid "player.button_layout"
+msgstr "Layout de botões"
+
+msgid "player.button_layout_detail"
+msgstr "Escolha os ataques dos botões de {0}. Isso não muda nada para seu oponente."
+
+msgid "player.button_layout_setup"
+msgstr "O Ember ainda não gerencia {0}. Selecione para configurar os botões primeiro."
+
+msgid "player.button_layout_keyboard"
+msgstr "Layouts são para controles. Para o teclado, use Configurações de botões do jogo."
+
+msgid "player.button_layout_game_reads"
+msgstr "Desative Deixar o jogo ler os controles para usar layouts. Até lá, use Configurações de botões do jogo."
+
+msgid "player.button_layout_failed"
+msgstr "O suporte a controles do Ember não iniciou desta vez. Use Configurações de botões do jogo."
+
+msgid "player.game_buttons"
+msgstr "Configurações de botões do jogo"
+
+msgid "player.game_buttons_detail"
+msgstr "O Ember fecha. No menu do jogo, escolha Opções e as configurações do controle. Use-as para o teclado e controles lidos pelo jogo. Um controle com layout do Ember usa esse layout. O jogo só mantém um layout quando toda ação tem um botão."
+
+msgid "controllers.choice_layout"
+msgstr "Layout de botões"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Escolha os ataques de cada botão."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Configure os botões primeiro."
+
+msgid "controllers.detail_layout"
+msgstr "Layout de botões: {0}."
+
+msgid "button_layout.title"
+msgstr "LAYOUT DE BOTÕES"
+
+msgid "button_layout.button_title"
+msgstr "ALTERAR BOTÃO"
+
+msgid "button_layout.test"
+msgstr "Teste seus botões"
+
+msgid "button_layout.test_detail"
+msgstr "Pressione os botões de {0} para ver seus ataques. Nesta linha, apenas Voltar atua no menu."
+
+msgid "button_layout.attacks"
+msgstr "Ataques"
+
+msgid "button_layout.throw"
+msgstr "Arremesso (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Ataque Focus (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Selecione e pressione o botão desejado para {0}. Se outro botão tiver esse ataque, os dois trocam."
+
+msgid "button_layout.row_missing"
+msgstr "Nenhum botão faz apenas este ataque, então ele não pode ser executado sozinho."
+
+msgid "button_layout.no_button"
+msgstr "Sem botão"
+
+msgid "button_layout.edit_button"
+msgstr "Alterar um botão"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Selecione e pressione um botão para escolher exatamente seus ataques. Use qualquer combinação ou desative o botão."
+
+msgid "button_layout.preset"
+msgstr "Predefinição"
+
+msgid "button_layout.preset_detail"
+msgstr "Selecione um layout pronto. Padrão é o layout do próprio jogo."
+
+msgid "button_layout.custom"
+msgstr "Personalizado"
+
+msgid "button_layout.game_layout"
+msgstr "Layout do jogo"
+
+msgid "button_layout.preset.default"
+msgstr "Padrão"
+
+msgid "button_layout.preset.default_detail"
+msgstr "O layout do jogo. Serve para a maioria dos controles e sticks de 8 botões."
+
+msgid "button_layout.preset.triggers"
+msgstr "Três ataques nos gatilhos"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Para controles de seis botões. Soco forte no botão superior direito e chute forte no esquerdo. Os três socos no gatilho esquerdo, os três chutes no direito."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus e arremesso"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Como Padrão, mas o botão superior esquerdo faz Focus e o gatilho esquerdo arremessa. É a quarta coluna de um stick de 8 botões. Os três socos e os três chutes passam aos cliques dos analógicos."
+
+msgid "button_layout.preset_applied"
+msgstr "Layout definido como {0}."
+
+msgid "button_layout.remove"
+msgstr "Usar o layout do jogo"
+
+msgid "button_layout.remove_detail"
+msgstr "O Ember para de mudar os botões deste controle. O layout das Configurações de botões do jogo volta a valer."
+
+msgid "button_layout.removed"
+msgstr "O layout do jogo volta a valer para este controle."
+
+msgid "button_layout.press_for"
+msgstr "Pressione o botão para {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Pressione o botão a alterar"
+
+msgid "button_layout.press_cancel"
+msgstr "Mova o analógico ou pressione Start para cancelar."
+
+msgid "button_layout.assigned"
+msgstr "{0} está em {1} agora."
+
+msgid "button_layout.swapped"
+msgstr "{0} está em {1} agora. {2} faz {3} no lugar."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} está em {1} agora. {2} não faz nada agora."
+
+msgid "button_layout.bit_detail"
+msgstr "Esquerda ou Direita liga ou desliga {0} para este botão."
+
+msgid "button_layout.clear"
+msgstr "Sem ataques"
+
+msgid "button_layout.clear_detail"
+msgstr "Este botão não faz nada nas lutas."
+
+msgid "button_layout.button_does"
+msgstr "Nas lutas: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nada"
+
+msgid "button_layout.absent"
+msgstr "Não conectado"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} não está conectado. Seu layout está salvo. Conecte-o para alterá-lo."
+
+msgid "button_layout.setup_first"
+msgstr "Configure os botões primeiro"
+
+msgid "button_layout.setup_first_detail"
+msgstr "O jogo lê {0} diretamente, então o Ember ainda não pode alterar seus botões. Configure-o uma vez e ele funcionará aqui como os outros controles."
+
+msgid "button_layout.missing_heading"
+msgstr "Alguns ataques não têm botão"
+
+msgid "button_layout.missing_text"
+msgstr "Estes ataques não têm um botão próprio: {0}. O layout está salvo."
+
+msgid "button_layout.keep_editing"
+msgstr "Continuar editando"
+
+msgid "button_layout.leave"
+msgstr "Sair"

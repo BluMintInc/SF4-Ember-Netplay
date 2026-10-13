@@ -13,6 +13,8 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
+#include "../netplay/ControllerInventory.hxx"
+#include "../common/ControllerHints.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
 #include "sf4e.hxx"
@@ -43,6 +45,7 @@
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
 #include "../netplay/MatchHudPreference.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
@@ -65,6 +68,7 @@
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
+void LogGameplayController(const input::Device& device, const char* reason);
 // The lifecycle trace records only changes. Publish runs every application
 // tick, so the traced values are compared here first and the JSON document is
 // built only when one of them moved.
@@ -121,6 +125,16 @@ struct Runtime {
 
     input::Assignment input;
     bool inputInitialized = false;
+    std::optional<gamepads::Identity> setupAdoption;
+    std::string padHint;
+    ULONGLONG padHintUntil = 0;
+    gamepads::ControllerInventory padInventory;
+    gamepads::ControllerHints padHints;
+    std::vector<gamepads::PadView> pads;
+    gamepads::Layer padLayer = gamepads::Layer::Failed;
+    bool runningControllerLayer = true;
+    std::optional<gamepads::PromptBrand> loggedPromptBrand;
+    gamepads::ButtonPrompts loggedButtonPrompts = gamepads::ButtonPrompts::Automatic;
     input::Device matchInput;
     int matchInputSide=-1;
     bool matchInputFault=false;
@@ -398,6 +412,8 @@ void ExpirePublicRooms(std::uint64_t nowMs);
 std::string DeviceName(const input::Device& device);
 std::string ControllerLabel(const input::Device& device);
 void CaptureMenuInput();
+void HandleControllerRequest(const gamepads::ControllerRequest& request);
+bool CanChooseControllerNow();
 
 // The published snapshot, errors and Discord (sf4e__NetplayRuntime__Status.cxx).
 void FillNetworkDiagnostics(platform::DiagnosticsView& view);

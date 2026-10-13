@@ -1002,11 +1002,7 @@ msgstr "Affichage plus rapide (1 trame en moins)"
 msgid "player.faster_display_detail"
 msgstr "Le jeu affiche chaque trame dès qu'elle est prête, au lieu d'une trame plus tard. Désactivez-le si le jeu descend sous 60 fps sur ce PC. Cela ne touche que ce PC : l'autre joueur n'a pas besoin de l'activer. Les changements s'appliquent au prochain lancement du jeu."
 
-msgid "player.native_menus"
-msgstr "Ouvrir les menus du jeu"
 
-msgid "player.native_menus_detail"
-msgstr "Ember se fermera. Choisissez Options dans le menu du jeu pour configurer les boutons de combat."
 
 msgid "settings.interface_title"
 msgstr "INTERFACE"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "Commandes"
 
 msgid "about.controls_detail"
-msgstr "Manette Xbox : A sélectionne et B revient, quels que soient les boutons de combat. Autres manettes : le LP associé sélectionne et le LK revient. Clavier : flèches, Enter et Esc. Le D-pad déplace ; gauche et droite changent une valeur. Retour à l'Accueil masque Ember. F10, ou Start sur la manette, le rouvre au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre propre place passe à Prêt, et B quitte votre place ou la file. Sur une manette Xbox, X ouvre Combattant, Y ouvre Options et View ouvre Chat ; appuyez de nouveau pour revenir au salon.\n\nÀ l'entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. À la manette, maintenez View ou Select et appuyez sur Start."
+msgstr "Xbox : A sélectionne et B revient en arrière. PlayStation : Croix sélectionne et Rond revient en arrière. Switch : B sélectionne et A revient en arrière, comme dans les menus du jeu. Manette configurée dans Ember : Le bouton choisi pour Pied léger sélectionne et celui de Pied moyen revient en arrière, quelle que soit la disposition des boutons. Clavier : flèches, Entrée et Échap. La croix directionnelle déplace ; Gauche et Droite changent une valeur. Revenir en arrière à l'Accueil masque Ember. F10, ou Start sur une manette, l'ouvre à nouveau au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre place vous déclare prêt et B quitte votre place ou la file (sur les autres manettes, les boutons aux mêmes positions). Sur Xbox, X ouvre Combattant, Y Options et View Chat ; appuyez à nouveau pour revenir au salon. PlayStation utilise Carré, Triangle et Share ou Create ; Switch utilise Y, X et Minus.\n\nEn entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. Sur une manette, maintenez View (Share, Create ou Minus) et appuyez sur Start."
 
 msgid "about.controls_keyboard"
 msgstr "Au clavier, Espace sélectionne aussi et Retour arrière revient aussi. Dans un salon, F ouvre Combattant, T ouvre Options et C ouvre Chat. Échap revient toujours, même sur votre propre place ; Suppr quitte votre place ou votre file."
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "Table fermée"
 
 msgid "controller.disconnected"
-msgstr "Manette déconnectée. Reconnectez-la ou réattribuez-la."
+msgstr "Manette déconnectée. Reconnectez-la ou choisissez-en une autre dans Paramètres > Joueur et manette."
 
 msgid "controller.none"
 msgstr "Choisissez un appareil de jeu"
@@ -1277,6 +1273,12 @@ msgstr "Clavier"
 
 msgid "controller.numbered"
 msgstr "Manette {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} n'est pas connecté. Utilisation de {1} pour le moment."
+
+msgid "controller.connected_adopted"
+msgstr "{0} est connecté. Vous jouez avec."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (déconnecté)"
@@ -2977,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Manette de jeu déconnectée. Reconnectez-la avant le prochain combat."
 
 msgid "runtime.match_input_blocked"
-msgstr "Commandes du combat bloquées : reconnectez {0}. Si son emplacement a changé, retournez au salon pour le réattribuer."
+msgstr "{0} est déconnecté. Votre combattant ne reçoit aucune commande tant que vous ne le reconnectez pas."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Impossible de vérifier l'attribution de la manette au combat. Réattribuez-la et réessayez."
@@ -4583,3 +4585,513 @@ msgstr "Toujours envoyer n'a pas pu être activé, donc ce rapport n'a pas été
 
 msgid "reports.automatic_unavailable"
 msgstr "Les rapports automatiques du jour sont épuisés ou l'historique des rapports envoyés est illisible, donc ce rapport n'a pas été envoyé. Choisissez Envoyer ce rapport pour l'envoyer depuis son aperçu."
+
+msgid "player.button_prompts"
+msgstr "Symboles des boutons"
+
+msgid "player.button_prompts_detail"
+msgstr "Les images de boutons affichées par Ember. Automatique les adapte à la manette avec laquelle vous jouez. La fonction de chaque bouton reste la même."
+
+msgid "player.prompts_auto"
+msgstr "Automatique"
+
+
+msgid "controller.brand.stick"
+msgstr "Boutons de combat"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} est connecté."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} est connecté. Vous jouez au clavier ; pour changer, utilisez Changer de manette dans Paramètres > Joueur et manette."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} est connecté. Ouvrez Ember pour configurer ses boutons."
+
+msgid "controller.connected_full"
+msgstr "{0} est connecté, mais quatre manettes sont déjà utilisées. Déconnectez-en une pour utiliser celle-ci."
+
+msgid "controller.disconnected_named"
+msgstr "{0} est déconnecté."
+
+msgid "controller.reconnected"
+msgstr "{0} est reconnecté."
+
+msgid "controller.release_to_use"
+msgstr "Relâchez le bouton pour jouer avec {0}."
+
+msgid "player.controllers"
+msgstr "Manettes"
+
+msgid "player.controllers_value"
+msgstr "{0} connectées"
+
+msgid "player.controllers_detail"
+msgstr "Vous jouez avec {0}. Voyez toutes les manettes connectées, testez leurs boutons et configurez celles qu'Ember ne connaît pas encore."
+
+
+
+msgid "player.game_reads"
+msgstr "Laisser le jeu lire les manettes"
+
+msgid "player.game_reads_detail"
+msgstr "Désactivé : Ember lit toutes les manettes et le jeu voit chacune comme une manette Xbox. Activé : le jeu lit les manettes lui-même, comme sans Ember ; les manettes PlayStation et Switch ont alors besoin de Steam Input. Les changements s'appliquent au prochain démarrage du jeu."
+
+msgid "player.game_reads_pending"
+msgstr "Redémarrez le jeu pour appliquer ce changement."
+
+msgid "player.prompts_showing"
+msgstr "Affichage des boutons {0}."
+
+msgid "controllers.title"
+msgstr "MANETTES"
+
+msgid "controllers.unavailable"
+msgstr "Prise en charge des manettes désactivée"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember n'a pas pu démarrer sa prise en charge des manettes, donc le jeu les lit lui-même cette fois. Les manettes Xbox fonctionnent comme d'habitude ; les autres peuvent nécessiter Steam Input. Les détails sont dans sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Le jeu lit les manettes"
+
+msgid "controllers.game_reads_detail"
+msgstr "Laisser le jeu lire les manettes est activé, donc Ember ne configure ni ne teste les manettes. Désactivez-le dans Joueur et manette et redémarrez le jeu."
+
+msgid "controllers.none"
+msgstr "Aucune manette connectée"
+
+msgid "controllers.none_detail"
+msgstr "Connectez une manette pour la voir ici. Le clavier fonctionne sans manette."
+
+msgid "controllers.value_yours"
+msgstr "La vôtre"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Non configurée"
+
+msgid "controllers.value_full"
+msgstr "Non utilisée"
+
+msgid "controllers.value_absent"
+msgstr "Non connectée"
+
+msgid "controllers.detail_yours"
+msgstr "Vous jouez avec cette manette. Emplacement de jeu {0}. Appuyez sur ses boutons pour les tester."
+
+msgid "controllers.detail_other"
+msgstr "Emplacement de jeu {0}. Appuyez sur ses boutons pour les tester. Sélectionnez-la pour jouer avec ou configurer ses boutons."
+
+msgid "controllers.detail_custom"
+msgstr "Utilise la configuration de boutons enregistrée."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input gère cette manette, donc ses boutons suivent vos paramètres Steam. Pour laisser Ember la gérer, lancez Ember hors de Steam ou désactivez Steam Input pour Ultra Street Fighter IV dans Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember ne connaît pas encore les boutons de cette manette. Jusqu'à sa configuration, le jeu la lit directement et les menus d'Ember utilisent les boutons affectés à LP et LK. Sélectionnez-la pour la configurer."
+
+msgid "controllers.detail_full"
+msgstr "Le jeu peut accueillir quatre manettes. Déconnectez-en une autre pour utiliser celle-ci."
+
+msgid "controllers.detail_absent"
+msgstr "Votre manette enregistrée. Connectez-la pour jouer à nouveau avec."
+
+msgid "controllers.detail_game_read"
+msgstr "Le jeu lit cette manette lui-même."
+
+msgid "controllers.steam_name"
+msgstr "Manette Steam"
+
+msgid "controllers.test_heading"
+msgstr "Appuyez sur les boutons pour les tester"
+
+msgid "controllers.test_raw"
+msgstr "Appuyé : {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Appuyé : rien"
+
+msgid "controllers.choice_play"
+msgstr "Jouer avec cette manette"
+
+msgid "controllers.choice_play_detail"
+msgstr "Utilisez-la pour jouer en ligne et dans les menus d'Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Vous jouez déjà avec cette manette."
+
+msgid "controllers.choice_setup"
+msgstr "Configurer les boutons"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Appuyez sur chaque bouton à tour de rôle pour indiquer à Ember sa fonction."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input définit les boutons de cette manette."
+
+msgid "controllers.choice_forget"
+msgstr "Oublier la configuration des boutons"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Revenir au fonctionnement de cette manette avant sa configuration. S'applique au prochain démarrage du jeu."
+
+msgid "controllers.now_playing"
+msgstr "Vous jouez avec {0}."
+
+msgid "controllers.forgotten"
+msgstr "Configuration des boutons oubliée. Cela s'applique au prochain démarrage du jeu."
+
+msgid "pad_setup.input.button"
+msgstr "Bouton {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Croix haut"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Croix droite"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Croix bas"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Croix gauche"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Axe {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Axe {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Axe de gâchette {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Manette déconnectée. Reconnectez-la ou quittez le salon pour en choisir une autre."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} est de retour, mais dans un autre emplacement de jeu. Il fonctionnera à nouveau à partir de la prochaine partie."
+
+msgid "pad_setup.title"
+msgstr "CONFIGURER LA MANETTE"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nouvelle manette"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember ne connaît pas encore les boutons de {0}. Appuyez sur un de ses boutons pour la configurer maintenant. Cela prend environ une minute."
+
+msgid "pad_setup.not_now"
+msgstr "Pas maintenant"
+
+msgid "pad_setup.step_count"
+msgstr "Étape {0} sur {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Haut"
+
+msgid "pad_setup.step.down"
+msgstr "Bas"
+
+msgid "pad_setup.step.left"
+msgstr "Gauche"
+
+msgid "pad_setup.step.right"
+msgstr "Droite"
+
+msgid "pad_setup.step.lp"
+msgstr "Poing léger"
+
+msgid "pad_setup.step.mp"
+msgstr "Poing moyen"
+
+msgid "pad_setup.step.hp"
+msgstr "Poing fort"
+
+msgid "pad_setup.step.lk"
+msgstr "Pied léger"
+
+msgid "pad_setup.step.mk"
+msgstr "Pied moyen"
+
+msgid "pad_setup.step.hk"
+msgstr "Pied fort"
+
+msgid "pad_setup.step.3p"
+msgstr "Les trois poings"
+
+msgid "pad_setup.step.3k"
+msgstr "Les trois pieds"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Poussez le stick ou appuyez sur le bouton de cette direction, puis relâchez."
+
+msgid "pad_setup.press_button"
+msgstr "Appuyez sur le bouton voulu pour cette action, puis relâchez."
+
+msgid "pad_setup.optional"
+msgstr "Si votre manette n'a pas de bouton pour cette action, passez cette étape."
+
+msgid "pad_setup.lk_selects"
+msgstr "Ce bouton servira aussi à sélectionner dans les menus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Ce bouton servira aussi à revenir en arrière dans les menus."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Maintenez pour annuler la configuration."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Maintenir un bouton : annuler"
+
+msgid "pad_setup.back_step"
+msgstr "Étape précédente"
+
+msgid "pad_setup.skip"
+msgstr "Passer"
+
+msgid "pad_setup.required"
+msgstr "Cette action est nécessaire."
+
+msgid "pad_setup.conflict"
+msgstr "{0} correspond déjà à {1}. Utilisez une autre entrée."
+
+msgid "pad_setup.idle_hint"
+msgstr "Aucune entrée pour le moment. Maintenez un bouton 3 secondes pour annuler, ou appuyez sur Échap."
+
+msgid "pad_setup.reconnect"
+msgstr "Manette déconnectée. Reconnectez-la dans les {0} secondes pour continuer."
+
+msgid "pad_setup.skipped"
+msgstr "Passé"
+
+msgid "pad_setup.summary_detail"
+msgstr "Appuyez sur un bouton pour voir son étape. Ici, Pied léger sélectionne et Pied moyen revient en arrière, comme dans tous les menus."
+
+msgid "pad_setup.redo_detail"
+msgstr "Sélectionnez pour définir à nouveau cette entrée."
+
+msgid "pad_setup.save"
+msgstr "Enregistrer"
+
+msgid "pad_setup.save_detail"
+msgstr "Enregistrer cette configuration et l'utiliser maintenant."
+
+msgid "pad_setup.start_over"
+msgstr "Recommencer"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Effacer toutes les étapes et recommencer."
+
+msgid "pad_setup.cancel"
+msgstr "Annuler la configuration"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Quitter sans enregistrer."
+
+msgid "pad_setup.cancelled"
+msgstr "Configuration annulée. Rien n'a été enregistré."
+
+msgid "pad_setup.saved_heading"
+msgstr "Manette configurée"
+
+msgid "pad_setup.saved"
+msgstr "{0} est configurée. Pour changer les attaques de ses boutons, choisissez Disposition des boutons."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember n'a pas pu utiliser cette configuration. Rien n'a été enregistré. Les détails sont dans sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Configuration arrêtée car {0} s'est déconnectée. Rien n'a été enregistré."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Configuration arrêtée après une minute sans entrée. Rien n'a été enregistré."
+
+msgid "player.button_layout"
+msgstr "Disposition des boutons"
+
+msgid "player.button_layout_detail"
+msgstr "Choisissez les attaques des boutons de {0}. Cela ne change rien pour votre adversaire."
+
+msgid "player.button_layout_setup"
+msgstr "Ember ne gère pas encore {0}. Sélectionnez pour configurer ses boutons d'abord."
+
+msgid "player.button_layout_keyboard"
+msgstr "Les dispositions sont réservées aux manettes. Pour le clavier, utilisez les réglages des boutons du jeu."
+
+msgid "player.button_layout_game_reads"
+msgstr "Désactivez Laisser le jeu lire les manettes pour utiliser les dispositions. En attendant, utilisez les réglages des boutons du jeu."
+
+msgid "player.button_layout_failed"
+msgstr "La prise en charge des manettes d'Ember n'a pas démarré cette fois. Utilisez les réglages des boutons du jeu."
+
+msgid "player.game_buttons"
+msgstr "Réglages des boutons du jeu"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember se ferme. Dans le jeu, choisissez Options, puis les réglages de manette. Utilisez-les pour le clavier et les manettes lues par le jeu. Une manette ayant une disposition Ember utilise celle-ci. Le jeu ne conserve une disposition que si chaque action a un bouton."
+
+msgid "controllers.choice_layout"
+msgstr "Disposition des boutons"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Choisissez les attaques de chaque bouton."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Configurez les boutons d'abord."
+
+msgid "controllers.detail_layout"
+msgstr "Disposition des boutons : {0}."
+
+msgid "button_layout.title"
+msgstr "DISPOSITION DES BOUTONS"
+
+msgid "button_layout.button_title"
+msgstr "MODIFIER UN BOUTON"
+
+msgid "button_layout.test"
+msgstr "Testez vos boutons"
+
+msgid "button_layout.test_detail"
+msgstr "Appuyez sur les boutons de {0} pour voir leurs attaques. Sur cette ligne, seul Retour agit sur le menu."
+
+msgid "button_layout.attacks"
+msgstr "Attaques"
+
+msgid "button_layout.throw"
+msgstr "Projection (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Attaque Focus (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Sélectionnez, puis appuyez sur le bouton souhaité pour {0}. Si un autre bouton a cette attaque, les deux s'échangent."
+
+msgid "button_layout.row_missing"
+msgstr "Aucun bouton ne fait uniquement cette attaque. Vous ne pouvez donc pas l'effectuer seule."
+
+msgid "button_layout.no_button"
+msgstr "Aucun bouton"
+
+msgid "button_layout.edit_button"
+msgstr "Modifier un bouton"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Sélectionnez, puis appuyez sur un bouton pour choisir précisément ses attaques. Vous pouvez combiner toutes les attaques ou désactiver le bouton."
+
+msgid "button_layout.preset"
+msgstr "Préréglage"
+
+msgid "button_layout.preset_detail"
+msgstr "Sélectionnez une disposition prédéfinie. Par défaut correspond à la disposition du jeu."
+
+msgid "button_layout.custom"
+msgstr "Personnalisée"
+
+msgid "button_layout.game_layout"
+msgstr "Disposition du jeu"
+
+msgid "button_layout.preset.default"
+msgstr "Par défaut"
+
+msgid "button_layout.preset.default_detail"
+msgstr "La disposition du jeu. Convient à la plupart des manettes et sticks à 8 boutons."
+
+msgid "button_layout.preset.triggers"
+msgstr "Trois attaques sur les gâchettes"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Pour les manettes à six boutons. Poing fort sur le bouton d'épaule droit et pied fort à gauche. Les trois poings sur la gâchette gauche, les trois pieds sur la droite."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus et projection"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Comme Par défaut, mais le bouton d'épaule gauche fait l'attaque Focus et la gâchette gauche projette. C'est la quatrième colonne d'un stick à 8 boutons. Les trois poings et les trois pieds passent aux clics des sticks."
+
+msgid "button_layout.preset_applied"
+msgstr "Disposition réglée sur {0}."
+
+msgid "button_layout.remove"
+msgstr "Utiliser la disposition du jeu"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember ne modifie plus les boutons de cette manette. La disposition des réglages des boutons du jeu s'applique à nouveau."
+
+msgid "button_layout.removed"
+msgstr "La disposition du jeu s'applique à nouveau à cette manette."
+
+msgid "button_layout.press_for"
+msgstr "Appuyez sur le bouton pour {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Appuyez sur le bouton à modifier"
+
+msgid "button_layout.press_cancel"
+msgstr "Bougez le stick ou appuyez sur Start pour annuler."
+
+msgid "button_layout.assigned"
+msgstr "{0} est maintenant sur {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} est maintenant sur {1}. {2} fait {3} à la place."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} est maintenant sur {1}. {2} ne fait plus rien."
+
+msgid "button_layout.bit_detail"
+msgstr "Gauche ou Droite active ou désactive {0} pour ce bouton."
+
+msgid "button_layout.clear"
+msgstr "Aucune attaque"
+
+msgid "button_layout.clear_detail"
+msgstr "Ce bouton ne fait rien en combat."
+
+msgid "button_layout.button_does"
+msgstr "En combat : {0}"
+
+msgid "button_layout.nothing"
+msgstr "Rien"
+
+msgid "button_layout.absent"
+msgstr "Non connectée"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} n'est pas connectée. Sa disposition est enregistrée. Connectez-la pour la modifier."
+
+msgid "button_layout.setup_first"
+msgstr "Configurez les boutons d'abord"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Le jeu lit {0} lui-même. Ember ne peut donc pas encore modifier ses boutons. Configurez-la une fois et elle fonctionnera ici comme les autres manettes."
+
+msgid "button_layout.missing_heading"
+msgstr "Certaines attaques n'ont pas de bouton"
+
+msgid "button_layout.missing_text"
+msgstr "Ces attaques n'ont aucun bouton dédié : {0}. La disposition est enregistrée."
+
+msgid "button_layout.keep_editing"
+msgstr "Continuer à modifier"
+
+msgid "button_layout.leave"
+msgstr "Quitter"

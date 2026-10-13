@@ -1,4 +1,6 @@
 #include "ApplicationShell.hxx"
+#include "ButtonPromptSetting.hxx"
+#include "ControllersScreen.hxx"
 #include "Theme.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
@@ -257,9 +259,10 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
  }
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
+ SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&v.canEditPreferences&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
-  if(Send(CommandKind::SavePreferences,v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&(v.canEditPreferences||(v.atMainMenu&&v.session.room!=RoomState::Idle&&!netplay::Fighting(v.session.match)&&OnlyLayoutsChanged(v.preferences,preferences_)))&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+  if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
@@ -270,6 +273,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   title=loc::T("controller.assign_title");
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
   rows[0].hint=loc::T("common.cancel");
+  rows[0].detailText=DetailText::Name;
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -361,14 +365,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
     std::string(loc::T(sent[i].kind=="problem"?"reports.row":"reports.crash_report"))+"\n\n"+ReportRecordText(sent[i])));
   if(rows.empty())rows.push_back(InfoRow("sent-none",loc::T("reports.none"),"",loc::T("reports.none_detail")));
  }else if(screen=="player"){
-  title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
-   Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
-   ConfirmRow("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
-   Value("background-play",loc::T("player.background_play"),preferences_.backgroundPlay?loc::T("common.on"):loc::T("common.off"),loc::T("player.background_play_detail"),v.canEditPreferences),
-   Value("lower-input-lag",loc::T("player.lower_input_lag"),preferences_.lowerInputLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_input_lag_detail"),v.canEditPreferences),
-   Value("lower-keyboard-lag",loc::T("player.lower_keyboard_lag"),preferences_.lowerKeyboardLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_keyboard_lag_detail"),v.canEditPreferences),
-   Value("faster-display",loc::T("player.faster_display"),preferences_.fasterDisplay?loc::T("common.on"):loc::T("common.off"),loc::T("player.faster_display_detail"),v.canEditPreferences),
-   Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
+  title=loc::T("player.title");
+  rows=PlayerControllerRows(preferences_,v.controller,v.inputDevice.type,v.gameplayBrand,v.pads,
+   gamepads::LayerPending(preferences_.controllerLayer,v.runningControllerLayer),v.canChangeController,v.canEditPreferences,idle,v.padLayer);
+ }else if(screen=="controllers"){
+  title=loc::T("controllers.title");rows=ControllerRows(v.padLayer,v.pads,v.canChangeController,v.canEditPreferences);
  }else if(screen=="interface"){
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
@@ -441,7 +442,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports";
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports";
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -514,12 +515,13 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // vanish because a preference write happens to be in flight. Save failures
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
+ if(!v.padHint.empty()&&statusTone!=Tone::Error){status=v.padHint;statusTone=Tone::Neutral;}
  // The failed language save is about the row on the Interface screen, so it
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
- if(v.controllerUnavailable){status=loc::T("controller.disconnected");statusTone=Tone::Error;}
+ if(v.controllerUnavailable){status=loc::T(v.session.room==RoomState::Idle?"controller.disconnected":"controller.disconnected_room");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
  if(!sessionProblem.empty()){status=sessionProblem;statusTone=Tone::Error;}
@@ -567,6 +569,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(publicRooms_.Activate(a,nav))return;
  }
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
+ if(ControllerActivate(a,v,submit))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
@@ -575,7 +578,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="replays")nav.Push(a.id);
+ else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create")OpenCreate();
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
@@ -583,7 +586,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
- else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
+ else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
@@ -632,7 +635,9 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
   else if(a.id=="lower-input-lag")preferences_.lowerInputLag=a.delta>0;
   else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
+  else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
+  else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
@@ -701,6 +706,9 @@ void ApplicationShell::SetLanguage(std::string preference) {
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
+ CancelLayoutCapture(v,submit);
+ if(preferencesDirty_&&OnlyLayoutsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
+ UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
@@ -710,6 +718,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
+ UpdatePadSetup(v,submit,true);
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
  // Called out of Training: the player's own table is shown, where the Ready
  // row carries the time left, and a player who asked for it is readied.
@@ -828,9 +837,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
+ SetGameplayLayoutPrompts(v);
  const bool keys=KeyboardPrompts();
  std::vector<LegendHint> roomHints=keys?std::vector<LegendHint>{{"F",loc::T("room.legend_fighter")},{"T",loc::T("room.legend_options")},{"C",loc::T("room.chat")}}:
   std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"View",loc::T("room.chat")}};
@@ -891,6 +902,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const int id=std::stoi(e.id.substr(5));DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
  };
  GameMenu::Detail profilePreview;
+ if(screen=="controllers")profilePreview=[&](const std::string& id){
+  const auto pad=std::find_if(v.pads.begin(),v.pads.end(),[&](const gamepads::PadView& p){return id=="pad-"+std::to_string(p.id);});
+  if(pad!=v.pads.end())DrawControllerDetail(*pad,preferences_.buttonPrompts);
+ };
  if(screen=="profile"||screen=="main-character")profilePreview=[&](const std::string& id){
   const int fighter=screen=="main-character"&&id.compare(0,5,"main-")==0?std::stoi(id.substr(5)):v.preferences.mainFighter;
   const auto space=ImGui::GetContentRegionAvail();const float size=(std::min)(220*Scale(),(std::min)(space.x,space.y-12*Scale()));
@@ -906,6 +921,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   preview.spectators=2;
   DrawMatchStripPreview(preview);
  };
+ if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  if(screen=="room"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawRoomBoard(v,entries,navigation,action,height,feedback);};
  if(screen=="room-chat"&&v.room.roomEpoch)board=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){DrawChatScreen(v,entries,navigation,action,height,feedback);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
@@ -956,6 +972,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
   else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
+  else if(screen=="controllers")HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

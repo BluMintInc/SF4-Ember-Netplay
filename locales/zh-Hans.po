@@ -1002,11 +1002,7 @@ msgstr "更快显示（减少 1 帧延迟）"
 msgid "player.faster_display_detail"
 msgstr "游戏在每一帧准备好后立即显示，而不是晚 1 帧显示。如果游戏在这台电脑上低于 60 fps，请关闭此选项。只影响这台电脑：对方玩家无需开启。更改将在下次启动游戏时生效。"
 
-msgid "player.native_menus"
-msgstr "打开游戏菜单"
 
-msgid "player.native_menus_detail"
-msgstr "Ember 将关闭。请在游戏菜单的选项中设置格斗按钮。"
 
 msgid "settings.interface_title"
 msgstr "界面"
@@ -1156,7 +1152,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox 手柄：按 A 选择，按 B 返回，不受格斗按键设置影响。其他手柄：按已映射的 LP 选择，LK 返回。键盘：方向键、Enter 和 Escape。D-pad 移动，左／右调整数值。在主页按返回会隐藏 Ember；在游戏主菜单按 F10（手柄按 Start）可再次打开。\n\n在房间里，在牌桌上按 A 可选择席位，在自己的席位上按 A 表示准备，按 B 离开席位或队列。Xbox 手柄上，X 打开角色，Y 打开选项，View 打开聊天，再按一次返回房间。\n\n训练中，F6 打开控制面板，F5 隐藏 HUD，F7 录制，F8 回放。手柄上按住 View 或 Select 再按 Start。"
+msgstr "Xbox：A 选择，B 返回。PlayStation：叉号选择，圆圈返回。Switch：B 选择，A 返回，与游戏自身的菜单一致。在 Ember 中设置的控制器：为轻脚选定的按钮负责选择，为中脚选定的按钮负责返回，无论按钮布局如何。键盘：方向键、Enter 和 Escape。方向键移动，左右更改数值。在主页返回会隐藏 Ember。在游戏主菜单按 F10 或控制器上的 Start 可再次打开。\n\n在房间中，在桌台上按 A 可选择座位，在自己的座位上按 A 可准备，按 B 可离开座位或队列位置；其他控制器使用相同位置的按钮。在 Xbox 上，X 打开斗士，Y 打开选项，View 打开聊天；再次按下会返回房间。PlayStation 使用方块、三角和 Share 或 Create；Switch 使用 Y、X 和 Minus。\n\n训练中，F6 打开控制界面，F5 隐藏 HUD，F7 录制，F8 播放。在控制器上按住 View（Share、Create 或 Minus）并按 Start。"
 
 msgid "about.controls_keyboard"
 msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
@@ -1267,7 +1263,7 @@ msgid "room.table_closed"
 msgstr "对战席已关闭"
 
 msgid "controller.disconnected"
-msgstr "控制器已断开。请重新连接或明确分配。"
+msgstr "控制器已断开。重新连接，或在设置 > 玩家与控制器中选择另一个。"
 
 msgid "controller.none"
 msgstr "请选择对战设备"
@@ -1277,6 +1273,12 @@ msgstr "键盘"
 
 msgid "controller.numbered"
 msgstr "控制器 {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} 未连接。暂时使用 {1}。"
+
+msgid "controller.connected_adopted"
+msgstr "{0} 已连接。你将使用它游玩。"
 
 msgid "controller.disconnected_name"
 msgstr "{0}（已断开）"
@@ -2977,7 +2979,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "对战设备已断开连接。请在下一场对战前重新连接。"
 
 msgid "runtime.match_input_blocked"
-msgstr "对战输入已被阻止：请重新连接 {0}。如果其槽位已变更，请返回房间重新分配。"
+msgstr "{0} 已断开。在你重新连接前，斗士不会收到任何输入。"
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "无法验证控制器在对战中的分配。请重新分配后再试。"
@@ -4583,3 +4585,513 @@ msgstr "无法开启“始终发送”，因此未发送此报告。选择“发
 
 msgid "reports.automatic_unavailable"
 msgstr "当天的自动报告已用完，或无法读取已发送报告的记录，因此未发送此报告。选择“发送此报告”即可从预览中发送。"
+
+msgid "player.button_prompts"
+msgstr "按钮提示"
+
+msgid "player.button_prompts_detail"
+msgstr "Ember 显示的按钮图案。自动会匹配你游玩时使用的控制器。各按钮的功能保持不变。"
+
+msgid "player.prompts_auto"
+msgstr "自动"
+
+
+msgid "controller.brand.stick"
+msgstr "战斗按钮"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} 已连接。"
+
+msgid "controller.connected_keyboard"
+msgstr "{0} 已连接。你正在使用键盘；要切换，请在设置 > 玩家与控制器中使用更换控制器。"
+
+msgid "controller.connected_unmapped"
+msgstr "{0} 已连接。打开 Ember 来设置它的按钮。"
+
+msgid "controller.connected_full"
+msgstr "{0} 已连接，但已有四个控制器正在使用。断开其中一个才能使用它。"
+
+msgid "controller.disconnected_named"
+msgstr "{0} 已断开。"
+
+msgid "controller.reconnected"
+msgstr "{0} 已重新连接。"
+
+msgid "controller.release_to_use"
+msgstr "松开按钮即可使用 {0} 游玩。"
+
+msgid "player.controllers"
+msgstr "控制器"
+
+msgid "player.controllers_value"
+msgstr "已连接 {0} 个"
+
+msgid "player.controllers_detail"
+msgstr "你正在使用 {0} 游玩。查看所有已连接的控制器，测试按钮，并设置 Ember 尚未识别的控制器。"
+
+
+
+msgid "player.game_reads"
+msgstr "让游戏读取控制器"
+
+msgid "player.game_reads_detail"
+msgstr "关闭：Ember 读取所有控制器，游戏将它们识别为 Xbox 手柄。开启：游戏像没有 Ember 时一样自行读取控制器，PlayStation 和 Switch 手柄此时需要 Steam Input。更改在下次启动游戏时生效。"
+
+msgid "player.game_reads_pending"
+msgstr "重启游戏以应用此更改。"
+
+msgid "player.prompts_showing"
+msgstr "正在显示 {0} 按钮。"
+
+msgid "controllers.title"
+msgstr "控制器"
+
+msgid "controllers.unavailable"
+msgstr "控制器支持已关闭"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember 无法启动控制器支持，因此本次由游戏自行读取控制器。Xbox 手柄照常工作，其他手柄可能需要 Steam Input。详情见 sf4e.log。"
+
+msgid "controllers.game_reads"
+msgstr "游戏正在读取控制器"
+
+msgid "controllers.game_reads_detail"
+msgstr "让游戏读取控制器已开启，因此 Ember 不会设置或测试控制器。在玩家与控制器中将其关闭，然后重启游戏。"
+
+msgid "controllers.none"
+msgstr "未连接控制器"
+
+msgid "controllers.none_detail"
+msgstr "连接控制器后会在这里显示。不接控制器也能使用键盘。"
+
+msgid "controllers.value_yours"
+msgstr "你的"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "未设置"
+
+msgid "controllers.value_full"
+msgstr "未使用"
+
+msgid "controllers.value_absent"
+msgstr "未连接"
+
+msgid "controllers.detail_yours"
+msgstr "你正在使用此控制器游玩。游戏插槽 {0}。按下按钮来测试。"
+
+msgid "controllers.detail_other"
+msgstr "游戏插槽 {0}。按下按钮来测试。选择后可使用它游玩或设置按钮。"
+
+msgid "controllers.detail_custom"
+msgstr "使用你保存的按钮设置。"
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input 正在处理此控制器，因此按钮遵循你的 Steam 设置。要让 Ember 处理它，请在 Steam 外启动 Ember，或在 Steam 中关闭 Ultra Street Fighter IV 的 Steam Input。"
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember 尚未识别此控制器的按钮。设置前，游戏会直接读取它，Ember 菜单使用分配为 LP 和 LK 的按钮。选择以进行设置。"
+
+msgid "controllers.detail_full"
+msgstr "游戏最多支持四个控制器。断开另一个才能使用此控制器。"
+
+msgid "controllers.detail_absent"
+msgstr "你保存的控制器。连接它即可再次使用。"
+
+msgid "controllers.detail_game_read"
+msgstr "游戏自行读取此控制器。"
+
+msgid "controllers.steam_name"
+msgstr "Steam 控制器"
+
+msgid "controllers.test_heading"
+msgstr "按下按钮进行测试"
+
+msgid "controllers.test_raw"
+msgstr "正在按下：{0}"
+
+msgid "controllers.test_nothing"
+msgstr "正在按下：无"
+
+msgid "controllers.choice_play"
+msgstr "使用此控制器游玩"
+
+msgid "controllers.choice_play_detail"
+msgstr "用于在线游玩和 Ember 菜单。"
+
+msgid "controllers.choice_play_current"
+msgstr "你已经在使用此控制器游玩。"
+
+msgid "controllers.choice_setup"
+msgstr "设置按钮"
+
+msgid "controllers.choice_setup_detail"
+msgstr "依次按下各按钮，告诉 Ember 它们的作用。"
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input 设置此控制器的按钮。"
+
+msgid "controllers.choice_forget"
+msgstr "忘记按钮设置"
+
+msgid "controllers.choice_forget_detail"
+msgstr "恢复此控制器在设置前的工作方式。下次启动游戏时生效。"
+
+msgid "controllers.now_playing"
+msgstr "你正在使用 {0} 游玩。"
+
+msgid "controllers.forgotten"
+msgstr "已忘记按钮设置。下次启动游戏时生效。"
+
+msgid "pad_setup.input.button"
+msgstr "按钮 {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "方向帽上"
+
+msgid "pad_setup.input.hat_right"
+msgstr "方向帽右"
+
+msgid "pad_setup.input.hat_down"
+msgstr "方向帽下"
+
+msgid "pad_setup.input.hat_left"
+msgstr "方向帽左"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "轴 {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "轴 {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "扳机轴 {0}"
+
+msgid "controller.disconnected_room"
+msgstr "控制器已断开。重新连接，或离开房间后选择另一个。"
+
+msgid "runtime.match_input_moved"
+msgstr "{0} 已恢复，但位于另一个游戏插槽。下场游戏起才能再次使用。"
+
+msgid "pad_setup.title"
+msgstr "设置控制器"
+
+msgid "pad_setup.prompt_heading"
+msgstr "新控制器"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember 还不知道 {0} 的按钮。按下该控制器上的任意按钮即可开始设置，大约需要一分钟。"
+
+msgid "pad_setup.not_now"
+msgstr "暂不设置"
+
+msgid "pad_setup.step_count"
+msgstr "第 {0} 步，共 {1} 步"
+
+msgid "pad_setup.step.up"
+msgstr "上"
+
+msgid "pad_setup.step.down"
+msgstr "下"
+
+msgid "pad_setup.step.left"
+msgstr "左"
+
+msgid "pad_setup.step.right"
+msgstr "右"
+
+msgid "pad_setup.step.lp"
+msgstr "轻拳"
+
+msgid "pad_setup.step.mp"
+msgstr "中拳"
+
+msgid "pad_setup.step.hp"
+msgstr "重拳"
+
+msgid "pad_setup.step.lk"
+msgstr "轻脚"
+
+msgid "pad_setup.step.mk"
+msgstr "中脚"
+
+msgid "pad_setup.step.hk"
+msgstr "重脚"
+
+msgid "pad_setup.step.3p"
+msgstr "三拳同时"
+
+msgid "pad_setup.step.3k"
+msgstr "三脚同时"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "推动摇杆或按下对应方向的按钮，然后松开。"
+
+msgid "pad_setup.press_button"
+msgstr "按下希望用于此操作的按钮，然后松开。"
+
+msgid "pad_setup.optional"
+msgstr "如果控制器没有用于此操作的按钮，请跳过。"
+
+msgid "pad_setup.lk_selects"
+msgstr "此按钮也用于在菜单中选择。"
+
+msgid "pad_setup.mk_backs"
+msgstr "此按钮也用于在菜单中返回。"
+
+msgid "pad_setup.hold_cancel"
+msgstr "继续按住即可取消设置。"
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "按住任意按钮：取消"
+
+msgid "pad_setup.back_step"
+msgstr "返回上一步"
+
+msgid "pad_setup.skip"
+msgstr "跳过"
+
+msgid "pad_setup.required"
+msgstr "此操作必需。"
+
+msgid "pad_setup.conflict"
+msgstr "{0} 已设为 {1}。请使用其他输入。"
+
+msgid "pad_setup.idle_hint"
+msgstr "尚无输入。按住任意按钮3秒或按 Esc 即可取消。"
+
+msgid "pad_setup.reconnect"
+msgstr "控制器已断开。请在 {0} 秒内重新连接以继续。"
+
+msgid "pad_setup.skipped"
+msgstr "已跳过"
+
+msgid "pad_setup.summary_detail"
+msgstr "按下任意按钮可查看对应步骤。此处与所有菜单一样，轻脚用于选择，中脚用于返回。"
+
+msgid "pad_setup.redo_detail"
+msgstr "选择以重新设置此输入。"
+
+msgid "pad_setup.save"
+msgstr "保存"
+
+msgid "pad_setup.save_detail"
+msgstr "保存此设置并立即使用。"
+
+msgid "pad_setup.start_over"
+msgstr "重新开始"
+
+msgid "pad_setup.start_over_detail"
+msgstr "清除所有步骤并重新开始。"
+
+msgid "pad_setup.cancel"
+msgstr "取消设置"
+
+msgid "pad_setup.cancel_detail"
+msgstr "不保存并退出。"
+
+msgid "pad_setup.cancelled"
+msgstr "设置已取消，未保存任何内容。"
+
+msgid "pad_setup.saved_heading"
+msgstr "控制器设置完成"
+
+msgid "pad_setup.saved"
+msgstr "{0} 已设置好。要更改各个按钮在格斗中使用的攻击，请选择“按钮布局”。"
+
+msgid "pad_setup.save_failed"
+msgstr "Ember 无法使用此设置，因此未保存。详情请见 sf4e.log。"
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "由于 {0} 断开连接，设置已停止。未保存任何内容。"
+
+msgid "pad_setup.stopped_idle"
+msgstr "由于一分钟没有输入，设置已停止。未保存任何内容。"
+
+msgid "player.button_layout"
+msgstr "按钮布局"
+
+msgid "player.button_layout_detail"
+msgstr "选择 {0} 的各个按钮在格斗中使用的攻击。这不会影响对手。"
+
+msgid "player.button_layout_setup"
+msgstr "Ember 尚未接管 {0}。请选择，先设置它的按钮。"
+
+msgid "player.button_layout_keyboard"
+msgstr "按钮布局适用于控制器。键盘请使用“游戏按钮设置”。"
+
+msgid "player.button_layout_game_reads"
+msgstr "请关闭“让游戏读取控制器”以使用按钮布局。在此之前，请使用“游戏按钮设置”。"
+
+msgid "player.button_layout_failed"
+msgstr "Ember 的控制器支持本次未能启动。请使用“游戏按钮设置”。"
+
+msgid "player.game_buttons"
+msgstr "游戏按钮设置"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember 将关闭。在游戏菜单中选择“选项”，再进入控制器设置。键盘和由游戏直接读取的控制器请使用此设置。有 Ember 按钮布局的控制器会使用该布局。只有每项操作都有按钮时，游戏才会保存布局。"
+
+msgid "controllers.choice_layout"
+msgstr "按钮布局"
+
+msgid "controllers.choice_layout_detail"
+msgstr "选择各个按钮在格斗中使用的攻击。"
+
+msgid "controllers.choice_layout_setup"
+msgstr "请先设置它的按钮。"
+
+msgid "controllers.detail_layout"
+msgstr "按钮布局：{0}。"
+
+msgid "button_layout.title"
+msgstr "按钮布局"
+
+msgid "button_layout.button_title"
+msgstr "更改按钮"
+
+msgid "button_layout.test"
+msgstr "测试按钮"
+
+msgid "button_layout.test_detail"
+msgstr "按下 {0} 的按钮，查看它们使用的攻击。在此行中，只有“返回”会操作菜单。"
+
+msgid "button_layout.attacks"
+msgstr "攻击"
+
+msgid "button_layout.throw"
+msgstr "投技 (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "蓄力攻击 (MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "选择后，按下要用于 {0} 的按钮。如果其他按钮已有该攻击，两个按钮的功能会互换。"
+
+msgid "button_layout.row_missing"
+msgstr "没有按钮只使用这项攻击，因此无法单独使用它。"
+
+msgid "button_layout.no_button"
+msgstr "无按钮"
+
+msgid "button_layout.edit_button"
+msgstr "更改单个按钮"
+
+msgid "button_layout.edit_button_detail"
+msgstr "选择后按下一个按钮，以准确指定它使用的攻击。可使用任意攻击组合，也可停用按钮。"
+
+msgid "button_layout.preset"
+msgstr "预设"
+
+msgid "button_layout.preset_detail"
+msgstr "选择现成的布局。“默认”是游戏原本的布局。"
+
+msgid "button_layout.custom"
+msgstr "自定义"
+
+msgid "button_layout.game_layout"
+msgstr "游戏布局"
+
+msgid "button_layout.preset.default"
+msgstr "默认"
+
+msgid "button_layout.preset.default_detail"
+msgstr "游戏原本的布局。适用于大多数手柄和八按钮街机摇杆。"
+
+msgid "button_layout.preset.triggers"
+msgstr "扳机使用三键同时"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "用于六按钮手柄。右肩键使用重拳，左肩键使用重脚。左扳机使用三拳同时，右扳机使用三脚同时。"
+
+msgid "button_layout.preset.focus_throw"
+msgstr "蓄力与投技"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "与“默认”相同，但左肩键使用蓄力攻击，左扳机使用投技。八按钮街机摇杆上对应第四列。三拳同时和三脚同时移到摇杆按键。"
+
+msgid "button_layout.preset_applied"
+msgstr "布局已设为 {0}。"
+
+msgid "button_layout.remove"
+msgstr "使用游戏布局"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember 将不再更改此控制器的按钮，重新使用“游戏按钮设置”中的布局。"
+
+msgid "button_layout.removed"
+msgstr "此控制器已重新使用游戏布局。"
+
+msgid "button_layout.press_for"
+msgstr "请按下用于 {0} 的按钮"
+
+msgid "button_layout.press_to_change"
+msgstr "请按下要更改的按钮"
+
+msgid "button_layout.press_cancel"
+msgstr "移动摇杆或按 Start 取消。"
+
+msgid "button_layout.assigned"
+msgstr "{0} 现已分配到 {1}。"
+
+msgid "button_layout.swapped"
+msgstr "{0} 现已分配到 {1}。{2} 改为使用 {3}。"
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} 现已分配到 {1}。{2} 现在不使用任何攻击。"
+
+msgid "button_layout.bit_detail"
+msgstr "按左或右为此按钮开启或关闭 {0}。"
+
+msgid "button_layout.clear"
+msgstr "无攻击"
+
+msgid "button_layout.clear_detail"
+msgstr "此按钮在格斗中不执行任何操作。"
+
+msgid "button_layout.button_does"
+msgstr "格斗中：{0}"
+
+msgid "button_layout.nothing"
+msgstr "无"
+
+msgid "button_layout.absent"
+msgstr "未连接"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} 未连接。布局已保存。连接后即可更改。"
+
+msgid "button_layout.setup_first"
+msgstr "请先设置按钮"
+
+msgid "button_layout.setup_first_detail"
+msgstr "游戏正在直接读取 {0}，因此 Ember 暂时无法更改它的按钮。设置一次后，它就能在这里像其他控制器一样使用。"
+
+msgid "button_layout.missing_heading"
+msgstr "部分攻击没有按钮"
+
+msgid "button_layout.missing_text"
+msgstr "以下攻击没有单独的按钮：{0}。布局已保存。"
+
+msgid "button_layout.keep_editing"
+msgstr "继续编辑"
+
+msgid "button_layout.leave"
+msgstr "离开"

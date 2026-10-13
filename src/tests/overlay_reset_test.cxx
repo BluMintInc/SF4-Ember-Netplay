@@ -3,6 +3,7 @@
 #include "../sf4e/sf4e__OverlayPrefs.hxx"
 #include "../sf4e/sf4e__ReplayCapture.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/PadKind.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
@@ -70,6 +71,33 @@ static int CheckPerFighterPicks() {
     none.randomStageExcluded = ~0u;
     Prefs::Clamp(none);
     check(none.randomStageExcluded == 0, "clamping kept exclusions that leave Random nothing");
+
+    Prefs::Data controller;
+    controller.controllerLayer = false;
+    controller.deviceType = sf4e::input::PadXInput; controller.deviceIdx = 2;
+    controller.deviceIdentity = sf4e::gamepads::Identity{"guid", "DualSense-123", "usb-path", "DualSense"};
+    Prefs::Clamp(controller);
+    Prefs::Data restored;
+    Prefs::FromJson(Prefs::ToJson(controller), restored);
+    Prefs::Clamp(restored);
+    check(restored == controller, "controller layer and identity did not round-trip");
+    controller.controllerLayer = true;
+    Prefs::FromJson(Prefs::ToJson(controller), restored);
+    check(restored.controllerLayer, "enabled controller layer did not round-trip");
+    Prefs::Data defaults;
+    Prefs::FromJson({{"device", {{"type", sf4e::input::PadXInput}, {"idx", 1}}}}, defaults);
+    check(defaults.controllerLayer && !defaults.deviceIdentity, "old preferences did not use controller defaults");
+    restored.controllerLayer = false; restored.deviceIdentity = *controller.deviceIdentity;
+    Prefs::FromJson({{"device", nlohmann::json::object()}}, restored);
+    check(restored.controllerLayer && !restored.deviceIdentity, "missing controller keys retained stale values");
+    Prefs::FromJson({{"device", {{"identity", "old-concatenated-identity"}}}}, restored);
+    check(!restored.deviceIdentity, "legacy string was treated as an identity object");
+    const auto identityJson = Prefs::ToJson(controller)["device"]["identity"];
+    check(identityJson.is_object() && identityJson.size() == 4 && identityJson["name"] == "DualSense",
+        "saved identity was not a small object with its message name");
+    auto changed = controller;
+    changed.deviceIdentity->serial += "other";
+    check(changed != controller, "preference equality ignored the controller identity");
     return failures;
 }
 

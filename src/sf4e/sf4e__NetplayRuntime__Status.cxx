@@ -1,6 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../netplay/PublishCadence.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -306,8 +307,10 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
+    mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
     mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
+    mixString(runtime->padHint);
     mix(AtMainMenu());
     return h;
 }
@@ -395,10 +398,27 @@ PostPublishState Publish() {
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
+    snapshot.gameplayBrand = Gamepads::BrandForDevice(snapshot.inputDevice.type, snapshot.inputDevice.index);
+    snapshot.promptBrand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, snapshot.inputDevice.type, snapshot.gameplayBrand);
+    snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
+    snapshot.runningControllerLayer = runtime->runningControllerLayer;
+    snapshot.padSetup = Gamepads::ReadFrame().setup;
+    snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
+    snapshot.padHintUntil = runtime->padHintUntil;
+    const auto& candidate = runtime->input.Candidate();
+    for (auto& pad : snapshot.pads) {
+        if (pad.state != gamepads::RowState::Absent && candidate.type == input::PadXInput && pad.slot == candidate.index)
+            snapshot.captureCandidate = pad.id;
+        if ((pad.state == gamepads::RowState::Unmapped || pad.state == gamepads::RowState::GameRead) &&
+            candidate.type == input::PadDirectInput && pad.directInputIndex == candidate.index) snapshot.captureCandidate = pad.id;
+        pad.customMapping = pad.customMapping && runtime->preferences.controllerMappings.count(pad.identity.guid) != 0;
+    }
     snapshot.controller = snapshot.inputDevice.name;
     snapshot.inputCapture = runtime->input.State();
     snapshot.controllerReady = runtime->input.Ready();
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
+    if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle)
+        snapshot.padHint = runtime->padHint;
 
 	snapshot.atMainMenu = AtMainMenu();
 	snapshot.practiceMatch = training::MatchPracticeActive();
@@ -449,7 +469,10 @@ PostPublishState Publish() {
 	snapshot.settingsError = OverlayPrefs::PersistenceError();
 	snapshot.helperError = runtime->error;
     snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
-        loc::Tf("runtime.match_input_blocked",DeviceName(runtime->matchInput)):std::string();
+        loc::Tf(std::any_of(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
+            return pad.state != gamepads::RowState::Absent && !runtime->matchInput.identity.guid.empty() &&
+                gamepads::Same(pad.identity, runtime->matchInput.identity) && pad.slot != runtime->matchInput.index;
+        }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;

@@ -1,4 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/ButtonLayoutJson.hxx"
+#include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
@@ -217,6 +219,9 @@ void StartHelper() {
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             netplay::ReadBoolPreferences(saved, runtime->preferences);
+            runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
+            runtime->preferences.controllerMappings = netplay::ReadControllerMappings(saved);
+            runtime->preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
@@ -373,7 +378,7 @@ static void TakeJoinLink() {
 }
 
 bool SubmitRuntimeCommand(RuntimeCommand command) {
-	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
+	if (command.padAction.layouts.size() > 32 || command.padAction.log.size() > 2048 || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
@@ -389,7 +394,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
+	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
 		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
@@ -399,8 +404,11 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
 		command.servicePath.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
-		command.reportSubmission.comment.size();
-	return bridge::PushCommand(std::move(command), bytes);
+		command.reportSubmission.comment.size() + command.padAction.log.size();
+    std::size_t layoutBytes = 0;
+    for (const auto& layout : command.padAction.layouts)
+        layoutBytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
+	return bridge::PushCommand(std::move(command), bytes + layoutBytes);
 }
 
 

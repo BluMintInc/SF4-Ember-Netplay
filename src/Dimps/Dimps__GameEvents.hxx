@@ -14,6 +14,15 @@
 
 namespace Dimps {
 	namespace GameEvents {
+        struct OptionUIController {
+            struct Methods {
+                void* (OptionUIController::* Construct)(DWORD owner, DWORD mode);
+                int (OptionUIController::* Destroy)();
+            };
+            static Methods methods;
+            static void Locate(HMODULE module);
+        };
+
 		void Locate(HMODULE peRoot);
 
 		namespace StageSelect {

@@ -23,6 +23,9 @@
 #include <optional>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
+#include "../common/ControllerView.hxx"
+#include "../common/ControllerRequest.hxx"
+#include "../common/ButtonLayoutCapture.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "ReplaysPanel.hxx"
@@ -83,6 +86,17 @@ struct ShellView {
     netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
     platform::ServiceSnapshot services;
     std::string controller;
+    std::string padHint;
+    std::uint64_t padHintUntil = 0;
+    gamepads::Layer padLayer = gamepads::Layer::Active;
+    bool padLayerPending = false, runningControllerLayer = true;
+    std::vector<gamepads::PadView> pads;
+    unsigned captureCandidate = 0;
+    gamepads::SetupSnapshot padSetup;
+    bool atMainMenu = true;
+    // gameplayBrand is detected; promptBrand is resolved by the runtime.
+    // The local unsaved setting can resolve against gameplayBrand immediately.
+    gamepads::PromptBrand gameplayBrand, promptBrand;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
@@ -144,6 +158,7 @@ struct ShellAction {
     std::string servicePath;
     reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
+    gamepads::ControllerRequest padAction;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
     netplay::PlayerPreferences preferences;
@@ -191,7 +206,10 @@ public:
               const DrawSelection& developer = {});
     void ShowPlay() {
         // Reopening after battle must retain the active room's navigation.
-        if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
+        if(previousRoomState_==netplay::RoomState::Idle) {
+            if(reopenScreen_)menu_.navigation.Push(*reopenScreen_);
+            else menu_.navigation.Home();
+        }
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
@@ -414,6 +432,35 @@ private:
     std::uint64_t joinLinkSeen_=0;
     // Ember was hidden on the last frame (Background): the next drawn one opens it.
     bool hidden_=true;
+    std::optional<std::string> reopenScreen_;
+    std::optional<gamepads::PadView> setupPad_, setupPrompt_;
+    std::vector<gamepads::Identity> setupPrompted_;
+    std::set<unsigned> setupPromptHeld_;
+    bool setupStarting_=false, setupPromptReleased_=false, setupFromLayout_=false;
+    std::uint64_t setupRevision_=0, setupMenuSequence_=0;
+    gamepads::SetupMode setupPreviousMode_=gamepads::SetupMode::Capture;
+    std::optional<gamepads::PadView> layoutPad_;
+    bool layoutChanged_ = false, layoutAbsent_ = false;
+    unsigned layoutButton_ = 0;
+    std::optional<unsigned> layoutCaptureFunction_;
+    gamepads::LayoutCapture layoutCapture_;
+    bool layoutNeutral_ = false;
+    void SyncLayoutPaths(const ShellView& view);
+    void SetGameplayLayoutPrompts(const ShellView& view);
+    void CancelLayoutCapture(const ShellView& view, const Submit& submit);
+    void OpenButtonLayout(const gamepads::PadView& pad);
+    bool DrawButtonLayout(const ShellView& view, const Submit& submit);
+    bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
+    bool SavePreferences(const ShellView& view, const Submit& submit);
+    bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
+        const ShellView& view, const Submit& submit, const std::string& log);
+    void LayoutLog(const ShellView& view, const Submit& submit, std::string text);
+    void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
+    void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);
+    bool DrawPadSetup(const ShellView& view,const Submit& submit);
+    void SetupControl(gamepads::SetupCommand command,const ShellView& view,const Submit& submit,int step=0);
+    void ClosePadSetup(const ShellView& view,bool controllers=false);
+
     // The training call's sequences as last acted on.
     std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;

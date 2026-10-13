@@ -9,13 +9,16 @@ namespace sf4e { namespace netplay {
 // which load as their PlayerPreferences default when a profile has none
 // (BoolPreferenceJson.hxx). Auto delay, edition select and Public are saved
 // otherwise and are not here.
-struct BoolPreference { const char* key; bool PlayerPreferences::* member; };
+template<class Preferences>
+struct BoolPreferenceMember { const char* key; bool Preferences::* member; };
+using BoolPreference = BoolPreferenceMember<PlayerPreferences>;
 inline constexpr BoolPreference BoolPreferences[] = {
     {"showMatchHud", &PlayerPreferences::showMatchHud}, {"matchHudRaised", &PlayerPreferences::matchHudRaised},
     {"readySound", &PlayerPreferences::readySound}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady},
     {"matchFrameMeter", &PlayerPreferences::matchFrameMeter}, {"backgroundPlay", &PlayerPreferences::backgroundPlay},
     {"lowerInputLag", &PlayerPreferences::lowerInputLag}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag},
     {"fasterDisplay", &PlayerPreferences::fasterDisplay},
+    {"controllerLayer", &PlayerPreferences::controllerLayer},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"discordPresence", &PlayerPreferences::discordPresence},
     {"discordInvites", &PlayerPreferences::discordInvites}, {"sendProblemReports", &PlayerPreferences::sendProblemReports},
 };

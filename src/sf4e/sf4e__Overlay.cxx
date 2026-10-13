@@ -295,6 +295,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.discordRevision=snapshot.discordRevision;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
     view.inputDevice = snapshot.inputDevice;
+    view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
+    view.padHint = snapshot.padHint;
+    view.padHintUntil = snapshot.padHintUntil; view.padLayer = snapshot.padLayer;
+    view.padSetup = snapshot.padSetup; view.atMainMenu = snapshot.atMainMenu;
+    view.padLayerPending = snapshot.padLayerPending; view.runningControllerLayer = snapshot.runningControllerLayer;
+    view.pads = snapshot.pads; view.captureCandidate = snapshot.captureCandidate;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
     view.canChangeController = snapshot.canChangeController;
@@ -351,6 +357,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.replay = std::move(action.replay);
         request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
+        request.padAction = action.padAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
 		request.preferences = std::move(action.preferences);
@@ -468,14 +475,19 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         notedOverflows = overflows;
     }
     // The pad drives the menu behind another window too (ShellHoldsPads).
+    const auto& setup = snapshot.padSetup.state;
+    const bool targetIsGameplay = std::any_of(snapshot.pads.begin(), snapshot.pads.end(), [&](const gamepads::PadView& pad) {
+        return pad.gameplay && gamepads::Same(pad.identity, snapshot.padSetup.identity);
+    });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || s_trainingControls.Open(), !assigning);
+        presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
     // Start opens Ember at the main menu and over a Practice match; in
     // Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
-    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
+    for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
+    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical,"LP","LK",snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();
     // The game's battle log was opened from the Replays screen: Ember's menu
     // gets out of the way, and comes back on that screen when the replay
@@ -589,6 +601,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room, call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
+    layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown) {
         const auto& caption = snapshot.replays.caption;
         auto& shown = layers.caption;
@@ -670,7 +683,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     prefs.randomStageExcluded = lobbyStageExcluded;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
-    if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
+    if (prefs != s_prefs && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
     // An export takes its picture between the layers its video holds and
     // the rest of Ember, so the menu and the HUD are never in it.
     ImGui::Render();

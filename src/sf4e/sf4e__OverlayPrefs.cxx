@@ -1,13 +1,16 @@
 #include "sf4e__OverlayPrefs.hxx"
+#include "../common/ButtonLayoutJson.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
 
 #include <fstream>
 #include <climits>
+#include <mutex>
 #include <shlobj.h>
 #include <pathcch.h>
 
@@ -27,9 +30,11 @@ namespace OverlayPrefs {
 		namespace rBattle = Dimps::Game::Battle;
 		// Explicit Main teardown owns the worker; no DLL static destructor joins it.
 		netplay::SettingsWriter* writer = nullptr;
+		std::mutex cacheMutex;
 		Data cached;
 		bool haveCached = false;
 		std::string startupError;
+		constexpr netplay::BoolPreferenceMember<Data> boolPreferences[] = {{"controllerLayer", &Data::controllerLayer}};
 
 		void CharaToJson(nlohmann::json& j, const CharaPick& c) {
 			j["charaID"] = c.charaID;
@@ -108,10 +113,11 @@ namespace OverlayPrefs {
         data.randomStageExcluded = selection::NormalizeRandomExclusions(data.randomStageExcluded);
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
-        if ((data.deviceType != input::PadKeyboard && data.deviceType != input::PadXInput) || (data.deviceType == input::PadXInput && data.deviceIdx > 3)) data.deviceIdx = data.deviceType = 0xff;
     }
 
 	void FromJson(const nlohmann::json& j, Data& out) {
+		netplay::ReadBoolPreferences(j, out, boolPreferences);
+		out.deviceIdentity.reset();
 		if (j.contains("lobby")) {
 			CharaFromJson(j["lobby"], out.lobby);
 		}
@@ -145,11 +151,19 @@ namespace OverlayPrefs {
 			const auto& dev = j["device"];
 			out.deviceIdx = (uint8_t)dev.value("idx", (int)out.deviceIdx);
 			out.deviceType = (uint8_t)dev.value("type", (int)out.deviceType);
+			// Migration: a missing identity object means no saved controller.
+			if (dev.contains("identity") && dev["identity"].is_object()) {
+				const auto& identity = dev["identity"];
+				out.deviceIdentity = gamepads::Identity{identity.value("guid", std::string{}),
+					identity.value("serial", std::string{}), identity.value("path", std::string{}),
+					identity.value("name", std::string{})};
+			}
 		}
 	}
 
 	nlohmann::json ToJson(const Data& data) {
 		nlohmann::json j;
+		netplay::WriteBoolPreferences(data, j, boolPreferences);
 		CharaToJson(j["lobby"], data.lobby);
 		j["fighters"] = nlohmann::json::array();
 		for (const auto& fighter : data.fighters) {
@@ -172,10 +186,16 @@ namespace OverlayPrefs {
 			{"idx", data.deviceIdx},
 			{"type", data.deviceType},
 		};
-		return j;
-	}
+        if (data.deviceIdentity) {
+            const auto& identity = *data.deviceIdentity;
+            j["device"]["identity"] = {{"guid", identity.guid}, {"serial", identity.serial},
+                {"path", identity.path}, {"name", identity.name}};
+        }
+        return j;
+    }
 
-	bool Load(Data& out) {
+    bool Load(Data& out) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
 		// Device recreation must not reload older disk state over queued edits.
 		if (haveCached) { out = cached; return true; }
 		nlohmann::json j;
@@ -245,19 +265,44 @@ namespace OverlayPrefs {
             {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         netplay::WriteBoolPreferences(preferences, values);
+        netplay::WriteButtonPrompts(preferences, values);
+        values["controllerMappings"] = preferences.controllerMappings;
+        values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));
 	}
 
-	bool Save(const Data& in) {
-		Data clamped = in;
-		Clamp(clamped);
+    namespace {
+        bool QueueOverlayLocked(Data data) {
+            Clamp(data);
+            if (!writer || !writer->QueueOverlay(ToJson(data))) return false;
+            cached = std::move(data);
+            haveCached = true;
+            return true;
+        }
+    }
 
-		if (!writer || !writer->QueueOverlay(ToJson(clamped))) return false;
-		cached = clamped;
-		haveCached = true;
-		return true;
-	}
+    bool Save(const Data& in) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        Data data = in;
+        // The runtime owns device choice; a stale render snapshot cannot replace it.
+        if (haveCached) {
+            data.deviceType = cached.deviceType;
+            data.deviceIdx = cached.deviceIdx;
+            data.deviceIdentity = cached.deviceIdentity;
+        }
+        return QueueOverlayLocked(std::move(data));
+    }
+
+    bool SaveGameplayDevice(int type, int index, const std::optional<gamepads::Identity>& identity) {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        if (cached.deviceType == type && cached.deviceIdx == index && cached.deviceIdentity == identity) return true;
+        Data data = cached;
+        data.deviceType = static_cast<uint8_t>(type);
+        data.deviceIdx = static_cast<uint8_t>(index);
+        data.deviceIdentity = identity;
+        return QueueOverlayLocked(std::move(data));
+    }
 
 } // namespace OverlayPrefs
 } // namespace sf4e

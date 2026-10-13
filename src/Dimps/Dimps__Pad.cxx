@@ -40,22 +40,23 @@ bool Pad::ReadController(int deviceType, int deviceIndex, unsigned int& held, un
 	if (deviceIndex >= count || count > 12) return false;
 	const BYTE* entry = devices + 0xd14 + deviceIndex * 0x100;
 	if (*reinterpret_cast<const int*>(entry) != 1) return false;
-	const auto* begin = *reinterpret_cast<const BYTE* const*>(system + 0xd4);
-	const auto* end = *reinterpret_cast<const BYTE* const*>(system + 0xd8);
-	constexpr unsigned bindingStride = 0x27c;
-	if (!begin || reinterpret_cast<std::uintptr_t>(end) < reinterpret_cast<std::uintptr_t>(begin) ||
-		reinterpret_cast<std::uintptr_t>(end) - reinterpret_cast<std::uintptr_t>(begin) <
-			static_cast<unsigned>(deviceIndex + 1) * bindingStride) return false;
+    const auto* bindings = BindingRecords().FightTable(deviceIndex);
+    if (!bindings) return false;
 	// 00511E70 maps physical bit n through +17C in fight mode (+1FC in
 	// menu mode). Reading the fight table preserves LP/LK remapping without
 	// changing the game's active map, repeat timers, or device-in-use flags.
 	const auto physical = *reinterpret_cast<const std::uint32_t*>(entry + 0xc);
     if (physicalButtons) *physicalButtons = physical;
-	const auto* bindings = reinterpret_cast<const std::uint32_t*>(begin + deviceIndex * bindingStride + 0x17c);
 	held = sf4e::input::MapButtons(physical, bindings);
     if(selectPhysical)*selectPhysical=sf4e::input::PhysicalBinding(0x10,bindings);
     if(backPhysical)*backPhysical=sf4e::input::PhysicalBinding(0x40,bindings);
 	return true;
+}
+
+sf4e::gamepads::PadBindingRecords Pad::BindingRecords() {
+    auto* system = reinterpret_cast<BYTE*>(System::staticMethods.GetSingleton());
+    if (!system) return {};
+    return {*reinterpret_cast<void**>(system + 0xD4), *reinterpret_cast<void**>(system + 0xD8)};
 }
 
 void Pad::Locate(HMODULE peRoot) {

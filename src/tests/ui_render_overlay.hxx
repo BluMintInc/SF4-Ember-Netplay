@@ -30,8 +30,9 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         const auto foreground=[] {return ImGui::GetForegroundDrawList()->VtxBuffer.Size>0;};
         reset();training.available=true;layers.trainingHud=true;
         layers.shellAvailable=layers.matchWaitsForMenu=true;
+        layers.padHint="Saved pad is not connected. Using Other pad for now.";
         layers.trainingRoom.room="Room";layers.trainingRoom.table="Table 1";draw();
-        for(const char* window:{"Training frame meter","Training shortcuts","Training room status","Ember shortcut","Ember match waiting"})
+        for(const char* window:{"Training frame meter","Training shortcuts","Training room status","Ember shortcut","Ember match waiting","Ember controller"})
             Require(WindowDrawn(window)==passive,"Open window or native pause did not gate a passive training layer or hint");
         Require(!foreground(),"Training visibility fixture unexpectedly drew a foreground layer");
         for(int layout:{0,1}) {
@@ -44,8 +45,9 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
             Require(!WindowDrawn("Match notice"),"Suppressed ordinary telemetry became a standalone alert");
         }
         // The Ember shortcut never covers a fight's timer, even where the menu opens over it.
-        reset();layers.matchActive=layers.shellAvailable=true;draw();
+        reset();layers.matchActive=layers.shellAvailable=true;layers.padHint="Saved pad connected. You play with it.";draw();
         Require(!WindowDrawn("Ember shortcut"),"The Ember shortcut was drawn over a fight");
+        Require(!WindowDrawn("Ember controller"),"The controller hint was drawn over a fight");
         reset();training.leavingIn=120;layers.challenger.called=true;layers.challenger.opponent="Opponent";draw();
         Require(foreground(),"Open window or native pause hid challenger banner");
         // The banner is the call's: a countdown with no call standing draws none.

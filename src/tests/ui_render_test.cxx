@@ -9,6 +9,7 @@
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
+#include "ui_render_prompt_assets.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
 #include <windows.h>
@@ -340,6 +341,10 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_updates.hxx"
 #include "ui_render_replay_controls.hxx"
 #include "ui_render_reports.hxx"
+#include "ui_render_prompts.hxx"
+#include "ui_render_controllers.hxx"
+#include "ui_render_button_layout.hxx"
+#include "ui_render_pad_setup.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -497,9 +502,6 @@ int main(int argc, char** argv) {
                 art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
             Require(art->MenuBackdrop().texture!=0,"Ember background failed to load");
-            const char* promptAssets[]={"xbox_button_color_a","xbox_button_color_b","xbox_button_color_x","xbox_button_color_y",
-                "xbox_lb","xbox_rb","xbox_lt","xbox_rt","xbox_dpad","xbox_dpad_horizontal","keyboard_enter","keyboard_escape",
-                "keyboard_arrows_all","keyboard_arrows_horizontal","generic_button_circle_fill","xbox_button_back","xbox_button_start"};
             for(const auto* prompt:promptAssets){
                 const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
                 while(!art->InputPrompt(prompt).texture&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
@@ -656,6 +658,9 @@ int main(int argc, char** argv) {
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            ShootButtonPrompts(shell,view,mode,draw,page);
+            ShootControllers(shell,view,draw,page);
+            ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
@@ -676,7 +681,15 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
             draw(nullptr,MenuInput::Back,1);draw();
-            view.error="The helper stopped responding. Ember is restarting it.";page("home");draw("home-status");view.error.clear();
+            std::string controllerStatus;Tone controllerTone=Tone::Neutral;
+            SetMenuStatusProbe([&](const char* status,Tone tone){controllerStatus=status;controllerTone=tone;});
+            view.padHint=loc::Tf("controller.using_for_now","Saved pad","Other pad");page("home");
+            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Provisional controller hint did not reach Home's status");
+            view.error="The helper stopped responding. Ember is restarting it.";draw("home-status");
+            Require(controllerStatus==view.error&&controllerTone==Tone::Error,"Controller hint replaced a Home error");
+            view.error.clear();view.padHint=loc::Tf("controller.connected_adopted","Saved pad");draw("controller-restored");
+            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Restored controller hint did not reach Home's status");
+            view.padHint.clear();SetMenuStatusProbe({});
             view.inputCapture=input::Capture::ReleaseAll;draw("controller-assignment");view.inputCapture=input::Capture::Idle;
             view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
             page("main-character");
@@ -746,6 +759,7 @@ int main(int argc, char** argv) {
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
@@ -1022,6 +1036,7 @@ int main(int argc, char** argv) {
             ApplyTheme(size.dpi+.25f);ApplyTheme(size.dpi);renderer.Invalidate();
             Require(ImGui::GetStyle().WindowPadding.x==padding,"DPI scaling accumulated");draw();
             renderer.Invalidate();renderer.Resize(size.w,size.h);draw();
+            ShootButtonLayout(shell,view,draw,page);
             renderer.Shutdown();ImGui::DestroyContext();
         }
         }

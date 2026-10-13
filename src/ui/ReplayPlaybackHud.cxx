@@ -86,6 +86,8 @@ void DrawReplayStrip(const ReplayHudView& view) {
     // meter button.
     if (view.inputsKnown) hints.push_back({{view.pad ? "LT" : "F9", nullptr}, loc::T("replays.controls.inputs")});
     else if (!view.pad) hints.push_back({{"F5", nullptr}, loc::T("replays.controls.meter")});
+    for (auto& hint : hints)
+        for (const char* id : hint.glyphs) if (id) hint.label = PromptLabel(id, hint.label, MenuPromptBrand());
     const auto statusWidth = [&] {
         return icon + gap + (pausedWord.empty() ? 0 : TextWidth(statusFont, pausedWord) + gap) + TextWidth(statusFont, speed) + gap + TextWidth(statusFont, place);
     };

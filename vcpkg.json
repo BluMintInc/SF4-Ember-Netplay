@@ -16,6 +16,11 @@
     },
     "fmt",
     {
+      "name": "sdl3",
+      "version>=": "3.4.16",
+      "default-features": false
+    },
+    {
       "name": "imgui",
       "version>=": "1.91.5",
       "features": [

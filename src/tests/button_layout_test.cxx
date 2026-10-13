@@ -1,0 +1,134 @@
+#include "../common/ButtonLayoutJson.hxx"
+#include "../common/ButtonLayoutSlots.hxx"
+#include "../common/ButtonLayoutCapture.hxx"
+#include "../netplay/PlayerPreferences.hxx"
+#include "test_support.hxx"
+#include <cstring>
+
+using namespace sf4e::gamepads;
+static Identity Pad(unsigned n) { return {"guid" + std::to_string(n), "serial" + std::to_string(n), "path", "Pad"}; }
+static void Model() {
+    CHECK(DefaultLayout == ButtonLayout({0x40, 0x80, 0x10, 0x20, 0x430, 0x400, 0x8C0, 0x800, 0, 0}));
+    CHECK(LayoutPresets[1].buttons == ButtonLayout({0x40, 0x80, 0x10, 0x20, 0x800, 0x400, 0x430, 0x8C0, 0, 0}));
+    CHECK(LayoutPresets[2].buttons == ButtonLayout({0x40, 0x80, 0x10, 0x20, 0xA0, 0x400, 0x50, 0x800, 0x430, 0x8C0}));
+    for (const auto& preset : LayoutPresets) {
+        CHECK(ValidLayout(preset.buttons) && PresetOf(preset.buttons) == &preset);
+        auto changed = preset.buttons; changed[0] = 0;
+        CHECK(!PresetOf(changed));
+    }
+    const std::pair<unsigned, const char*> names[] = {{0x10, "LP"}, {0x430, "3P"}, {0x8C0, "3K"}, {0x50, "LP+LK"},
+        {0xA0, "MP+MK"}, {0xC00, "HP+HK"}, {0x70, "LP+MP+LK"}, {0, ""}};
+    for (const auto& name : names) CHECK(FightName(name.first) == name.second);
+    auto layout = DefaultLayout;
+    auto swap = Assign(layout, 3, 0x10); CHECK(swap.changed && swap.swapped == 2 && swap.old == 0x20);
+    CHECK(layout[2] == 0x20 && layout[3] == 0x10 && layout[4] == 0x430);
+    layout = DefaultLayout; Assign(layout, 5, 0x430); CHECK(layout[4] == 0x400 && layout[5] == 0x430);
+    layout = DefaultLayout; Assign(layout, 6, 0x50); CHECK(layout[6] == 0x50 && layout[0] == 0x40);
+    layout = DefaultLayout; CHECK(!Assign(layout, 2, 0x10).changed);
+    layout[3] = 0; Assign(layout, 3, 0x10); CHECK(layout[2] == 0);
+    for (unsigned mask = 0; mask <= FightMask; ++mask) if (!(mask & ~FightMask)) { SetMask(layout, 0, mask); CHECK(layout[0] == mask); }
+    CHECK(!SetMask(layout, 0, 0x1000));
+    SetMask(layout, 0, 0xA0); SetMask(layout, 1, 0xA0); CHECK(layout[0] == layout[1]);
+    SetMask(layout, 0, 0); CHECK(layout[0] == 0);
+    layout = DefaultLayout; CHECK(MissingAttacks(layout, AllLayoutButtons).empty());
+    layout[2] = 0; CHECK(MissingAttacks(layout, AllLayoutButtons) == std::vector<std::uint32_t>{0x10});
+    layout[2] = 0x50; CHECK(MissingAttacks(layout, AllLayoutButtons) == std::vector<std::uint32_t>{0x10});
+    auto listed = AllLayoutButtons; listed[2] = false; layout = DefaultLayout;
+    CHECK(MissingAttacks(layout, listed) == std::vector<std::uint32_t>{0x10});
+    layout[2] = 0; layout[6] = 0x10; listed = AllLayoutButtons; listed[6] = false;
+    CHECK(MissingAttacks(layout, listed) == std::vector<std::uint32_t>{0x10});
+    Assign(layout, 3, 0x10, listed); CHECK(layout[6] == 0x10);
+    layout = DefaultLayout;
+    Assign(layout, 5, 0x10); const auto relayout = NamesOf(layout);
+    CHECK(relayout[5] == "LP" && relayout[2] == "HP");
+    SetMask(layout, 0, 0); CHECK(NamesOf(layout)[0].empty());
+}
+static void Persistence() {
+    const std::vector<StoredLayout> original = {{Pad(1), LayoutPresets[1].buttons, 123}, {Pad(2), LayoutPresets[2].buttons, 456}};
+    unsigned rejected = 0;
+    const auto read = [&](const nlohmann::json& json) { return ReadLayouts(json, [&](unsigned, sf4e::gamepads::LayoutLoadError) { ++rejected; }); };
+    CHECK(read({}).empty());
+    auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson(original)}};
+    CHECK(read(json) == original);
+    auto wrong = json["buttonLayouts"][0]; wrong["buttons"].erase(9); json["buttonLayouts"].push_back(wrong);
+    wrong = json["buttonLayouts"][0]; wrong["buttons"][0] = 0x1000; json["buttonLayouts"].push_back(wrong);
+    CHECK(read(json) == original && rejected == 2);
+    auto layouts = original;
+    for (unsigned n = 3; n <= 32; ++n) UpsertLayout(layouts, {Pad(n), DefaultLayout, static_cast<std::int64_t>(n + 1000)});
+    CHECK(UpsertLayout(layouts, {Pad(33), DefaultLayout, 9999}) == original[0].identity && layouts.size() == 32);
+    sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = original; CHECK(prefs.Valid());
+    prefs.buttonLayouts[0].buttons[0] = 0x1000; CHECK(!prefs.Valid());
+    prefs.buttonLayouts.assign(33, original[0]); CHECK(!prefs.Valid());
+    auto pad = Pad(1); pad.guid = "bluetooth"; CHECK(FindLayout(original, pad, {pad}).index == 0);
+    auto port = original; port[0].identity.serial.clear(); pad = port[0].identity; CHECK(FindLayout(port, pad, {pad}).index == 0);
+    pad.path = "new-port"; CHECK(FindLayout(port, pad, {pad}).byGuid);
+    CHECK(!FindLayout(port, pad, {pad, pad}).index);
+    auto other = pad; other.path = "other-port"; CHECK(!FindLayout(port, pad, {other}).index);
+    port.push_back(port[0]); CHECK(!FindLayout(port, pad, {pad}).index);
+}
+static void Writer() {
+    alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;
+    memory.fill(0x5A); const auto untouched = memory;
+    PadBindingRecords records(memory.data(), memory.data() + memory.size());
+    ButtonLayout game; CHECK(ReadSlot(records, 0, game));
+    LayoutOwners owners; LayoutPlacements placements; std::array<bool, 4> occupied{};
+    const auto apply = [&] { const auto plan = SlotWritePlan(owners, placements, occupied); CHECK(ApplySlotWrites(owners, placements, plan, records)); return plan; };
+    placements[0] = LayoutPlacement{Pad(1), DefaultLayout}; occupied[0] = true;
+    CHECK(apply()[0].copyFirst && owners[0]->gameCopy == game);
+    ButtonLayout read; ReadSlot(records, 0, read); CHECK(read == DefaultLayout);
+    // Disconnect retains the table until a replacement actually occupies it.
+    occupied[0] = false; placements[0].reset(); CHECK(apply().empty());
+    placements[2] = LayoutPlacement{Pad(1), LayoutPresets[1].buttons}; occupied[2] = true;
+    CHECK(apply().size() == 1); ReadSlot(records, 0, read); CHECK(read == DefaultLayout);
+    occupied[0] = true; CHECK(apply()[0].source == LayoutSource::GameCopy); ReadSlot(records, 0, read); CHECK(read == game);
+    CHECK(apply().empty());
+    placements[2].reset(); CHECK(apply()[0].source == LayoutSource::GameCopy);
+    placements[1] = LayoutPlacement{Pad(2), DefaultLayout}; occupied[1] = true; apply();
+    placements[1]->buttons[0] = 0x50; CHECK(apply().size() == 1);
+    placements[1]->buttons[0] = 0x10;
+    const auto beforeInvalid = memory; const auto beforeOwners = owners;
+    placements[3] = LayoutPlacement{Pad(3), DefaultLayout}; occupied[3] = true;
+    const auto plan = SlotWritePlan(owners, placements, occupied);
+    PadBindingRecords shortRecords(memory.data(), memory.data() + 3 * PadBindingRecords::Stride);
+    CHECK(!ApplySlotWrites(owners, placements, plan, shortRecords) && memory == beforeInvalid);
+    CHECK(!owners[3]);
+    PadBindingRecords reversed(memory.data() + 4, memory.data()); CHECK(!WriteSlot(reversed, 0, DefaultLayout));
+    CHECK(!WriteSlot(records, 4, DefaultLayout));
+    for (unsigned record = 0; record < 6; ++record) for (unsigned offset = 0; offset < PadBindingRecords::Stride; ++offset) {
+        bool bindable = false;
+        if (record < 4) for (auto bit : LayoutBits) if (offset >= 0x17C + bit * 4 && offset < 0x17C + (bit + 1) * 4) bindable = true;
+        if (!bindable) CHECK(memory[record * PadBindingRecords::Stride + offset] == untouched[record * PadBindingRecords::Stride + offset]);
+    }
+    // A new connection in the same reserved slot is a placement, even with the same identity.
+    placements[3].reset(); occupied[3] = false;
+    placements[1]->instance = 19; CHECK(apply().size() == 1);
+    // The game's edit copy now contains only its own tables, across two owners.
+    placements[0] = LayoutPlacement{Pad(1), DefaultLayout}; apply();
+    ButtonScreenSwap screen; CHECK(screen.Open(owners, records) && screen.IsOpen());
+    for (unsigned slot : {0u, 1u}) { ReadSlot(records, slot, read); CHECK(read == owners[slot]->gameCopy); }
+    auto newGame = DefaultLayout; newGame[2] = 0x50; WriteSlot(records, 0, newGame);
+    auto otherGame = DefaultLayout; otherGame[3] = 0xA0; WriteSlot(records, 1, otherGame);
+    CHECK(screen.Close(owners, records) && !screen.IsOpen());
+    CHECK(owners[0]->gameCopy == newGame && owners[1]->gameCopy == otherGame);
+    ReadSlot(records, 0, read); CHECK(read == owners[0]->buttons); ReadSlot(records, 1, read); CHECK(read == owners[1]->buttons);
+    // Shutdown restores every owned slot, including a disconnected owner's slot.
+    const auto beforeShutdown = memory;
+    PadBindingRecords shutdownShort(memory.data(), memory.data() + PadBindingRecords::Stride);
+    CHECK(!RestoreGameLayouts(owners, shutdownShort) && memory == beforeShutdown && owners[0] && owners[1]);
+    CHECK(RestoreGameLayouts(owners, records));
+    CHECK(ReadSlot(records, 0, read) && read == newGame && !owners[0]);
+    CHECK(ReadSlot(records, 1, read) && read == otherGame && !owners[1]);
+}
+static void Capture() {
+    LayoutCapture capture; capture.Begin(0, {"A"});
+    CHECK(!capture.Read(1, {"A"}, AllLayoutButtons).button); capture.Read(2, {}, AllLayoutButtons);
+    CHECK(capture.Read(3, {"Y"}, AllLayoutButtons).button == 3);
+    for (const auto& held : {std::vector<std::string>{"Start"}, std::vector<std::string>{"left"}}) {
+        capture.Begin(0, {}); CHECK(capture.Read(1, held, AllLayoutButtons).cancelled != LayoutCancel::None);
+    }
+    for (auto reason : {LayoutCancel::Escape, LayoutCancel::Back, LayoutCancel::State}) {
+        capture.Begin(0, {}); CHECK(capture.Read(1, {}, AllLayoutButtons, reason).cancelled == reason);
+    }
+    capture.Begin(0, {}); CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout);
+}
+int main() { Model(); Persistence(); Writer(); Capture(); }

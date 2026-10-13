@@ -1,3 +1,5 @@
+#include "../netplay/ControllerMappings.hxx"
+#include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
@@ -6,6 +8,7 @@
 #include "../netplay/JsonFileStore.hxx"
 #include "../platform/DurableFile.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -190,6 +193,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true},
+        {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
@@ -240,6 +244,58 @@ static void BoolPreferenceRoundTrips(const Path& root) {
     CHECK(threw);
 }
 
+static void ButtonPromptRoundTrips(const Path& root) {
+    using namespace sf4e;
+    for (int choice=0;choice<4;++choice) {
+        const auto folder=root/(L"prompts-"+std::to_wstring(choice));
+        CHECK(std::filesystem::create_directory(folder));
+        SettingsStore store(folder.wstring()); std::string error;
+        netplay::PlayerPreferences prefs; prefs.buttonPrompts=static_cast<gamepads::ButtonPrompts>(choice);
+        Json saved; netplay::WriteButtonPrompts(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        const Json document=Json::parse(Read(folder/L"settings.json"));
+        CHECK(document["netplay"]["buttonPrompts"]==choice);
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadButtonPrompts(loaded)==prefs.buttonPrompts);
+    }
+    const auto oldFolder=root/L"prompts-migration";
+    CHECK(std::filesystem::create_directory(oldFolder));
+    SettingsStore oldStore(oldFolder.wstring()); std::string error;
+    CHECK(oldStore.SaveLauncher({{"fasterDisplay",false}},error));
+    Json old; CHECK(oldStore.LoadLauncher(old,error));
+    CHECK(!old.contains("buttonPrompts")&&!old["fasterDisplay"].get<bool>());
+    CHECK(netplay::ReadButtonPrompts(old)==gamepads::ButtonPrompts::Automatic);
+    for (const Json& bad : {Json(-1),Json(4),Json(4294967296ULL),Json(18446744073709551615ULL),Json(-4294967296LL),
+            Json(1.5),Json("Xbox"),Json(false),Json(nullptr),Json::array({1})})
+        CHECK(netplay::ReadButtonPrompts({{"buttonPrompts",bad}})==gamepads::ButtonPrompts::Automatic);
+    netplay::PlayerPreferences invalid; invalid.buttonPrompts=static_cast<gamepads::ButtonPrompts>(4); CHECK(!invalid.Valid());
+}
+
+static void ControllerLayerRoundTrip(const Path& root) {
+    SettingsStore store((root / L"controller-layer").wstring());
+    std::string error; Json saved;
+    CHECK(store.SaveOverlay({{"controllerLayer", false}}, error));
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerLayer"] == false);
+    sf4e::netplay::PlayerPreferences preferences;
+    sf4e::netplay::ReadBoolPreferences(saved, preferences);
+    CHECK(!preferences.controllerLayer);
+    CHECK(store.SaveLauncher({{"controllerLayer", true}, {"controllerMappings", {{"guid", "mapping"}}}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true);
+    // A delayed overlay edit cannot overwrite Player's canonical choice.
+    CHECK(store.SaveOverlay({{"controllerLayer", false}, {"stageID", 4}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true && saved["stageID"] == 4);
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"]["guid"] == "mapping");
+    CHECK(sf4e::netplay::ReadControllerMappings(saved).at("guid") == "mapping");
+    CHECK(sf4e::netplay::ReadControllerMappings({{"deviceType", 0}, {"deviceIdx", 2}}).empty());
+    const std::vector<sf4e::gamepads::StoredLayout> layouts = {{{"guid", "serial", "path", "Pad"}, sf4e::gamepads::DefaultLayout, 1234}};
+    CHECK(store.SaveLauncher({{"buttonLayouts", sf4e::gamepads::LayoutsToJson(layouts)}}, error));
+    CHECK(store.LoadLauncher(saved, error));
+    CHECK(sf4e::gamepads::ReadLayouts(saved, [](unsigned, sf4e::gamepads::LayoutLoadError) {}) == layouts);
+    CHECK(store.LoadOverlay(saved, error) && !saved.contains("buttonLayouts"));
+    CHECK(store.SaveLauncher({{"controllerLayer", false}, {"controllerMappings", Json::object()}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == false);
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"].empty());
+}
 int main() {
     // Each run owns a fresh temporary subtree; never consult real AppData.
     const auto root = MakeTempRoot(L"sf4e-settings-test-");
@@ -249,7 +305,7 @@ int main() {
     const Json launcher = {{"displayName", "Saved player"}, {"inputDelay", 3}, {"roundCount", 7},
         {"roundTimeIntegral", 300}, {"editionSelect", 1}, {"sessionPort", 23456},
         {"relayHostSecret", "old-test-secret"}, {"relayRoomCode", "OLD1"}, {"relaySessionPort", 30001},
-        {"unknownPreference", "retain"}};
+        {"unknownPreference", "retain"}, {"buttonLayouts", sf4e::gamepads::LayoutsToJson({{{"migration-guid", "", "migration-path", "Pad"}, sf4e::gamepads::DefaultLayout, 12}})}};
     const Json overlay = {{"diagnostics", {{"heapCheckInterval", 1}}}, {"stageID", 12}, {"lobby", {{"charaID", 23}, {"color", 7}}},
         {"mainMenu", {{"p2", {{"charaID", 9}}}}}, {"device", {{"idx", 2}, {"type", 1}}}};
     Write(path / L"config.json", launcher.dump(4));
@@ -262,6 +318,7 @@ int main() {
     CHECK(result["displayName"] == "Saved player" && result["inputDelay"] == 3);
     CHECK(!result.contains("relayHostSecret") && !result.contains("relayRoomCode") && !result.contains("relaySessionPort"));
     CHECK(result["unknownPreference"] == "retain");
+    CHECK(sf4e::gamepads::ReadLayouts(result, [](unsigned, sf4e::gamepads::LayoutLoadError) {}).size() == 1);
     auto activeOverlay = overlay; activeOverlay.erase("mainMenu");
     CHECK(store.LoadOverlay(result, error) && result == activeOverlay);
     CHECK(store.LoadLauncher(result, error) && !result.contains("sessionPort"));
@@ -513,6 +570,8 @@ int main() {
     InputDelayMigrations(root);
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);
+    ButtonPromptRoundTrips(root);
+    ControllerLayerRoundTrip(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

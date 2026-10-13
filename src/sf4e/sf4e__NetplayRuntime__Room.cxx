@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayStore.hxx"
@@ -116,16 +117,22 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if (runtime->room) runtime->room->RequestShortInvitation();
         return DispatchOutcome::Dropped;
     }
+    if (command.padAction.kind != gamepads::ControllerRequest::Kind::None) {
+        HandleControllerRequest(command.padAction); return DispatchOutcome::Dropped;
+    }
     if (command.inputAction != input::Action::None) {
+        if (command.inputAction == input::Action::BeginCapture || command.inputAction == input::Action::UseKeyboard) runtime->setupAdoption.reset();
         if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
-        const auto current = runtime->controller.GetSnapshot();
-        if (!AtMainMenu() || !GetRuntimeSnapshotShared()->canChangeController || runtime->readyIntent.Parked() ||
-            current.readyPending || (current.match != netplay::MatchState::None && current.match != netplay::MatchState::PostMatch)) return DispatchOutcome::Dropped;
+        if (!CanChooseControllerNow()) return DispatchOutcome::Dropped;
         if (command.inputAction == input::Action::BeginCapture) runtime->input.Begin();
         else if (command.inputAction == input::Action::UseKeyboard) {
             runtime->input.Cancel();
             for (const auto& device : runtime->inputDevices) if (device.type == Dimps::Pad::PADTYPE_RAWINPUT) {
                 runtime->input.Adopt(device); runtime->inputInitialized = true;
+                runtime->padHint.clear();
+                runtime->padHints.Selected(device.identity);
+                OverlayPrefs::SaveGameplayDevice(device.type, device.index, {});
+                LogGameplayController(device, "list");
                 input::AssignToSide(device, 0, false); break;
             }
         }
@@ -327,6 +334,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         command.preferences.record=runtime->preferences.record;
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
+            Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");

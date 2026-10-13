@@ -2,10 +2,12 @@
 
 #include <windows.h>
 #include "../common/PadKind.hxx"
+#include "../common/PadBindingRecords.hxx"
 
 namespace Dimps {
 	namespace Pad {
 		void Locate(HMODULE peRoot);
+        sf4e::gamepads::PadBindingRecords BindingRecords();
 		
 		enum PadType {
 			PADTYPE_RAWINPUT = 1,

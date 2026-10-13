@@ -12,6 +12,7 @@ struct OverlayLayersView {
     bool focused = true, trainingHud = true, matchActive = false;
     bool matchWaitsForMenu = false, showMatchHud = true;
     std::string controllerWarning;
+    std::string padHint;
     // A replay is being exported. Its video's layers, the caption and the
     // frame meter, are then drawn whatever window is open over them, so the
     // video never depends on Ember's menu (SplitExportPasses).

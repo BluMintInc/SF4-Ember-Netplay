@@ -103,10 +103,11 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 if(BUILD_TESTING)
     # Links Sidecar's own crash record, so the test runs the production handler.
     # It needs spdlog and GGPO, so it stays out of the core-only build.
-    add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx")
+    add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx" "src/sf4e/sf4e__ImportPatch.cxx")
     target_compile_features(HeapCorruptionCaptureTest PRIVATE cxx_std_17)
     target_link_libraries(HeapCorruptionCaptureTest PRIVATE spdlog::spdlog ggpo::GGPO "dbghelp" "psapi" "shlwapi")
     add_test(NAME HeapCorruptionCapture COMMAND HeapCorruptionCaptureTest)
@@ -226,7 +227,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 endif()
 
-add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
+add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ControllersScreen.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
@@ -236,7 +237,7 @@ set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMP
 target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
-target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx src/ui/PadSetupScreen.cxx src/ui/ApplicationShell__PadSetup.cxx src/ui/ButtonLayoutScreen.cxx src/ui/ApplicationShell__ButtonLayout.cxx)
 add_library(sf4e_problem_report STATIC src/platform/ProblemReport.cxx)
 target_compile_features(sf4e_problem_report PUBLIC cxx_std_17)
 target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
@@ -254,9 +255,18 @@ if(BUILD_TESTING)
     add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
     target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME GamepadPrompts SOURCES src/tests/gamepad_prompts_test.cxx LIBS sf4e_ui STD 17)
+    sf4e_add_unit_test(NAME ButtonLayout SOURCES src/tests/button_layout_test.cxx LIBS sf4e_settings STD 17)
+    sf4e_add_unit_test(NAME PadSetup SOURCES src/tests/pad_setup_test.cxx STD 17)
+    sf4e_add_unit_test(NAME PadSetupMapping SOURCES src/tests/pad_setup_mapping_test.cxx LIBS SDL3::SDL3-static sf4e_settings STD 17)
+    sf4e_add_unit_test(NAME GamepadSlots SOURCES src/tests/gamepad_slots_test.cxx STD 17)
+    sf4e_add_unit_test(NAME GamepadRumble SOURCES src/tests/gamepad_rumble_test.cxx STD 17)
+    sf4e_add_unit_test(NAME ControllersScreen SOURCES src/tests/controllers_screen_test.cxx LIBS sf4e_ui STD 17)
+    sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
+    sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
-        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx
+        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
         src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
@@ -360,6 +370,11 @@ if(BUILD_TESTING)
 endif()
 
 add_library(sf4e STATIC
+    "src/sf4e/sf4e__Gamepads.cxx"
+    "src/sf4e/sf4e__GamepadLayouts.cxx"
+    "src/sf4e/sf4e__OptionUIController.cxx"
+    "src/sf4e/sf4e__DirectInputFilter.cxx"
+    "src/sf4e/sf4e__ImportPatch.cxx"
     "src/sf4e/sf4e__InputDevices.cxx"
     "src/sf4e/sf4e.hxx"
     "src/sf4e/sf4e.cxx"
@@ -425,6 +440,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__RuntimeBridge.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
+target_link_libraries(sf4e PRIVATE SDL3::SDL3-static dxguid)
 option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
 if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
