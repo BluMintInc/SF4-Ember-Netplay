@@ -1,3 +1,7 @@
+# Windows PowerShell started from pwsh (CTest under build-current.ps1) inherits
+# pwsh's PSModulePath, which hides Get-FileHash; load this host's own module.
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility') -ErrorAction Stop
+
 # Removes a temp directory this script created: only a GUID-suffixed folder
 # directly under the temp path, so a wrong path can never delete anything else.
 function Remove-DownloadTempDirectory([string]$Path, [string]$Prefix) {
