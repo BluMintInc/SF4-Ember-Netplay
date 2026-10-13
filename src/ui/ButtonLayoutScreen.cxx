@@ -1,8 +1,6 @@
 #include "ButtonLayoutScreen.hxx"
 #include "GameMenu.hxx"
 #include "TextPill.hxx"
-#include <charconv>
-#include <sstream>
 
 namespace sf4e { namespace ui {
 using namespace gamepads;
@@ -14,37 +12,6 @@ std::string AttackLongName(std::uint32_t mask) {
     for (const auto& function : LayoutFunctions) if (mask == function.mask) return loc::T(function.key);
     return FightName(mask);
 }
-namespace {
-// Wizard mappings use only bN, hN.mask, signed aN and aN[~].
-std::optional<RawInput> MappingInput(std::string value) {
-    if (value.empty()) return {};
-    RawInput input;
-    if (value[0] == '+' || value[0] == '-') {
-        input.kind = value[0] == '+' ? RawKind::AxisPlus : RawKind::AxisMinus;
-        value.erase(0, 1);
-        if (value.empty() || value[0] != 'a') return {};
-    } else input.kind = value[0] == 'b' ? RawKind::Button : value[0] == 'h' ? RawKind::HatUp : RawKind::Trigger;
-    const char kind = value[0];
-    if (kind != 'a' && kind != 'b' && kind != 'h') return {};
-    const auto parsed = std::from_chars(value.data() + 1, value.data() + value.size(), input.index);
-    if (parsed.ec != std::errc{} || input.index < 0) return {};
-    if (kind == 'h') {
-        if (parsed.ptr == value.data() + value.size() || *parsed.ptr != '.') return {};
-        unsigned mask = 0;
-        const auto hat = std::from_chars(parsed.ptr + 1, value.data() + value.size(), mask);
-        if (hat.ec != std::errc{} || hat.ptr != value.data() + value.size()) return {};
-        if (mask == 1) input.kind = RawKind::HatUp;
-        else if (mask == 2) input.kind = RawKind::HatRight;
-        else if (mask == 4) input.kind = RawKind::HatDown;
-        else if (mask == 8) input.kind = RawKind::HatLeft;
-        else return {};
-    } else if (parsed.ptr != value.data() + value.size()) {
-        if (kind != 'a' || *parsed.ptr != '~' || parsed.ptr + 1 != value.data() + value.size()) return {};
-        input.inverted = true;
-    }
-    return input;
-}
-}
 FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const std::map<std::string, std::string>& mappings) {
     const auto brand = ResolvePrompts(prompts, input::PadXInput, pad.brand).brand;
     if (brand == Brand::PlayStation) return {"Cross", "Circle", "Square", "Triangle", "L1", "R1", "L2", "R2", "L3", "R3"};
@@ -54,13 +21,9 @@ FightNames LayoutButtonNames(const PadView& pad, ButtonPrompts prompts, const st
     const auto mapping = mappings.find(pad.identity.guid);
     if (pad.mapping.empty() && mapping == mappings.end()) return names;
     constexpr std::array<const char*, 10> targets = {"a", "b", "x", "y", "leftshoulder", "rightshoulder", "lefttrigger", "righttrigger", "leftstick", "rightstick"};
-    std::istringstream fields(pad.mapping.empty() ? mapping->second : pad.mapping); std::string field;
-    while (std::getline(fields, field, ',')) {
-        const auto colon = field.find(':');
-        if (colon == std::string::npos) continue;
-        for (unsigned i = 0; i < targets.size(); ++i) if (field.substr(0, colon) == targets[i])
-            if (auto raw = MappingInput(field.substr(colon + 1))) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
-    }
+    for (const auto& field : ParseMapping(pad.mapping.empty() ? mapping->second : pad.mapping).fields)
+        for (unsigned i = 0; i < targets.size(); ++i) if (field.first == targets[i])
+            if (auto raw = ParseRawBinding(field.second)) { raw->numberedHat = pad.numberedHats; names[i] = RawInputName(*raw); }
     return names;
 }
 std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable) {

@@ -35,6 +35,9 @@ std::string startupNote;
 bool startupWarning = false;
 std::optional<Identity> preferred;
 std::set<std::string> savedEmberMappingGuids;
+// Of those, the GUIDs SDL also maps itself. Ember's mapping replaces SDL's, so
+// this is noted before Ember adds one.
+std::set<std::string> sdlMappedGuids;
 PadSetup setupModel;
 SetupSnapshot setup;
 std::deque<std::pair<SetupCommand, int>> setupCommands;
@@ -90,6 +93,13 @@ const char* TypeName(Type type) {
     case Type::GameCube: return "gamecube";
     default: return "unknown";
     }
+}
+
+// The mapping SDL holds for a GUID (its own, or an Ember one once added), or empty.
+std::string MappingForGuid(const std::string& guid) {
+    char* mapping = SDL_GetGamepadMappingForGUID(SDL_StringToGUID(guid.c_str()));
+    auto text = Text(mapping); SDL_free(mapping);
+    return text;
 }
 
 std::string IdentityTag(const Identity& identity) {
@@ -156,6 +166,7 @@ void Rebuild() {
         char guid[33];
         SDL_GUIDToString(SDL_GetJoystickGUIDForID(pad.id), guid, sizeof(guid));
         pad.identity = {guid, "", Text(SDL_GetJoystickPathForID(pad.id)), Text(SDL_GetJoystickNameForID(pad.id))};
+        pad.sdlMapping = savedEmberMappingGuids.count(pad.identity.guid) ? sdlMappedGuids.count(pad.identity.guid) != 0 : pad.mapped;
         pads.push_back(std::move(pad));
     }
     SDL_free(ids);
@@ -325,8 +336,8 @@ void UpdateLocked(bool rebuild) {
             for (unsigned i = 0; i < 6; ++i) frame.has[i] = SDL_GamepadHasButton(handle->second, buttons[i]);
             frame.has[6] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
             frame.has[7] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
-            frame.has[8] = !pad.hasEmberMapping && SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_LEFT_STICK);
-            frame.has[9] = !pad.hasEmberMapping && SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+            frame.has[8] = SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+            frame.has[9] = SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
             frame.pressed = std::any_of(frame.state.buttons.begin(), frame.state.buttons.end(), [](bool held) { return held; }) ||
                 frame.state.leftTrigger > 16383 || frame.state.rightTrigger > 16383;
             if (pad.slot >= 0) {
@@ -477,8 +488,11 @@ void Start() {
     netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
     if (store.LoadLauncher(values, error))
         for (const auto& [guid, mapping] : netplay::ReadControllerMappings(values)) {
-            if (SDL_AddGamepadMapping(mapping.c_str()) >= 0) savedEmberMappingGuids.insert(guid);
-            else spdlog::warn("Input: saved setup for guid {} rejected (SDL: {})", guid, SDL_GetError());
+            const bool sdlMaps = !MappingForGuid(guid).empty();
+            if (SDL_AddGamepadMapping(mapping.c_str()) >= 0) {
+                savedEmberMappingGuids.insert(guid);
+                if (sdlMaps) sdlMappedGuids.insert(guid);
+            } else spdlog::warn("Input: saved setup for guid {} rejected (SDL: {})", guid, SDL_GetError());
         }
     UpdateLocked(true);
     active = true;
@@ -573,14 +587,17 @@ std::optional<std::string> SaveSetup() {
     setupCommands.emplace_back(SetupCommand::Save, 0);
     UpdateLocked(false);
     if (!active || !setup.state.active || setup.state.mode != SetupMode::Summary || !setup.state.CanSave() || setup.state.feedback == SetupFeedback::Reconnect) return {};
-    const auto mapping = BuildSetupMapping(setup.identity.guid, setup.identity.name, setup.state);
+    const auto guid = setup.identity.guid;
+    const auto existing = MappingForGuid(guid);
+    const auto mapping = BuildSetupMapping(guid, setup.identity.name, setup.state, existing);
     if (SDL_AddGamepadMapping(mapping.c_str()) < 0) {
         spdlog::error("Input: setup mapping rejected (SDL: {}): {}", SDL_GetError(), mapping);
         setup.outcome = SetupEnd::SaveFailed; ++setup.revision; return {};
     }
-    savedEmberMappingGuids.insert(setup.identity.guid);
+    if (!savedEmberMappingGuids.count(guid) && !existing.empty()) sdlMappedGuids.insert(guid);
+    savedEmberMappingGuids.insert(guid);
     setup.state.active = false; setup.outcome = SetupEnd::Saved; ++setup.revision;
-    spdlog::info("Input: setup saved for guid {}: {}", setup.identity.guid, mapping);
+    spdlog::info("Input: setup saved for guid {}: {}", guid, mapping);
     UpdateLocked(true);
     return mapping;
 }

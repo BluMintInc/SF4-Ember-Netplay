@@ -7,12 +7,15 @@ struct Wizard {
     PadSetup model;
     RawState raw;
     std::uint64_t now = 0;
-    Wizard() { raw.buttons.resize(20); model.Start(now); Tick(); }
+    explicit Wizard(int axes = 0) { raw.buttons.resize(SetupStepCount); raw.axes.assign(axes, 0); model.Start(now); Tick(); }
     std::vector<SetupEvent> Tick(std::uint64_t elapsed = 0, SetupCommand command = SetupCommand::None, int step = 0, bool connected = true) {
         now += elapsed; return model.Update(now, raw, connected, command, step);
     }
     std::vector<SetupEvent> Tap(int button, std::uint64_t duration = 100) {
         raw.buttons[button] = true; Tick(); raw.buttons[button] = false; return Tick(duration);
+    }
+    std::vector<SetupEvent> Push(int axis, int value) {
+        raw.axes[axis] = value; Tick(); raw.axes[axis] = 0; return Tick(100);
     }
     void Through(int step) { while (model.State().mode == SetupMode::Capture && model.State().step < step) Tap(model.State().step); }
 };
@@ -43,7 +46,7 @@ void Gestures() {
     Wizard directions; directions.Tap(0); directions.Tap(0); CHECK(directions.model.State().step == 1);
 }
 void SummaryAndKeyboard() {
-    for (int step = 0; step < 14; ++step) {
+    for (int step = 0; step < SetupStepCount; ++step) {
         Wizard required; required.Through(step); const auto before = required.model.State().step;
         const auto events = required.Tick(0, SetupCommand::Space);
         CHECK(events[0].kind == (SetupSteps[step].required ? SetupEventKind::Required : SetupEventKind::Skip));
@@ -52,8 +55,8 @@ void SummaryAndKeyboard() {
     Wizard w; w.Tick(0, SetupCommand::Backspace); CHECK(w.model.State().step == 0);
     w.Tick(0, SetupCommand::Space); CHECK(w.model.State().feedback == SetupFeedback::Required);
     w.Tap(0); w.Tick(0, SetupCommand::Backspace); CHECK(!w.model.State().recorded[0]);
-    w.Through(10); w.Tick(0, SetupCommand::Space); w.Tick(0, SetupCommand::Space);
-    w.Tap(12); w.Tick(0, SetupCommand::Space);
+    w.Through(10); for (int step = 10; step < SetupStepCount - 2; ++step) w.Tick(0, SetupCommand::Space);
+    w.Tap(SetupStepCount - 2); w.Tick(0, SetupCommand::Space);
     CHECK(w.model.State().mode == SetupMode::Summary && w.model.State().CanSave());
     CHECK(w.Tick(0, SetupCommand::Save)[0].kind == SetupEventKind::Save);
     w.Tick(0, SetupCommand::Redo, 7); CHECK(!w.model.State().recorded[7] && !w.model.State().CanSave());
@@ -66,11 +69,11 @@ void SummaryAndKeyboard() {
     for (const auto& input : w.model.State().recorded) CHECK(!input);
     CHECK(!w.model.State().CanSave());
     w.Tick(0, SetupCommand::Escape); CHECK(!w.model.State().active);
-    Wizard summaryHold; summaryHold.Through(13); summaryHold.Tap(13);
+    Wizard summaryHold; summaryHold.Through(SetupStepCount - 1); summaryHold.Tap(SetupStepCount - 1);
     summaryHold.raw.buttons[7] = true; summaryHold.Tick(); summaryHold.Tick(1000);
     CHECK(summaryHold.model.State().summaryInput.sequence == 0);
     CHECK(summaryHold.Tick(2000)[0].reason == SetupEnd::Hold);
-    Wizard chord; chord.Through(13); chord.Tap(13); chord.raw.buttons[0] = true; chord.Tick();
+    Wizard chord; chord.Through(SetupStepCount - 1); chord.Tap(SetupStepCount - 1); chord.raw.buttons[0] = true; chord.Tick();
     chord.raw.buttons[7] = true; chord.Tick(50); chord.raw.buttons[7] = false; chord.Tick(50);
     CHECK(chord.model.State().summaryInput.up && chord.model.State().summaryInput.action == SetupMenuAction::Select);
     Wizard entry; entry.model.Start(entry.now, SetupAxisEntry{0, -32768}); entry.raw.axes = {32767}; entry.Tick();
@@ -94,12 +97,33 @@ void Timers() {
     disconnect.Tick(0, SetupCommand::None, 0, false);
     CHECK(disconnect.Tick(15000, SetupCommand::None, 0, false)[0].reason == SetupEnd::Disconnect);
     Wizard deadline; deadline.Tick(0, SetupCommand::None, 0, false); CHECK(deadline.Tick(15000)[0].reason == SetupEnd::Disconnect);
-    Wizard summary; summary.Through(13); summary.Tap(13); summary.Tick(0, SetupCommand::None, 0, false);
+    Wizard summary; summary.Through(SetupStepCount - 1); summary.Tap(SetupStepCount - 1); summary.Tick(0, SetupCommand::None, 0, false);
     summary.Tick(14000); CHECK(summary.model.State().mode == SetupMode::Summary);
     summary.raw.buttons[7] = true; summary.Tick(); summary.raw.buttons[7] = false; summary.Tick(100);
     const auto sequence = summary.model.State().summaryInput.sequence;
     summary.Tick(0, SetupCommand::None, 0, false); summary.Tick(14000);
     CHECK(summary.model.State().summaryInput.sequence == sequence);
+}
+int Step(const char* name) {
+    for (int i = 0; i < SetupStepCount; ++i) if (std::string(SetupSteps[i].name) == name) return i;
+    throw std::runtime_error(name);
+}
+void Sticks() {
+    CHECK(SetupStepCount == 20 && Step("3k") == 11 && Step("ls") == 12 && Step("rs") == 13 && Step("start") == SetupStepCount - 2);
+    CHECK(SetupSteps[Step("lx")].kind == StepKind::Stick && !SetupSteps[Step("ry")].required && SetupSteps[Step("ls")].kind == StepKind::Button);
+    // Up on the stick's minus half: the down stick step maps the whole axis, so it conflicts.
+    Wizard w(2); w.Push(1, -32768); w.Tap(1); w.Tap(2); w.Tap(3); w.Through(Step("ly"));
+    auto e = w.Push(1, 32767);
+    CHECK(e.size() == 1 && e[0].kind == SetupEventKind::Conflict && e[0].other == UpStep && w.model.State().step == Step("ly"));
+    w.Push(0, 32767); CHECK(w.model.State().step == Step("rx") && RawBinding(*w.model.State().recorded[Step("ly")]) == "+a0");
+    // A half recorded after a stick step conflicts too (redo from the summary).
+    w.Through(SetupStepCount - 1); w.Tap(SetupStepCount - 1); w.Tick(0, SetupCommand::Redo, UpStep);
+    e = w.Push(0, -32768); CHECK(e[0].kind == SetupEventKind::Conflict && e[0].other == Step("ly"));
+    // The tap ladder still runs first: Left steps back and Right skips.
+    Wizard ladder(1); ladder.Tap(0); ladder.Tap(1); ladder.Push(0, -32768); ladder.Push(0, 32767);
+    ladder.Through(Step("lx"));
+    e = ladder.Push(0, 32767); CHECK(e[0].kind == SetupEventKind::Skip && ladder.model.State().step == Step("ly"));
+    e = ladder.Push(0, -32768); CHECK(e[0].kind == SetupEventKind::Back && ladder.model.State().step == Step("lx"));
 }
 void Reading() {
     SetupInputReader reader; RawState raw; raw.buttons.resize(8); raw.hats = {0}; raw.axes = {0, -32768, 32767};
@@ -133,4 +157,4 @@ void Reading() {
     CHECK(reader.Read(0, raw).ready && reader.Rest()[0] == 32767);
     raw.axes[0] = -32768; CHECK(RawBinding(*reader.Read(100, raw).owner) == "a0~");
 }
-int main() { Gestures(); SummaryAndKeyboard(); Timers(); Reading(); std::cout << "Pad setup gestures, state transitions, timers and raw inputs passed\n"; }
+int main() { Gestures(); SummaryAndKeyboard(); Timers(); Sticks(); Reading(); std::cout << "Pad setup gestures, state transitions, timers and raw inputs passed\n"; }

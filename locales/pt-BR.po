@@ -4377,6 +4377,24 @@ msgstr "Os três socos"
 msgid "pad_setup.step.3k"
 msgstr "Os três chutes"
 
+msgid "pad_setup.step.ls"
+msgstr "Clique do analógico esquerdo"
+
+msgid "pad_setup.step.rs"
+msgstr "Clique do analógico direito"
+
+msgid "pad_setup.step.lx"
+msgstr "Analógico esquerdo para a direita"
+
+msgid "pad_setup.step.ly"
+msgstr "Analógico esquerdo para baixo"
+
+msgid "pad_setup.step.rx"
+msgstr "Analógico direito para a direita"
+
+msgid "pad_setup.step.ry"
+msgstr "Analógico direito para baixo"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4391,6 +4409,9 @@ msgstr "Pressione o botão desejado para esta ação e solte."
 
 msgid "pad_setup.optional"
 msgstr "Se o controle não tiver um botão para esta ação, pule."
+
+msgid "pad_setup.optional_stick"
+msgstr "Se o controle não tiver um analógico para esta ação, pule."
 
 msgid "pad_setup.lk_selects"
 msgstr "Este botão também selecionará nos menus."

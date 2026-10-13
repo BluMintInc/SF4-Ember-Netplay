@@ -4838,6 +4838,24 @@ msgstr "Všechny tři údery"
 msgid "pad_setup.step.3k"
 msgstr "Všechny tři kopy"
 
+msgid "pad_setup.step.ls"
+msgstr "Stisk levé páčky"
+
+msgid "pad_setup.step.rs"
+msgstr "Stisk pravé páčky"
+
+msgid "pad_setup.step.lx"
+msgstr "Levá páčka doprava"
+
+msgid "pad_setup.step.ly"
+msgstr "Levá páčka dolů"
+
+msgid "pad_setup.step.rx"
+msgstr "Pravá páčka doprava"
+
+msgid "pad_setup.step.ry"
+msgstr "Pravá páčka dolů"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Stiskněte tlačítko, které chcete pro tuto akci, a potom jej pusťte.
 
 msgid "pad_setup.optional"
 msgstr "Pokud ovladač nemá tlačítko pro tuto akci, přeskočte ji."
+
+msgid "pad_setup.optional_stick"
+msgstr "Pokud ovladač nemá páčku pro tuto akci, přeskočte ji."
 
 msgid "pad_setup.lk_selects"
 msgstr "Toto tlačítko také vybírá v nabídkách."

@@ -33,7 +33,7 @@ inline std::vector<std::string> HeldGlyphs(const State& state) {
     return held;
 }
 inline const char* ControllerPicture(const Pad& pad) {
-    if (pad.hasEmberMapping || pad.arcadeStick) return "generic_joystick_red";
+    if (SetUpOnlyByEmber(pad) || pad.arcadeStick) return "generic_joystick_red";
     switch (pad.type) {
     case Type::Xbox360: return "controller_xbox360";
     case Type::XboxOne: return "controller_xboxseries";

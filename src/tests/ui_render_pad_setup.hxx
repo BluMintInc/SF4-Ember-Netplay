@@ -19,9 +19,14 @@ void ShootPadSetup(sf4e::ui::ApplicationShell& shell, sf4e::ui::ShellView& view,
     state.holdMs = 0; state.feedback = SetupFeedback::Idle; draw("pad-setup-idle-hint");
     state.feedback = SetupFeedback::Reconnect; state.reconnectSeconds = 12; draw("pad-setup-reconnect");
     state.feedback = SetupFeedback::None; state.step = 10; draw("pad-setup-optional");
-    for (int i = 7; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
-    state.recorded[10].reset(); state.recorded[11].reset(); state.recorded[13].reset();
-    state.skipped[10] = state.skipped[11] = state.skipped[13] = true;
+    for (int i = 7; i < 12; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
+    while (SetupSteps[state.step].kind != StepKind::Stick) ++state.step;
+    draw("pad-setup-stick");
+    // A six-button stick: no 3P or 3K, no stick clicks or sticks, no Select.
+    for (int i = 7; i < SetupStepCount; ++i) {
+        state.recorded[i].reset(); state.skipped[i] = !SetupSteps[i].required;
+        if (SetupSteps[i].required) state.recorded[i] = RawInput{RawKind::Button, i};
+    }
     state.mode = SetupMode::Summary;
     auto rows = PadSetupRows(state); draw(); shell.Navigation().Focus("save", rows); draw("pad-setup-summary");
     state.held = {*state.recorded[7]}; shell.Navigation().Focus("step-7", rows); draw("pad-setup-summary-held");

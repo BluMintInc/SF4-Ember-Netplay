@@ -7,7 +7,7 @@ using namespace gamepads;
 std::string SetupStepName(int step) { return loc::T(SetupSteps[step].nameKey); }
 std::vector<MenuEntry> PadSetupRows(const SetupState& state) {
     std::vector<MenuEntry> rows;
-    for (int i = 0; i < 14; ++i) {
+    for (int i = 0; i < SetupStepCount; ++i) {
         auto row = Row("step-" + std::to_string(i), SetupStepName(i), state.mode == SetupMode::Summary ? loc::T("pad_setup.redo_detail") : "");
         row.value = state.recorded[i] ? RawInputName(*state.recorded[i]) : loc::T(state.skipped[i] ? "pad_setup.skipped" : "common.not_set");
         row.valueHighlighted = state.mode == SetupMode::Summary && state.recorded[i] &&
@@ -26,8 +26,8 @@ std::vector<LegendHint> PadSetupLegend(const SetupState& state) {
     std::vector<LegendHint> hints{{"Esc", loc::T("common.cancel")}};
     if (state.step > 0) hints.push_back({"Bksp", loc::T("pad_setup.back_step")});
     if (!SetupSteps[state.step].required) hints.push_back({"Space", loc::T("pad_setup.skip")});
-    if (state.step >= 4) hints.push_back({"generic_stick_left", loc::T("pad_setup.back_step")});
-    if (state.step >= 4 && !SetupSteps[state.step].required) hints.push_back({"generic_stick_right", loc::T("pad_setup.skip")});
+    if (state.step > RightStep) hints.push_back({"generic_stick_left", loc::T("pad_setup.back_step")});
+    if (state.step > RightStep && !SetupSteps[state.step].required) hints.push_back({"generic_stick_right", loc::T("pad_setup.skip")});
     hints.push_back({"generic_button_circle_fill", loc::T("pad_setup.hold_to_cancel")});
     return hints;
 }
@@ -47,15 +47,16 @@ void DrawPadSetupDetail(const PadView& pad, const SetupState& state) {
         if (state.feedback == SetupFeedback::Reconnect) ImGui::TextWrapped("%s", loc::Tf("pad_setup.reconnect", state.reconnectSeconds).c_str());
         return;
     }
-    ImGui::TextUnformatted(loc::Tf("pad_setup.step_count", state.step + 1, 14).c_str());
+    ImGui::TextUnformatted(loc::Tf("pad_setup.step_count", state.step + 1, SetupStepCount).c_str());
     const auto name = SetupStepName(state.step);
     const auto textAt = ImGui::GetCursorScreenPos();
     ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), 1.4f * ImGui::GetFontSize(), textAt, palette::Ivory, name.c_str());
     ImGui::Dummy(ImVec2(0, 1.4f * ImGui::GetTextLineHeightWithSpacing()));
-    ImGui::TextWrapped("%s", loc::T(state.step < 4 ? "pad_setup.press_direction" : "pad_setup.press_button"));
-    if (!SetupSteps[state.step].required) ImGui::TextWrapped("%s", loc::T("pad_setup.optional"));
-    if (state.step == 7) ImGui::TextWrapped("%s", loc::T("pad_setup.lk_selects"));
-    if (state.step == 8) ImGui::TextWrapped("%s", loc::T("pad_setup.mk_backs"));
+    const auto& step = SetupSteps[state.step];
+    ImGui::TextWrapped("%s", loc::T(step.kind == StepKind::Button ? "pad_setup.press_button" : "pad_setup.press_direction"));
+    if (!step.required) ImGui::TextWrapped("%s", loc::T(step.kind == StepKind::Stick ? "pad_setup.optional_stick" : "pad_setup.optional"));
+    if (state.step == LkStep) ImGui::TextWrapped("%s", loc::T("pad_setup.lk_selects"));
+    if (state.step == MkStep) ImGui::TextWrapped("%s", loc::T("pad_setup.mk_backs"));
     std::string feedback; Tone tone = Tone::Neutral;
     if (state.feedback == SetupFeedback::Reconnect) feedback = loc::Tf("pad_setup.reconnect", state.reconnectSeconds);
     else if (state.releaseButtons) feedback = loc::T("controller.release_buttons");

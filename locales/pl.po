@@ -4838,6 +4838,24 @@ msgstr "Wszystkie trzy ciosy"
 msgid "pad_setup.step.3k"
 msgstr "Wszystkie trzy kopnięcia"
 
+msgid "pad_setup.step.ls"
+msgstr "Kliknięcie lewej gałki"
+
+msgid "pad_setup.step.rs"
+msgstr "Kliknięcie prawej gałki"
+
+msgid "pad_setup.step.lx"
+msgstr "Lewa gałka w prawo"
+
+msgid "pad_setup.step.ly"
+msgstr "Lewa gałka w dół"
+
+msgid "pad_setup.step.rx"
+msgstr "Prawa gałka w prawo"
+
+msgid "pad_setup.step.ry"
+msgstr "Prawa gałka w dół"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Naciśnij przycisk wybrany dla tej akcji, a następnie go puść."
 
 msgid "pad_setup.optional"
 msgstr "Jeśli kontroler nie ma przycisku dla tej akcji, pomiń ją."
+
+msgid "pad_setup.optional_stick"
+msgstr "Jeśli kontroler nie ma gałki dla tej akcji, pomiń ją."
 
 msgid "pad_setup.lk_selects"
 msgstr "Ten przycisk będzie też wybierać w menu."

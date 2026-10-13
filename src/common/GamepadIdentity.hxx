@@ -33,6 +33,19 @@ inline bool SameDriverPath(const std::string& a, const std::string& b) {
         [&](unsigned char a, unsigned char b) { return character(a) == character(b); });
 }
 
+// The vendor and product an SDL GUID encodes, or 0:0 when it is not in SDL's
+// standard form: little-endian uint16 bus, crc, vendor, 0, product, 0, version,
+// then driver data (SDL_GetJoystickGUIDInfo). SDL may report a different
+// VID:PID for the device, such as the physical pad behind Steam's virtual one.
+struct GuidIds { std::uint16_t vendor = 0, product = 0; };
+inline GuidIds GuidVendorProduct(const std::string& guid) {
+    if (guid.size() != 32 || !std::all_of(guid.begin(), guid.end(), [](unsigned char c) { return std::isxdigit(c) != 0; })) return {};
+    const auto word = [&](int i) { return static_cast<std::uint16_t>(std::stoul(guid.substr(i * 4 + 2, 2) + guid.substr(i * 4, 2), nullptr, 16)); };
+    const auto bus = word(0);
+    if ((bus >= 0x20 && bus != 0xFF) || word(3) || word(5)) return {};
+    return {word(2), word(4)};
+}
+
 // Stable short log tag. Keep serials and paths out of the logs themselves.
 inline std::uint32_t IdentityHash(const Identity& identity) {
     std::uint32_t hash = 2166136261u;

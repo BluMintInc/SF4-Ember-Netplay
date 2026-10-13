@@ -4838,6 +4838,24 @@ msgstr "Alle drie stoten"
 msgid "pad_setup.step.3k"
 msgstr "Alle drie trappen"
 
+msgid "pad_setup.step.ls"
+msgstr "Klik linkerstick"
+
+msgid "pad_setup.step.rs"
+msgstr "Klik rechterstick"
+
+msgid "pad_setup.step.lx"
+msgstr "Linkerstick naar rechts"
+
+msgid "pad_setup.step.ly"
+msgstr "Linkerstick omlaag"
+
+msgid "pad_setup.step.rx"
+msgstr "Rechterstick naar rechts"
+
+msgid "pad_setup.step.ry"
+msgstr "Rechterstick omlaag"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Druk op de gewenste knop voor deze actie en laat los."
 
 msgid "pad_setup.optional"
 msgstr "Heeft je controller hiervoor geen knop, sla deze stap dan over."
+
+msgid "pad_setup.optional_stick"
+msgstr "Heeft je controller hiervoor geen stick, sla deze stap dan over."
 
 msgid "pad_setup.lk_selects"
 msgstr "Deze knop selecteert ook in menu's."

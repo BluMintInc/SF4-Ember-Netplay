@@ -21,15 +21,17 @@ struct Pad {
     Type type = Type::Unknown;
     bool mapped = false;
     bool hasEmberMapping = false;
+    // SDL maps the pad without an Ember setup (an Ember mapping hides SDL's own).
+    bool sdlMapping = false;
     bool arcadeStick = false;
     bool available = true;
     int slot = -1;
     Status status = Status::NotInUse;
     Id steamPad = 0;
     bool operator==(const Pad& other) const {
-        return std::tie(id, identity, vid, pid, type, mapped, hasEmberMapping, arcadeStick, available, slot, status, steamPad) ==
-            std::tie(other.id, other.identity, other.vid, other.pid, other.type,
-                other.mapped, other.hasEmberMapping, other.arcadeStick, other.available, other.slot, other.status, other.steamPad);
+        return std::tie(id, identity, vid, pid, type, mapped, hasEmberMapping, sdlMapping, arcadeStick, available, slot, status, steamPad) ==
+            std::tie(other.id, other.identity, other.vid, other.pid, other.type, other.mapped,
+                other.hasEmberMapping, other.sdlMapping, other.arcadeStick, other.available, other.slot, other.status, other.steamPad);
     }
 };
 
@@ -47,7 +49,13 @@ constexpr std::array<NativeProfile, 14> NativeProfiles = {{
     {0x0079, 0x0002}, {0x0F0D, 0x0037}
 }};
 
-inline bool SteamVirtual(const Pad& pad) { return pad.vid == 0x28DE && pad.pid == 0x11FF; }
+// The GUID keeps Steam's own IDs; vid and pid name the physical pad when Steam supplies it.
+inline bool SteamVirtual(const Pad& pad) {
+    const auto ids = GuidVendorProduct(pad.identity.guid);
+    return ids.vendor == 0x28DE && ids.product == 0x11FF;
+}
+// Only Ember's setup maps it, so its buttons have no printed names: it draws as a stick.
+inline bool SetUpOnlyByEmber(const Pad& pad) { return pad.hasEmberMapping && !pad.sdlMapping; }
 
 // Also used before SDL opens handles, so Steam twins and native-profile pads are never opened.
 inline void Classify(std::vector<Pad>& pads, const std::set<std::string>& savedEmberMappingGuids) {
@@ -55,7 +63,8 @@ inline void Classify(std::vector<Pad>& pads, const std::set<std::string>& savedE
         pad.slot = -1;
         pad.steamPad = 0;
         pad.hasEmberMapping = savedEmberMappingGuids.count(pad.identity.guid) != 0;
-        const bool native = std::any_of(NativeProfiles.begin(), NativeProfiles.end(), [&](const NativeProfile& profile) {
+        // Steam's pad is XInput even when it reports a native stick's VID:PID.
+        const bool native = !SteamVirtual(pad) && std::any_of(NativeProfiles.begin(), NativeProfiles.end(), [&](const NativeProfile& profile) {
             return pad.vid == profile.vid && pad.pid == profile.pid;
         });
         pad.status = native && !pad.hasEmberMapping ? Status::GameRead :

@@ -10,7 +10,7 @@ void GameplayTargetSummary() {
     h.view.padSetup.identity = pad.identity;
     auto& setup = h.view.padSetup.state;
     setup.active = true; setup.mode = SetupMode::Summary;
-    for (int i = 0; i < 14; ++i) setup.recorded[i] = RawInput{RawKind::Button, i + 10};
+    for (int i = 0; i < SetupStepCount; ++i) setup.recorded[i] = RawInput{RawKind::Button, i + 10};
     h.Screen("pad-setup"); h.FocusOn("save");
     ControllerNavigation navigation;
     SetupSummaryControls summary;
@@ -33,7 +33,7 @@ void GameplayTargetSummary() {
     Check(h.actions.size() == before && h.shell.Navigation().Focus() == "save", "Old LP selected through the gameplay target during summary");
     tick(0x40, {{RawKind::Button, 1}}); tick(0);
     Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Focus() == "save", "Old LK opened cancel confirmation during summary");
-    tick(0, {*setup.recorded[7]});
+    tick(0, {*setup.recorded[LkStep]});
     Check(h.actions.size() == before, "New LK selected before release");
     tick(0);
     Check(h.actions.size() == before + 1 && h.actions.back().padAction.command == SetupCommand::Save, "New LK did not select Save on release");
@@ -75,7 +75,7 @@ void SetupJourneys() {
     h.shell.ShowPlay(); h.Frame(); Check(h.shell.Navigation().Screen() == "pad-setup", "Play request displaced active setup");
     h.Press(MenuInput::Down); Check(h.shell.Navigation().Focus() == "step-0", "Capture allowed list navigation");
     state.mode = SetupMode::Summary;
-    for (int i = 0; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
+    for (int i = 0; i < SetupStepCount; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
     h.Frame(); state.summaryInput.action = SetupMenuAction::Back; ++state.summaryInput.sequence; h.Frame();
     Check(h.shell.Navigation().Focus() == "cancel" && h.shell.Navigation().Confirming(), "Summary MK did not open cancel confirmation");
     state.summaryInput.up = state.summaryInput.down = false; h.Frame(); h.Press(MenuInput::Back);
@@ -88,7 +88,7 @@ void SetupJourneys() {
     Check(MenuPromptBrand() == h.view.promptBrand, "Closing setup did not restore gameplay glyphs");
     h.Press(MenuInput::Back); h.Choose("pad-10"); h.Press(MenuInput::Right); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
     state = {}; state.active = true; h.Frame();
-    state.mode = SetupMode::Summary; for (int i = 0; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i}; h.Frame();
+    state.mode = SetupMode::Summary; for (int i = 0; i < SetupStepCount; ++i) state.recorded[i] = RawInput{RawKind::Button, i}; h.Frame();
     state.summaryInput.action = SetupMenuAction::Back; ++state.summaryInput.sequence; h.Frame();
     Check(h.shell.Navigation().Confirming(), "Cancel confirmation did not open before hiding");
     h.shell.Background(h.view, h.view.room, [&](ShellAction action) { h.actions.push_back(std::move(action)); return true; });

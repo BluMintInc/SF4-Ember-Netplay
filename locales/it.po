@@ -4838,6 +4838,24 @@ msgstr "Tutti e tre i pugni"
 msgid "pad_setup.step.3k"
 msgstr "Tutti e tre i calci"
 
+msgid "pad_setup.step.ls"
+msgstr "Pressione stick sinistro"
+
+msgid "pad_setup.step.rs"
+msgstr "Pressione stick destro"
+
+msgid "pad_setup.step.lx"
+msgstr "Stick sinistro a destra"
+
+msgid "pad_setup.step.ly"
+msgstr "Stick sinistro in giù"
+
+msgid "pad_setup.step.rx"
+msgstr "Stick destro a destra"
+
+msgid "pad_setup.step.ry"
+msgstr "Stick destro in giù"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Premi il pulsante che vuoi usare per questa azione, poi rilascia."
 
 msgid "pad_setup.optional"
 msgstr "Se il controller non ha un pulsante per questa azione, saltala."
+
+msgid "pad_setup.optional_stick"
+msgstr "Se il controller non ha uno stick per questa azione, saltala."
 
 msgid "pad_setup.lk_selects"
 msgstr "Questo pulsante servirà anche a selezionare nei menu."

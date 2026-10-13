@@ -4838,6 +4838,24 @@ msgstr "Alle drei Schläge"
 msgid "pad_setup.step.3k"
 msgstr "Alle drei Tritte"
 
+msgid "pad_setup.step.ls"
+msgstr "Klick linker Stick"
+
+msgid "pad_setup.step.rs"
+msgstr "Klick rechter Stick"
+
+msgid "pad_setup.step.lx"
+msgstr "Linker Stick rechts"
+
+msgid "pad_setup.step.ly"
+msgstr "Linker Stick unten"
+
+msgid "pad_setup.step.rx"
+msgstr "Rechter Stick rechts"
+
+msgid "pad_setup.step.ry"
+msgstr "Rechter Stick unten"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Drücke die gewünschte Taste für diese Aktion und lasse dann los."
 
 msgid "pad_setup.optional"
 msgstr "Wenn dein Controller dafür keine Taste hat, überspringe diesen Schritt."
+
+msgid "pad_setup.optional_stick"
+msgstr "Wenn dein Controller dafür keinen Stick hat, überspringe diesen Schritt."
 
 msgid "pad_setup.lk_selects"
 msgstr "Diese Taste wählt auch in Menüs aus."

@@ -4838,6 +4838,24 @@ msgstr "Les trois poings"
 msgid "pad_setup.step.3k"
 msgstr "Les trois pieds"
 
+msgid "pad_setup.step.ls"
+msgstr "Clic du stick gauche"
+
+msgid "pad_setup.step.rs"
+msgstr "Clic du stick droit"
+
+msgid "pad_setup.step.lx"
+msgstr "Stick gauche à droite"
+
+msgid "pad_setup.step.ly"
+msgstr "Stick gauche en bas"
+
+msgid "pad_setup.step.rx"
+msgstr "Stick droit à droite"
+
+msgid "pad_setup.step.ry"
+msgstr "Stick droit en bas"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Appuyez sur le bouton voulu pour cette action, puis relâchez."
 
 msgid "pad_setup.optional"
 msgstr "Si votre manette n'a pas de bouton pour cette action, passez cette étape."
+
+msgid "pad_setup.optional_stick"
+msgstr "Si votre manette n'a pas de stick pour cette action, passez cette étape."
 
 msgid "pad_setup.lk_selects"
 msgstr "Ce bouton servira aussi à sélectionner dans les menus."

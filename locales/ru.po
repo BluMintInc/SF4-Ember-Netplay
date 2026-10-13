@@ -4839,6 +4839,24 @@ msgstr "Все три удара рукой"
 msgid "pad_setup.step.3k"
 msgstr "Все три удара ногой"
 
+msgid "pad_setup.step.ls"
+msgstr "Нажатие левого стика"
+
+msgid "pad_setup.step.rs"
+msgstr "Нажатие правого стика"
+
+msgid "pad_setup.step.lx"
+msgstr "Левый стик вправо"
+
+msgid "pad_setup.step.ly"
+msgstr "Левый стик вниз"
+
+msgid "pad_setup.step.rx"
+msgstr "Правый стик вправо"
+
+msgid "pad_setup.step.ry"
+msgstr "Правый стик вниз"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4853,6 +4871,9 @@ msgstr "Нажмите кнопку, которую хотите использ�
 
 msgid "pad_setup.optional"
 msgstr "Если на контроллере нет кнопки для этого действия, пропустите его."
+
+msgid "pad_setup.optional_stick"
+msgstr "Если на контроллере нет стика для этого действия, пропустите его."
 
 msgid "pad_setup.lk_selects"
 msgstr "Эта кнопка также выбирает пункты в меню."

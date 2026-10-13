@@ -4494,6 +4494,24 @@ msgstr "All three punches"
 msgid "pad_setup.step.3k"
 msgstr "All three kicks"
 
+msgid "pad_setup.step.ls"
+msgstr "Left stick click"
+
+msgid "pad_setup.step.rs"
+msgstr "Right stick click"
+
+msgid "pad_setup.step.lx"
+msgstr "Left stick right"
+
+msgid "pad_setup.step.ly"
+msgstr "Left stick down"
+
+msgid "pad_setup.step.rx"
+msgstr "Right stick right"
+
+msgid "pad_setup.step.ry"
+msgstr "Right stick down"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4508,6 +4526,9 @@ msgstr "Press the button you want for this, then let go."
 
 msgid "pad_setup.optional"
 msgstr "If your controller has no button for this, skip it."
+
+msgid "pad_setup.optional_stick"
+msgstr "If your controller has no stick for this, skip it."
 
 msgid "pad_setup.lk_selects"
 msgstr "This button will also select in menus."

@@ -4838,6 +4838,24 @@ msgstr "パンチ3つ同時"
 msgid "pad_setup.step.3k"
 msgstr "キック3つ同時"
 
+msgid "pad_setup.step.ls"
+msgstr "左スティック押し込み"
+
+msgid "pad_setup.step.rs"
+msgstr "右スティック押し込み"
+
+msgid "pad_setup.step.lx"
+msgstr "左スティック右"
+
+msgid "pad_setup.step.ly"
+msgstr "左スティック下"
+
+msgid "pad_setup.step.rx"
+msgstr "右スティック右"
+
+msgid "pad_setup.step.ry"
+msgstr "右スティック下"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "この操作に使いたいボタンを押して、離してください
 
 msgid "pad_setup.optional"
 msgstr "この操作用のボタンがない場合はスキップしてください。"
+
+msgid "pad_setup.optional_stick"
+msgstr "この操作用のスティックがない場合はスキップしてください。"
 
 msgid "pad_setup.lk_selects"
 msgstr "このボタンはメニューでの決定にも使います。"

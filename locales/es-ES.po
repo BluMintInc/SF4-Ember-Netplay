@@ -4838,6 +4838,24 @@ msgstr "Los tres puños"
 msgid "pad_setup.step.3k"
 msgstr "Las tres patadas"
 
+msgid "pad_setup.step.ls"
+msgstr "Pulsar la palanca izquierda"
+
+msgid "pad_setup.step.rs"
+msgstr "Pulsar la palanca derecha"
+
+msgid "pad_setup.step.lx"
+msgstr "Palanca izquierda a la derecha"
+
+msgid "pad_setup.step.ly"
+msgstr "Palanca izquierda hacia abajo"
+
+msgid "pad_setup.step.rx"
+msgstr "Palanca derecha a la derecha"
+
+msgid "pad_setup.step.ry"
+msgstr "Palanca derecha hacia abajo"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "Pulsa el botón que quieras usar para esta acción y luego suéltalo."
 
 msgid "pad_setup.optional"
 msgstr "Si tu mando no tiene un botón para esta acción, omítela."
+
+msgid "pad_setup.optional_stick"
+msgstr "Si tu mando no tiene una palanca para esta acción, omítela."
 
 msgid "pad_setup.lk_selects"
 msgstr "Este botón también seleccionará en los menús."

@@ -13,7 +13,7 @@ inline const char* BrandName(Brand brand) {
     }
 }
 inline PromptBrand DetectBrand(const Pad& pad) {
-    if (pad.hasEmberMapping) return {Brand::Stick};
+    if (SetUpOnlyByEmber(pad)) return {Brand::Stick};
     switch (pad.type) {
     case Type::Xbox360: case Type::XboxOne: return {Brand::Xbox};
     case Type::PS3: return {Brand::PlayStation, PlayStationArt::PS3};

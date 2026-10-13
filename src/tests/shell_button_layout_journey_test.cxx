@@ -97,7 +97,7 @@ void WizardLayoutEntry() {
     h.Screen("controllers"); h.Choose("pad-27");
     h.view.padSetup.identity = pad.identity; h.view.padSetup.padId = pad.id;
     auto& state = h.view.padSetup.state; state.active = true; state.mode = SetupMode::Summary;
-    for (int i = 0; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
+    for (int i = 0; i < SetupStepCount; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
     h.Frame(); h.Choose("save");
     h.view.preferences.controllerMappings[pad.identity.guid] = BuildSetupMapping(pad.identity.guid, pad.name, state);
     h.view.pads[0].state = RowState::Recognised; h.view.pads[0].brand = {Brand::Stick}; h.view.pads[0].slot = 0;
@@ -109,7 +109,7 @@ void WizardLayoutEntry() {
     h.view.pads[0].state = RowState::GameRead; h.view.pads[0].gameplay = true; h.view.inputDevice.type = input::PadXInput;
     h.Screen("player"); h.Choose("controls"); h.Choose("setup");
     state = {}; state.active = true; state.mode = SetupMode::Summary;
-    for (int i = 0; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
+    for (int i = 0; i < SetupStepCount; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
     h.Frame(); h.Choose("save"); h.view.pads[0].state = RowState::Recognised;
     state.active = false; h.view.padSetup.outcome = SetupEnd::Saved; ++h.view.padSetup.revision; h.Frame();
     Check(h.shell.Navigation().Screen() == "button-layout" && h.shell.Navigation().Focus() == "test", "Setup-first save did not return to Button layout on test");

@@ -40,11 +40,13 @@ Brand comes from `SDL_GetGamepadType` for recognised pads, from the saved wizard
 | `SDL_GAMEPAD_TYPE_PS4` | PlayStation | PS4 (Options, Share) |
 | `SDL_GAMEPAD_TYPE_PS5` | PlayStation | PS5 (Options, Create) |
 | `SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO`, `..._JOYCON_LEFT`, `..._JOYCON_RIGHT`, `..._JOYCON_PAIR` | Nintendo | Nintendo (Plus, Minus) |
-| Pad whose mapping came from Ember's wizard (any type) | Stick | Stick |
+| Pad SDL does not map itself, set up with Ember's wizard (any type) | Stick | Stick |
 | `SDL_GAMEPAD_TYPE_STANDARD`, `SDL_GAMEPAD_TYPE_UNKNOWN`, any other value | Generic | drawn as Xbox |
-| Steam virtual pad (28DE:11FF) | the type SDL reports for it (SDL3 reads Steam's virtual pad info); Generic if none | as its brand |
+| Steam virtual pad (its SDL GUID encodes 28DE:11FF) | the type SDL reports for it (SDL3 reads Steam's virtual pad info); Generic if none | as its brand |
 | Game-read XInput pad (opt-out, SDL failed) | Xbox | Xbox |
 | Game-read DirectInput pad (unmapped, opt-out, SDL failed) | none: today's generic circle with "LP"/"LK" (in the launcher: "1"/"2") | unchanged |
+
+A pad SDL already maps keeps its brand after a wizard setup; only a pad SDL could not map before draws as Stick. Ember's mapping replaces SDL's own for that GUID, so whether SDL maps the pad itself is noted before Ember adds its mapping, at layer start and at save.
 
 Generic draws Xbox art because SDL lays every gamepad out on Xbox positions, and most generic pads (8BitDo in X mode, PowerA, Logitech, PC arcade sticks in SDL's database) print Xbox letters.
 
@@ -131,7 +133,7 @@ Controller pictures (capture screen, controller list, wizard header):
 | Switch Pro | `controller_switch_pro.png` (Nintendo Switch) |
 | Joy-Con pair or single Joy-Con | `controller_switch.png` (Nintendo Switch) |
 | Steam virtual pad with no known original type | `controller_steam.png` (Steam Controller) |
-| `SDL_JOYSTICK_TYPE_ARCADE_STICK`, or any wizard-mapped pad | `generic_joystick_red.png` (Generic) |
+| `SDL_JOYSTICK_TYPE_ARCADE_STICK`, or a pad only Ember's wizard maps (2.1) | `generic_joystick_red.png` (Generic) |
 | Generic, unmapped, game-read DirectInput | `controller_generic.png` (Flairs) |
 | Saved controller not connected | `controller_disconnected.png` (Flairs) |
 
@@ -318,7 +320,7 @@ Detail pane in capture mode, top to bottom:
 1. 64 px picture of the pad (2.6) and its name.
 2. `pad_setup.step_count` ("Step {0} of {1}").
 3. The step name at 1.4x the body font.
-4. The instruction: `pad_setup.press_direction` for steps 1 to 4, `pad_setup.press_button` for the rest. On optional steps, add `pad_setup.optional`. On the LK step add `pad_setup.lk_selects`; on the MK step add `pad_setup.mk_backs`.
+4. The instruction: `pad_setup.press_direction` for the direction steps (1 to 4) and the stick steps (15 to 18), `pad_setup.press_button` for the rest. On optional steps, add `pad_setup.optional`, or `pad_setup.optional_stick` on a stick step. On the LK step add `pad_setup.lk_selects`; on the MK step add `pad_setup.mk_backs`.
 5. A feedback line, one at a time, priority top first: disconnect countdown (5.10); hold ring with `pad_setup.hold_cancel`; conflict `pad_setup.conflict` (2 s, `Tone::Error`); required `pad_setup.required` (2 s, `Tone::Error`); idle hint `pad_setup.idle_hint` (after 10 s with no input).
 
 Legend (`MenuLegend` with `primary=nullptr` and `extras`; the standard select/back pair is not shown in capture mode):
@@ -352,10 +354,18 @@ The SDL target for each attack follows the game's default Xbox fight layout, so 
 | 10 | Heavy kick | `pad_setup.step.hk` | `righttrigger` | yes |
 | 11 | All three punches | `pad_setup.step.3p` | `leftshoulder` | no |
 | 12 | All three kicks | `pad_setup.step.3k` | `lefttrigger` | no |
-| 13 | Start | `pad_setup.step.start` | `start` | yes |
-| 14 | Select | `pad_setup.step.select` | `back` | no |
+| 13 | Left stick click | `pad_setup.step.ls` | `leftstick` | no |
+| 14 | Right stick click | `pad_setup.step.rs` | `rightstick` | no |
+| 15 | Left stick right | `pad_setup.step.lx` | `leftx` (stick step) | no |
+| 16 | Left stick down | `pad_setup.step.ly` | `lefty` (stick step) | no |
+| 17 | Right stick right | `pad_setup.step.rx` | `rightx` (stick step) | no |
+| 18 | Right stick down | `pad_setup.step.ry` | `righty` (stick step) | no |
+| 19 | Start | `pad_setup.step.start` | `start` | yes |
+| 20 | Select | `pad_setup.step.select` | `back` | no |
 
-Order: the game's attack order LP MP HP LK MK HK, then the optional 3P and 3K so a six-button pad simply skips the last two attacks, then Start and Select. Directions go to the d-pad only; nothing is mapped to `leftx`/`lefty`.
+Order: the game's attack order LP MP HP LK MK HK, then the optional 3P and 3K so a six-button pad simply skips the last two attacks, then the optional stick clicks and sticks, then Start and Select. The steps cover every control the game or Ember reads. There is no Home (Guide) step: the game reads XInput through `XInputGetState`, which has no Guide bit, and nothing in Ember reads Guide. A Guide binding the pad already has is kept (5.9).
+
+Directions go to the d-pad. Each stick is one step for its X axis (push right) and one for its Y axis (push down). A stick step records by the 5.4 rules and maps the full axis: `leftx:a<i>` when the push went to the axis's plus end, `leftx:a<i>~` when it went to the minus end. A stick step that records a button, a hat or a trigger maps the plus half of the axis, `+leftx:b3`.
 
 Consequence, stated on the LK, MK and summary screens: on a set-up pad, the LK button selects and the MK button goes back in Ember's menus and in the game's menus.
 
@@ -406,13 +416,15 @@ Used in step values, the summary, the unmapped input test and conflicts.
 
 An input already recorded for another step is never recorded twice. In capture mode the player sees `pad_setup.conflict` ("{0} is already {1}. Press a different one.") and the step waits. To move an input to another step, the player redoes the step that holds it from the summary, which clears it first.
 
+A stick step maps both halves of its axis, so a half axis recorded for any other step (a direction on that stick, say) conflicts with it, whichever was recorded first. The tap ladder (5.5) is checked before conflicts, so on a stick step the input recorded for Left still backs a step and the one for Right still skips.
+
 ### 5.8 Summary mode
 
-Shown after step 14. Same screen; list navigation on.
+Shown after the last step (20). Same screen; list navigation on.
 
 Rows:
 
-1. The 14 step rows (`Row`, value per 5.6). A on a step row clears that step and runs capture mode for that one step, then returns to the summary with focus on it. Ember never offers to clear a required step without redoing it.
+1. The 20 step rows (`Row`, value per 5.6). A on a step row clears that step and runs capture mode for that one step, then returns to the summary with focus on it. Ember never offers to clear a required step without redoing it.
 2. `save`: `Row` label `pad_setup.save`, detail `pad_setup.save_detail`. Enabled only when every required step is recorded.
 3. `restart`: `Row` label `pad_setup.start_over`, detail `pad_setup.start_over_detail`. Clears all steps and goes to step 1.
 4. `cancel`: `ConfirmRow` label `pad_setup.cancel`, detail `pad_setup.cancel_detail`. Confirming cancels (5.9).
@@ -425,6 +437,8 @@ Navigation in summary mode, with the pad being set up (its raw inputs read throu
 
 - **Cancel** (3 s hold, Esc in capture mode, `cancel` confirmed, header Back in capture mode): nothing is saved, the pad's slot stops reading neutral, the wizard closes to the screen it came from, and shell status shows `pad_setup.cancelled`.
 - **Save**: Ember builds the mapping string `<guid>,<name>,<pairs>,platform:Windows,` with the pairs in step order (skipped steps omitted), calls `SDL_AddGamepadMapping`, stores the string under the GUID in preferences (`controllerMappings`), and loads all stored strings at every layer start before opening pads.
+  - **A pad SDL already maps** (a recognised pad, or one with an earlier Ember setup): the new mapping is the one SDL uses for that GUID now, merged with the recorded steps. Every target a step recorded takes the recorded input. An existing pair whose input a step now uses for another target is dropped, so one physical input never drives two targets (a full axis shares its input with both halves). Every other existing pair is kept, including those of skipped steps: skipping 3P keeps the pad's own LB, and skipping the stick steps keeps its sticks. Recorded pairs come first in step order, then the kept pairs in their original order. Other fields (`crc:`, `hint:`, `type:`) are kept as pairs, and `platform:Windows,` is written once, last. A target written with a half-axis sign (`+leftx`) counts as the same target as `leftx`.
+  - **An unmapped pad** has no existing mapping, so its string holds the recorded pairs only.
   - The pad becomes a recognised pad: it takes a slot (3.1), its DirectInput copy is hidden from the game, and if it was the gameplay controller it is adopted again by identity.
   - The wizard closes to the Controllers screen with focus on that pad and shows `GameMenu::ShowNotice` heading `pad_setup.saved_heading`, text `pad_setup.saved`, with the alternative button `player.button_layout` that opens `button-layout` for that pad (see 11.5). When the wizard was started from `button-layout` (11.6.4), it closes back to that screen instead, now editable, with the same notice minus the alternative.
   - If SDL rejects the string: `ShowError(pad_setup.save_failed)`, nothing stored, wizard stays in summary mode.
@@ -444,7 +458,7 @@ Navigation in summary mode, with the pad being set up (its raw inputs read throu
 | State | What the player sees | Where |
 |---|---|---|
 | More than four recognised pads | Extra pads are Not in use. `controller.connected_full` when one connects; row value `controllers.value_full` and detail `controllers.detail_full`. When a slot frees, the first waiting pad takes it with `controller.connected`. | 3.4, 4.2 |
-| Steam Input virtual pad present (28DE:11FF) | Ember serves the Steam pad and hides its physical twin. One row per physical pad: the original pad's name and brand when SDL knows them, else `controllers.steam_name`; value `controllers.value_steam`; detail `controllers.detail_steam`; setup disabled with `controllers.choice_setup_steam`. No other message; launch options are never mentioned. | 4.2 |
+| Steam Input virtual pad present (its SDL GUID encodes 28DE:11FF; SDL reports the physical pad's VID:PID when Steam supplies it, so the GUID decides) | Ember serves the Steam pad and hides its physical twin. One row per physical pad: the original pad's name and brand when SDL knows them, else `controllers.steam_name`; value `controllers.value_steam`; detail `controllers.detail_steam`; setup disabled with `controllers.choice_setup_steam`. No other message; launch options are never mentioned. | 4.2 |
 | Steam pairing rule | SDL3 already hides most physical pads Steam has taken. If SDL still reports a physical pad of the same SDL type as a Steam pad, Ember pairs them one to one in enumeration order, serves the Steam pad and does not open the physical one. Why the Steam pad: the player chose Steam by launching through it, Steam applies their Steam layout to it, and Steam can hide the physical pad at any moment. | Log only |
 | Opt-out on (Let the game read controllers) | The game reads pads as before this feature. Controllers screen shows `controllers.game_reads` first and lists game devices read-only. Setup, input test and forget are not offered. Button prompts still apply to game XInput pads (useful with Steam Input); DirectInput pads show the generic circle with LP and LK again, and those buttons select and go back. Ember button layouts stay stored but are not applied, and Player `controls` is disabled (see 11). | 4.2 |
 | SDL failed to start | Same as opt-out for this launch, with `controllers.unavailable` as the first Controllers row. No notice or popup elsewhere. | 4.2 |
@@ -582,11 +596,18 @@ New keys. Other languages fall back to English. Screen titles follow the existin
 | `pad_setup.step.hk` | Heavy kick |
 | `pad_setup.step.3p` | All three punches |
 | `pad_setup.step.3k` | All three kicks |
+| `pad_setup.step.ls` | Left stick click |
+| `pad_setup.step.rs` | Right stick click |
+| `pad_setup.step.lx` | Left stick right |
+| `pad_setup.step.ly` | Left stick down |
+| `pad_setup.step.rx` | Right stick right |
+| `pad_setup.step.ry` | Right stick down |
 | `pad_setup.step.start` | Start |
 | `pad_setup.step.select` | Select |
 | `pad_setup.press_direction` | Push the stick or press the button for this direction, then let go. |
 | `pad_setup.press_button` | Press the button you want for this, then let go. |
 | `pad_setup.optional` | If your controller has no button for this, skip it. |
+| `pad_setup.optional_stick` | If your controller has no stick for this, skip it. |
 | `pad_setup.lk_selects` | This button will also select in menus. |
 | `pad_setup.mk_backs` | This button will also go back in menus. |
 | `pad_setup.hold_cancel` | Keep holding to cancel setup. |
@@ -697,7 +718,6 @@ Retired keys (remove from every .po): `player.native_menus`, `player.native_menu
 - A rumble on/off setting, rumble strength, gyro, touchpad, LEDs, battery display.
 - Per-pad Button prompts choice (the setting is global).
 - Left stick deadzone or SOCD settings.
-- Mapping the analog sticks of an unmapped pad to `leftx`/`lefty`.
 - Shipping extra mappings beyond SDL's built-in database.
 - Local versus with two pads beyond what the game already does: Ember only guarantees side 1.
 - Players with more than four pads choosing which four are used.
@@ -740,7 +760,7 @@ Settings and Controllers screens
 
 Wizard
 
-22. U: mapping string builder: a recorded step list gives exactly `<guid>,<name>,` + pairs in step order + `platform:Windows,`; skipped steps are absent; hats, half axes, full axes and inverted full axes are written as in 5.4.
+22. U: mapping string builder: a recorded step list gives exactly `<guid>,<name>,` + pairs in step order + `platform:Windows,`; skipped steps are absent; hats, half axes, full axes and inverted full axes are written as in 5.4; stick steps write full axes or `+` half outputs (5.3). Over an existing mapping (5.9): recorded targets replace their pairs, a reused input drops its old pair, a skipped step keeps its binding, `crc:` and `hint:` stay, `platform` appears once.
 23. U: input classifier with rest values: trigger resting at -32768 is not active at start; moving it to +32767 records `a<i>`; resting at +32767 records `a<i>~`; a stick axis records `+a`/`-a`; a diagonal hat waits.
 24. U: tap and hold ladder 5.5 with fake time: tap under 1000 ms records; 1000 to 3000 ms release records nothing; 3000 ms cancels; from step 5 the Left input backs a step and the Right input skips only optional steps.
 25. U: conflicts (5.7), required step skip refused, back a step clears the previous step, Start over clears all.
@@ -775,7 +795,7 @@ Button layout (see 11)
 48. U (shell journey): on `button-layout`, A on `fn-lp` opens capture; the held A is ignored until released; the next press of Y assigns, the status shows `button_layout.swapped`, then Saving and Saved; Start, a direction, Esc and 10 s without a press each cancel with no change; with `canEditPreferences` false every row but `test` is disabled and capture cannot open.
 49. U (shell journey): Back after a change that leaves Light punch on no button opens the notice with Keep editing selected; Keep editing stays; Leave returns to Player; Back with no change this visit returns at once; returning from `button-layout-button` never opens it.
 50. U (shell journey): the wizard's saved notice offers Button layout; choosing it opens `button-layout` for that pad with focus on `test`; Back returns to Controllers.
-51. R: `button-layout` for an Xbox pad, a DualSense (L3, R3 and Cross in the values), a Switch Pro pad and a wizard Stick (raw input names in the values, layout names on the circles, no LS or RS squares); the `test` row with LB and A held, lighting LP, MP, HP and LK; capture mode for Light punch; the read-only room state; the disconnected state; the set-up-first state.
+51. R: `button-layout` for an Xbox pad, a DualSense (L3, R3 and Cross in the values), a Switch Pro pad and a wizard Stick that skipped the stick clicks (raw input names in the values, layout names on the circles, no LS or RS squares); the `test` row with LB and A held, lighting LP, MP, HP and LK; capture mode for Light punch; the read-only room state; the disconnected state; the set-up-first state.
 52. R: `button-layout-button` for LB with LP and LK on; the missing-attack notice; the Controllers row detail with `Button layout: Custom.`
 53. G: in Training with a DualSense, put Light punch on R1 from the layout screen; on the next frame R1 does light punch and Square does what R1 did.
 54. G: restart the game; the layout still applies. Connect another pad first so the DualSense lands in game slot 2; its layout follows it, and the pad in slot 1 has the game's layout.
@@ -802,7 +822,7 @@ The game's own button screen (now Player row `game-buttons`, 11.5) cannot do thi
 
 - **Covered:** every pad the layer serves to the game as XInput: Recognised pads, Steam virtual pads, and wizard-mapped (Stick) pads. Steam Input's own remapping, if any, applies first; the layout acts on what Steam sends.
 - **Not covered:** game-read DirectInput pads (unmapped, and the 14 native-profile sticks of Decisions 2), every pad while Let the game read controllers is on or SDL failed, and the keyboard. For a DirectInput pad the screen offers Set up buttons (the wizard) first (11.6.4). Keyboard players use the game's own screen, row `game-buttons`.
-- **Buttons a pad has.** A pad is offered only the bindable buttons it has: `SDL_GamepadHasButton` for A, B, X, Y, LB, RB, LS, RS and `SDL_GamepadHasAxis` for LT, RT. A wizard-mapped pad never has LS or RS (5.3 maps no stick clicks) and lacks LB or LT when those steps were skipped. Hidden buttons keep their stored masks and are still written, but they are not listed, not counted by the missing-attack check (11.9) and not shown in the detail pane.
+- **Buttons a pad has.** A pad is offered only the bindable buttons it has: `SDL_GamepadHasButton` for A, B, X, Y, LB, RB, LS, RS and `SDL_GamepadHasAxis` for LT, RT. A wizard-mapped pad has LS and RS when their steps were recorded (5.3) or its own mapping had them (5.9), and lacks LB, LT, LS or RS when those steps were skipped on a pad SDL did not map. Hidden buttons keep their stored masks and are still written, but they are not listed, not counted by the missing-attack check (11.9) and not shown in the detail pane.
 
 ### 11.3 The layout record
 
@@ -932,8 +952,8 @@ A pure button list would force a stick player to find "the circle named HP" in a
 | RB | RB | R1 | R | target `rightshoulder` |
 | LT | LT | L2 | ZL | target `lefttrigger` |
 | RT | RT | R2 | ZR | target `righttrigger` |
-| LS | LS | L3 | LS | never offered |
-| RS | RS | R3 | RS | never offered |
+| LS | LS | L3 | LS | target `leftstick` |
+| RS | RS | R3 | RS | target `rightstick` |
 
 Stick names parse the pad's stored mapping string (`controllerMappings[guid]`) back to its raw inputs and name them with `RawInputName`; they name the physical button and do not change with the layout.
 
@@ -1100,7 +1120,7 @@ Where the code differs from the brief, or where an implementer must take care.
     - `padLayer`: Active, GameReads (opt-out), Failed; plus `padLayerPending` (saved opt-out differs from running).
     - `pads`: per pad `{id, name, brand, artVariant (PS3/PS4/PS5, Joy-Con), picture, slot (-1 none), state (Recognised, Steam, Unmapped, NotInUse, Absent, GameRead), gameplay, customMapping, held (the 2.6 glyph ids held now), raw (held raw inputs for unmapped)}`, plus the button layout fields of 11.13 item 3 (see 11).
     - `promptBrand`: the resolved brand for prompts (2.4).
-    - `padSetup`: `{active, padId, step, mode (Capture, Summary), recorded[14], holdMs, feedback (None, Conflict, Required, Idle, Reconnect), reconnectSeconds}`.
+    - `padSetup`: `{active, padId, step, mode (Capture, Summary), recorded[20], holdMs, feedback (None, Conflict, Required, Idle, Reconnect), reconnectSeconds}`.
     - `padSetupPrompt`: the pad id to prompt for, or none.
     - Pad hints (3.4): `padHint` text and its expiry, so `OverlayLayersView` and the shell status read the same message.
 
@@ -1111,7 +1131,7 @@ Where the code differs from the brief, or where an implementer must take care.
 These override anything above that disagrees.
 
 1. **Default fight layout verified.** IDA, table `0xA5D078` (one dword of function bits per physical XInput button): X = 0x10 (LP), Y = 0x20 (MP), RB = 0x400 (HP), LB = 0x430 (3P), A = 0x40 (LK), B = 0x80 (MK), RT = 0x800 (HK), LT = 0x8C0 (3K), View = 0x2000, Start = 0x1000. Section 5.3 is correct as written. Code notes 12 is closed.
-2. **Sticks with a native game profile stay with the game** (Kate). The layer never serves these VID:PIDs. They stay DirectInput pads, keep the game's own profile and any layout saved for them, and are listed as game-read. The player can still choose `setup` on one, and once a wizard mapping exists for its GUID, it becomes a recognised pad like any other. The list comes from the guidProduct strings at `0x517900`, written as VID:PID:
+2. **Sticks with a native game profile stay with the game** (Kate). The layer never serves these VID:PIDs (Steam's virtual pad is XInput, so it is served whatever VID:PID SDL reports for the pad behind it). They stay DirectInput pads, keep the game's own profile and any layout saved for them, and are listed as game-read. The player can still choose `setup` on one, and once a wizard mapping exists for its GUID, it becomes a recognised pad like any other. The list comes from the guidProduct strings at `0x517900`, written as VID:PID:
    - 0079:0011
    - 05FD:262A
    - 046D:C20C

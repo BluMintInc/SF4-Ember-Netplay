@@ -8,6 +8,8 @@
 using namespace sf4e::gamepads;
 
 static Identity PadIdentity(std::string guid) { return {guid, "", "path-" + guid, "Controller"}; }
+// The Steam virtual pad from the 2026-10-13 log: its GUID encodes 28DE:11FF.
+static const std::string SteamGuid = "0300fa67de280000ff11000000007801";
 
 static Pad Controller(Id id, std::string guid = {}) {
     Pad pad;
@@ -113,7 +115,7 @@ static void Eligibility() {
 }
 
 static void SteamPairing() {
-    auto steam = Controller(2); steam.vid = 0x28DE; steam.pid = 0x11FF;
+    auto steam = Controller(2, SteamGuid);
     auto physical = Controller(1);
     Slots both, onlyPhysical, onlySteam, unrelated;
     auto pads = both.Update({physical, steam});
@@ -135,13 +137,36 @@ static void SteamPairing() {
     Slots nativeSteam;
     pads = nativeSteam.Update({nativeTwin, steam});
     CHECK(pads.pads[0].status == Status::GameRead && pads.pads[0].steamPad == steam.id && Slot(pads, 2) == 0);
-    auto twin = Controller(5), steam2 = steam; steam2.id = 6; steam2.identity = PadIdentity("steam2");
+    auto twin = Controller(5), steam2 = steam; steam2.id = 6; steam2.identity = PadIdentity("03001234de280000ff11000000007801");
     Slots pairs;
     pads = pairs.Update({twin, physical, steam2, steam, Controller(7)});
     CHECK(pads.pads[0].steamPad == 6 && pads.pads[1].steamPad == 2);
     CHECK(Slot(pads, 6) == 0 && Slot(pads, 2) == 1 && Slot(pads, 7) == 2);
     pads = pairs.Update({physical, steam2, steam, Controller(7)});
     CHECK(pads.pads[0].steamPad == 6 && pads.pads.back().steamPad == 2);
+}
+
+static void SteamByGuid() {
+    // SDL reports the physical pad's VID:PID when Steam supplies it; the GUID keeps Steam's.
+    auto steam = Controller(1, SteamGuid); steam.vid = 0x045E; steam.pid = 0x028E; steam.type = Type::Xbox360;
+    const auto ids = GuidVendorProduct(SteamGuid);
+    CHECK(ids.vendor == 0x28DE && ids.product == 0x11FF && SteamVirtual(steam));
+    CHECK(GuidVendorProduct("03000000790000001100000000000000").vendor == 0x0079);
+    CHECK(GuidVendorProduct("03000000790000001100000000000000").product == 0x0011);
+    // Not SDL's standard form (a name in place of the zero words), or not a GUID.
+    CHECK(GuidVendorProduct("0300fa67de2800004142434445460000").vendor == 0);
+    CHECK(GuidVendorProduct("Controller").vendor == 0 && GuidVendorProduct("").vendor == 0);
+    auto ids28DE = Controller(2); ids28DE.vid = 0x28DE; ids28DE.pid = 0x11FF;
+    CHECK(!SteamVirtual(ids28DE));
+    // The physical twin of the same type is paired and never opened.
+    auto physical = Controller(3, "030000005e0400008e02000000007801"); physical.vid = 0x045E; physical.pid = 0x028E; physical.type = Type::Xbox360;
+    Slots slots;
+    auto pads = slots.Update({physical, steam});
+    CHECK(pads.pads[0].status == Status::SteamTwin && pads.pads[0].steamPad == 1 && Slot(pads, 1) == 0 && Slot(pads, 3) == -1);
+    // Steam's pad is XInput even when a native-profile stick is behind it.
+    auto stick = steam; stick.vid = NativeProfiles[13].vid; stick.pid = NativeProfiles[13].pid;
+    Slots native;
+    CHECK(native.Update({stick}).pads[0].status == Status::Slotted);
 }
 
 static void PreferredAndDeterminism() {
@@ -264,6 +289,6 @@ static void Mapping() {
 }
 
 int main() {
-    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); SteamPairing(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
+    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); SteamPairing(); SteamByGuid(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
     std::cout << "Gamepad slots and XInput mapping passed\n";
 }

@@ -177,10 +177,31 @@ static void InventoryProjection() {
     ps.pad.id = 99; ps.pad.slot = 2; ps.pad.identity.guid = "bluetooth";
     pads = inventory.Build(Layer::Active, {ps}, {}, {}, gameplay, gameplay.identity);
     CHECK(pads.size() == 1 && pads[0].id == 1 && pads[0].slot == 2);
-    PadFrame steam = ps; steam.pad.id = 100; steam.pad.vid = 0x28DE; steam.pad.pid = 0x11FF;
-    steam.pad.identity = {"steam", "", "steam", "Virtual"}; ps.pad.steamPad = 100;
+    PadFrame steam = ps; steam.pad.id = 100;
+    steam.pad.identity = {"0300fa67de280000ff11000000007801", "", "steam", "Virtual"}; ps.pad.steamPad = 100;
     pads = inventory.Build(Layer::Active, {ps, steam}, {}, {}, {}, {});
     CHECK(pads.size() == 1 && pads[0].name == "DualSense" && pads[0].state == RowState::Steam);
+    // The 2026-10-13 pad: Steam's GUID with the physical Xbox 360 pad's VID:PID.
+    PadFrame xbox; xbox.pad.id = 102; xbox.pad.slot = 0; xbox.pad.status = Status::Slotted; xbox.pad.mapped = xbox.pad.sdlMapping = true;
+    xbox.pad.vid = 0x045E; xbox.pad.pid = 0x028E; xbox.pad.type = Type::Xbox360;
+    xbox.pad.identity = {"0300fa67de280000ff11000000007801", "", "steam-xbox", "Xbox 360 controller"};
+    pads = inventory.Build(Layer::Active, {xbox}, {}, {}, {}, {});
+    CHECK(pads.size() == 1 && pads[0].state == RowState::Steam && pads[0].picture == "controller_xbox360");
+    CHECK(pads[0].brand == PromptBrand{Brand::Xbox} && pads[0].name == "Xbox 360 controller");
+    auto row = ControllerRow(pads[0], true, true);
+    CHECK(row.value == "Steam Input" && !row.choices[2].enabled && row.choices[2].detail == loc::T("controllers.choice_setup_steam"));
+    xbox.pad.type = Type::Unknown;
+    pads = inventory.Build(Layer::Active, {xbox}, {}, {}, {}, {});
+    CHECK(pads[0].picture == "controller_steam" && pads[0].name.empty());
+    // After an Ember setup a pad SDL knew keeps its brand and picture; one only Ember maps is a stick.
+    PadFrame setUp; setUp.pad.id = 103; setUp.pad.slot = 0; setUp.pad.status = Status::Slotted; setUp.pad.type = Type::Xbox360;
+    setUp.pad.identity = {"030000005e0400008e02000000007801", "", "xbox", "Xbox pad"};
+    setUp.pad.mapped = setUp.pad.hasEmberMapping = setUp.pad.sdlMapping = true;
+    pads = inventory.Build(Layer::Active, {setUp}, {}, {}, {}, {});
+    CHECK(pads[0].brand == PromptBrand{Brand::Xbox} && pads[0].picture == "controller_xbox360" && pads[0].customMapping);
+    setUp.pad.sdlMapping = false; setUp.pad.type = Type::Standard;
+    pads = inventory.Build(Layer::Active, {setUp}, {}, {}, {}, {});
+    CHECK(pads[0].brand == PromptBrand{Brand::Stick} && pads[0].picture == "generic_joystick_red" && pads[0].customMapping);
     input::Device game; game.type = input::PadDirectInput; game.index = 7; game.name = "Native stick"; game.connected = true;
     pads = inventory.Build(Layer::Failed, {}, {game}, {}, game, {});
     CHECK(pads.size() == 1 && pads[0].state == RowState::GameRead && pads[0].gameplay && pads[0].picture == "controller_generic");

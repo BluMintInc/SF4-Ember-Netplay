@@ -4838,6 +4838,24 @@ msgstr "三拳同时"
 msgid "pad_setup.step.3k"
 msgstr "三脚同时"
 
+msgid "pad_setup.step.ls"
+msgstr "左摇杆按下"
+
+msgid "pad_setup.step.rs"
+msgstr "右摇杆按下"
+
+msgid "pad_setup.step.lx"
+msgstr "左摇杆向右"
+
+msgid "pad_setup.step.ly"
+msgstr "左摇杆向下"
+
+msgid "pad_setup.step.rx"
+msgstr "右摇杆向右"
+
+msgid "pad_setup.step.ry"
+msgstr "右摇杆向下"
+
 msgid "pad_setup.step.start"
 msgstr "Start"
 
@@ -4852,6 +4870,9 @@ msgstr "按下希望用于此操作的按钮，然后松开。"
 
 msgid "pad_setup.optional"
 msgstr "如果控制器没有用于此操作的按钮，请跳过。"
+
+msgid "pad_setup.optional_stick"
+msgstr "如果控制器没有用于此操作的摇杆，请跳过。"
 
 msgid "pad_setup.lk_selects"
 msgstr "此按钮也用于在菜单中选择。"

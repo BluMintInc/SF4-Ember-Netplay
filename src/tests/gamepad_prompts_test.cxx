@@ -19,12 +19,15 @@ static void Detection() {
         {Type::JoyConPair,{Brand::Nintendo}}, {Type::GameCube,{}}, {static_cast<Type>(999),{}}
     };
     for (const auto& c : cases) for (bool steam : {false,true}) {
-        Pad pad; pad.type=c.type; pad.vid=steam?0x28DE:0; pad.pid=steam?0x11FF:0;
+        Pad pad; pad.type=c.type; pad.identity.guid=steam?"0300fa67de280000ff11000000007801":"";
         CHECK(DetectBrand(pad)==c.want);
         CHECK(GameplayBrand(input::PadXInput,&pad)==c.want);
         CHECK(GameplayBrand(input::PadDirectInput,&pad)==PromptBrand{});
-        pad.hasEmberMapping=true;
-        CHECK(DetectBrand(pad)==PromptBrand{Brand::Stick});
+        // A pad SDL maps keeps its brand after an Ember setup; one only Ember maps is a stick.
+        pad.hasEmberMapping=true; pad.sdlMapping=true;
+        CHECK(DetectBrand(pad)==c.want && !SetUpOnlyByEmber(pad));
+        pad.sdlMapping=false;
+        CHECK(DetectBrand(pad)==PromptBrand{Brand::Stick} && SetUpOnlyByEmber(pad));
     }
     CHECK(GameplayBrand(input::PadXInput)==PromptBrand{Brand::Xbox});
     CHECK(GameplayBrand(input::PadDirectInput)==PromptBrand{});
