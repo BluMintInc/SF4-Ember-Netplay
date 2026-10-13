@@ -91,6 +91,8 @@ struct ShellView {
     bool padLayerPending = false, runningControllerLayer = true;
     std::vector<gamepads::PadView> pads;
     unsigned captureCandidate = 0;
+    gamepads::SetupSnapshot padSetup;
+    bool atMainMenu = true;
     // gameplayBrand is detected; promptBrand is resolved by the runtime.
     // The local unsaved setting can resolve against gameplayBrand immediately.
     gamepads::PromptBrand gameplayBrand, promptBrand;
@@ -203,7 +205,10 @@ public:
               const DrawSelection& developer = {});
     void ShowPlay() {
         // Reopening after battle must retain the active room's navigation.
-        if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
+        if(previousRoomState_==netplay::RoomState::Idle) {
+            if(reopenScreen_)menu_.navigation.Push(*reopenScreen_);
+            else menu_.navigation.Home();
+        }
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
@@ -426,6 +431,19 @@ private:
     std::uint64_t joinLinkSeen_=0;
     // Ember was hidden on the last frame (Background): the next drawn one opens it.
     bool hidden_=true;
+    std::optional<std::string> reopenScreen_;
+    std::optional<gamepads::PadView> setupPad_, setupPrompt_;
+    std::vector<gamepads::Identity> setupPrompted_;
+    std::set<unsigned> setupPromptHeld_;
+    bool setupStarting_=false, setupPromptReleased_=false;
+    std::uint64_t setupRevision_=0, setupMenuSequence_=0;
+    gamepads::SetupMode setupPreviousMode_=gamepads::SetupMode::Capture;
+    void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
+    void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);
+    bool DrawPadSetup(const ShellView& view,const Submit& submit);
+    void SetupControl(gamepads::SetupCommand command,const ShellView& view,const Submit& submit,int step=0);
+    void ClosePadSetup(const ShellView& view,bool controllers=false);
+
     // The training call's sequences as last acted on.
     std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;

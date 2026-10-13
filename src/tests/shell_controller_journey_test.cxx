@@ -1,5 +1,57 @@
 #include "shell_journey_support.hxx"
-void ControllerJourneys() {
+namespace {
+void SetupJourneys() {
+    using namespace sf4e; using namespace gamepads;
+    Harness h; h.view.inputDevice.type = input::PadXInput;
+    h.view.gameplayBrand = h.view.promptBrand = {Brand::PlayStation, PlayStationArt::PS5};
+    PadView pad; pad.id = 9; pad.name = "Unknown fight stick"; pad.picture = "controller_generic";
+    pad.identity = {"prompt-guid", "", "prompt-path", pad.name}; pad.state = RowState::Unmapped;
+    h.view.pads = {pad}; h.Frame();
+    h.view.pads[0].raw = {{RawKind::Button, 0}}; h.view.pads[0].pressed = true; h.Frame();
+    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Prompt, "First press did not show automatic setup prompt");
+    Check(ImGui::GetTopMostPopupModal(), "Automatic setup prompt did not own the menu");
+    h.Frame(0, 3); Check(h.shell.Navigation().Screen() == "home", "Triggering press opened setup without a release");
+    h.Press(MenuInput::Back);
+    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::DeclinePrompt, "Prompt Back did not decline");
+    const auto declined = h.actions.size();
+    h.view.pads[0].pressed = false; h.view.pads[0].raw.clear(); h.Frame();
+    h.view.pads[0].pressed = true; h.view.pads[0].raw = {{RawKind::Button, 0}}; h.Frame();
+    Check(h.actions.size() == declined && !ImGui::GetTopMostPopupModal(), "Declined pad was prompted twice");
+    pad.id = 10; pad.identity.guid = "second-guid"; pad.identity.path = "second-path";
+    h.view.pads = {pad}; h.Frame();
+    h.view.pads[0].pressed = true; h.view.pads[0].raw = {{RawKind::Button, 0}}; h.Frame();
+    h.view.pads[0].pressed = false; h.view.pads[0].raw.clear(); h.Frame();
+    h.view.pads[0].pressed = true; h.view.pads[0].raw = {{RawKind::Button, 0}}; h.Frame();
+    Check(h.shell.Navigation().Screen() == "pad-setup" && h.actions.back().padAction.kind == ControllerRequest::Kind::Setup,
+        "Prompt did not open setup after release and the next press");
+    h.view.padSetup.padId = 10; h.view.padSetup.identity = pad.identity;
+    auto& state = h.view.padSetup.state; state.active = true; h.Frame();
+    h.shell.ShowPlay(); h.Frame(); Check(h.shell.Navigation().Screen() == "pad-setup", "Play request displaced active setup");
+    h.Press(MenuInput::Down); Check(h.shell.Navigation().Focus() == "step-0", "Capture allowed list navigation");
+    state.mode = SetupMode::Summary;
+    for (int i = 0; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i};
+    h.Frame(); state.summaryInput.action = SetupMenuAction::Back; ++state.summaryInput.sequence; h.Frame();
+    Check(h.shell.Navigation().Focus() == "cancel" && h.shell.Navigation().Confirming(), "Summary MK did not open cancel confirmation");
+    state.summaryInput.up = state.summaryInput.down = false; h.Frame(); h.Press(MenuInput::Back);
+    Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Screen() == "pad-setup", "Summary confirmation Back left setup");
+    h.Choose("save"); Check(h.actions.back().padAction.command == SetupCommand::Save, "Summary Save did not submit save");
+    state.active = false; h.view.padSetup.outcome = SetupEnd::Saved; ++h.view.padSetup.revision;
+    h.view.pads[0].state = RowState::Recognised; h.view.pads[0].slot = 0; h.view.pads[0].customMapping = true; h.Frame();
+    Check(h.shell.Navigation().Screen() == "controllers" && h.shell.Navigation().Focus() == "pad-10", "Save did not focus the controller on Controllers");
+    Check(ImGui::GetTopMostPopupModal(), "Save did not show its result notice");
+    Check(MenuPromptBrand() == h.view.promptBrand, "Closing setup did not restore gameplay glyphs");
+    h.Press(MenuInput::Back); h.Choose("pad-10"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+    state = {}; state.active = true; h.Frame();
+    state.mode = SetupMode::Summary; for (int i = 0; i < 14; ++i) state.recorded[i] = RawInput{RawKind::Button, i}; h.Frame();
+    state.summaryInput.action = SetupMenuAction::Back; ++state.summaryInput.sequence; h.Frame();
+    Check(h.shell.Navigation().Confirming(), "Cancel confirmation did not open before hiding");
+    h.shell.Background(h.view, h.view.room, [&](ShellAction action) { h.actions.push_back(std::move(action)); return true; });
+    Check(h.actions.back().padAction.command == SetupCommand::LeftMenu && !h.shell.NoticeOpen(), "Hidden wizard did not cancel silently");
+    h.shell.ShowPlay(); h.shell.ShowPlay(); h.Frame();
+    Check(h.shell.Navigation().Screen() == "controllers", "Reopening lost the silent cancel destination");
+}
+}
+static void ControllerSettingsJourney() {
     using namespace sf4e;
     using namespace gamepads;
     Harness h;
@@ -8,6 +60,15 @@ void ControllerJourneys() {
     h.view.pads = {pad}; h.view.controller = "Keyboard";
     std::vector<MenuEntry> rows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; });
+    const auto cancelSetup = [&] {
+        Check(h.shell.Navigation().Screen() == "pad-setup", "Setup did not open wizard");
+        h.view.padSetup.state.active = true; h.Frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true); h.Frame();
+        Check(h.actions.back().padAction.command == SetupCommand::Escape, "Capture Esc did not cancel");
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, false);
+        h.view.padSetup.state.active = false; h.view.padSetup.outcome = SetupEnd::Escape; ++h.view.padSetup.revision; h.Frame();
+        Check(h.shell.Navigation().Screen() == "controllers", "Wizard cancel did not return to Controllers");
+    };
     const auto row = [&](const char* id) -> const MenuEntry& {
         const auto found = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
         Check(found != rows.end(), "Controller journey row missing"); return *found;
@@ -26,12 +87,14 @@ void ControllerJourneys() {
     Check(!row("pad-7").choices[0].enabled && row("pad-7").choices[0].detail == loc::T("controllers.choice_play_current"), "Current pad play rule is wrong");
     h.Choose("pad-7"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
     Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Setup, "Setup choice did not use the shared entry point");
+    cancelSetup();
     h.view.pads[0].gameplay = false; h.view.canChangeController = h.view.canEditPreferences = false; h.Frame();
     Check(!row("pad-7").choices[0].enabled && row("pad-7").choices[0].detail == loc::T("settings.leave_room_to_edit"), "Room did not lock Play");
     Check(!row("pad-7").choices[1].enabled, "Room did not lock Setup");
     h.view.canChangeController = h.view.canEditPreferences = true;
     h.view.pads[0].state = RowState::Unmapped; h.Frame(); h.Choose("pad-7");
     Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Setup, "Unmapped row did not use the shared setup entry point");
+    cancelSetup();
     h.view.pads[0].state = RowState::Recognised; h.view.pads[0].customMapping = true; h.Frame();
     Check(row("pad-7").choices.size() == 3 && row("pad-7").choices[2].id == "forget", "Saved mapping did not offer Forget");
     h.Choose("pad-7"); h.Press(MenuInput::Back);
@@ -58,3 +121,4 @@ void ControllerJourneys() {
     Check(h.actions.size() == locked, "Locked opt-out changed preferences");
     SetMenuEntriesProbe({});
 }
+void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); }

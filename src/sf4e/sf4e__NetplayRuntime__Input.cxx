@@ -75,6 +75,18 @@ void CaptureMenuInput() {
     if (AtMainMenu()) {
         runtime->inputDevices = input::ReadDevices();
         input::LogInventory(runtime->inputDevices);
+        const auto setup = Gamepads::ReadFrame().setup;
+        if (!setup.state.active && setup.outcome != gamepads::SetupEnd::Saved) runtime->setupAdoption.reset();
+        if (runtime->setupAdoption && !setup.state.active && setup.outcome == gamepads::SetupEnd::Saved) {
+            const auto device = std::find_if(runtime->inputDevices.begin(), runtime->inputDevices.end(), [&](const input::Device& d) {
+                return d.connected && d.type == input::PadXInput && !d.identity.guid.empty() && gamepads::Same(d.identity, *runtime->setupAdoption);
+            });
+            if (device != runtime->inputDevices.end() && input::AssignToSide(*device, 0, false)) {
+                runtime->input.Cancel(); runtime->input.Adopt(*device); runtime->inputInitialized = true;
+                OverlayPrefs::SaveGameplayDevice(device->type, device->index, device->identity);
+                LogGameplayController(*device, "restore"); runtime->setupAdoption.reset();
+            }
+        }
         if (!runtime->inputInitialized && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) RestoreMenuController();
         const int previousIndex = runtime->input.Selected().index;
@@ -97,6 +109,7 @@ void CaptureMenuInput() {
             UserApp::netplay->deviceType = static_cast<uint8_t>(runtime->input.Selected().type);
         }
     } else runtime->input.Cancel();
+    if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0);
     const auto layer = Gamepads::ReadFrame();
     runtime->padLayer = layer.mode; runtime->runningControllerLayer = layer.requested;
     OverlayPrefs::Data prefs; OverlayPrefs::Load(prefs);
@@ -133,14 +146,35 @@ bool CanChooseControllerNow() {
 
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     using Kind = gamepads::ControllerRequest::Kind;
+    if (request.kind == Kind::DeclinePrompt) { spdlog::info("Input: setup prompt declined"); return; }
+    if (request.kind == Kind::SetupControl) {
+        const auto current = Gamepads::ReadFrame().setup;
+        if (!current.state.active || current.padId != request.id) return;
+        if (request.command != gamepads::SetupCommand::Save) { Gamepads::ControlSetup(request.command, request.step); return; }
+        if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle || !GetRuntimeSnapshotShared()->canEditPreferences) {
+            Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0); return;
+        }
+        const auto before = Gamepads::ReadFrame().setup;
+        if (const auto mapping = Gamepads::SaveSetup()) {
+            runtime->preferences.controllerMappings[before.identity.guid] = *mapping;
+            OverlayPrefs::SavePlayerPreferences(runtime->preferences);
+            if (runtime->setupAdoption) runtime->setupAdoption = before.identity;
+        }
+        return;
+    }
     const auto found = std::find_if(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) { return pad.id == request.id; });
     if (found == runtime->pads.end()) return;
     const auto& pad = *found;
     const auto view = GetRuntimeSnapshotShared();
+    if (request.kind == Kind::Prompt) { Gamepads::SetupPrompt(pad.identity); return; }
     if (request.kind == Kind::Setup) {
-        if (view->canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
+        if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && view->canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
             (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Unmapped || pad.state == gamepads::RowState::GameRead))
-            Gamepads::SetupPrompt(pad.identity);
+        {
+            if (Gamepads::ReadFrame().setup.state.active) return;
+            runtime->setupAdoption = pad.gameplay ? std::make_optional(pad.identity) : std::nullopt;
+            Gamepads::BeginSetup(pad.identity, pad.id);
+        }
         return;
     }
     if (request.kind == Kind::Forget) {
@@ -158,6 +192,7 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
         return d.connected && d.type == input::PadXInput && !d.identity.guid.empty() && gamepads::Same(d.identity, pad.identity);
     });
     if (device == runtime->inputDevices.end()) return;
+    runtime->setupAdoption.reset();
     runtime->input.Cancel(); runtime->input.Adopt(*device); runtime->inputInitialized = true;
     if (!input::AssignToSide(*device, 0, false)) { runtime->input.Begin(); return; }
     runtime->padHints.Selected(device->identity);

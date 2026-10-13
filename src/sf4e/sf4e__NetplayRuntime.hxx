@@ -125,6 +125,7 @@ struct Runtime {
 
     input::Assignment input;
     bool inputInitialized = false;
+    std::optional<gamepads::Identity> setupAdoption;
     std::string padHint;
     ULONGLONG padHintUntil = 0;
     gamepads::ControllerInventory padInventory;

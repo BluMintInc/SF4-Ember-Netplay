@@ -4787,3 +4787,144 @@ msgstr "Controller disconnesso. Riconnettilo o lascia la stanza per sceglierne u
 
 msgid "runtime.match_input_moved"
 msgstr "{0} è tornato, ma in un altro slot di gioco. Funzionerà di nuovo dalla prossima partita."
+
+msgid "pad_setup.title"
+msgstr "CONFIGURA CONTROLLER"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nuovo controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember non conosce ancora i pulsanti di {0}. Premi un pulsante sul controller per configurarlo ora. Ci vuole circa un minuto."
+
+msgid "pad_setup.not_now"
+msgstr "Non ora"
+
+msgid "pad_setup.step_count"
+msgstr "Passaggio {0} di {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Su"
+
+msgid "pad_setup.step.down"
+msgstr "Giù"
+
+msgid "pad_setup.step.left"
+msgstr "Sinistra"
+
+msgid "pad_setup.step.right"
+msgstr "Destra"
+
+msgid "pad_setup.step.lp"
+msgstr "Pugno leggero"
+
+msgid "pad_setup.step.mp"
+msgstr "Pugno medio"
+
+msgid "pad_setup.step.hp"
+msgstr "Pugno forte"
+
+msgid "pad_setup.step.lk"
+msgstr "Calcio leggero"
+
+msgid "pad_setup.step.mk"
+msgstr "Calcio medio"
+
+msgid "pad_setup.step.hk"
+msgstr "Calcio forte"
+
+msgid "pad_setup.step.3p"
+msgstr "Tutti e tre i pugni"
+
+msgid "pad_setup.step.3k"
+msgstr "Tutti e tre i calci"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Muovi la leva o premi il pulsante per questa direzione, poi rilascia."
+
+msgid "pad_setup.press_button"
+msgstr "Premi il pulsante che vuoi usare per questa azione, poi rilascia."
+
+msgid "pad_setup.optional"
+msgstr "Se il controller non ha un pulsante per questa azione, saltala."
+
+msgid "pad_setup.lk_selects"
+msgstr "Questo pulsante servirà anche a selezionare nei menu."
+
+msgid "pad_setup.mk_backs"
+msgstr "Questo pulsante servirà anche a tornare indietro nei menu."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Continua a tenere premuto per annullare la configurazione."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Tieni premuto un pulsante: annulla"
+
+msgid "pad_setup.back_step"
+msgstr "Indietro di un passaggio"
+
+msgid "pad_setup.skip"
+msgstr "Salta"
+
+msgid "pad_setup.required"
+msgstr "Questa azione è necessaria."
+
+msgid "pad_setup.conflict"
+msgstr "{0} è già {1}. Premi un altro comando."
+
+msgid "pad_setup.idle_hint"
+msgstr "Nessun comando premuto. Tieni premuto un pulsante per 3 secondi per annullare, oppure premi Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller scollegato. Ricollegalo entro {0} secondi per continuare."
+
+msgid "pad_setup.skipped"
+msgstr "Saltato"
+
+msgid "pad_setup.summary_detail"
+msgstr "Premi un pulsante per vedere il suo passaggio. Qui Calcio leggero seleziona e Calcio medio torna indietro, come in tutti i menu."
+
+msgid "pad_setup.redo_detail"
+msgstr "Seleziona per impostare di nuovo questo comando."
+
+msgid "pad_setup.save"
+msgstr "Salva"
+
+msgid "pad_setup.save_detail"
+msgstr "Salva questa configurazione e usala subito."
+
+msgid "pad_setup.start_over"
+msgstr "Ricomincia"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Cancella tutti i passaggi e ricomincia."
+
+msgid "pad_setup.cancel"
+msgstr "Annulla configurazione"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Esci senza salvare."
+
+msgid "pad_setup.cancelled"
+msgstr "Configurazione annullata. Non è stato salvato nulla."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller configurato"
+
+msgid "pad_setup.saved"
+msgstr "{0} è configurato. Se un attacco è sbagliato, controlla Pulsanti di combattimento in Giocatore e controller."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember non ha potuto usare questa configurazione. Non è stato salvato nulla. I dettagli sono in sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Configurazione interrotta perché {0} si è scollegato. Non è stato salvato nulla."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Configurazione interrotta dopo un minuto senza comandi. Non è stato salvato nulla."

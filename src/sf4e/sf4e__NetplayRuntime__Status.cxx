@@ -402,6 +402,7 @@ PostPublishState Publish() {
     snapshot.promptBrand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, snapshot.inputDevice.type, snapshot.gameplayBrand);
     snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
     snapshot.runningControllerLayer = runtime->runningControllerLayer;
+    snapshot.padSetup = Gamepads::ReadFrame().setup;
     snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
     snapshot.padHintUntil = runtime->padHintUntil;
     const auto& candidate = runtime->input.Candidate();

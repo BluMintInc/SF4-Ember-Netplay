@@ -75,7 +75,7 @@ bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& s
     back=loc::T("common.cancel");
     if(!notice_.empty()) {
         // Back declines a notice's alternative, so it reads as closing it.
-        select=noticeAlternativeSelected_?noticeAlternative_:loc::T("common.ok");back=loc::T("common.close");
+        select=noticeAlternativeSelected_?noticeAlternative_:(noticeOkLabel_.empty()?loc::T("common.ok"):noticeOkLabel_);back=loc::T("common.close");
     } else if(navigation.Editing()) select=KeyboardPrompts()||navigation.EditAccepts()?loc::T("common.accept"):loc::T("edit.cancel");
     else if(navigation.Reading()) { select.clear(); back=loc::T("common.close"); }
     else if(navigation.Choosing()) {
@@ -232,9 +232,10 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
         else {
             if(noticeError_) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
             else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str());
+            NoteUserText(notice_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));
-            std::vector<DialogButton> buttons{{loc::T("common.ok")}};
+            std::vector<DialogButton> buttons{{noticeOkLabel_.empty()?loc::T("common.ok"):noticeOkLabel_}};
             if(!noticeAlternative_.empty())buttons.push_back({noticeAlternative_});
             int selected=noticeAlternativeSelected_?1:0;
             const int clicked=DrawDialogButtons("notice",buttons,&selected,48*Scale());

@@ -570,6 +570,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
  if(screen=="controllers"&&a.id.compare(0,4,"pad-")==0){
   const auto action=ControllerAction(a,v.pads);if(!action)return;
+  if(action->kind==gamepads::ControllerRequest::Kind::Setup){
+   const auto pad=std::find_if(v.pads.begin(),v.pads.end(),[&](const gamepads::PadView& p){return p.id==action->id;});
+   if(pad!=v.pads.end())BeginPadSetup(*pad,v,submit);
+   return;
+  }
   ShellAction request;request.command.generation=v.session.generation;request.padAction=*action;
   if(!submit(std::move(request)))error_=loc::T("error.queue_failed");
   return;
@@ -710,6 +715,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
+ UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
@@ -719,6 +725,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
+ UpdatePadSetup(v,submit,true);
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
  // Called out of Training: the player's own table is shown, where the Ready
  // row carries the time left, and a player who asked for it is readied.
@@ -837,6 +844,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ if(DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;

@@ -4787,3 +4787,144 @@ msgstr "Ovladač odpojen. Připojte jej znovu nebo opusťte místnost a vyberte 
 
 msgid "runtime.match_input_moved"
 msgstr "{0} je zpět, ale v jiném herním slotu. Znovu bude fungovat od příští hry."
+
+msgid "pad_setup.title"
+msgstr "NASTAVIT OVLADAČ"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nový ovladač"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember zatím nezná tlačítka ovladače {0}. Stiskněte na něm libovolné tlačítko a nastavte jej. Zabere to asi minutu."
+
+msgid "pad_setup.not_now"
+msgstr "Teď ne"
+
+msgid "pad_setup.step_count"
+msgstr "Krok {0} z {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Nahoru"
+
+msgid "pad_setup.step.down"
+msgstr "Dolů"
+
+msgid "pad_setup.step.left"
+msgstr "Vlevo"
+
+msgid "pad_setup.step.right"
+msgstr "Vpravo"
+
+msgid "pad_setup.step.lp"
+msgstr "Lehký úder"
+
+msgid "pad_setup.step.mp"
+msgstr "Střední úder"
+
+msgid "pad_setup.step.hp"
+msgstr "Silný úder"
+
+msgid "pad_setup.step.lk"
+msgstr "Lehký kop"
+
+msgid "pad_setup.step.mk"
+msgstr "Střední kop"
+
+msgid "pad_setup.step.hk"
+msgstr "Silný kop"
+
+msgid "pad_setup.step.3p"
+msgstr "Všechny tři údery"
+
+msgid "pad_setup.step.3k"
+msgstr "Všechny tři kopy"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Pohněte páčkou nebo stiskněte tlačítko pro tento směr a potom pusťte."
+
+msgid "pad_setup.press_button"
+msgstr "Stiskněte tlačítko, které chcete pro tuto akci, a potom jej pusťte."
+
+msgid "pad_setup.optional"
+msgstr "Pokud ovladač nemá tlačítko pro tuto akci, přeskočte ji."
+
+msgid "pad_setup.lk_selects"
+msgstr "Toto tlačítko také vybírá v nabídkách."
+
+msgid "pad_setup.mk_backs"
+msgstr "Toto tlačítko také vrací zpět v nabídkách."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Držte dál pro zrušení nastavení."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Podržet libovolné tlačítko: zrušit"
+
+msgid "pad_setup.back_step"
+msgstr "O krok zpět"
+
+msgid "pad_setup.skip"
+msgstr "Přeskočit"
+
+msgid "pad_setup.required"
+msgstr "Tato akce je potřeba."
+
+msgid "pad_setup.conflict"
+msgstr "{0} už je {1}. Použijte jiný vstup."
+
+msgid "pad_setup.idle_hint"
+msgstr "Zatím žádný vstup. Podržte libovolné tlačítko 3 sekundy pro zrušení nebo stiskněte Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Ovladač odpojen. Pro pokračování jej připojte do {0} sekund."
+
+msgid "pad_setup.skipped"
+msgstr "Přeskočeno"
+
+msgid "pad_setup.summary_detail"
+msgstr "Stiskněte tlačítko a uvidíte jeho krok. Lehký kop vybírá a Střední kop vrací zpět, stejně jako v každé nabídce."
+
+msgid "pad_setup.redo_detail"
+msgstr "Vyberte pro opětovné nastavení tohoto vstupu."
+
+msgid "pad_setup.save"
+msgstr "Uložit"
+
+msgid "pad_setup.save_detail"
+msgstr "Uložit nastavení a hned jej používat."
+
+msgid "pad_setup.start_over"
+msgstr "Začít znovu"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Vymazat všechny kroky a začít znovu."
+
+msgid "pad_setup.cancel"
+msgstr "Zrušit nastavení"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Odejít bez uložení."
+
+msgid "pad_setup.cancelled"
+msgstr "Nastavení zrušeno. Nic nebylo uloženo."
+
+msgid "pad_setup.saved_heading"
+msgstr "Ovladač nastaven"
+
+msgid "pad_setup.saved"
+msgstr "{0} je nastaven. Pokud útok nefunguje správně, zkontrolujte Bojová tlačítka v nabídce Hráč a ovladač."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember nemohl toto nastavení použít. Nic nebylo uloženo. Podrobnosti jsou v sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Nastavení zastaveno, protože {0} byl odpojen. Nic nebylo uloženo."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Nastavení zastaveno po minutě bez vstupu. Nic nebylo uloženo."

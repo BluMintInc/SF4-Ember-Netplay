@@ -4787,3 +4787,144 @@ msgstr "控制器已断开。重新连接，或离开房间后选择另一个。
 
 msgid "runtime.match_input_moved"
 msgstr "{0} 已恢复，但位于另一个游戏插槽。下场游戏起才能再次使用。"
+
+msgid "pad_setup.title"
+msgstr "设置控制器"
+
+msgid "pad_setup.prompt_heading"
+msgstr "新控制器"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember 还不知道 {0} 的按钮。按下该控制器上的任意按钮即可开始设置，大约需要一分钟。"
+
+msgid "pad_setup.not_now"
+msgstr "暂不设置"
+
+msgid "pad_setup.step_count"
+msgstr "第 {0} 步，共 {1} 步"
+
+msgid "pad_setup.step.up"
+msgstr "上"
+
+msgid "pad_setup.step.down"
+msgstr "下"
+
+msgid "pad_setup.step.left"
+msgstr "左"
+
+msgid "pad_setup.step.right"
+msgstr "右"
+
+msgid "pad_setup.step.lp"
+msgstr "轻拳"
+
+msgid "pad_setup.step.mp"
+msgstr "中拳"
+
+msgid "pad_setup.step.hp"
+msgstr "重拳"
+
+msgid "pad_setup.step.lk"
+msgstr "轻脚"
+
+msgid "pad_setup.step.mk"
+msgstr "中脚"
+
+msgid "pad_setup.step.hk"
+msgstr "重脚"
+
+msgid "pad_setup.step.3p"
+msgstr "三拳同时"
+
+msgid "pad_setup.step.3k"
+msgstr "三脚同时"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "推动摇杆或按下对应方向的按钮，然后松开。"
+
+msgid "pad_setup.press_button"
+msgstr "按下希望用于此操作的按钮，然后松开。"
+
+msgid "pad_setup.optional"
+msgstr "如果控制器没有用于此操作的按钮，请跳过。"
+
+msgid "pad_setup.lk_selects"
+msgstr "此按钮也用于在菜单中选择。"
+
+msgid "pad_setup.mk_backs"
+msgstr "此按钮也用于在菜单中返回。"
+
+msgid "pad_setup.hold_cancel"
+msgstr "继续按住即可取消设置。"
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "按住任意按钮：取消"
+
+msgid "pad_setup.back_step"
+msgstr "返回上一步"
+
+msgid "pad_setup.skip"
+msgstr "跳过"
+
+msgid "pad_setup.required"
+msgstr "此操作必需。"
+
+msgid "pad_setup.conflict"
+msgstr "{0} 已设为 {1}。请使用其他输入。"
+
+msgid "pad_setup.idle_hint"
+msgstr "尚无输入。按住任意按钮3秒或按 Esc 即可取消。"
+
+msgid "pad_setup.reconnect"
+msgstr "控制器已断开。请在 {0} 秒内重新连接以继续。"
+
+msgid "pad_setup.skipped"
+msgstr "已跳过"
+
+msgid "pad_setup.summary_detail"
+msgstr "按下任意按钮可查看对应步骤。此处与所有菜单一样，轻脚用于选择，中脚用于返回。"
+
+msgid "pad_setup.redo_detail"
+msgstr "选择以重新设置此输入。"
+
+msgid "pad_setup.save"
+msgstr "保存"
+
+msgid "pad_setup.save_detail"
+msgstr "保存此设置并立即使用。"
+
+msgid "pad_setup.start_over"
+msgstr "重新开始"
+
+msgid "pad_setup.start_over_detail"
+msgstr "清除所有步骤并重新开始。"
+
+msgid "pad_setup.cancel"
+msgstr "取消设置"
+
+msgid "pad_setup.cancel_detail"
+msgstr "不保存并退出。"
+
+msgid "pad_setup.cancelled"
+msgstr "设置已取消，未保存任何内容。"
+
+msgid "pad_setup.saved_heading"
+msgstr "控制器设置完成"
+
+msgid "pad_setup.saved"
+msgstr "{0} 已设置好。如果攻击不正确，请检查“玩家与控制器”中的“格斗按钮”。"
+
+msgid "pad_setup.save_failed"
+msgstr "Ember 无法使用此设置，因此未保存。详情请见 sf4e.log。"
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "由于 {0} 断开连接，设置已停止。未保存任何内容。"
+
+msgid "pad_setup.stopped_idle"
+msgstr "由于一分钟没有输入，设置已停止。未保存任何内容。"

@@ -1,3 +1,4 @@
+#include "../netplay/ControllerMappings.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
@@ -283,6 +284,8 @@ static void ControllerLayerRoundTrip(const Path& root) {
     CHECK(store.SaveOverlay({{"controllerLayer", false}, {"stageID", 4}}, error));
     CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true && saved["stageID"] == 4);
     CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"]["guid"] == "mapping");
+    CHECK(sf4e::netplay::ReadControllerMappings(saved).at("guid") == "mapping");
+    CHECK(sf4e::netplay::ReadControllerMappings({{"deviceType", 0}, {"deviceIdx", 2}}).empty());
     CHECK(store.SaveLauncher({{"controllerLayer", false}, {"controllerMappings", Json::object()}}, error));
     CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == false);
     CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"].empty());

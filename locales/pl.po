@@ -4787,3 +4787,144 @@ msgstr "Kontroler odłączony. Podłącz go ponownie lub opuść pokój, aby wyb
 
 msgid "runtime.match_input_moved"
 msgstr "{0} wrócił, ale w innym slocie gry. Będzie znów działać od następnej gry."
+
+msgid "pad_setup.title"
+msgstr "KONFIGURACJA KONTROLERA"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nowy kontroler"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember nie zna jeszcze przycisków kontrolera {0}. Naciśnij na nim dowolny przycisk, aby go skonfigurować. Zajmie to około minuty."
+
+msgid "pad_setup.not_now"
+msgstr "Nie teraz"
+
+msgid "pad_setup.step_count"
+msgstr "Krok {0} z {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Góra"
+
+msgid "pad_setup.step.down"
+msgstr "Dół"
+
+msgid "pad_setup.step.left"
+msgstr "Lewo"
+
+msgid "pad_setup.step.right"
+msgstr "Prawo"
+
+msgid "pad_setup.step.lp"
+msgstr "Lekki cios"
+
+msgid "pad_setup.step.mp"
+msgstr "Średni cios"
+
+msgid "pad_setup.step.hp"
+msgstr "Mocny cios"
+
+msgid "pad_setup.step.lk"
+msgstr "Lekkie kopnięcie"
+
+msgid "pad_setup.step.mk"
+msgstr "Średnie kopnięcie"
+
+msgid "pad_setup.step.hk"
+msgstr "Mocne kopnięcie"
+
+msgid "pad_setup.step.3p"
+msgstr "Wszystkie trzy ciosy"
+
+msgid "pad_setup.step.3k"
+msgstr "Wszystkie trzy kopnięcia"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Wychyl drążek lub naciśnij przycisk tego kierunku, a następnie puść."
+
+msgid "pad_setup.press_button"
+msgstr "Naciśnij przycisk wybrany dla tej akcji, a następnie go puść."
+
+msgid "pad_setup.optional"
+msgstr "Jeśli kontroler nie ma przycisku dla tej akcji, pomiń ją."
+
+msgid "pad_setup.lk_selects"
+msgstr "Ten przycisk będzie też wybierać w menu."
+
+msgid "pad_setup.mk_backs"
+msgstr "Ten przycisk będzie też cofać w menu."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Trzymaj dalej, aby anulować konfigurację."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Przytrzymaj dowolny przycisk: anuluj"
+
+msgid "pad_setup.back_step"
+msgstr "Cofnij krok"
+
+msgid "pad_setup.skip"
+msgstr "Pomiń"
+
+msgid "pad_setup.required"
+msgstr "Ta akcja jest wymagana."
+
+msgid "pad_setup.conflict"
+msgstr "{0} to już {1}. Użyj innego wejścia."
+
+msgid "pad_setup.idle_hint"
+msgstr "Brak wejścia. Przytrzymaj dowolny przycisk przez 3 sekundy, aby anulować, lub naciśnij Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Kontroler odłączony. Podłącz go w ciągu {0} sekund, aby kontynuować."
+
+msgid "pad_setup.skipped"
+msgstr "Pominięto"
+
+msgid "pad_setup.summary_detail"
+msgstr "Naciśnij przycisk, aby zobaczyć jego krok. Lekkie kopnięcie wybiera, a Średnie kopnięcie cofa, tak jak w każdym menu."
+
+msgid "pad_setup.redo_detail"
+msgstr "Wybierz, aby ponownie ustawić to wejście."
+
+msgid "pad_setup.save"
+msgstr "Zapisz"
+
+msgid "pad_setup.save_detail"
+msgstr "Zapisz konfigurację i używaj jej od razu."
+
+msgid "pad_setup.start_over"
+msgstr "Zacznij od nowa"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Wyczyść wszystkie kroki i zacznij od nowa."
+
+msgid "pad_setup.cancel"
+msgstr "Anuluj konfigurację"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Wyjdź bez zapisywania."
+
+msgid "pad_setup.cancelled"
+msgstr "Konfiguracja anulowana. Nic nie zapisano."
+
+msgid "pad_setup.saved_heading"
+msgstr "Kontroler skonfigurowany"
+
+msgid "pad_setup.saved"
+msgstr "{0} jest skonfigurowany. Jeśli atak jest nieprawidłowy, sprawdź Przyciski walki w menu Gracz i kontroler."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember nie mógł użyć tej konfiguracji. Nic nie zapisano. Szczegóły są w sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Konfiguracja zatrzymana, bo odłączono {0}. Nic nie zapisano."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Konfiguracja zatrzymana po minucie bez wejścia. Nic nie zapisano."

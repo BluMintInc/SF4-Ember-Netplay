@@ -60,6 +60,7 @@ inline BrandedGlyph BrandGlyph(const char* id, gamepads::PromptBrand brand) {
     if (!std::strcmp(id, "Esc")) return {"keyboard_escape", ""};
     if (!std::strcmp(id, "arrows")) return {"keyboard_arrows_all", ""};
     if (!std::strcmp(id, "keys-horizontal")) return {"keyboard_arrows_horizontal", ""};
+    if (!std::strcmp(id, "generic_stick_left") || !std::strcmp(id, "generic_stick_right") || !std::strcmp(id, "generic_button_circle_fill")) return {id, ""};
     return {"generic_button_circle_fill", id};
 }
 inline const char* PromptAsset(const char* glyph, gamepads::PromptBrand brand = {}) {
@@ -70,7 +71,7 @@ inline const char* PromptAsset(const char* glyph, gamepads::PromptBrand brand = 
 inline bool KeyCapGlyph(const char* glyph) {
     // The function keys F1 to F12 too, which the replay controls use.
     const bool function=glyph[0]=='F'&&glyph[1]>='1'&&glyph[1]<='9'&&(!glyph[2]||(glyph[1]=='1'&&glyph[2]>='0'&&glyph[2]<='2'&&!glyph[3]));
-    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del");
+    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del")||!std::strcmp(glyph,"Bksp")||!std::strcmp(glyph,"Space");
 }
 inline std::string PromptLabel(const char* glyph,const std::string& label,gamepads::PromptBrand brand) {
     if(!std::strcmp(glyph,"Ctrl+Enter"))return "Ctrl+Enter "+label;
@@ -115,12 +116,13 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
 struct LegendHint { const char* glyph; std::string label; };
 inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
                         const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr,
-                        float* lastRowEnd=nullptr) {
+                        float* lastRowEnd=nullptr,bool standard=true) {
     const bool keyboard=!std::strcmp(select,"Enter")||!std::strcmp(select,"Ctrl+Enter");
-    std::vector<LegendHint> hints{{keyboard?"arrows":"dpad",loc::T("menu.navigate")}};
+    std::vector<LegendHint> hints;
+    if(standard) hints={{keyboard?"arrows":"dpad",loc::T("menu.navigate")}};
     if(primary)hints.push_back({select,primary});
     const char* backWord=backText&&*backText?backText:loc::T("common.back");
-    hints.push_back({back,backWord});
+    if(standard) hints.push_back({back,backWord});
     if(adjustable)hints.push_back({keyboard?"keys-horizontal":"horizontal",loc::T("menu.adjust")});
     hints.insert(hints.end(),extras.begin(),extras.end());
     for(auto& hint:hints)hint.label=PromptLabel(hint.glyph,hint.label,MenuPromptBrand());

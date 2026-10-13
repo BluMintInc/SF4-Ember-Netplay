@@ -18,8 +18,12 @@ struct LayerFrame {
     gamepads::Layer mode = gamepads::Layer::Failed;
     bool requested = true;
     std::vector<gamepads::PadFrame> pads;
+    gamepads::SetupSnapshot setup;
 };
 LayerFrame ReadFrame();
 void SetupPrompt(const gamepads::Identity& identity);
+void BeginSetup(const gamepads::Identity& identity, unsigned padId);
+void ControlSetup(gamepads::SetupCommand command, int step);
+std::optional<std::string> SaveSetup();
 
 } }

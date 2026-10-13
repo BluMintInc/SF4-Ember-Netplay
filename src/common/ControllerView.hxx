@@ -1,37 +1,20 @@
 #pragma once
 #include "GamepadBrand.hxx"
 #include "XInputMapping.hxx"
+#include "PadSetup.hxx"
 #include <string>
 #include <vector>
 
 namespace sf4e { namespace gamepads {
 enum class Layer { Active, GameReads, Failed };
 enum class RowState { Recognised, Steam, Unmapped, NotInUse, Absent, GameRead };
-enum class RawKind { Button, HatUp, HatRight, HatDown, HatLeft, AxisPlus, AxisMinus, Trigger };
-struct RawInput { RawKind kind; int index; bool numberedHat = false; };
-struct RawState {
-    std::vector<bool> buttons;
-    std::vector<unsigned> hats;
-    std::vector<int> axes, rest;
+struct SetupSnapshot {
+    unsigned padId = 0;
+    Identity identity;
+    SetupState state;
+    std::uint64_t revision = 0;
+    SetupEnd outcome = SetupEnd::None;
 };
-inline std::vector<RawInput> HeldRaw(const RawState& state) {
-    std::vector<RawInput> held;
-    for (unsigned i = 0; i < state.buttons.size(); ++i)
-        if (state.buttons[i]) held.push_back({RawKind::Button, static_cast<int>(i)});
-    const RawKind directions[] = {RawKind::HatUp, RawKind::HatRight, RawKind::HatDown, RawKind::HatLeft};
-    for (unsigned i = 0; i < state.hats.size(); ++i)
-        for (unsigned bit = 0; bit < 4; ++bit)
-            if (state.hats[i] & (1u << bit)) held.push_back({directions[bit], static_cast<int>(i), state.hats.size() > 1});
-    for (unsigned i = 0; i < state.axes.size() && i < state.rest.size(); ++i) {
-        const int delta = state.axes[i] - state.rest[i];
-        if (delta > 16000 || delta < -16000) {
-            const auto kind = state.rest[i] <= -16000 || state.rest[i] >= 16000 ? RawKind::Trigger :
-                delta > 0 ? RawKind::AxisPlus : RawKind::AxisMinus;
-            held.push_back({kind, static_cast<int>(i)});
-        }
-    }
-    return held;
-}
 inline std::vector<std::string> HeldGlyphs(const State& state) {
     std::vector<std::string> held;
     const struct { const char* id; Button button; bool axis; } inputs[] = {
@@ -74,12 +57,14 @@ struct PadView {
     bool gameplay = false, customMapping = false, pressed = false;
     std::vector<std::string> held;
     std::vector<RawInput> raw;
+    bool rawAtRest = true;
 };
 struct PadFrame {
     Pad pad;
     State state;
     std::vector<RawInput> raw;
     bool pressed = false;
+    bool rawAtRest = true;
 };
 struct NativeController {
     int index;

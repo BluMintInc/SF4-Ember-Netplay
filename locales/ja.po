@@ -4787,3 +4787,144 @@ msgstr "コントローラーが切断されました。再接続するか、ル
 
 msgid "runtime.match_input_moved"
 msgstr "{0} が戻りましたが、別のゲームスロットにあります。次の試合からまた使えます。"
+
+msgid "pad_setup.title"
+msgstr "コントローラー設定"
+
+msgid "pad_setup.prompt_heading"
+msgstr "新しいコントローラー"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember はまだ {0} のボタンを認識していません。このコントローラーのボタンを押すと設定を始めます。約1分で終わります。"
+
+msgid "pad_setup.not_now"
+msgstr "今はしない"
+
+msgid "pad_setup.step_count"
+msgstr "ステップ {0} / {1}"
+
+msgid "pad_setup.step.up"
+msgstr "上"
+
+msgid "pad_setup.step.down"
+msgstr "下"
+
+msgid "pad_setup.step.left"
+msgstr "左"
+
+msgid "pad_setup.step.right"
+msgstr "右"
+
+msgid "pad_setup.step.lp"
+msgstr "弱パンチ"
+
+msgid "pad_setup.step.mp"
+msgstr "中パンチ"
+
+msgid "pad_setup.step.hp"
+msgstr "強パンチ"
+
+msgid "pad_setup.step.lk"
+msgstr "弱キック"
+
+msgid "pad_setup.step.mk"
+msgstr "中キック"
+
+msgid "pad_setup.step.hk"
+msgstr "強キック"
+
+msgid "pad_setup.step.3p"
+msgstr "パンチ3つ同時"
+
+msgid "pad_setup.step.3k"
+msgstr "キック3つ同時"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "この方向にレバーを倒すかボタンを押して、離してください。"
+
+msgid "pad_setup.press_button"
+msgstr "この操作に使いたいボタンを押して、離してください。"
+
+msgid "pad_setup.optional"
+msgstr "この操作用のボタンがない場合はスキップしてください。"
+
+msgid "pad_setup.lk_selects"
+msgstr "このボタンはメニューでの決定にも使います。"
+
+msgid "pad_setup.mk_backs"
+msgstr "このボタンはメニューで戻る操作にも使います。"
+
+msgid "pad_setup.hold_cancel"
+msgstr "押し続けると設定をキャンセルします。"
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "ボタン長押し：キャンセル"
+
+msgid "pad_setup.back_step"
+msgstr "1つ前のステップ"
+
+msgid "pad_setup.skip"
+msgstr "スキップ"
+
+msgid "pad_setup.required"
+msgstr "この操作は必要です。"
+
+msgid "pad_setup.conflict"
+msgstr "{0} はすでに {1} に設定されています。別の入力を使ってください。"
+
+msgid "pad_setup.idle_hint"
+msgstr "まだ入力がありません。ボタンを3秒間押し続けるか、Esc を押すとキャンセルします。"
+
+msgid "pad_setup.reconnect"
+msgstr "コントローラーが切断されました。{0} 秒以内に再接続すると続けられます。"
+
+msgid "pad_setup.skipped"
+msgstr "スキップ済み"
+
+msgid "pad_setup.summary_detail"
+msgstr "ボタンを押すと対応するステップが表示されます。ここでもすべてのメニューと同じく、弱キックで決定、中キックで戻ります。"
+
+msgid "pad_setup.redo_detail"
+msgstr "選択してこの入力を設定し直します。"
+
+msgid "pad_setup.save"
+msgstr "保存"
+
+msgid "pad_setup.save_detail"
+msgstr "この設定を保存して今すぐ使います。"
+
+msgid "pad_setup.start_over"
+msgstr "最初からやり直す"
+
+msgid "pad_setup.start_over_detail"
+msgstr "すべてのステップを消して最初から始めます。"
+
+msgid "pad_setup.cancel"
+msgstr "設定をキャンセル"
+
+msgid "pad_setup.cancel_detail"
+msgstr "保存せずに終了します。"
+
+msgid "pad_setup.cancelled"
+msgstr "設定をキャンセルしました。何も保存していません。"
+
+msgid "pad_setup.saved_heading"
+msgstr "コントローラー設定完了"
+
+msgid "pad_setup.saved"
+msgstr "{0} を設定しました。攻撃が正しく出ない場合は、プレイヤーとコントローラーの「対戦ボタン」を確認してください。"
+
+msgid "pad_setup.save_failed"
+msgstr "Ember はこの設定を使用できませんでした。何も保存していません。詳細は sf4e.log にあります。"
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "{0} が切断されたため設定を終了しました。何も保存していません。"
+
+msgid "pad_setup.stopped_idle"
+msgstr "1分間入力がなかったため設定を終了しました。何も保存していません。"

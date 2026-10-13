@@ -298,6 +298,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
     view.padHint = snapshot.padHint;
     view.padHintUntil = snapshot.padHintUntil; view.padLayer = snapshot.padLayer;
+    view.padSetup = snapshot.padSetup; view.atMainMenu = snapshot.atMainMenu;
     view.padLayerPending = snapshot.padLayerPending; view.runningControllerLayer = snapshot.runningControllerLayer;
     view.pads = snapshot.pads; view.captureCandidate = snapshot.captureCandidate;
     view.inputCapture = snapshot.inputCapture;
@@ -475,7 +476,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     }
     // The pad drives the menu behind another window too (ShellHoldsPads).
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || s_trainingControls.Open(), !assigning);
+        presentation.Visible() || s_trainingControls.Open(), !assigning && !(snapshot.padSetup.state.active && snapshot.padSetup.state.mode == sf4e::gamepads::SetupMode::Capture));
     // Start opens Ember at the main menu and over a Practice match; in
     // Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();

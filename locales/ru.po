@@ -4788,3 +4788,144 @@ msgstr "Контроллер отключён. Подключите его сн�
 
 msgid "runtime.match_input_moved"
 msgstr "{0} вернулся, но в другом игровом слоте. Он снова заработает со следующей игры."
+
+msgid "pad_setup.title"
+msgstr "НАСТРОЙКА КОНТРОЛЛЕРА"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Новый контроллер"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember пока не знает кнопки {0}. Нажмите любую кнопку на нём, чтобы настроить его сейчас. Это займёт около минуты."
+
+msgid "pad_setup.not_now"
+msgstr "Не сейчас"
+
+msgid "pad_setup.step_count"
+msgstr "Шаг {0} из {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Вверх"
+
+msgid "pad_setup.step.down"
+msgstr "Вниз"
+
+msgid "pad_setup.step.left"
+msgstr "Влево"
+
+msgid "pad_setup.step.right"
+msgstr "Вправо"
+
+msgid "pad_setup.step.lp"
+msgstr "Слабый удар рукой"
+
+msgid "pad_setup.step.mp"
+msgstr "Средний удар рукой"
+
+msgid "pad_setup.step.hp"
+msgstr "Сильный удар рукой"
+
+msgid "pad_setup.step.lk"
+msgstr "Слабый удар ногой"
+
+msgid "pad_setup.step.mk"
+msgstr "Средний удар ногой"
+
+msgid "pad_setup.step.hk"
+msgstr "Сильный удар ногой"
+
+msgid "pad_setup.step.3p"
+msgstr "Все три удара рукой"
+
+msgid "pad_setup.step.3k"
+msgstr "Все три удара ногой"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Наклоните рычаг или нажмите кнопку этого направления, затем отпустите."
+
+msgid "pad_setup.press_button"
+msgstr "Нажмите кнопку, которую хотите использовать для этого действия, затем отпустите."
+
+msgid "pad_setup.optional"
+msgstr "Если на контроллере нет кнопки для этого действия, пропустите его."
+
+msgid "pad_setup.lk_selects"
+msgstr "Эта кнопка также выбирает пункты в меню."
+
+msgid "pad_setup.mk_backs"
+msgstr "Эта кнопка также возвращает назад в меню."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Продолжайте удерживать, чтобы отменить настройку."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Удерживать любую кнопку: отмена"
+
+msgid "pad_setup.back_step"
+msgstr "На шаг назад"
+
+msgid "pad_setup.skip"
+msgstr "Пропустить"
+
+msgid "pad_setup.required"
+msgstr "Это действие обязательно."
+
+msgid "pad_setup.conflict"
+msgstr "{0} уже назначено на {1}. Используйте другой ввод."
+
+msgid "pad_setup.idle_hint"
+msgstr "Пока ничего не нажато. Удерживайте любую кнопку 3 секунды для отмены или нажмите Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Контроллер отключён. Подключите его в течение {0} секунд, чтобы продолжить."
+
+msgid "pad_setup.skipped"
+msgstr "Пропущено"
+
+msgid "pad_setup.summary_detail"
+msgstr "Нажмите кнопку, чтобы увидеть её шаг. Здесь слабый удар ногой выбирает, а средний возвращает назад, как и в каждом меню."
+
+msgid "pad_setup.redo_detail"
+msgstr "Выберите, чтобы назначить этот ввод снова."
+
+msgid "pad_setup.save"
+msgstr "Сохранить"
+
+msgid "pad_setup.save_detail"
+msgstr "Сохранить настройку и использовать её сейчас."
+
+msgid "pad_setup.start_over"
+msgstr "Начать заново"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Очистить все шаги и начать заново."
+
+msgid "pad_setup.cancel"
+msgstr "Отменить настройку"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Выйти без сохранения."
+
+msgid "pad_setup.cancelled"
+msgstr "Настройка отменена. Ничего не сохранено."
+
+msgid "pad_setup.saved_heading"
+msgstr "Контроллер настроен"
+
+msgid "pad_setup.saved"
+msgstr "{0} настроен. Если атака выполняется неверно, проверьте Кнопки боя в разделе Игрок и контроллер."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember не смог использовать эту настройку. Ничего не сохранено. Подробности в sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Настройка остановлена, потому что {0} отключён. Ничего не сохранено."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Настройка остановлена после минуты без ввода. Ничего не сохранено."

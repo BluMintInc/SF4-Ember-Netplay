@@ -4327,3 +4327,144 @@ msgstr "Controle desconectado. Reconecte-o ou saia da sala para escolher outro."
 
 msgid "runtime.match_input_moved"
 msgstr "{0} voltou, mas em outro slot de jogo. Ele volta a funcionar a partir da próxima partida."
+
+msgid "pad_setup.title"
+msgstr "CONFIGURAR CONTROLE"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Novo controle"
+
+msgid "pad_setup.prompt_text"
+msgstr "O Ember ainda não conhece os botões de {0}. Pressione qualquer botão nele para configurar agora. Leva cerca de um minuto."
+
+msgid "pad_setup.not_now"
+msgstr "Agora não"
+
+msgid "pad_setup.step_count"
+msgstr "Etapa {0} de {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Cima"
+
+msgid "pad_setup.step.down"
+msgstr "Baixo"
+
+msgid "pad_setup.step.left"
+msgstr "Esquerda"
+
+msgid "pad_setup.step.right"
+msgstr "Direita"
+
+msgid "pad_setup.step.lp"
+msgstr "Soco fraco"
+
+msgid "pad_setup.step.mp"
+msgstr "Soco médio"
+
+msgid "pad_setup.step.hp"
+msgstr "Soco forte"
+
+msgid "pad_setup.step.lk"
+msgstr "Chute fraco"
+
+msgid "pad_setup.step.mk"
+msgstr "Chute médio"
+
+msgid "pad_setup.step.hk"
+msgstr "Chute forte"
+
+msgid "pad_setup.step.3p"
+msgstr "Os três socos"
+
+msgid "pad_setup.step.3k"
+msgstr "Os três chutes"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Mova a alavanca ou pressione o botão desta direção e solte."
+
+msgid "pad_setup.press_button"
+msgstr "Pressione o botão desejado para esta ação e solte."
+
+msgid "pad_setup.optional"
+msgstr "Se o controle não tiver um botão para esta ação, pule."
+
+msgid "pad_setup.lk_selects"
+msgstr "Este botão também selecionará nos menus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Este botão também voltará nos menus."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Continue segurando para cancelar a configuração."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Segurar qualquer botão: cancelar"
+
+msgid "pad_setup.back_step"
+msgstr "Voltar uma etapa"
+
+msgid "pad_setup.skip"
+msgstr "Pular"
+
+msgid "pad_setup.required"
+msgstr "Esta ação é necessária."
+
+msgid "pad_setup.conflict"
+msgstr "{0} já é {1}. Use outra entrada."
+
+msgid "pad_setup.idle_hint"
+msgstr "Nenhuma entrada ainda. Segure qualquer botão por 3 segundos para cancelar ou pressione Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controle desconectado. Reconecte em até {0} segundos para continuar."
+
+msgid "pad_setup.skipped"
+msgstr "Pulado"
+
+msgid "pad_setup.summary_detail"
+msgstr "Pressione qualquer botão para ver sua etapa. Aqui, Chute fraco seleciona e Chute médio volta, como em todos os menus."
+
+msgid "pad_setup.redo_detail"
+msgstr "Selecione para definir esta entrada novamente."
+
+msgid "pad_setup.save"
+msgstr "Salvar"
+
+msgid "pad_setup.save_detail"
+msgstr "Salve esta configuração e use agora."
+
+msgid "pad_setup.start_over"
+msgstr "Recomeçar"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Limpe todas as etapas e comece novamente."
+
+msgid "pad_setup.cancel"
+msgstr "Cancelar configuração"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Sair sem salvar."
+
+msgid "pad_setup.cancelled"
+msgstr "Configuração cancelada. Nada foi salvo."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controle configurado"
+
+msgid "pad_setup.saved"
+msgstr "{0} está configurado. Se um ataque estiver errado, confira Botões de luta em Jogador e controle."
+
+msgid "pad_setup.save_failed"
+msgstr "O Ember não conseguiu usar esta configuração. Nada foi salvo. Os detalhes estão em sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Configuração interrompida porque {0} desconectou. Nada foi salvo."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Configuração interrompida após um minuto sem entradas. Nada foi salvo."

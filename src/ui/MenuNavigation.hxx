@@ -76,6 +76,7 @@ struct MenuEntry {
     float height = 0;
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
+    bool valueHighlighted = false;
     // A match's row (a replay): each side's fighter as a small native
     // portrait at that end of the row, player 1 on the left. -1 for both
     // draws none; -1 for one draws an unknown fighter on that side. Two

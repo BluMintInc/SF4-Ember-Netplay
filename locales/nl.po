@@ -4787,3 +4787,144 @@ msgstr "Controller losgekoppeld. Verbind hem opnieuw of verlaat de kamer om een 
 
 msgid "runtime.match_input_moved"
 msgstr "{0} is terug, maar in een ander spelslot. Hij werkt weer vanaf het volgende spel."
+
+msgid "pad_setup.title"
+msgstr "CONTROLLER INSTELLEN"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nieuwe controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember kent de knoppen van {0} nog niet. Druk op een knop van de controller om hem nu in te stellen. Dit duurt ongeveer een minuut."
+
+msgid "pad_setup.not_now"
+msgstr "Niet nu"
+
+msgid "pad_setup.step_count"
+msgstr "Stap {0} van {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Omhoog"
+
+msgid "pad_setup.step.down"
+msgstr "Omlaag"
+
+msgid "pad_setup.step.left"
+msgstr "Links"
+
+msgid "pad_setup.step.right"
+msgstr "Rechts"
+
+msgid "pad_setup.step.lp"
+msgstr "Lichte stoot"
+
+msgid "pad_setup.step.mp"
+msgstr "Middelzware stoot"
+
+msgid "pad_setup.step.hp"
+msgstr "Zware stoot"
+
+msgid "pad_setup.step.lk"
+msgstr "Lichte trap"
+
+msgid "pad_setup.step.mk"
+msgstr "Middelzware trap"
+
+msgid "pad_setup.step.hk"
+msgstr "Zware trap"
+
+msgid "pad_setup.step.3p"
+msgstr "Alle drie stoten"
+
+msgid "pad_setup.step.3k"
+msgstr "Alle drie trappen"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Beweeg de stick of druk op de knop voor deze richting en laat los."
+
+msgid "pad_setup.press_button"
+msgstr "Druk op de gewenste knop voor deze actie en laat los."
+
+msgid "pad_setup.optional"
+msgstr "Heeft je controller hiervoor geen knop, sla deze stap dan over."
+
+msgid "pad_setup.lk_selects"
+msgstr "Deze knop selecteert ook in menu's."
+
+msgid "pad_setup.mk_backs"
+msgstr "Deze knop gaat ook terug in menu's."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Blijf vasthouden om de instelling te annuleren."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Een knop vasthouden: annuleren"
+
+msgid "pad_setup.back_step"
+msgstr "Een stap terug"
+
+msgid "pad_setup.skip"
+msgstr "Overslaan"
+
+msgid "pad_setup.required"
+msgstr "Deze actie is nodig."
+
+msgid "pad_setup.conflict"
+msgstr "{0} is al {1}. Gebruik een andere invoer."
+
+msgid "pad_setup.idle_hint"
+msgstr "Nog niets ingedrukt. Houd een knop 3 seconden vast om te annuleren of druk op Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller losgekoppeld. Sluit hem binnen {0} seconden weer aan om door te gaan."
+
+msgid "pad_setup.skipped"
+msgstr "Overgeslagen"
+
+msgid "pad_setup.summary_detail"
+msgstr "Druk op een knop om de bijbehorende stap te zien. Hier selecteert Lichte trap en gaat Middelzware trap terug, zoals in elk menu."
+
+msgid "pad_setup.redo_detail"
+msgstr "Selecteer om deze invoer opnieuw in te stellen."
+
+msgid "pad_setup.save"
+msgstr "Opslaan"
+
+msgid "pad_setup.save_detail"
+msgstr "Sla deze instelling op en gebruik hem nu."
+
+msgid "pad_setup.start_over"
+msgstr "Opnieuw beginnen"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Wis alle stappen en begin opnieuw."
+
+msgid "pad_setup.cancel"
+msgstr "Instelling annuleren"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Verlaten zonder op te slaan."
+
+msgid "pad_setup.cancelled"
+msgstr "Instelling geannuleerd. Er is niets opgeslagen."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller ingesteld"
+
+msgid "pad_setup.saved"
+msgstr "{0} is ingesteld. Controleer Vechtknoppen bij Speler en controller als een aanval niet klopt."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember kon deze instelling niet gebruiken. Er is niets opgeslagen. Details staan in sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Instelling gestopt omdat {0} is losgekoppeld. Er is niets opgeslagen."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Instelling gestopt omdat er een minuut niets is ingedrukt. Er is niets opgeslagen."

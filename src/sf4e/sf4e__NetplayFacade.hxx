@@ -121,6 +121,7 @@ namespace sf4e {
             ui::ControllerSample menuController;
             // Retain the detected brand to preview Automatic before autosave.
             gamepads::PromptBrand gameplayBrand, promptBrand;
+            gamepads::SetupSnapshot padSetup;
             gamepads::Layer padLayer = gamepads::Layer::Failed;
             bool padLayerPending = false, runningControllerLayer = true;
             std::vector<gamepads::PadView> pads;

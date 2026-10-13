@@ -3,11 +3,14 @@
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "../common/XInputMapping.hxx"
+#include "../netplay/SettingsStore.hxx"
+#include "../netplay/ControllerMappings.hxx"
 #include <windows.h>
 #include <Xinput.h>
 #include <SDL3/SDL.h>
 #include <spdlog/spdlog.h>
 #include <map>
+#include <deque>
 #include <mutex>
 #include <shared_mutex>
 
@@ -28,8 +31,11 @@ bool layerSetting = true;
 std::string startupNote;
 bool startupWarning = false;
 std::optional<Identity> preferred;
-// P4 supplies GUIDs with saved wizard mappings.
-const std::set<std::string> savedEmberMappingGuids;
+std::set<std::string> savedEmberMappingGuids;
+PadSetup setupModel;
+SetupSnapshot setup;
+std::deque<std::pair<SetupCommand, int>> setupCommands;
+bool setupRestLogged = false;
 Slots slots;
 Inventory inventory, logged;
 bool haveLogged = false;
@@ -38,6 +44,12 @@ struct RawJoystick { SDL_Joystick* handle; std::vector<int> rest; };
 std::map<Id, RawJoystick> rawHandles;
 std::vector<PadFrame> frames;
 std::vector<Identity> rumbleUnsupported;
+struct RumbleState {
+    WORD left = 0, right = 0;
+    bool pending = false;
+    DWORD result = ERROR_SUCCESS;
+};
+std::map<Id, RumbleState> rumble;
 std::array<Snapshot, 4> snapshots;
 std::atomic<void*> originalState{nullptr}, originalCapabilities{nullptr}, originalRumble{nullptr}, originalBattery{nullptr};
 
@@ -147,12 +159,13 @@ void Rebuild() {
     Classify(pads, savedEmberMappingGuids);
     for (auto it = rawHandles.begin(); it != rawHandles.end();) {
         const bool keep = std::any_of(pads.begin(), pads.end(), [&](const Pad& pad) {
-            return pad.id == it->first && pad.status == Status::Unmapped;
+            return pad.id == it->first && (pad.status == Status::Unmapped ||
+                (setup.state.active && Same(pad.identity, setup.identity) && pad.status == Status::GameRead));
         });
         if (keep) { ++it; continue; }
         SDL_CloseJoystick(it->second.handle); it = rawHandles.erase(it);
     }
-    for (const auto& pad : pads) if (pad.status == Status::Unmapped && !rawHandles.count(pad.id)) {
+    for (auto& pad : pads) if ((pad.status == Status::Unmapped || (setup.state.active && Same(pad.identity, setup.identity) && pad.status == Status::GameRead)) && !rawHandles.count(pad.id)) {
         if (auto* joystick = SDL_OpenJoystick(pad.id)) {
             RawJoystick raw{joystick, {}};
             for (int axis = 0; axis < SDL_GetNumJoystickAxes(joystick); ++axis) {
@@ -162,6 +175,10 @@ void Rebuild() {
             }
             rawHandles.emplace(pad.id, std::move(raw));
         }
+    }
+    for (auto& pad : pads) {
+        const auto raw = rawHandles.find(pad.id);
+        if (raw != rawHandles.end()) pad.identity.serial = Text(SDL_GetJoystickSerial(raw->second.handle));
     }
     for (auto it = handles.begin(); it != handles.end();) {
         const bool keep = std::any_of(pads.begin(), pads.end(), [&](const Pad& pad) {
@@ -208,6 +225,70 @@ State ReadState(SDL_Gamepad* pad) {
     return state;
 }
 
+RawState ReadRaw(SDL_Joystick* joystick, const std::vector<int>& rest = {}) {
+    RawState state; state.rest = rest;
+    for (int i = 0; i < SDL_GetNumJoystickButtons(joystick); ++i) state.buttons.push_back(SDL_GetJoystickButton(joystick, i));
+    for (int i = 0; i < SDL_GetNumJoystickHats(joystick); ++i) state.hats.push_back(SDL_GetJoystickHat(joystick, i));
+    for (int i = 0; i < SDL_GetNumJoystickAxes(joystick); ++i) state.axes.push_back(SDL_GetJoystickAxis(joystick, i));
+    return state;
+}
+void UpdateSetup(const RawState& raw, bool connected) {
+    if (!setup.state.active) return;
+    std::vector<SetupEvent> events;
+    while (!setupCommands.empty()) {
+        const auto command = setupCommands.front(); setupCommands.pop_front();
+        const auto output = setupModel.Update(GetTickCount64(), raw, connected, command.first, command.second);
+        events.insert(events.end(), output.begin(), output.end());
+    }
+    const auto output = setupModel.Update(GetTickCount64(), raw, connected);
+    events.insert(events.end(), output.begin(), output.end());
+    setup.state = setupModel.State();
+    if (!setupRestLogged && connected && !setup.state.releaseButtons && setupModel.Rest().size() == raw.axes.size()) {
+        std::string rest;
+        for (unsigned i = 0; i < setupModel.Rest().size(); ++i) {
+            if (!rest.empty()) rest += ",";
+            rest += fmt::format("a{}={}", i, setupModel.Rest()[i]);
+        }
+        spdlog::info("Input: setup started for '{}' guid {}: {} buttons, {} hats, {} axes; rest {}",
+            setup.identity.name, setup.identity.guid, raw.buttons.size(), raw.hats.size(), raw.axes.size(), rest);
+        setupRestLogged = true;
+    }
+    for (const auto& event : events) {
+        const auto name = SetupSteps[event.step].name;
+        switch (event.kind) {
+        case SetupEventKind::Ignored: spdlog::info("Input: setup ignores held {}", RawBinding(*event.input)); break;
+        case SetupEventKind::Record: spdlog::info("Input: setup step {} = {}", name, RawBinding(*event.input)); break;
+        case SetupEventKind::Skip: spdlog::info("Input: setup step {} = skipped", name); break;
+        case SetupEventKind::Back: spdlog::info("Input: setup step {} = back", name); break;
+        case SetupEventKind::Conflict: spdlog::info("Input: setup step {} = conflict with {}", name, SetupSteps[event.other].name); break;
+        case SetupEventKind::Cancel: case SetupEventKind::Stopped:
+            spdlog::info("Input: setup cancelled ({})", SetupEndName(event.reason));
+            setup.outcome = event.reason; ++setup.revision; break;
+        default: break;
+        }
+    }
+}
+void ApplyRumble() {
+    for (auto it = rumble.begin(); it != rumble.end();) {
+        const auto handle = handles.find(it->first);
+        if (handle == handles.end()) { it = rumble.erase(it); continue; }
+        auto& request = it->second;
+        if (request.pending) {
+            request.pending = false;
+            const bool applied = SDL_RumbleGamepad(handle->second, request.left, request.right, 200);
+            const bool supported = SDL_GetBooleanProperty(SDL_GetGamepadProperties(handle->second), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
+            request.result = !applied && supported ? ERROR_NOT_SUPPORTED : ERROR_SUCCESS;
+            if (!applied && !supported) {
+                const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [&](const Pad& pad) { return pad.id == it->first; });
+                if (pad != inventory.pads.end() && std::none_of(rumbleUnsupported.begin(), rumbleUnsupported.end(), [&](const Identity& identity) { return Same(identity, pad->identity); })) {
+                    rumbleUnsupported.push_back(pad->identity);
+                    spdlog::info("Input: rumble unsupported on '{}'", pad->identity.name);
+                }
+            }
+        }
+        ++it;
+    }
+}
 void UpdateLocked(bool rebuild) {
     SDL_UpdateGamepads();
     SDL_PumpEvents();
@@ -222,8 +303,10 @@ void UpdateLocked(bool rebuild) {
     if (rebuild) Rebuild();
     std::array<Snapshot, 4> next{};
     frames.clear();
+    RawState setupRaw; bool setupConnected = false;
     for (const auto& pad : inventory.pads) {
         PadFrame frame; frame.pad = pad;
+        const bool settingUp = setup.state.active && Same(pad.identity, setup.identity);
         auto handle = handles.find(pad.id);
         if (handle != handles.end() && SDL_GamepadConnected(handle->second)) {
             frame.state = ReadState(handle->second);
@@ -231,25 +314,35 @@ void UpdateLocked(bool rebuild) {
                 frame.state.leftTrigger > 16383 || frame.state.rightTrigger > 16383;
             if (pad.slot >= 0) {
                 next[pad.slot].id = pad.id;
-                next[pad.slot].fields = MapToXInput(frame.state);
+                next[pad.slot].fields = settingUp ? XInputFields{} : MapToXInput(frame.state);
             }
         }
+        RawState rawState;
         const auto raw = rawHandles.find(pad.id);
         if (raw != rawHandles.end()) {
-            RawState state; state.rest = raw->second.rest;
-            auto* joystick = raw->second.handle;
-            for (int i = 0; i < SDL_GetNumJoystickButtons(joystick); ++i) state.buttons.push_back(SDL_GetJoystickButton(joystick, i));
-            for (int i = 0; i < SDL_GetNumJoystickHats(joystick); ++i) state.hats.push_back(SDL_GetJoystickHat(joystick, i));
-            for (int i = 0; i < SDL_GetNumJoystickAxes(joystick); ++i) state.axes.push_back(SDL_GetJoystickAxis(joystick, i));
+            auto state = ReadRaw(raw->second.handle, raw->second.rest);
+            if (settingUp) rawState = state;
             frame.raw = HeldRaw(state);
+            frame.rawAtRest = HeldRaw(state, 8000).empty();
             frame.pressed = !frame.raw.empty();
+        }
+        if (settingUp) {
+            setup.identity = pad.identity;
+            if (handle != handles.end()) rawState = ReadRaw(SDL_GetGamepadJoystick(handle->second));
+            setupRaw = std::move(rawState);
+            setupConnected = (handle != handles.end() && SDL_GamepadConnected(handle->second)) ||
+                (raw != rawHandles.end() && SDL_JoystickConnected(raw->second.handle));
         }
         frames.push_back(std::move(frame));
     }
+    const bool wasSetupActive = setup.state.active;
+    UpdateSetup(setupRaw, setupConnected);
+    if (wasSetupActive && !setup.state.active) Rebuild();
     for (unsigned i = 0; i < next.size(); ++i) {
         next[i].packet = snapshots[i].packet + (next[i].id != snapshots[i].id || next[i].fields != snapshots[i].fields);
         snapshots[i] = next[i];
     }
+    ApplyRumble();
     LogLocked();
 }
 
@@ -283,26 +376,18 @@ DWORD WINAPI GetCapabilities(DWORD slot, DWORD flags, XINPUT_CAPABILITIES* out) 
 }
 
 DWORD WINAPI SetState(DWORD slot, XINPUT_VIBRATION* vibration) {
-    std::shared_lock lock(mutex);
+    std::unique_lock lock(mutex);
     if (!active) {
         lock.unlock();
         return reinterpret_cast<decltype(&XInputSetState)>(originalRumble.load())(slot, vibration);
     }
     if (!vibration) return ERROR_BAD_ARGUMENTS;
-    if (slot >= snapshots.size() || !snapshots[slot].id) return ERROR_DEVICE_NOT_CONNECTED;
-    const auto handle = handles.find(snapshots[slot].id);
-    if (handle == handles.end()) return ERROR_DEVICE_NOT_CONNECTED;
-    if (SDL_RumbleGamepad(handle->second, vibration->wLeftMotorSpeed, vibration->wRightMotorSpeed, 200)) return ERROR_SUCCESS;
-    if (SDL_GetBooleanProperty(SDL_GetGamepadProperties(handle->second), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false)) return ERROR_NOT_SUPPORTED;
-    const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [&](const Pad& pad) { return pad.id == snapshots[slot].id; });
-    const Identity unsupported = pad->identity;
-    lock.unlock();
-    std::unique_lock writeLock(mutex);
-    if (std::none_of(rumbleUnsupported.begin(), rumbleUnsupported.end(), [&](const Identity& identity) { return Same(identity, unsupported); })) {
-        rumbleUnsupported.push_back(unsupported);
-        spdlog::info("Input: rumble unsupported on '{}'", unsupported.name);
-    }
-    return ERROR_NOT_SUPPORTED;
+    if (slot >= snapshots.size() || !snapshots[slot].id || !handles.count(snapshots[slot].id)) return ERROR_DEVICE_NOT_CONNECTED;
+    auto& request = rumble[snapshots[slot].id];
+    request.left = vibration->wLeftMotorSpeed; request.right = vibration->wRightMotorSpeed; request.pending = true;
+    // Import callers can run on another thread. Report the last hardware
+    // result; the game-thread poll applies the newest requested motors.
+    return request.result;
 }
 
 DWORD WINAPI GetBattery(DWORD slot, BYTE deviceType, XINPUT_BATTERY_INFORMATION* out) {
@@ -320,7 +405,7 @@ DWORD WINAPI GetBattery(DWORD slot, BYTE deviceType, XINPUT_BATTERY_INFORMATION*
 
 void CloseLocked() {
     for (const auto& [id, handle] : handles) SDL_CloseGamepad(handle);
-    handles.clear();
+    handles.clear(); rumble.clear();
     for (const auto& [id, raw] : rawHandles) SDL_CloseJoystick(raw.handle);
     rawHandles.clear(); frames.clear();
     inventory = {}; snapshots = {};
@@ -362,6 +447,13 @@ void Start() {
         SDL_Quit();
         return;
     }
+    nlohmann::json values; std::string error;
+    netplay::SettingsStore store(netplay::SettingsStore::DefaultDirectory());
+    if (store.LoadLauncher(values, error))
+        for (const auto& [guid, mapping] : netplay::ReadControllerMappings(values)) {
+            if (SDL_AddGamepadMapping(mapping.c_str()) >= 0) savedEmberMappingGuids.insert(guid);
+            else spdlog::warn("Input: saved setup for guid {} rejected (SDL: {})", guid, SDL_GetError());
+        }
     UpdateLocked(true);
     active = true;
     const int version = SDL_GetVersion();
@@ -407,11 +499,50 @@ std::vector<Pad> ReadPads() {
 
 LayerFrame ReadFrame() {
     std::shared_lock lock(mutex);
-    return {active ? Layer::Active : layerSetting ? Layer::Failed : Layer::GameReads, layerSetting, frames};
+    return {active ? Layer::Active : layerSetting ? Layer::Failed : Layer::GameReads, layerSetting, frames, setup};
 }
 
 void SetupPrompt(const Identity& identity) {
     spdlog::info("Input: setup prompt for '{}' guid {}", identity.name, identity.guid);
 }
 
+void BeginSetup(const Identity& identity, unsigned padId) {
+    std::unique_lock lock(mutex);
+    if (!active || setup.state.active) return;
+    std::optional<SetupAxisEntry> entry;
+    for (const auto& pad : inventory.pads) if (Same(pad.identity, identity)) {
+        const auto handle = handles.find(pad.id);
+        if (handle == handles.end() || !SDL_GetGamepadButton(handle->second, SDL_GAMEPAD_BUTTON_SOUTH)) break;
+        int count = 0; auto** bindings = SDL_GetGamepadBindings(handle->second, &count);
+        for (int i = 0; i < count; ++i) if (bindings[i]->output_type == SDL_GAMEPAD_BINDTYPE_BUTTON &&
+            bindings[i]->output.button == SDL_GAMEPAD_BUTTON_SOUTH && bindings[i]->input_type == SDL_GAMEPAD_BINDTYPE_AXIS) {
+            entry = SetupAxisEntry{bindings[i]->input.axis.axis, bindings[i]->input.axis.axis_min}; break;
+        }
+        SDL_free(bindings); break;
+    }
+    setupModel.Start(GetTickCount64(), entry); setup.padId = padId; setup.identity = identity; setup.state = setupModel.State();
+    setup.outcome = SetupEnd::None; setupRestLogged = false; setupCommands.clear();
+    UpdateLocked(true);
+}
+void ControlSetup(SetupCommand command, int step) {
+    std::unique_lock lock(mutex);
+    if (setup.state.active) setupCommands.emplace_back(command, step);
+}
+std::optional<std::string> SaveSetup() {
+    std::unique_lock lock(mutex);
+    if (!active || !setup.state.active) return {};
+    setupCommands.emplace_back(SetupCommand::Save, 0);
+    UpdateLocked(false);
+    if (!active || !setup.state.active || setup.state.mode != SetupMode::Summary || !setup.state.CanSave() || setup.state.feedback == SetupFeedback::Reconnect) return {};
+    const auto mapping = BuildSetupMapping(setup.identity.guid, setup.identity.name, setup.state);
+    if (SDL_AddGamepadMapping(mapping.c_str()) < 0) {
+        spdlog::error("Input: setup mapping rejected (SDL: {}): {}", SDL_GetError(), mapping);
+        setup.outcome = SetupEnd::SaveFailed; ++setup.revision; return {};
+    }
+    savedEmberMappingGuids.insert(setup.identity.guid);
+    setup.state.active = false; setup.outcome = SetupEnd::Saved; ++setup.revision;
+    spdlog::info("Input: setup saved for guid {}: {}", setup.identity.guid, mapping);
+    UpdateLocked(true);
+    return mapping;
+}
 } }

@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
@@ -218,9 +219,7 @@ void StartHelper() {
         try {
             netplay::ReadBoolPreferences(saved, runtime->preferences);
             runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
-            if (saved.contains("controllerMappings") && saved["controllerMappings"].is_object())
-                for (const auto& entry : saved["controllerMappings"].items())
-                    if (entry.value().is_string()) runtime->preferences.controllerMappings.emplace(entry.key(), entry.value().get<std::string>());
+            runtime->preferences.controllerMappings = netplay::ReadControllerMappings(saved);
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;

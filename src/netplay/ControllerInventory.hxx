@@ -36,7 +36,7 @@ public:
                     if (twin != frames.end()) row.name = twin->pad.identity.name;
                     else if (pad.type == Type::Unknown || pad.type == Type::Standard) row.name.clear(); // localized by the runtime
                 }
-                row.held = HeldGlyphs(frame.state); row.raw = frame.raw; row.pressed = frame.pressed;
+                row.held = HeldGlyphs(frame.state); row.raw = frame.raw; row.rawAtRest = frame.rawAtRest; row.pressed = frame.pressed;
                 if (row.state == RowState::Unmapped || row.state == RowState::GameRead) {
                     const auto match = [&](const NativeController& n) {
                         return std::find(usedNative.begin(), usedNative.end(), n.index) == usedNative.end() &&
@@ -77,7 +77,7 @@ public:
     }
 private:
     unsigned Number(const Identity& identity) {
-        for (unsigned i = 0; i < identities_.size(); ++i) if (Same(identities_[i], identity)) return i + 1;
+        for (unsigned i = 0; i < identities_.size(); ++i) if (Same(identities_[i], identity)) { if (!identity.serial.empty()) identities_[i] = identity; return i + 1; }
         identities_.push_back(identity); return static_cast<unsigned>(identities_.size());
     }
     std::vector<Identity> identities_;

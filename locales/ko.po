@@ -4787,3 +4787,144 @@ msgstr "컨트롤러 연결이 끊겼습니다. 다시 연결하거나 방을 �
 
 msgid "runtime.match_input_moved"
 msgstr "{0}가 돌아왔지만 다른 게임 슬롯에 있습니다. 다음 게임부터 다시 작동합니다."
+
+msgid "pad_setup.title"
+msgstr "컨트롤러 설정"
+
+msgid "pad_setup.prompt_heading"
+msgstr "새 컨트롤러"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember가 아직 {0}의 버튼을 모릅니다. 이 컨트롤러의 아무 버튼이나 눌러 지금 설정하세요. 약 1분 걸립니다."
+
+msgid "pad_setup.not_now"
+msgstr "나중에"
+
+msgid "pad_setup.step_count"
+msgstr "단계 {0} / {1}"
+
+msgid "pad_setup.step.up"
+msgstr "위"
+
+msgid "pad_setup.step.down"
+msgstr "아래"
+
+msgid "pad_setup.step.left"
+msgstr "왼쪽"
+
+msgid "pad_setup.step.right"
+msgstr "오른쪽"
+
+msgid "pad_setup.step.lp"
+msgstr "약 펀치"
+
+msgid "pad_setup.step.mp"
+msgstr "중 펀치"
+
+msgid "pad_setup.step.hp"
+msgstr "강 펀치"
+
+msgid "pad_setup.step.lk"
+msgstr "약 킥"
+
+msgid "pad_setup.step.mk"
+msgstr "중 킥"
+
+msgid "pad_setup.step.hk"
+msgstr "강 킥"
+
+msgid "pad_setup.step.3p"
+msgstr "펀치 세 개 동시"
+
+msgid "pad_setup.step.3k"
+msgstr "킥 세 개 동시"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "이 방향으로 레버를 밀거나 버튼을 누른 다음 놓으세요."
+
+msgid "pad_setup.press_button"
+msgstr "이 동작에 사용할 버튼을 누른 다음 놓으세요."
+
+msgid "pad_setup.optional"
+msgstr "이 동작에 사용할 버튼이 없으면 건너뛰세요."
+
+msgid "pad_setup.lk_selects"
+msgstr "이 버튼은 메뉴 선택에도 사용됩니다."
+
+msgid "pad_setup.mk_backs"
+msgstr "이 버튼은 메뉴에서 뒤로 가기에도 사용됩니다."
+
+msgid "pad_setup.hold_cancel"
+msgstr "계속 누르면 설정을 취소합니다."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "아무 버튼 길게 누르기: 취소"
+
+msgid "pad_setup.back_step"
+msgstr "이전 단계"
+
+msgid "pad_setup.skip"
+msgstr "건너뛰기"
+
+msgid "pad_setup.required"
+msgstr "이 동작은 필요합니다."
+
+msgid "pad_setup.conflict"
+msgstr "{0}은 이미 {1}입니다. 다른 입력을 사용하세요."
+
+msgid "pad_setup.idle_hint"
+msgstr "아직 입력이 없습니다. 아무 버튼이나 3초간 누르거나 Esc를 누르면 취소됩니다."
+
+msgid "pad_setup.reconnect"
+msgstr "컨트롤러 연결이 끊겼습니다. {0}초 안에 다시 연결하면 계속할 수 있습니다."
+
+msgid "pad_setup.skipped"
+msgstr "건너뜀"
+
+msgid "pad_setup.summary_detail"
+msgstr "버튼을 누르면 해당 단계를 볼 수 있습니다. 여기서도 모든 메뉴와 마찬가지로 약 킥으로 선택하고 중 킥으로 돌아갑니다."
+
+msgid "pad_setup.redo_detail"
+msgstr "선택하여 이 입력을 다시 설정합니다."
+
+msgid "pad_setup.save"
+msgstr "저장"
+
+msgid "pad_setup.save_detail"
+msgstr "이 설정을 저장하고 지금 사용합니다."
+
+msgid "pad_setup.start_over"
+msgstr "처음부터"
+
+msgid "pad_setup.start_over_detail"
+msgstr "모든 단계를 지우고 다시 시작합니다."
+
+msgid "pad_setup.cancel"
+msgstr "설정 취소"
+
+msgid "pad_setup.cancel_detail"
+msgstr "저장하지 않고 나갑니다."
+
+msgid "pad_setup.cancelled"
+msgstr "설정이 취소되었습니다. 저장되지 않았습니다."
+
+msgid "pad_setup.saved_heading"
+msgstr "컨트롤러 설정 완료"
+
+msgid "pad_setup.saved"
+msgstr "{0} 설정이 완료되었습니다. 공격이 잘못 나가면 플레이어 및 컨트롤러의 대전 버튼을 확인하세요."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember가 이 설정을 사용할 수 없어 저장하지 않았습니다. 자세한 내용은 sf4e.log에 있습니다."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "{0} 연결이 끊겨 설정을 중단했습니다. 저장되지 않았습니다."
+
+msgid "pad_setup.stopped_idle"
+msgstr "1분 동안 입력이 없어 설정을 중단했습니다. 저장되지 않았습니다."

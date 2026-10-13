@@ -38,7 +38,7 @@ void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_CO
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
 // Editors own keyboard Select and acceptance; pad Select still reaches them.
-MenuInput ReadMenuInput(bool textEditing=false,bool typesText=false);
+MenuInput ReadMenuInput(bool textEditing=false,bool typesText=false,unsigned additionalPad=0);
 // The MenuInput bits of the menu keys held now; ReadMenuInput adds them to
 // the pad's, and surfaces that only need to know whether the keyboard was
 // used read them alone. While a text field has the keyboard only the arrows,
@@ -99,6 +99,8 @@ public:
     // text (up to most of the window, then it scrolls), so a long launcher
     // message keeps the paths and steps it names.
     bool fitStatus=false;
+    bool listEnabled=true, ownsBack=false, customDetail=false;
+    unsigned additionalInput=0;
     // The corner radius, in unscaled pixels, of the rows and grid cells that a Card
     // draws; 0 keeps them square. A card of rounded corners paints its own focus outline.
     float cardRounding=0;
@@ -107,6 +109,8 @@ public:
     int compactDetailLines=0;
     // The part of a wide window the list takes beside its detail pane.
     float wideListShare=.53f;
+    // A custom detail can request more room above a compact list, leaving one row visible.
+    float compactDetailHeight=0;
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).
@@ -129,13 +133,14 @@ public:
     // and onAlternative runs when the notice closes through it. The action
     // belongs to the notice that asked for it, so notices cannot claim each
     // other's outcome.
-    void ShowNotice(std::string text,std::string heading={},std::string alternative={},std::function<void()> onAlternative={}) {
-        notice_=std::move(text); noticeHeading_=std::move(heading); noticeAlternative_=std::move(alternative);
+    void ShowNotice(std::string text,std::string heading={},std::string alternative={},std::function<void()> onAlternative={},std::string okLabel={}) {
+        noticeOkLabel_=std::move(okLabel); notice_=std::move(text); noticeHeading_=std::move(heading); noticeAlternative_=std::move(alternative);
         noticeAlternativeAction_=std::move(onAlternative); noticeAlternativeSelected_=false; noticeError_=false;
     }
     // Something failed: the notice says so in its heading.
     void ShowError(std::string text) { ShowNotice(std::move(text)); noticeError_=true; }
     bool NoticeError() const { return !notice_.empty()&&noticeError_; }
+    void CloseNotice() { DismissNotice(false); navigation.NeutralGate(); }
     bool NoticeOpen() const { return !notice_.empty(); }
     // The menu buttons held this frame (a notice that owns the input holds none), for a body
     // that scrolls with them.
@@ -167,7 +172,7 @@ private:
         auto action=std::move(noticeAlternativeAction_); noticeAlternativeAction_=nullptr;
         if(alternative&&action) action();
     }
-    std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeAlternative_;
+    std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeAlternative_,noticeOkLabel_;
     std::function<void()> noticeAlternativeAction_;
     bool noticeAlternativeSelected_=false,noticeError_=false;
     unsigned noticePrevious_=~0u;

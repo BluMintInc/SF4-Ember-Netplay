@@ -4787,3 +4787,144 @@ msgstr "Mando desconectado. Vuelve a conectarlo o sal de la sala para elegir otr
 
 msgid "runtime.match_input_moved"
 msgstr "{0} ha vuelto, pero en otra ranura de juego. Volverá a funcionar a partir de la próxima partida."
+
+msgid "pad_setup.title"
+msgstr "CONFIGURAR MANDO"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nuevo mando"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember aún no conoce los botones de {0}. Pulsa cualquier botón del mando para configurarlo ahora. Tarda alrededor de un minuto."
+
+msgid "pad_setup.not_now"
+msgstr "Ahora no"
+
+msgid "pad_setup.step_count"
+msgstr "Paso {0} de {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Arriba"
+
+msgid "pad_setup.step.down"
+msgstr "Abajo"
+
+msgid "pad_setup.step.left"
+msgstr "Izquierda"
+
+msgid "pad_setup.step.right"
+msgstr "Derecha"
+
+msgid "pad_setup.step.lp"
+msgstr "Puño débil"
+
+msgid "pad_setup.step.mp"
+msgstr "Puño medio"
+
+msgid "pad_setup.step.hp"
+msgstr "Puño fuerte"
+
+msgid "pad_setup.step.lk"
+msgstr "Patada débil"
+
+msgid "pad_setup.step.mk"
+msgstr "Patada media"
+
+msgid "pad_setup.step.hk"
+msgstr "Patada fuerte"
+
+msgid "pad_setup.step.3p"
+msgstr "Los tres puños"
+
+msgid "pad_setup.step.3k"
+msgstr "Las tres patadas"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Mueve la palanca o pulsa el botón de esta dirección y luego suéltalo."
+
+msgid "pad_setup.press_button"
+msgstr "Pulsa el botón que quieras usar para esta acción y luego suéltalo."
+
+msgid "pad_setup.optional"
+msgstr "Si tu mando no tiene un botón para esta acción, omítela."
+
+msgid "pad_setup.lk_selects"
+msgstr "Este botón también seleccionará en los menús."
+
+msgid "pad_setup.mk_backs"
+msgstr "Este botón también volverá atrás en los menús."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Sigue manteniendo pulsado para cancelar la configuración."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Mantener cualquier botón: cancelar"
+
+msgid "pad_setup.back_step"
+msgstr "Retroceder un paso"
+
+msgid "pad_setup.skip"
+msgstr "Omitir"
+
+msgid "pad_setup.required"
+msgstr "Esta acción es necesaria."
+
+msgid "pad_setup.conflict"
+msgstr "{0} ya es {1}. Usa otra entrada."
+
+msgid "pad_setup.idle_hint"
+msgstr "Aún no has pulsado nada. Mantén cualquier botón 3 segundos para cancelar o pulsa Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Mando desconectado. Reconéctalo en {0} segundos para continuar."
+
+msgid "pad_setup.skipped"
+msgstr "Omitido"
+
+msgid "pad_setup.summary_detail"
+msgstr "Pulsa cualquier botón para ver su paso. Aquí, Patada débil selecciona y Patada media vuelve atrás, como en todos los menús."
+
+msgid "pad_setup.redo_detail"
+msgstr "Selecciona para asignar de nuevo esta entrada."
+
+msgid "pad_setup.save"
+msgstr "Guardar"
+
+msgid "pad_setup.save_detail"
+msgstr "Guarda esta configuración y úsala ahora."
+
+msgid "pad_setup.start_over"
+msgstr "Empezar de nuevo"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Borra todos los pasos y empieza de nuevo."
+
+msgid "pad_setup.cancel"
+msgstr "Cancelar configuración"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Salir sin guardar."
+
+msgid "pad_setup.cancelled"
+msgstr "Configuración cancelada. No se ha guardado nada."
+
+msgid "pad_setup.saved_heading"
+msgstr "Mando configurado"
+
+msgid "pad_setup.saved"
+msgstr "{0} está configurado. Si un ataque no hace lo esperado, revisa Botones de combate en Jugador y mando."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember no pudo usar esta configuración. No se ha guardado nada. Los detalles están en sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Configuración detenida porque {0} se desconectó. No se ha guardado nada."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Configuración detenida tras un minuto sin pulsar nada. No se ha guardado nada."

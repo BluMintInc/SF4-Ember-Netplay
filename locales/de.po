@@ -4787,3 +4787,144 @@ msgstr "Controller getrennt. Verbinde ihn erneut oder verlasse den Raum, um eine
 
 msgid "runtime.match_input_moved"
 msgstr "{0} ist wieder da, aber in einem anderen Spielslot. Er funktioniert ab dem nächsten Spiel wieder."
+
+msgid "pad_setup.title"
+msgstr "CONTROLLER EINRICHTEN"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Neuer Controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember kennt die Tasten von {0} noch nicht. Drücke eine beliebige Taste darauf, um ihn jetzt einzurichten. Es dauert etwa eine Minute."
+
+msgid "pad_setup.not_now"
+msgstr "Nicht jetzt"
+
+msgid "pad_setup.step_count"
+msgstr "Schritt {0} von {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Oben"
+
+msgid "pad_setup.step.down"
+msgstr "Unten"
+
+msgid "pad_setup.step.left"
+msgstr "Links"
+
+msgid "pad_setup.step.right"
+msgstr "Rechts"
+
+msgid "pad_setup.step.lp"
+msgstr "Leichter Schlag"
+
+msgid "pad_setup.step.mp"
+msgstr "Mittlerer Schlag"
+
+msgid "pad_setup.step.hp"
+msgstr "Schwerer Schlag"
+
+msgid "pad_setup.step.lk"
+msgstr "Leichter Tritt"
+
+msgid "pad_setup.step.mk"
+msgstr "Mittlerer Tritt"
+
+msgid "pad_setup.step.hk"
+msgstr "Schwerer Tritt"
+
+msgid "pad_setup.step.3p"
+msgstr "Alle drei Schläge"
+
+msgid "pad_setup.step.3k"
+msgstr "Alle drei Tritte"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Bewege den Stick oder drücke die Taste für diese Richtung und lasse dann los."
+
+msgid "pad_setup.press_button"
+msgstr "Drücke die gewünschte Taste für diese Aktion und lasse dann los."
+
+msgid "pad_setup.optional"
+msgstr "Wenn dein Controller dafür keine Taste hat, überspringe diesen Schritt."
+
+msgid "pad_setup.lk_selects"
+msgstr "Diese Taste wählt auch in Menüs aus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Diese Taste geht auch in Menüs zurück."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Halte weiter gedrückt, um die Einrichtung abzubrechen."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Beliebige Taste halten: Abbrechen"
+
+msgid "pad_setup.back_step"
+msgstr "Einen Schritt zurück"
+
+msgid "pad_setup.skip"
+msgstr "Überspringen"
+
+msgid "pad_setup.required"
+msgstr "Diese Eingabe wird benötigt."
+
+msgid "pad_setup.conflict"
+msgstr "{0} ist bereits {1}. Drücke eine andere Eingabe."
+
+msgid "pad_setup.idle_hint"
+msgstr "Noch keine Eingabe. Halte eine beliebige Taste 3 Sekunden lang zum Abbrechen oder drücke Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller getrennt. Verbinde ihn innerhalb von {0} Sekunden erneut, um fortzufahren."
+
+msgid "pad_setup.skipped"
+msgstr "Übersprungen"
+
+msgid "pad_setup.summary_detail"
+msgstr "Drücke eine beliebige Taste, um ihren Schritt zu sehen. Hier wählt Leichter Tritt aus und Mittlerer Tritt geht zurück, wie in jedem Menü."
+
+msgid "pad_setup.redo_detail"
+msgstr "Auswählen, um diese Eingabe erneut festzulegen."
+
+msgid "pad_setup.save"
+msgstr "Speichern"
+
+msgid "pad_setup.save_detail"
+msgstr "Diese Einrichtung speichern und jetzt verwenden."
+
+msgid "pad_setup.start_over"
+msgstr "Neu beginnen"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Alle Schritte löschen und von vorn beginnen."
+
+msgid "pad_setup.cancel"
+msgstr "Einrichtung abbrechen"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Ohne Speichern verlassen."
+
+msgid "pad_setup.cancelled"
+msgstr "Einrichtung abgebrochen. Nichts wurde gespeichert."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller eingerichtet"
+
+msgid "pad_setup.saved"
+msgstr "{0} ist eingerichtet. Wenn ein Angriff falsch ausgeführt wird, prüfe Kampftasten unter Spieler & Controller."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember konnte diese Einrichtung nicht verwenden. Nichts wurde gespeichert. Details stehen in sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Einrichtung gestoppt, weil {0} getrennt wurde. Nichts wurde gespeichert."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Einrichtung gestoppt, weil eine Minute lang keine Eingabe erfolgte. Nichts wurde gespeichert."

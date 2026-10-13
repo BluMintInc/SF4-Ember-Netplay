@@ -4787,3 +4787,144 @@ msgstr "Manette déconnectée. Reconnectez-la ou quittez le salon pour en choisi
 
 msgid "runtime.match_input_moved"
 msgstr "{0} est de retour, mais dans un autre emplacement de jeu. Il fonctionnera à nouveau à partir de la prochaine partie."
+
+msgid "pad_setup.title"
+msgstr "CONFIGURER LA MANETTE"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nouvelle manette"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember ne connaît pas encore les boutons de {0}. Appuyez sur un de ses boutons pour la configurer maintenant. Cela prend environ une minute."
+
+msgid "pad_setup.not_now"
+msgstr "Pas maintenant"
+
+msgid "pad_setup.step_count"
+msgstr "Étape {0} sur {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Haut"
+
+msgid "pad_setup.step.down"
+msgstr "Bas"
+
+msgid "pad_setup.step.left"
+msgstr "Gauche"
+
+msgid "pad_setup.step.right"
+msgstr "Droite"
+
+msgid "pad_setup.step.lp"
+msgstr "Poing léger"
+
+msgid "pad_setup.step.mp"
+msgstr "Poing moyen"
+
+msgid "pad_setup.step.hp"
+msgstr "Poing fort"
+
+msgid "pad_setup.step.lk"
+msgstr "Pied léger"
+
+msgid "pad_setup.step.mk"
+msgstr "Pied moyen"
+
+msgid "pad_setup.step.hk"
+msgstr "Pied fort"
+
+msgid "pad_setup.step.3p"
+msgstr "Les trois poings"
+
+msgid "pad_setup.step.3k"
+msgstr "Les trois pieds"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Poussez le stick ou appuyez sur le bouton de cette direction, puis relâchez."
+
+msgid "pad_setup.press_button"
+msgstr "Appuyez sur le bouton voulu pour cette action, puis relâchez."
+
+msgid "pad_setup.optional"
+msgstr "Si votre manette n'a pas de bouton pour cette action, passez cette étape."
+
+msgid "pad_setup.lk_selects"
+msgstr "Ce bouton servira aussi à sélectionner dans les menus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Ce bouton servira aussi à revenir en arrière dans les menus."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Maintenez pour annuler la configuration."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Maintenir un bouton : annuler"
+
+msgid "pad_setup.back_step"
+msgstr "Étape précédente"
+
+msgid "pad_setup.skip"
+msgstr "Passer"
+
+msgid "pad_setup.required"
+msgstr "Cette action est nécessaire."
+
+msgid "pad_setup.conflict"
+msgstr "{0} correspond déjà à {1}. Utilisez une autre entrée."
+
+msgid "pad_setup.idle_hint"
+msgstr "Aucune entrée pour le moment. Maintenez un bouton 3 secondes pour annuler, ou appuyez sur Échap."
+
+msgid "pad_setup.reconnect"
+msgstr "Manette déconnectée. Reconnectez-la dans les {0} secondes pour continuer."
+
+msgid "pad_setup.skipped"
+msgstr "Passé"
+
+msgid "pad_setup.summary_detail"
+msgstr "Appuyez sur un bouton pour voir son étape. Ici, Pied léger sélectionne et Pied moyen revient en arrière, comme dans tous les menus."
+
+msgid "pad_setup.redo_detail"
+msgstr "Sélectionnez pour définir à nouveau cette entrée."
+
+msgid "pad_setup.save"
+msgstr "Enregistrer"
+
+msgid "pad_setup.save_detail"
+msgstr "Enregistrer cette configuration et l'utiliser maintenant."
+
+msgid "pad_setup.start_over"
+msgstr "Recommencer"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Effacer toutes les étapes et recommencer."
+
+msgid "pad_setup.cancel"
+msgstr "Annuler la configuration"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Quitter sans enregistrer."
+
+msgid "pad_setup.cancelled"
+msgstr "Configuration annulée. Rien n'a été enregistré."
+
+msgid "pad_setup.saved_heading"
+msgstr "Manette configurée"
+
+msgid "pad_setup.saved"
+msgstr "{0} est configurée. Si une attaque est incorrecte, vérifiez Boutons de combat dans Joueur et manette."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember n'a pas pu utiliser cette configuration. Rien n'a été enregistré. Les détails sont dans sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Configuration arrêtée car {0} s'est déconnectée. Rien n'a été enregistré."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Configuration arrêtée après une minute sans entrée. Rien n'a été enregistré."

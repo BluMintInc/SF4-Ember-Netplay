@@ -120,6 +120,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         HandleControllerRequest(command.padAction); return DispatchOutcome::Dropped;
     }
     if (command.inputAction != input::Action::None) {
+        if (command.inputAction == input::Action::BeginCapture || command.inputAction == input::Action::UseKeyboard) runtime->setupAdoption.reset();
         if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
         if (!CanChooseControllerNow()) return DispatchOutcome::Dropped;
         if (command.inputAction == input::Action::BeginCapture) runtime->input.Begin();

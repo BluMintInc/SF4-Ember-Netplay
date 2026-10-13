@@ -343,6 +343,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_reports.hxx"
 #include "ui_render_prompts.hxx"
 #include "ui_render_controllers.hxx"
+#include "ui_render_pad_setup.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -658,6 +659,7 @@ int main(int argc, char** argv) {
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
+            ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);

@@ -4443,3 +4443,144 @@ msgstr "Controller disconnected. Reconnect it, or leave the room to choose anoth
 
 msgid "runtime.match_input_moved"
 msgstr "{0} is back, but in another game slot. It works again from the next game."
+
+msgid "pad_setup.title"
+msgstr "SET UP CONTROLLER"
+
+msgid "pad_setup.prompt_heading"
+msgstr "New controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember does not know the buttons of {0} yet. Press any button on it to set it up now. It takes about a minute."
+
+msgid "pad_setup.not_now"
+msgstr "Not now"
+
+msgid "pad_setup.step_count"
+msgstr "Step {0} of {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Up"
+
+msgid "pad_setup.step.down"
+msgstr "Down"
+
+msgid "pad_setup.step.left"
+msgstr "Left"
+
+msgid "pad_setup.step.right"
+msgstr "Right"
+
+msgid "pad_setup.step.lp"
+msgstr "Light punch"
+
+msgid "pad_setup.step.mp"
+msgstr "Medium punch"
+
+msgid "pad_setup.step.hp"
+msgstr "Heavy punch"
+
+msgid "pad_setup.step.lk"
+msgstr "Light kick"
+
+msgid "pad_setup.step.mk"
+msgstr "Medium kick"
+
+msgid "pad_setup.step.hk"
+msgstr "Heavy kick"
+
+msgid "pad_setup.step.3p"
+msgstr "All three punches"
+
+msgid "pad_setup.step.3k"
+msgstr "All three kicks"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Push the stick or press the button for this direction, then let go."
+
+msgid "pad_setup.press_button"
+msgstr "Press the button you want for this, then let go."
+
+msgid "pad_setup.optional"
+msgstr "If your controller has no button for this, skip it."
+
+msgid "pad_setup.lk_selects"
+msgstr "This button will also select in menus."
+
+msgid "pad_setup.mk_backs"
+msgstr "This button will also go back in menus."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Keep holding to cancel setup."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Hold any button: cancel"
+
+msgid "pad_setup.back_step"
+msgstr "Back a step"
+
+msgid "pad_setup.skip"
+msgstr "Skip"
+
+msgid "pad_setup.required"
+msgstr "This one is needed."
+
+msgid "pad_setup.conflict"
+msgstr "{0} is already {1}. Press a different one."
+
+msgid "pad_setup.idle_hint"
+msgstr "Nothing pressed yet. Hold any button for 3 seconds to cancel, or press Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller disconnected. Reconnect it within {0} seconds to carry on."
+
+msgid "pad_setup.skipped"
+msgstr "Skipped"
+
+msgid "pad_setup.summary_detail"
+msgstr "Press any button to see which step it is. Here, Light kick selects and Medium kick goes back, as they will in every menu."
+
+msgid "pad_setup.redo_detail"
+msgstr "Select to press this one again."
+
+msgid "pad_setup.save"
+msgstr "Save"
+
+msgid "pad_setup.save_detail"
+msgstr "Save this setup and use it now."
+
+msgid "pad_setup.start_over"
+msgstr "Start over"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Clear every step and begin again."
+
+msgid "pad_setup.cancel"
+msgstr "Cancel setup"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Leave without saving."
+
+msgid "pad_setup.cancelled"
+msgstr "Setup cancelled. Nothing was saved."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller set up"
+
+msgid "pad_setup.saved"
+msgstr "{0} is set up. If an attack does the wrong thing, check Fighting buttons in Player & controller."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember could not use this setup, so nothing was saved. sf4e.log has the details."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Setup stopped because {0} disconnected. Nothing was saved."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Setup stopped because nothing was pressed for a minute. Nothing was saved."
