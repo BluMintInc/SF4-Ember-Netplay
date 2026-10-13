@@ -193,31 +193,45 @@ static void Restore() {
     pad.identity = PadIdentity("saved");
     auto other = pad; other.index = 1; other.identity = PadIdentity("other");
     auto saved = pad; saved.index = 0;
-    auto restored = input::RestoreController({keyboard, other, pad}, other, saved);
+    auto restored = input::RestoreController({keyboard, other, pad}, other, saved, {});
     CHECK(restored.device.Same(pad) && restored.device.index == 2 && !restored.provisional);
-    restored = input::RestoreController({keyboard, other}, keyboard, saved);
+    restored = input::RestoreController({keyboard, other}, keyboard, saved, {});
     CHECK(restored.device.Same(other) && restored.provisional);
-    restored = input::RestoreController({keyboard}, keyboard, saved);
+    restored = input::RestoreController({keyboard}, keyboard, saved, {});
     CHECK(restored.device.Same(keyboard) && restored.provisional);
     auto third = other; third.index = 3; third.identity = PadIdentity("third");
-    restored = input::RestoreController({keyboard, other, third}, other, saved);
+    restored = input::RestoreController({keyboard, other, third}, other, saved, {});
     CHECK(!restored.device.connected && restored.provisional);
     // At the main menu a provisional device can yield to the saved pad on a later tick.
-    restored = input::RestoreController({keyboard, other, pad}, other, saved);
+    restored = input::RestoreController({keyboard, other, pad}, other, saved, {});
     CHECK(restored.device.Same(pad) && !restored.provisional);
-    restored = input::RestoreController({keyboard, pad}, pad, keyboard);
+    restored = input::RestoreController({keyboard, pad}, pad, keyboard, {});
     CHECK(restored.device.Same(keyboard) && !restored.provisional);
     auto oldKeyboard = keyboard; oldKeyboard.index = 1;
-    restored = input::RestoreController({keyboard, pad}, pad, oldKeyboard);
+    restored = input::RestoreController({keyboard, pad}, pad, oldKeyboard, {});
     CHECK(restored.device.Same(keyboard) && !restored.provisional);
     auto legacy = pad; legacy.identity = {};
-    restored = input::RestoreController({keyboard, pad}, keyboard, legacy);
+    restored = input::RestoreController({keyboard, pad}, keyboard, legacy, {});
     CHECK(restored.device.Same(pad) && !restored.provisional);
     auto wrongSlot = pad; wrongSlot.index = 0;
-    restored = input::RestoreController({keyboard, wrongSlot}, wrongSlot, legacy);
+    restored = input::RestoreController({keyboard, wrongSlot}, wrongSlot, legacy, {});
     CHECK(restored.device.Same(wrongSlot) && restored.provisional);
-    restored = input::RestoreController({keyboard}, keyboard, input::Device{});
+    restored = input::RestoreController({keyboard}, keyboard, input::Device{}, {});
     CHECK(restored.device.Same(keyboard) && restored.provisional);
+    // Saved A is absent: B remains provisional when C connects, until A returns.
+    input::Assignment assignment;
+    restored = input::RestoreController({keyboard, other}, keyboard, saved, assignment.Selected());
+    CHECK(restored.provisional && restored.device.Same(other));
+    assignment.Adopt(restored.device);
+    auto staleCurrent = assignment.Selected(); staleCurrent.connected = false;
+    restored = input::RestoreController({keyboard, third, other}, third, saved, staleCurrent);
+    CHECK(restored.provisional && restored.device.Same(other) && restored.device.connected);
+    assignment.Adopt(restored.device); assignment.Tick({keyboard, third, other});
+    CHECK(assignment.Ready() && assignment.State() == input::Capture::Idle && assignment.Selected().Same(other));
+    restored = input::RestoreController({keyboard, third, other, pad}, third, saved, assignment.Selected());
+    CHECK(!restored.provisional && restored.device.Same(pad));
+    assignment.Adopt(restored.device);
+    CHECK(assignment.Ready() && assignment.Selected().Same(saved));
 }
 
 static void Mapping() {

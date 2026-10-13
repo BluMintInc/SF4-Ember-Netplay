@@ -150,7 +150,7 @@ int main() {
         auto replacement = saved;
         replacement.identity.serial = "other-serial";
         devices[1] = replacement; devices.push_back(reconnected);
-        auto restored = input::RestoreController(devices, replacement, saved);
+        auto restored = input::RestoreController(devices, replacement, saved, {});
         CHECK(!restored.provisional && restored.device.index == 3 && restored.device.Same(saved));
         input::Assignment assignment;
         assignment.Adopt(restored.device);

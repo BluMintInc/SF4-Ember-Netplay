@@ -127,4 +127,10 @@ void CloseGameScreen() {
     closingGameScreen = !gameScreen.Close(owners, Dimps::Pad::BindingRecords());
     if (!closingGameScreen) Log(spdlog::level::info, "Input: game button screen closed; Ember layouts restored");
 }
+void Shutdown() {
+    if (!RestoreGameLayouts(owners, Dimps::Pad::BindingRecords()))
+        Log(spdlog::level::warn, "Input: game button tables could not be restored at shutdown (invalid binding records)");
+    gameScreen = {};
+    closingGameScreen = false;
+}
 } }

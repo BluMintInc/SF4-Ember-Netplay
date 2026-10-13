@@ -20,7 +20,7 @@ using rMain = Dimps::Platform::Main;
 namespace gate = sf4e::focus_gate;
 
 namespace {
-// Both detours are queued: Activate may make its edits once they commit.
+// The message detour is queued: Activate may make its edits once it commits.
 bool hooked = false;
 // Why the feature is off, or null once ready. Install and Activate run in
 // DllMain, before the log exists, so the first pad update reports this.
@@ -112,6 +112,9 @@ int PadPoll::Update() {
 }
 
 void sf4e::BackgroundPlay::Install() {
+    // Controller polling must stay live even when the background-play byte checks or message hook fail.
+    int (PadPoll::* update)() = &PadPoll::Update;
+    DetourAttach((PVOID*)&rPad::System_XInput::publicMethods.Update, *(PVOID*)&update);
     edits[0] = gate::Gate(rPad::System::focusGate, gate::kUpdateSkip);
     edits[1] = gate::Gate(rPad::System_XInput::focusGate, gate::kPollSkip);
     edits[2] = gate::CallThrough(rApp::soundFocusCheck, rApp::foregroundWindowImport,
@@ -128,9 +131,7 @@ void sf4e::BackgroundPlay::Install() {
         }
     }
     unsigned int (AppMessages::* handleMessage)(HWND, UINT, WPARAM, LPARAM) = &AppMessages::HandleMessage;
-    int (PadPoll::* update)() = &PadPoll::Update;
-    hooked = DetourAttach((PVOID*)&rApp::publicMethods.HandleMessage, *(PVOID*)&handleMessage) == NO_ERROR &&
-        DetourAttach((PVOID*)&rPad::System_XInput::publicMethods.Update, *(PVOID*)&update) == NO_ERROR;
+    hooked = DetourAttach((PVOID*)&rApp::publicMethods.HandleMessage, *(PVOID*)&handleMessage) == NO_ERROR;
     if (!hooked) unavailable = "its hooks could not be attached";
 }
 

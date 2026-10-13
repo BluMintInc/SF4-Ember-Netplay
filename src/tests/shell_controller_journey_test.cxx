@@ -1,5 +1,51 @@
 #include "shell_journey_support.hxx"
 namespace {
+void GameplayTargetSummary() {
+    using namespace sf4e; using namespace gamepads;
+    Harness h;
+    PadView pad; pad.id = 11; pad.name = "Unmapped DirectInput stick";
+    pad.identity = {"direct-guid", "", "direct-path", pad.name};
+    pad.state = RowState::Unmapped; pad.gameplay = true;
+    h.view.pads = {pad}; h.view.inputDevice.type = input::PadDirectInput;
+    h.view.padSetup.identity = pad.identity;
+    auto& setup = h.view.padSetup.state;
+    setup.active = true; setup.mode = SetupMode::Summary;
+    for (int i = 0; i < 14; ++i) setup.recorded[i] = RawInput{RawKind::Button, i + 10};
+    h.Screen("pad-setup"); h.FocusOn("save");
+    ControllerNavigation navigation;
+    SetupSummaryControls summary;
+    ControllerSample sample; sample.deviceType = input::PadDirectInput; sample.deviceIndex = 5; sample.connected = true;
+    std::uint64_t now = 1;
+    // Exercise the overlay's two input paths: old native LP/LK bindings and the wizard's new raw bindings.
+    const auto tick = [&](unsigned oldFight, std::vector<RawInput> raw = {}) {
+        setup.summaryInput = summary.Read(now += 16, setup.recorded, raw);
+        sample.buttons = ControllerButtons(oldFight, sample.deviceType);
+        const bool targetIsGameplay = std::any_of(h.view.pads.begin(), h.view.pads.end(), [&](const PadView& row) {
+            return row.gameplay && Same(row.identity, h.view.padSetup.identity);
+        });
+        const bool assigning = h.view.inputCapture != input::Capture::Idle;
+        navigation.Update(sample, true, true, !assigning && !(setup.active && (setup.mode == SetupMode::Capture || targetIsGameplay)));
+        h.Frame(navigation.Buttons());
+    };
+    tick(0); tick(0);
+    const auto before = h.actions.size();
+    tick(0x10, {{RawKind::Button, 0}}); tick(0);
+    Check(h.actions.size() == before && h.shell.Navigation().Focus() == "save", "Old LP selected through the gameplay target during summary");
+    tick(0x40, {{RawKind::Button, 1}}); tick(0);
+    Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Focus() == "save", "Old LK opened cancel confirmation during summary");
+    tick(0, {*setup.recorded[7]});
+    Check(h.actions.size() == before, "New LK selected before release");
+    tick(0);
+    Check(h.actions.size() == before + 1 && h.actions.back().padAction.command == SetupCommand::Save, "New LK did not select Save on release");
+    // Keyboard input has its own path while the target owns controller navigation.
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, true); tick(0);
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, false); tick(0);
+    Check(h.shell.Navigation().Focus() == "restart", "Summary target suppressed keyboard navigation");
+    auto other = pad; other.id = 12; other.identity.path = "other-path";
+    h.view.pads[0].gameplay = false; h.view.pads.push_back(other);
+    tick(0); tick(0); tick(0x2); tick(0);
+    Check(h.shell.Navigation().Focus() == "cancel", "A different gameplay pad lost summary navigation");
+}
 void SetupJourneys() {
     using namespace sf4e; using namespace gamepads;
     Harness h; h.view.inputDevice.type = input::PadXInput;
@@ -121,4 +167,4 @@ static void ControllerSettingsJourney() {
     Check(h.actions.size() == locked, "Locked opt-out changed preferences");
     SetMenuEntriesProbe({});
 }
-void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); }
+void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); GameplayTargetSummary(); }

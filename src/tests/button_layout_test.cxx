@@ -111,6 +111,13 @@ static void Writer() {
     CHECK(screen.Close(owners, records) && !screen.IsOpen());
     CHECK(owners[0]->gameCopy == newGame && owners[1]->gameCopy == otherGame);
     ReadSlot(records, 0, read); CHECK(read == owners[0]->buttons); ReadSlot(records, 1, read); CHECK(read == owners[1]->buttons);
+    // Shutdown restores every owned slot, including a disconnected owner's slot.
+    const auto beforeShutdown = memory;
+    PadBindingRecords shutdownShort(memory.data(), memory.data() + PadBindingRecords::Stride);
+    CHECK(!RestoreGameLayouts(owners, shutdownShort) && memory == beforeShutdown && owners[0] && owners[1]);
+    CHECK(RestoreGameLayouts(owners, records));
+    CHECK(ReadSlot(records, 0, read) && read == newGame && !owners[0]);
+    CHECK(ReadSlot(records, 1, read) && read == otherGame && !owners[1]);
 }
 static void Capture() {
     LayoutCapture capture; capture.Begin(0, {"A"});

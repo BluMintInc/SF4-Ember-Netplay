@@ -475,8 +475,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         notedOverflows = overflows;
     }
     // The pad drives the menu behind another window too (ShellHoldsPads).
+    const auto& setup = snapshot.padSetup.state;
+    const bool targetIsGameplay = std::any_of(snapshot.pads.begin(), snapshot.pads.end(), [&](const gamepads::PadView& pad) {
+        return pad.gameplay && gamepads::Same(pad.identity, snapshot.padSetup.identity);
+    });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || s_trainingControls.Open(), !assigning && !(snapshot.padSetup.state.active && snapshot.padSetup.state.mode == sf4e::gamepads::SetupMode::Capture));
+        presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
     // Start opens Ember at the main menu and over a Practice match; in
     // Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();

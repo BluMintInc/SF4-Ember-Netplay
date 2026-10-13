@@ -17,6 +17,8 @@ struct Ansi {
     using Configure = DICONFIGUREDEVICESPARAMSA;
     static const GUID& DeviceIid() { return IID_IDirectInputDevice8A; }
     static const GUID& InputIid() { return IID_IDirectInput8A; }
+    static const GUID& SiblingDeviceIid() { return IID_IDirectInputDevice8W; }
+    static const GUID& SiblingInputIid() { return IID_IDirectInput8W; }
 };
 struct Wide {
     using Device = IDirectInputDevice8W; using Input = IDirectInput8W;
@@ -28,6 +30,8 @@ struct Wide {
     using Configure = DICONFIGUREDEVICESPARAMSW;
     static const GUID& DeviceIid() { return IID_IDirectInputDevice8W; }
     static const GUID& InputIid() { return IID_IDirectInput8W; }
+    static const GUID& SiblingDeviceIid() { return IID_IDirectInputDevice8A; }
+    static const GUID& SiblingInputIid() { return IID_IDirectInput8A; }
 };
 
 // Kept on the fixture's stack. The wrapper must retire exactly the one
@@ -35,6 +39,7 @@ struct Wide {
 template<class Api>
 struct FakeDevice : Api::Device {
     ULONG refs = 1, added = 0, released = 0;
+    unsigned queries = 0;
     unsigned reads = 0, events = 0, polls = 0, acquires = 0;
     HRESULT propertyResult = DI_OK, formatResult = DI_OK;
     std::vector<DIOBJECTDATAFORMAT> objects;
@@ -44,6 +49,7 @@ struct FakeDevice : Api::Device {
         info.guidProduct.Data1 = 0x05C4054C;
     }
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** out) override {
+        ++queries;
         if (!out) return E_POINTER;
         *out = nullptr;
         if (iid != IID_IUnknown && iid != Api::DeviceIid()) return E_NOINTERFACE;
@@ -100,9 +106,10 @@ struct FakeDevice : Api::Device {
 template<class Api>
 struct FakeInput : Api::Input {
     ULONG refs = 1;
+    unsigned queries = 0;
     FakeDevice<Api>& device;
     explicit FakeInput(FakeDevice<Api>& device) : device(device) {}
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void** out) override { if(out)*out=nullptr; return E_NOINTERFACE; }
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void** out) override { ++queries; if(out)*out=nullptr; return E_NOINTERFACE; }
     ULONG STDMETHODCALLTYPE AddRef() override { return ++refs; }
     ULONG STDMETHODCALLTYPE Release() override { return --refs; }
     HRESULT STDMETHODCALLTYPE CreateDevice(REFGUID, typename Api::Device** out, IUnknown*) override {
@@ -140,6 +147,8 @@ static void Decision() {
         CHECK(!pads::Served(0x054C05C4, {pad}));
         CHECK(!pads::Served(product + 1, {pad}));
     }
+    pad.status = pads::Status::NotInUse; pad.available = false;
+    CHECK(!pads::Served(product, {pad}));
 }
 
 struct JoystickFormat {
@@ -183,6 +192,8 @@ static void DeviceWrapper() {
     CHECK(device->QueryInterface(IID_IUnknown, &queried) == S_OK && queried == object);
     CHECK(static_cast<IUnknown*>(queried)->Release() == 1);
     CHECK(device->QueryInterface(IID_IDirectInputEffect, &queried) == E_NOINTERFACE && !queried);
+    queried = object;
+    CHECK(device->QueryInterface(Api::SiblingDeviceIid(), &queried) == E_NOINTERFACE && !queried && !inner.queries);
     CHECK(device->QueryInterface(IID_IUnknown, nullptr) == E_POINTER);
     CHECK(device->AddRef() == 2 && device->Release() == 1);
 
@@ -265,6 +276,8 @@ static void InputWrapper() {
     void* queried = nullptr;
     CHECK(input->QueryInterface(Api::InputIid(), &queried) == S_OK && queried == object);
     CHECK(static_cast<IUnknown*>(queried)->Release() == 1);
+    queried = object;
+    CHECK(input->QueryInterface(Api::SiblingInputIid(), &queried) == E_NOINTERFACE && !queried && !inner.queries);
     unsigned seen = 0;
     inventory.clear();
     CHECK(input->EnumDevices(DI8DEVCLASS_GAMECTRL, Count<Api>, &seen, 0) == DI_OK && seen == 2);

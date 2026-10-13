@@ -39,7 +39,8 @@ void RestoreMenuController() {
     input::Device saved;
     saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
     if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;
-    const auto restored = input::RestoreController(runtime->inputDevices, input::MenuDevice(runtime->inputDevices), saved);
+    const auto restored = input::RestoreController(runtime->inputDevices, input::MenuDevice(runtime->inputDevices), saved,
+        runtime->input.Selected());
     const auto& device = restored.device;
     runtime->inputInitialized = !restored.provisional && device.connected;
     if (!device.connected) {

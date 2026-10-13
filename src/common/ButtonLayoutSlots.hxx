@@ -51,6 +51,12 @@ inline bool ApplySlotWrites(LayoutOwners& owners, const LayoutPlacements& placem
     }
     return true;
 }
+inline bool RestoreGameLayouts(LayoutOwners& owners, const PadBindingRecords& records) {
+    std::vector<SlotWrite> writes;
+    for (unsigned slot = 0; slot < owners.size(); ++slot)
+        if (owners[slot]) writes.push_back({slot, LayoutSource::GameCopy, false});
+    return ApplySlotWrites(owners, {}, writes, records);
+}
 class ButtonScreenSwap {
 public:
     bool Open(const LayoutOwners& owners, const PadBindingRecords& records) {

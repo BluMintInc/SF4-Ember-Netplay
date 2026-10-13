@@ -23,7 +23,7 @@ int main() {
         prefs::Data old;
         prefs::FromJson({{"device", {{"type", input::PadXInput}, {"idx", 2}}}}, old);
         input::Device saved; saved.type = old.deviceType; saved.index = old.deviceIdx;
-        auto restored = input::RestoreController({keyboard, pad}, keyboard, saved);
+        auto restored = input::RestoreController({keyboard, pad}, keyboard, saved, {});
         CHECK(!restored.provisional && restored.device.Same(pad));
         old.deviceIdentity = restored.device.identity;
         prefs::Data migrated;
@@ -31,10 +31,10 @@ int main() {
         CHECK(migrated.deviceIdentity && *migrated.deviceIdentity == pad.identity);
         saved.identity = *migrated.deviceIdentity;
         auto other = pad; other.identity.serial = "other";
-        restored = input::RestoreController({keyboard, other}, other, saved);
+        restored = input::RestoreController({keyboard, other}, other, saved, {});
         CHECK(restored.provisional && restored.device.Same(other));
         pad.index = 0;
-        restored = input::RestoreController({keyboard, other, pad}, other, saved);
+        restored = input::RestoreController({keyboard, other, pad}, other, saved, {});
         CHECK(!restored.provisional && restored.device.Same(saved) && restored.device.index == 0);
         CHECK(*migrated.deviceIdentity == saved.identity);
         // Capture follows the candidate's identity while it releases in a different slot.

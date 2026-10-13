@@ -4,6 +4,7 @@
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "../common/XInputMapping.hxx"
+#include "../common/GamepadRumble.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include <windows.h>
@@ -272,11 +273,12 @@ void UpdateSetup(const RawState& raw, bool connected) {
 void ApplyRumble() {
     for (auto it = rumble.begin(); it != rumble.end();) {
         const auto handle = handles.find(it->first);
-        if (handle == handles.end()) { it = rumble.erase(it); continue; }
+        if (handle == handles.end() || !SDL_GamepadConnected(handle->second)) { it = rumble.erase(it); continue; }
         auto& request = it->second;
+        const bool applied = ShouldApplyRumble(request.pending, request.left, request.right) &&
+            SDL_RumbleGamepad(handle->second, request.left, request.right, 200);
         if (request.pending) {
             request.pending = false;
-            const bool applied = SDL_RumbleGamepad(handle->second, request.left, request.right, 200);
             const bool supported = SDL_GetBooleanProperty(SDL_GetGamepadProperties(handle->second), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
             request.result = !applied && supported ? ERROR_NOT_SUPPORTED : ERROR_SUCCESS;
             if (!applied && !supported) {
@@ -287,7 +289,8 @@ void ApplyRumble() {
                 }
             }
         }
-        ++it;
+        if (!request.left && !request.right) it = rumble.erase(it);
+        else ++it;
     }
 }
 void UpdateLocked(bool rebuild) {
@@ -418,6 +421,7 @@ DWORD WINAPI GetBattery(DWORD slot, BYTE deviceType, XINPUT_BATTERY_INFORMATION*
 }
 
 void CloseLocked() {
+    GamepadLayouts::Shutdown();
     for (const auto& [id, handle] : handles) SDL_CloseGamepad(handle);
     handles.clear(); rumble.clear();
     for (const auto& [id, raw] : rawHandles) SDL_CloseJoystick(raw.handle);

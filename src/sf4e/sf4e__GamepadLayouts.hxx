@@ -13,4 +13,5 @@ void Update(const gamepads::Inventory& inventory);
 void Read(gamepads::PadFrame& frame, const gamepads::Inventory& inventory);
 void OpenGameScreen();
 void CloseGameScreen();
+void Shutdown();
 } }

@@ -7,7 +7,7 @@ namespace sf4e { namespace gamepads {
 
 inline bool Served(std::uint32_t vidpid, const std::vector<Pad>& inventory) {
     return std::any_of(inventory.begin(), inventory.end(), [&](const Pad& pad) {
-        return vidpid == (std::uint32_t(pad.pid) << 16 | pad.vid) &&
+        return pad.available && vidpid == (std::uint32_t(pad.pid) << 16 | pad.vid) &&
             pad.status != Status::Unmapped && pad.status != Status::GameRead;
     });
 }

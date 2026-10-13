@@ -66,7 +66,8 @@ public:
             AddRef();
             return S_OK;
         }
-        return inner_->QueryInterface(iid, out);
+        *out = nullptr;
+        return E_NOINTERFACE;
     }
     ULONG STDMETHODCALLTYPE AddRef() override { return ++references_; }
     ULONG STDMETHODCALLTYPE Release() override {
