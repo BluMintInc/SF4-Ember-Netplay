@@ -283,6 +283,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;
+	view.checkUpdatesAtLaunch = snapshot.checkUpdatesAtLaunch;
 	view.unixNow = static_cast<std::uint64_t>(std::time(nullptr));
 	// Both read their file once; the card's own outcome decides whether to ask.
 	static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
@@ -355,6 +356,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service; request.servicePath = std::move(action.servicePath);
+        request.updateOffer = std::move(action.updateOffer);
         request.replay = std::move(action.replay);
         request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;

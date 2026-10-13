@@ -16,6 +16,7 @@ void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();
 void LanguageSaveFailure();
+void UpdateLaunchJourneys();
 void SessionReports();
 void RecoveryWindow();
 void ProblemReportJourneys();

@@ -1,5 +1,6 @@
 #pragma once
 #include "Theme.hxx"
+#include "../launcher/update/InstallOffer.hxx"
 #include "../platform/ProblemReport.hxx"
 #include <functional>
 #include <optional>
@@ -14,7 +15,10 @@ namespace sf4e { namespace ui {
 // `crash` is the crash that opened the window: with Send problem reports on
 // its report goes at once, logs only, unless the day's automatic reports are
 // used up; otherwise it is offered, and goes only from its preview or Always send.
+// `offer` is the update the player accepted in the game (--install-offer): with
+// `updates`, the window's own check runs as always, and the download starts at
+// once only if that check finds exactly this release (InstallOfferGate).
 bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
     std::function<void(const std::string&)> artLog = {}, Tone messageTone = Tone::Error, bool canStart = false,
-    const std::optional<reports::CrashContext>& crash = std::nullopt);
+    const std::optional<reports::CrashContext>& crash = std::nullopt, const std::optional<launcher::InstallOffer>& offer = std::nullopt);
 } }

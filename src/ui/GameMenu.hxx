@@ -72,9 +72,10 @@ bool TakeEmbeddedFresh();
 // What a notice's button does when it closes the notice. The shell reads it
 // from GameMenu::TakeNoticeResult and acts on it. Dismissed is Back or the
 // header's Close; Acknowledged is a button that only closes it.
-enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout };
+enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate };
 struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
-struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; };
+// selected: the button highlighted when the notice opens (the first by default).
+struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; };
 class GameMenu {
 public:
     MenuNavigation navigation;

@@ -91,7 +91,7 @@ void GameMenu::ShowNotice(NoticeDialog notice) {
     notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
     // A notice always has a button to close it by.
     if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
-    noticeSelected_=0; noticeError_=false; noticeResult_=NoticeResult::None;
+    noticeSelected_=(std::max)(0,(std::min)(notice.selected,static_cast<int>(noticeButtons_.size())-1)); noticeError_=false; noticeResult_=NoticeResult::None;
 }
 void GameMenu::ShowNotice(std::string text,std::string heading,std::string okLabel) {
     ShowNotice(NoticeDialog{std::move(text),std::move(heading),{{okLabel.empty()?std::string(loc::T("common.ok")):std::move(okLabel)}}});

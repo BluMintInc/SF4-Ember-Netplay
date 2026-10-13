@@ -30,6 +30,7 @@
 #include "PublicRoomsPanel.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
+#include "UpdatePrompt.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -76,6 +77,8 @@ struct ShellView {
     // enough to join by itself.
     bool pendingJoinDirect = false;
     std::string languagePreference = "auto";
+    // The Settings row "Check for updates at launch", as saved.
+    bool checkUpdatesAtLaunch = true;
     // This PC's clock, unix seconds, to tell a match past its expiry (0 when unknown).
     std::uint64_t unixNow = 0;
     // The game's own config.ini as read at launch, and whether the player has
@@ -156,6 +159,8 @@ struct ShellAction {
     platform::ServiceAction service = platform::ServiceAction::None;
     // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
     std::string servicePath;
+    // With UpdateNow or SkipUpdate: the launch offer the player was shown.
+    launcher::InstallOffer updateOffer;
     reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     gamepads::ControllerRequest padAction;
@@ -249,6 +254,9 @@ public:
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
     void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
+    // Where the "Check for updates at launch" choice is written; the platform store unless a test supplies its own.
+    using UpdateCheckSaver = std::function<bool(bool enabled, std::string& diagnostic)>;
+    void SetUpdateCheckSaver(UpdateCheckSaver saver) { updateCheckSaver_ = std::move(saver); }
     // Where chat availability changes are written; nowhere unless the overlay or a test supplies one.
     void SetChatLog(std::function<void(const std::string&)> log) { chatLog_ = std::move(log); }
     // Where the tournament matches already announced are kept; the platform store unless a test supplies its own.
@@ -257,6 +265,7 @@ public:
     }
 private:
     LanguageSaver languageSaver_;
+    UpdateCheckSaver updateCheckSaver_;
     GameMenu menu_;
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
@@ -281,6 +290,21 @@ private:
     // draw of the menu is followed by AnswerDialog, which does what the result says with
     // what the notice's owner left in dialogContext_.
     void AnswerDialog(const Submit& submit);
+    // The launch-time update check and its question (ApplicationShell__Updates.cxx).
+    // UpdateLaunchCheck asks the service for the check on the first Home and puts the
+    // question up when the offer is due and the player is free to answer; a closed
+    // notice is the question's answer (FinishUpdatePrompt).
+    void UpdateLaunchCheck(const ShellView& view,double now,const Submit& submit);
+    void FinishUpdatePrompt(NoticeResult result,const Submit& submit);
+    void SetLaunchCheck(bool enabled);
+    UpdatePrompt updatePrompt_;
+    netplay::Generation updateGeneration_;
+    double launchCheckAskedAt_=-1e9;
+    // The failure of Update now (the Launcher would not start) has been said.
+    bool updateNowReported_=false;
+    // The Settings row's value, seeded from the view once and then the shell's own.
+    bool launchCheck_=true,launchCheckSeeded_=false;
+    std::string launchCheckSaveError_;
     struct DialogContext {
         // The pad the Button layout button opens.
         std::optional<gamepads::PadView> pad;

@@ -286,6 +286,7 @@ struct Runtime {
 	std::shared_ptr<bridge::CommandMailbox> commands = std::make_shared<bridge::CommandMailbox>(32, 128 * 1024);
 	std::string displayName;
 	std::string languagePreference = "auto";
+	bool checkUpdatesAtLaunch = true;
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;

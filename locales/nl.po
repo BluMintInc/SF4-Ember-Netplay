@@ -198,6 +198,24 @@ msgstr "SF4 starten"
 msgid "updates.start_game_detail"
 msgstr "Sluit de updater en start SF4 met Ember."
 
+msgid "updates.launch_heading"
+msgstr "Update beschikbaar"
+
+msgid "updates.launch_text"
+msgstr "Versie {0} is beschikbaar. Je hebt {1}. Nu updaten sluit het spel en installeert de update."
+
+msgid "updates.launch_now"
+msgstr "Nu updaten"
+
+msgid "updates.launch_later"
+msgstr "Later"
+
+msgid "updates.launch_skip"
+msgstr "Deze versie overslaan"
+
+msgid "updates.offer_changed"
+msgstr "De update is veranderd nadat je hem koos. Controleer de versie hieronder voordat je installeert."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Nu sluiten annuleert de lopende bewerking."
 
@@ -294,6 +312,12 @@ msgstr "Automatisch: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Je taalkeuze kon niet worden opgeslagen. Deze blijft tijdens deze sessie actief."
+
+msgid "settings.update_check"
+msgstr "Bij het starten op updates controleren"
+
+msgid "settings.update_check_detail"
+msgstr "Zoekt naar een nieuwe versie als het spel start, hoogstens elke 6 uur. Er wordt eerst gevraagd voordat iets verandert."
 
 msgid "menu.edit_detail"
 msgstr "Selecteer om te bewerken. Typ of plak, Enter bevestigt; Terug annuleert."
