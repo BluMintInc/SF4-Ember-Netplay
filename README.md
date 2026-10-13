@@ -101,6 +101,7 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | Guide | What it covers |
 | --- | --- |
 | [Player guide](docs/guides/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
+| [Training lab](docs/guides/TRAINING_LAB.md) | Frame meter, dummy recording and dummy replies, with a notation cheat sheet |
 | [Custom rooms](docs/guides/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
 | [Discord integration](docs/guides/DISCORD.md) | Presence, invitations and privacy |
 | [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
