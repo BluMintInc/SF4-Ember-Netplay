@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstring>
+#include <ctime>
 
 namespace {
 // ShellExecute may hand the target to a COM-based handler; give it an apartment.
@@ -56,7 +57,12 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Gameplay direct/relay links: " + std::to_string(view.directLinks) + "/" + std::to_string(view.relayedLinks) +
         " | Route changes/local drops/send pressure: " + std::to_string(view.routeChanges) + "/" + std::to_string(view.localDrops) + "/" + std::to_string(view.sendPressure);
 }
-ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
+ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory, ServiceHooks hooks) :
+    policy_(hooks.policyStore ? UpdatePolicy(*hooks.policyStore) : UpdatePolicy()), diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
+    hooks_ = std::move(hooks);
+    if (!hooks_.checkForUpdate) hooks_.checkForUpdate = [](launcher::UpdateChannel channel) { return launcher::CheckForUpdate(channel); };
+    if (!hooks_.clock) hooks_.clock = [] { return static_cast<std::uint64_t>(std::time(nullptr)); };
+    state_.launchCheck = LaunchCheck::Waiting;
     char installed[64] = {};
     launcher::ReadInstalledVersion(installed, sizeof(installed));
     state_.installedVersion = installed;
@@ -83,6 +89,9 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
 bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
     if (action == ServiceAction::CancelReport) { Cancel(); return true; }
     if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash) return false;
+    if (action == ServiceAction::LaunchUpdateCheck) return RequestLaunchCheck();
+    // These two carry the offer the player saw: UpdateNow and SkipUpdate.
+    if (action == ServiceAction::UpdateNow || action == ServiceAction::SkipUpdate) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending) return false;
     if (action == ServiceAction::PrepareProblemReport)
@@ -92,6 +101,26 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
 bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
     std::lock_guard<std::mutex> lock(mutex_);
     return Start(ServiceAction::SwitchUpdateChannel, {}, channel);
+}
+bool ApplicationServices::RequestLaunchCheck() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_) return false;
+    if (state_.launchCheck != LaunchCheck::Waiting || state_.pending) return true;
+    if (!policy_.ShouldCheck(hooks_.clock())) { state_.launchCheck = LaunchCheck::Settled; return true; }
+    state_.launchCheck = LaunchCheck::Running;
+    return Start(ServiceAction::LaunchUpdateCheck, {}, state_.channel);
+}
+bool ApplicationServices::UpdateNow(const launcher::InstallOffer& offer) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending || !state_.launchOffer || *state_.launchOffer != offer) return false;
+    offer_ = offer;
+    return Start(ServiceAction::UpdateNow, {}, state_.channel);
+}
+bool ApplicationServices::SkipUpdate(const launcher::InstallOffer& offer) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending || !state_.launchOffer || *state_.launchOffer != offer) return false;
+    offer_ = offer;
+    return Start(ServiceAction::SkipUpdate, {}, state_.channel);
 }
 bool ApplicationServices::PrepareCrashReport(const reports::CrashContext& crash) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -121,7 +150,8 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
     state_.message = reportOperation_ ? state_.reporting.message :
         action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
-        action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
+        action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel || action == ServiceAction::LaunchUpdateCheck ? loc::T("services.checking") :
+        action == ServiceAction::SkipUpdate ? std::string() :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
         action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
     wake_.notify_one(); return true;
@@ -131,6 +161,7 @@ void ApplicationServices::Run() {
         ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next; std::wstring target;
         launcher::UpdateChannel channel;
         std::optional<reports::Operation> reportOperation;
+        std::optional<launcher::InstallOffer> offer;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
@@ -138,6 +169,7 @@ void ApplicationServices::Run() {
             action = request_; request_ = ServiceAction::None; channel = requestChannel_; diagnostics = diagnostics_; next = state_;
             target.swap(target_);
             reportOperation = std::move(reportOperation_); reportOperation_.reset();
+            offer.swap(offer_); offer_.reset();
         }
         try {
             if (action == ServiceAction::SwitchUpdateChannel) {
@@ -157,11 +189,20 @@ void ApplicationServices::Run() {
                 const auto history = history_->Load();
                 next.sentReports = history.sent; next.sentReadable = history.readable;
                 next.succeeded = next.reporting.Succeeded(); next.message = next.reporting.message;
-            } else if (action == ServiceAction::CheckUpdates) {
-                next.update = launcher::CheckForUpdate(next.channel); next.succeeded = next.update.ok;
+            } else if (action == ServiceAction::CheckUpdates || action == ServiceAction::LaunchUpdateCheck) {
+                next.update = hooks_.checkForUpdate(next.channel); next.succeeded = next.update.ok;
                 next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
                     loc::Tf("services.go_back_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
+                if (action == ServiceAction::LaunchUpdateCheck) {
+                    // A failed check leaves no time, so the next launch tries again.
+                    policy_.CheckFinished(next.update.ok, hooks_.clock());
+                    next.launchOffer = policy_.Present(next.channel, next.update);
+                    next.launchCheck = LaunchCheck::Settled;
+                }
+            } else if (action == ServiceAction::SkipUpdate) {
+                next.succeeded = offer && policy_.Skip(offer->tag);
+                if (next.succeeded) next.launchOffer.reset();
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
                 std::filesystem::create_directories(directory);
@@ -198,7 +239,7 @@ void ApplicationServices::Run() {
                 for (const auto& event : next.connectionHistory) output << event << '\n';
                 output.close(); next.succeeded = static_cast<bool>(output);
                 next.message = output ? loc::T("services.diagnostics_saved") : loc::T("services.diagnostics_failed");
-            } else if (action == ServiceAction::OpenUpdater || action == ServiceAction::OpenRecovery) {
+            } else if (action == ServiceAction::OpenUpdater || action == ServiceAction::OpenRecovery || action == ServiceAction::UpdateNow) {
                 wchar_t root[MAX_PATH] = {};
                 if (!install::GetInstallRoot(root, MAX_PATH)) throw std::runtime_error("install directory");
                 const auto executable = std::filesystem::path(root) / L"Launcher.exe";
@@ -206,6 +247,8 @@ void ApplicationServices::Run() {
                 std::wstring command = L"\"" + executable.wstring() + L"\" " +
                     (action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") + L" --wait-pid " + std::to_wstring(GetCurrentProcessId()) +
                     L" --locale " + std::wstring(tag, tag + std::strlen(tag));
+                // The accepted release goes along, to be installed at once only if it is still the current one.
+                if (action == ServiceAction::UpdateNow && offer) command += launcher::InstallOfferArguments(*offer);
                 STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
                 if (!CreateProcessW(executable.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) {
                     next.message = loc::T("services.updater_start_failed");

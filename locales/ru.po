@@ -198,6 +198,24 @@ msgstr "Запустить SF4"
 msgid "updates.start_game_detail"
 msgstr "Закрыть обновление и запустить SF4 с Ember."
 
+msgid "updates.launch_heading"
+msgstr "Доступно обновление"
+
+msgid "updates.launch_text"
+msgstr "Доступна версия {0}. У вас версия {1}. Обновление сейчас закроет игру и установит новую версию."
+
+msgid "updates.launch_now"
+msgstr "Обновить сейчас"
+
+msgid "updates.launch_later"
+msgstr "Позже"
+
+msgid "updates.launch_skip"
+msgstr "Пропустить эту версию"
+
+msgid "updates.offer_changed"
+msgstr "Обновление изменилось после вашего выбора. Проверьте версию ниже перед установкой."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Закрытие сейчас отменит текущую операцию."
 
@@ -294,6 +312,12 @@ msgstr "Автоматически: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Не удалось сохранить выбор языка. Он останется активным до конца сеанса."
+
+msgid "settings.update_check"
+msgstr "Проверять обновления при запуске"
+
+msgid "settings.update_check_detail"
+msgstr "Ищет новую версию при запуске игры, не чаще чем раз в 6 часов. Перед любыми изменениями спрашивает."
 
 msgid "menu.edit_detail"
 msgstr "Выберите для правки. Введите или вставьте текст; Enter принимает, «Назад» отменяет."

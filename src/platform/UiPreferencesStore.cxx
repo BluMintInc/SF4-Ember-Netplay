@@ -21,6 +21,11 @@ const wchar_t* Filename = L"ui-preferences.json";
 const char* HideGameSettingsCard = "hideGameSettingsCard";
 const char* AnnouncedMatches = "announcedMatches";
 const char* UpdateChannelKey = "updateChannel";
+const char* CheckUpdatesAtLaunchKey = "checkUpdatesAtLaunch";
+const char* LastUpdateCheckKey = "lastUpdateCheck";
+const char* SkippedUpdateKey = "skippedUpdate";
+// A release tag is never longer than this.
+constexpr std::size_t MaxSkippedUpdateBytes = 64;
 // A match id and a service id are never longer than this on the wire.
 constexpr std::size_t MaxMatchIdBytes = 64, MaxBridgeIdBytes = 256;
 
@@ -136,6 +141,28 @@ bool SaveChannelTo(const Path& directory, std::string_view channel, std::string&
     return SaveTo(directory, {{UpdateChannelKey, std::string(channel)}}, error);
 }
 
+// A field of the wrong type is as good as an absent one.
+UpdatePreferences UpdatesFrom(const Path& directory) noexcept {
+    UpdatePreferences updates;
+    try {
+        const Json value = LoadValid(directory);
+        if (!value.is_object()) return updates;
+        const auto check = value.find(CheckUpdatesAtLaunchKey);
+        if (check != value.end() && check->is_boolean()) updates.checkAtLaunch = check->get<bool>();
+        const auto last = value.find(LastUpdateCheckKey);
+        if (last != value.end() && last->is_number_unsigned()) updates.lastCheck = last->get<std::uint64_t>();
+        const auto skipped = value.find(SkippedUpdateKey);
+        if (skipped != value.end() && skipped->is_string() && skipped->get<std::string>().size() <= MaxSkippedUpdateBytes)
+            updates.skipped = skipped->get<std::string>();
+    } catch (...) { return UpdatePreferences(); }
+    return updates;
+}
+
+bool SaveSkippedTo(const Path& directory, std::string_view tag, std::string& error) {
+    if (tag.size() > MaxSkippedUpdateBytes) { error = "Release tag too long."; return false; }
+    return SaveTo(directory, {{SkippedUpdateKey, std::string(tag)}}, error);
+}
+
 bool SaveLanguageTo(const Path& directory, std::string_view preference, std::string& error) noexcept {
     error.clear();
     if (!loc::ValidPreference(preference)) {
@@ -240,6 +267,20 @@ bool SaveUpdateChannelPreference(std::string_view channel, std::string& error) {
     return SaveChannelTo(netplay::SettingsStore::DefaultDirectory(), channel, error);
 }
 
+UpdatePreferences LoadUpdatePreferences() { return UpdatesFrom(netplay::SettingsStore::DefaultDirectory()); }
+
+bool SaveCheckUpdatesAtLaunch(bool enabled, std::string& error) {
+    return SaveTo(netplay::SettingsStore::DefaultDirectory(), {{CheckUpdatesAtLaunchKey, enabled}}, error);
+}
+
+bool SaveLastUpdateCheck(std::uint64_t time, std::string& error) {
+    return SaveTo(netplay::SettingsStore::DefaultDirectory(), {{LastUpdateCheckKey, time}}, error);
+}
+
+bool SaveSkippedUpdate(std::string_view tag, std::string& error) {
+    return SaveSkippedTo(netplay::SettingsStore::DefaultDirectory(), tag, error);
+}
+
 bool HideGameSettingsCardForever(std::string& error) {
     return HideCardIn(netplay::SettingsStore::DefaultDirectory(), error);
 }
@@ -253,6 +294,16 @@ bool GameSettingsCardHiddenIn(const std::wstring& directory) { return HiddenFrom
 std::optional<updates::UpdateChannel> UpdateChannelPreferenceIn(const std::wstring& directory) { return ChannelFrom(directory); }
 bool SaveUpdateChannelPreferenceTo(const std::wstring& directory, std::string_view channel, std::string& error) {
     return SaveChannelTo(directory, channel, error);
+}
+UpdatePreferences LoadUpdatePreferencesFrom(const std::wstring& directory) { return UpdatesFrom(directory); }
+bool SaveCheckUpdatesAtLaunchTo(const std::wstring& directory, bool enabled, std::string& error) {
+    return SaveTo(directory, {{CheckUpdatesAtLaunchKey, enabled}}, error);
+}
+bool SaveLastUpdateCheckTo(const std::wstring& directory, std::uint64_t time, std::string& error) {
+    return SaveTo(directory, {{LastUpdateCheckKey, time}}, error);
+}
+bool SaveSkippedUpdateTo(const std::wstring& directory, std::string_view tag, std::string& error) {
+    return SaveSkippedTo(directory, tag, error);
 }
 bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error) {
     return HideCardIn(directory, error);

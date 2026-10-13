@@ -332,7 +332,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    InfoRow("version",loc::T("updates.installed_version"),VersionLine(InstalledVersion(v),v.services.channel),
     (v.build.empty()?std::string(loc::T("updates.installed_version_detail")):loc::Tf("about.version_detail",v.build))+"\n\n"+loc::T("about.channel_detail")),
    Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenUpdater,ServiceAction::OpenRecovery},
-    loc::T("about.updates_detail")),!v.services.pending)};
+    loc::T("about.updates_detail")),!v.services.pending),
+   // Saved on its own, as the language is: it is no room or fighter preference.
+   Value("launch-update-check",loc::T("settings.update_check"),launchCheck_?loc::T("common.on"):loc::T("common.off"),
+    launchCheckSaveError_.empty()?std::string(loc::T("settings.update_check_detail")):launchCheckSaveError_)};
   if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater",loc::T("about.open_updater"),loc::T("about.open_updater_detail"),v.canEditPreferences&&!v.services.pending));
   if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery",loc::T("about.open_recovery"),
    v.canEditPreferences?loc::T("about.open_recovery_detail"):loc::T("about.leave_room_first"),v.canEditPreferences&&!v.services.pending));
@@ -509,6 +512,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
+ else if(a.id=="launch-update-check")SetLaunchCheck(a.delta>0);
  else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
  else if(CreateAdjust(a)){}
  else{
@@ -550,7 +554,8 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
 // What a notice's button does once the menu has drawn the frame it closed on.
 // The buttons carry no actions of their own, only results (NoticeResult).
 void ApplicationShell::AnswerDialog(const Submit& submit) {
- switch(menu_.TakeNoticeResult()){
+ const NoticeResult result=menu_.TakeNoticeResult();
+ switch(result){
  case NoticeResult::CreatePublicRoom:openPublicCreate_=true;break;
  case NoticeResult::HideGameSettings:{std::string diagnostic;platform::HideGameSettingsCardForever(diagnostic);break;}
  case NoticeResult::OpenButtonLayout:if(dialogContext_.pad)OpenButtonLayout(*dialogContext_.pad);break;
@@ -560,6 +565,8 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  }
  default:break;
  }
+ // Any closed notice answers the update question if it is the one on show.
+ if(updatePrompt_.Open()&&!menu_.NoticeOpen())FinishUpdatePrompt(result,submit);
 }
 // Quick join asks for the first room with a free seat, in the player's region when it is known.
 // With none it offers to create one, which the next frame opens.
@@ -708,6 +715,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   identity_.OpenDiscord(pendingConnect_,fresh);pendingConnect_.clear();pendingConnectStale_=false;
   if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("discord-connect");}
  }
+ // After every other source of a notice this frame, so the question never takes a place they are about to.
+ UpdateLaunchCheck(v,now,submit);
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);

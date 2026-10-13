@@ -198,6 +198,24 @@ msgstr "Iniciar SF4"
 msgid "updates.start_game_detail"
 msgstr "Feche o atualizador e inicie o SF4 com o Ember."
 
+msgid "updates.launch_heading"
+msgstr "Atualização disponível"
+
+msgid "updates.launch_text"
+msgstr "A versão {0} está disponível. Você tem a {1}. Atualizar agora fecha o jogo e instala a atualização."
+
+msgid "updates.launch_now"
+msgstr "Atualizar agora"
+
+msgid "updates.launch_later"
+msgstr "Mais tarde"
+
+msgid "updates.launch_skip"
+msgstr "Pular esta versão"
+
+msgid "updates.offer_changed"
+msgstr "A atualização mudou depois da sua escolha. Confira a versão abaixo antes de instalar."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Fechar agora cancela a operação em andamento."
 
@@ -294,6 +312,12 @@ msgstr "Automático: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Não foi possível salvar o idioma. Ele continuará ativo nesta sessão."
+
+msgid "settings.update_check"
+msgstr "Buscar atualizações ao iniciar"
+
+msgid "settings.update_check_detail"
+msgstr "Procura uma versão nova quando o jogo inicia, no máximo a cada 6 horas. Pergunta antes de mudar qualquer coisa."
 
 msgid "menu.edit_detail"
 msgstr "Selecione para editar. Digite ou cole e pressione Enter para aceitar; Voltar cancela."

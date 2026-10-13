@@ -199,6 +199,7 @@ void StartHelper() {
 	runtime = new Runtime();
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
+    runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
@@ -383,6 +384,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
 		command.reportSubmission.comment.size() > 8000 ||
+		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
 		(command.createdRules && !command.createdRules->Valid())) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
@@ -403,7 +405,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.servicePath.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
+		command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
 		command.reportSubmission.comment.size() + command.padAction.log.size();
     std::size_t layoutBytes = 0;
     for (const auto& layout : command.padAction.layouts)

@@ -140,8 +140,18 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         return DispatchOutcome::Dropped;
     }
     if (command.service != platform::ServiceAction::None) {
+        // In-game install is refused; opening the Launcher needs the game out of a room and a match.
         if (command.service == platform::ServiceAction::InstallUpdate ||
-            ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery) && !GetRuntimeSnapshotShared()->canEditPreferences)) return DispatchOutcome::Dropped;
+            ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery ||
+              command.service == platform::ServiceAction::UpdateNow) && !GetRuntimeSnapshotShared()->canEditPreferences)) return DispatchOutcome::Dropped;
+        // The launch check and the answer to its offer have their own quiet entry points.
+        if (command.service == platform::ServiceAction::LaunchUpdateCheck) { runtime->services.RequestLaunchCheck(); return DispatchOutcome::Dropped; }
+        if (command.service == platform::ServiceAction::UpdateNow || command.service == platform::ServiceAction::SkipUpdate) {
+            const bool accepted = command.service == platform::ServiceAction::UpdateNow ?
+                runtime->services.UpdateNow(command.updateOffer) : runtime->services.SkipUpdate(command.updateOffer);
+            if (!accepted) runtime->error = loc::T("runtime.operation_busy");
+            return DispatchOutcome::Dropped;
+        }
         platform::DiagnosticsView diagnostics;
         const auto state = runtime->controller.GetSnapshot();
         diagnostics.room = static_cast<int>(state.room); diagnostics.match = static_cast<int>(state.match);

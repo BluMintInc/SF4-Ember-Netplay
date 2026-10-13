@@ -86,6 +86,8 @@ namespace sf4e {
             platform::ServiceAction service = platform::ServiceAction::None;
             // With ShowReplayFile: the archived replay whose folder opens.
             std::string servicePath;
+            // With UpdateNow or SkipUpdate: the launch offer the player saw.
+            launcher::InstallOffer updateOffer;
             reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
             gamepads::ControllerRequest padAction;
@@ -198,6 +200,8 @@ namespace sf4e {
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
 			std::string languagePreference = "auto";
+			// The Settings row's value: check for an update at launch.
+			bool checkUpdatesAtLaunch = true;
 			int localSlot = -1;
 			bool offlineRequested = false;
 			std::string displayName;

@@ -25,6 +25,23 @@ bool HideGameSettingsCardForever(std::string& error);
 std::optional<updates::UpdateChannel> UpdateChannelPreference();
 bool SaveUpdateChannelPreference(std::string_view channel, std::string& error);
 
+// What the launch-time update check remembers: whether it runs at all (on until
+// the player turns it off), when the last check that reached GitHub finished
+// (unix seconds, 0 for never), and the release tag the player chose to skip.
+// Files written before the check existed hold none of them.
+struct UpdatePreferences {
+    bool checkAtLaunch = true;
+    std::uint64_t lastCheck = 0;
+    std::string skipped;
+};
+UpdatePreferences LoadUpdatePreferences();
+// Each saves its own field and leaves the rest of the file as it was, so the
+// settings row and the check cannot overwrite each other. An empty tag clears
+// the skip; on failure the file is left intact.
+bool SaveCheckUpdatesAtLaunch(bool enabled, std::string& error);
+bool SaveLastUpdateCheck(std::uint64_t time, std::string& error);
+bool SaveSkippedUpdate(std::string_view tag, std::string& error);
+
 // A tournament match Ember already told the player is ready to play, so a
 // restart does not tell them again. `until` is the unix second after which the
 // entry may be forgotten while its service says nothing about it: a month past
@@ -60,6 +77,10 @@ bool GameSettingsCardHiddenIn(const std::wstring& directory);
 bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error);
 std::optional<updates::UpdateChannel> UpdateChannelPreferenceIn(const std::wstring& directory);
 bool SaveUpdateChannelPreferenceTo(const std::wstring& directory, std::string_view channel, std::string& error);
+UpdatePreferences LoadUpdatePreferencesFrom(const std::wstring& directory);
+bool SaveCheckUpdatesAtLaunchTo(const std::wstring& directory, bool enabled, std::string& error);
+bool SaveLastUpdateCheckTo(const std::wstring& directory, std::uint64_t time, std::string& error);
+bool SaveSkippedUpdateTo(const std::wstring& directory, std::string_view tag, std::string& error);
 std::vector<AnnouncedMatch> LoadAnnouncedMatchesFrom(const std::wstring& directory);
 bool SaveAnnouncedMatchesTo(const std::wstring& directory, const std::vector<AnnouncedMatch>& matches, std::string& error);
 }
