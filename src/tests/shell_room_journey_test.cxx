@@ -32,6 +32,13 @@ void RoomJourneys() {
   h.view.netReport.relayConnected=false;h.view.netReport.nat=NatClass::NoUdp;h.view.netReport.captivePortal=true;h.Frame();
   Check(row("relay")->value==loc::Tf("network.relay_connecting",loc::T("network.region_euc1"))&&row("network")->value==loc::T("network.nat_no_udp")&&
    row("network")->detail.find(loc::T("network.captive_portal"))!=std::string::npos,"A disconnected relay or captive portal is not shown");
+  h.view.controllerReady=h.view.canOpenRoom=false;h.Frame();
+  Check(!row("create")->enabled&&row("create")->quiet&&row("create")->detail==loc::T("room.controller_required")&&row("public-rooms")->detail==loc::T("room.controller_required"),"Online rows without a controller do not ask for one");
+  h.view.controllerReady=true;h.view.network=netplay::NetworkAvailability::Starting;h.Frame();
+  Check(!row("join")->quiet&&row("join")->detail==loc::T("online.join_detail"),"Online rows blame networking while it is still starting");
+  h.view.network=netplay::NetworkAvailability::Unavailable;h.Frame();
+  Check(row("join")->quiet&&row("join")->detail==loc::T("runtime.networking_unavailable"),"Online rows without networking do not say so");
+  h.view.network=netplay::NetworkAvailability::Ready;h.view.canOpenRoom=true;h.Frame();
   const auto actions=h.actions.size();h.Choose("network");Check(h.actions.size()==actions&&h.shell.Navigation().Screen()=="online","An information row acted on Select");
   h.view.netReport=NetworkSummary{};SetMenuEntriesProbe({});
  }
