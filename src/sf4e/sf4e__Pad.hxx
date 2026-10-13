@@ -19,6 +19,7 @@ namespace sf4e {
 			static int playbackFrame;
 			static void Install();
             void UpdateInputs();
+			void LoadButtonConfig();
 
 			unsigned int GetButtons_RawOn(int pindex);
 			unsigned int GetButtons_MappedOn(int pindex);

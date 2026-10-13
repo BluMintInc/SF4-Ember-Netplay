@@ -85,6 +85,7 @@ void System::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.SetActiveButtonMapping) = (PVOID)(peRootOffset + 0x110170);
 	*(PVOID*)(&publicMethods.CaptureNextMatchingPadToSide) = (PVOID)(peRootOffset + 0x111110);
 	*(PVOID*)(&publicMethods.ClearInputs) = (PVOID)(peRootOffset + 0x1100e0);
+	*(PVOID*)(&publicMethods.LoadButtonConfig) = (PVOID)(peRootOffset + 0x11bc30);
 	focusGate = (BYTE*)(peRootOffset + 0x1121ad);
 
 	staticMethods.GetSingleton = (System * (*)())(peRootOffset + 0x119480);

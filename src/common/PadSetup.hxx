@@ -1,5 +1,6 @@
 #pragma once
 #include "PadSetupInput.hxx"
+#include "SdlMapping.hxx"
 #include <array>
 #include <string_view>
 #include <utility>
@@ -208,55 +209,32 @@ private:
     std::uint64_t lastInput_ = 0, pressedAt_ = 0, feedbackUntil_ = 0;
     bool redo_ = false;
 };
-using MappingField = std::pair<std::string, std::string>;
-// An SDL mapping string: guid, name, then key:value fields in order. Other
-// keys (crc, hint, type) stay fields; platform is left out and written once.
-struct SdlMapping { std::string guid, name; std::vector<MappingField> fields; };
-inline SdlMapping ParseMapping(const std::string& text) {
-    SdlMapping mapping;
-    for (std::size_t at = 0, column = 0; at <= text.size(); ++column) {
-        const auto end = (std::min)(text.find(',', at), text.size());
-        const auto field = text.substr(at, end - at); at = end + 1;
-        const auto colon = field.find(':');
-        if (column == 0) mapping.guid = field;
-        else if (column == 1) mapping.name = field;
-        else if (colon != std::string::npos && field.compare(0, colon, "platform") != 0) mapping.fields.emplace_back(field.substr(0, colon), field.substr(colon + 1));
-    }
-    return mapping;
-}
-inline std::string FormatMapping(const SdlMapping& mapping) {
-    std::string text = mapping.guid + "," + mapping.name + ",";
-    for (const auto& field : mapping.fields) text += field.first + ":" + field.second + ",";
-    return text + "platform:Windows,";
-}
 // A stick step that recorded a button, hat or trigger drives the plus half of its axis.
-inline MappingField SetupField(int step, const RawInput& input) {
+inline MappingBinding SetupBinding(int step, const RawInput& input) {
     const auto& setup = SetupSteps[step];
-    const bool halfAxis = input.kind == RawKind::AxisPlus || input.kind == RawKind::AxisMinus;
-    if (setup.kind == StepKind::Stick && !halfAxis) return {std::string("+") + setup.target, RawBinding(input)};
-    return {setup.target, RawBinding(MappedInput(step, input))};
+    const auto mapped = MappedInput(step, input);
+    const bool plusHalf = setup.kind == StepKind::Stick && input.kind != RawKind::AxisPlus && input.kind != RawKind::AxisMinus;
+    return {(plusHalf ? "+" : "") + std::string(setup.target), RawBinding(mapped), ToMappingInput(mapped)};
 }
 // Over the mapping SDL already uses for the pad (its own or an earlier Ember
-// setup), recorded steps take their targets and the inputs they read; every
-// other field stays, so a skipped step keeps the pad's own binding (5.9).
+// setup), recorded steps take their targets and the inputs they read: an old
+// binding to the same target, or to an input one of them reads, goes. Every
+// other binding stays, so a skipped step keeps the pad's own binding (5.9),
+// and the metadata stays as it was.
 inline std::string BuildSetupMapping(const std::string& guid, std::string name, const SetupState& state, const std::string& existing = {}) {
     // Commas delimit SDL fields; driver names must not create mapping fields.
     std::replace(name.begin(), name.end(), ',', ' ');
-    SdlMapping mapping{guid, name, {}};
-    std::vector<RawInput> used;
-    for (int i = 0; i < SetupStepCount; ++i) if (state.recorded[i]) {
-        mapping.fields.push_back(SetupField(i, *state.recorded[i]));
-        used.push_back(MappedInput(i, *state.recorded[i]));
+    SdlMapping mapping{guid, name};
+    for (int i = 0; i < SetupStepCount; ++i) if (state.recorded[i]) mapping.bindings.push_back(SetupBinding(i, *state.recorded[i]));
+    const auto recorded = mapping.bindings.size();
+    auto old = ParseMapping(existing);
+    for (auto& binding : old.bindings) {
+        const bool replaced = std::any_of(mapping.bindings.begin(), mapping.bindings.begin() + recorded, [&](const MappingBinding& step) {
+            return MappingTarget(step.output) == MappingTarget(binding.output) || Overlaps(step.input, binding.input);
+        });
+        if (!replaced) mapping.bindings.push_back(std::move(binding));
     }
-    const auto output = [](const std::string& key) { return key.empty() || (key[0] != '+' && key[0] != '-') ? key : key.substr(1); };
-    const auto recorded = mapping.fields.size();
-    for (auto& field : ParseMapping(existing).fields) {
-        const auto input = ParseRawBinding(field.second);
-        const bool retargeted = std::any_of(mapping.fields.begin(), mapping.fields.begin() + recorded,
-            [&](const MappingField& step) { return output(step.first) == output(field.first); });
-        const bool reused = input && std::any_of(used.begin(), used.end(), [&](const RawInput& step) { return SharesInput(step, *input); });
-        if (!retargeted && !reused) mapping.fields.push_back(std::move(field));
-    }
+    mapping.metadata = std::move(old.metadata);
     return FormatMapping(mapping);
 }
 } }

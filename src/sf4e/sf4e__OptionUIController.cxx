@@ -5,12 +5,12 @@
 namespace sf4e { namespace GameEvents {
 using Native = Dimps::GameEvents::OptionUIController;
 void* OptionUIController::Construct(DWORD owner, DWORD mode) {
-    Gamepads::GameButtonScreen(true);
+    Gamepads::LendGameTables(gamepads::GameTableUse::ButtonScreen);
     return (this->*Native::methods.Construct)(owner, mode);
 }
 int OptionUIController::Destroy() {
     const int result = (this->*Native::methods.Destroy)();
-    Gamepads::GameButtonScreen(false);
+    Gamepads::ReturnGameTables(gamepads::GameTableUse::ButtonScreen);
     return result;
 }
 void OptionUIController::Install() {

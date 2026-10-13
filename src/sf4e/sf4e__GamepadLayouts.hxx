@@ -11,7 +11,8 @@ void Set(std::vector<gamepads::StoredLayout> layouts);
 const std::vector<gamepads::StoredLayout>& Stored();
 void Update(const gamepads::Inventory& inventory);
 void Read(gamepads::PadFrame& frame, const gamepads::Inventory& inventory);
-void OpenGameScreen();
-void CloseGameScreen();
+// The game's button screen or config loader rewrites the tables (GameTableSwap).
+void LendGameTables(gamepads::GameTableUse use);
+void ReturnGameTables(gamepads::GameTableUse use);
 void Shutdown();
 } }

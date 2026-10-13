@@ -55,6 +55,10 @@ namespace Dimps {
 				// update calls it with zero masks and clearDevices set, which also
 				// clears the keyboards and pads, on each frame the window is behind.
 				void (System::* ClearInputs)(int mask0, int mask1, int mask2, int mask3, char clearDevices);
+				// Virtual +0xC4 (0x51BC30): reads every .ctrlsav file and writes the
+				// binding records' fight and menu tables (system+0xD4, stride 0x27C;
+				// 0x516540 does the writing). The title screen task 0x638130 calls it.
+				void (System::* LoadButtonConfig)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {

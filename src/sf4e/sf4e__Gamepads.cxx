@@ -8,7 +8,6 @@
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include <windows.h>
-#include <objbase.h>
 #include <Xinput.h>
 #include <SDL3/SDL.h>
 #include <spdlog/spdlog.h>
@@ -472,11 +471,7 @@ void Start() {
         SDL_HINT_JOYSTICK_HIDAPI, SDL_HINT_JOYSTICK_HIDAPI_PS4, SDL_HINT_JOYSTICK_HIDAPI_PS5,
         SDL_HINT_JOYSTICK_HIDAPI_SWITCH, SDL_HINT_JOYSTICK_HIDAPI_STEAM, SDL_HINT_JOYSTICK_HIDAPI_XBOX,
         SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS, SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS}) SDL_SetHint(hint, "1");
-    // This is the game's main thread, just before Main::Initialize, which asks for a
-    // multithreaded COM apartment and refuses to start (-3) if the thread is already
-    // apartment-threaded. SDL's Windows backends take whichever apartment exists, so
-    // join the game's first; the game's own call then succeeds.
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    // The caller holds this thread in the multithreaded apartment (fMain::Initialize).
     if (!SDL_Init(SDL_INIT_GAMEPAD)) {
         GamepadLayouts::Started({}, false);
         startupWarning = true;
@@ -548,11 +543,13 @@ void SetLayouts(std::vector<StoredLayout> layouts) {
     std::unique_lock lock(mutex);
     GamepadLayouts::Set(std::move(layouts));
 }
-void GameButtonScreen(bool open) {
+void LendGameTables(GameTableUse use) {
     std::unique_lock lock(mutex);
-    if (!active) return;
-    if (open) GamepadLayouts::OpenGameScreen();
-    else GamepadLayouts::CloseGameScreen();
+    if (active) GamepadLayouts::LendGameTables(use);
+}
+void ReturnGameTables(GameTableUse use) {
+    std::unique_lock lock(mutex);
+    if (active) GamepadLayouts::ReturnGameTables(use);
 }
 
 void SetupPrompt(const Identity& identity) {

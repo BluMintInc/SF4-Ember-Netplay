@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/ControllerView.hxx"
+#include "../common/ButtonLayoutSlots.hxx"
 
 namespace sf4e { namespace Gamepads {
 
@@ -23,7 +24,10 @@ struct LayerFrame {
 };
 LayerFrame ReadFrame();
 void SetLayouts(std::vector<gamepads::StoredLayout> layouts);
-void GameButtonScreen(bool open);
+// Game thread: around the game's button screen and its .ctrlsav loader, which
+// rewrite the binding records (GamepadLayouts, GameTableSwap).
+void LendGameTables(gamepads::GameTableUse use);
+void ReturnGameTables(gamepads::GameTableUse use);
 void SetupPrompt(const gamepads::Identity& identity);
 void BeginSetup(const gamepads::Identity& identity, unsigned padId);
 void ControlSetup(gamepads::SetupCommand command, int step);

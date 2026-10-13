@@ -57,47 +57,39 @@ inline bool RestoreGameLayouts(LayoutOwners& owners, const PadBindingRecords& re
         if (owners[slot]) writes.push_back({slot, LayoutSource::GameCopy, false});
     return ApplySlotWrites(owners, {}, writes, records);
 }
-// The slot holds a table the game wrote: keep it as the table to restore, and
-// write the owner's layout back over it.
-inline void Reclaim(LayoutOwner& owner, const PadBindingRecords& records, unsigned slot) {
-    ReadSlot(records, slot, owner.gameCopy);
-    WriteSlot(records, slot, owner.buttons);
-}
-class ButtonScreenSwap {
+// The two game paths that rewrite the binding records' tables after startup:
+// its button screen (OptionUIController) and its .ctrlsav loader (0x51BC30,
+// run on each visit to the title screen).
+enum class GameTableUse { ButtonScreen, ConfigLoad };
+// While one of those paths runs, the game works on its own tables: Open writes
+// every owned slot's gameCopy back, and Close takes what the game left there
+// as the new gameCopy, whatever it is, then writes the layouts again. This is
+// the only way an owned slot's gameCopy changes after it is first saved.
+class GameTableSwap {
 public:
-    bool Open(const LayoutOwners& owners, const PadBindingRecords& records) {
-        for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot] && !records.FightTable(slot)) return false;
+    // Refused while another use holds the tables; that use's Close reclaims them.
+    bool Open(GameTableUse use, const LayoutOwners& owners, const PadBindingRecords& records) {
+        if (use_ || !Owned(owners, records)) return false;
         for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot]) WriteSlot(records, slot, owners[slot]->gameCopy);
-        open_ = true;
+        use_ = use;
         return true;
     }
     bool Close(LayoutOwners& owners, const PadBindingRecords& records) {
-        if (!open_) return false;
-        for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot] && !records.FightTable(slot)) return false;
-        for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot]) Reclaim(*owners[slot], records, slot);
-        open_ = false;
+        if (!use_ || !Owned(owners, records)) return false;
+        for (unsigned slot = 0; slot < 4; ++slot) if (auto& owner = owners[slot]) {
+            ReadSlot(records, slot, owner->gameCopy);
+            WriteSlot(records, slot, owner->buttons);
+        }
+        use_.reset();
         return true;
     }
-    bool IsOpen() const { return open_; }
+    std::optional<GameTableUse> Use() const { return use_; }
 private:
-    bool open_ = false;
-};
-// The game loads its own button config into the binding records a few seconds
-// after they exist (the .ctrlsav loader), over any layout Ember wrote there.
-// An owned slot whose ten entries no longer equal its owner's layout holds that
-// fresh table, so it becomes the slot's gameCopy and the layout is written back.
-// Returns the slots reclaimed. While the game's button screen is open the slots
-// hold gameCopy on purpose (ButtonScreenSwap), so nothing is reclaimed.
-inline std::vector<unsigned> ReclaimReloadedSlots(LayoutOwners& owners, const PadBindingRecords& records,
-    const ButtonScreenSwap& screen) {
-    std::vector<unsigned> reclaimed;
-    if (screen.IsOpen()) return reclaimed;
-    for (unsigned slot = 0; slot < owners.size(); ++slot) {
-        ButtonLayout actual;
-        if (!owners[slot] || !ReadSlot(records, slot, actual) || actual == owners[slot]->buttons) continue;
-        Reclaim(*owners[slot], records, slot);
-        reclaimed.push_back(slot);
+    // Transactional bounds check, as in ApplySlotWrites.
+    static bool Owned(const LayoutOwners& owners, const PadBindingRecords& records) {
+        for (unsigned slot = 0; slot < 4; ++slot) if (owners[slot] && !records.FightTable(slot)) return false;
+        return true;
     }
-    return reclaimed;
-}
+    std::optional<GameTableUse> use_;
+};
 } }

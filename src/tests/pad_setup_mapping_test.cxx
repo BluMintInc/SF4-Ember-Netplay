@@ -21,10 +21,27 @@ std::size_t Count(const std::string& text, const std::string& part) {
     return count;
 }
 int main() {
+    // The wizard's bindings read back as the inputs the merge compares, and name the same inputs.
     for (const RawInput input : {RawInput{RawKind::Button, 12}, RawInput{RawKind::HatLeft, 1}, RawInput{RawKind::AxisPlus, 2},
-        RawInput{RawKind::AxisMinus, 0}, RawInput{RawKind::Trigger, 5}, RawInput{RawKind::Trigger, 5, false, true}})
-        CHECK(ParseRawBinding(RawBinding(input)) == input);
-    CHECK(!ParseRawBinding("67fa") && !ParseRawBinding("abxy") && !ParseRawBinding("+b1") && !ParseRawBinding("h0.3"));
+        RawInput{RawKind::AxisMinus, 0}, RawInput{RawKind::Trigger, 5}, RawInput{RawKind::Trigger, 5, false, true}}) {
+        CHECK(ParseMappingInput(RawBinding(input)) == ToMappingInput(input));
+        CHECK(ToRawInput(ToMappingInput(input)) == input);
+    }
+    using Kind = MappingInput::Kind;
+    CHECK(ParseMappingInput("h0.3") == (MappingInput{Kind::Hat, 0, 3}) && ParseMappingInput("h1.15") == (MappingInput{Kind::Hat, 1, 15}));
+    CHECK(ParseMappingInput("-a3~") == (MappingInput{Kind::Axis, 3, 0, '-', true}) && ParseMappingInput("b003") == (MappingInput{Kind::Button, 3}));
+    for (const char* value : {"67fa", "abxy", "+b1", "b1~", "h0", "h0.0", "h0.16", "a", "a-1", "b2x", "", "~"}) CHECK(!ParseMappingInput(value));
+    CHECK(!ToRawInput(MappingInput{Kind::Hat, 0, 3}));
+    // Overlap: one button, hat masks that share a bit, and an axis whose halves are separate.
+    const auto in = [](const char* value) { return *ParseMappingInput(value); };
+    CHECK(Overlaps(in("b3"), in("b3")) && !Overlaps(in("b3"), in("b4")) && !Overlaps(in("b0"), in("a0")));
+    CHECK(Overlaps(in("h0.3"), in("h0.1")) && Overlaps(in("h0.3"), in("h0.2")) && !Overlaps(in("h0.3"), in("h0.4")) && !Overlaps(in("h0.1"), in("h1.1")));
+    CHECK(Overlaps(in("a2"), in("+a2")) && Overlaps(in("a2~"), in("-a2")) && Overlaps(in("+a2"), in("+a2~")));
+    CHECK(!Overlaps(in("+a2"), in("-a2")) && !Overlaps(in("a2"), in("a3")));
+    // Only outputs SDL knows, signed or not, are bindings; every other field is metadata.
+    const auto parsed = ParseMapping("guid,Name,a:b0,+leftx:b1,misc6:b2,paddle4:h0.4,crc:b003,type:b4,sdk>=:2.0,face:abxy,x:junk,platform:Windows,");
+    CHECK(parsed.bindings.size() == 4 && parsed.bindings[1].output == "+leftx" && MappingTarget(parsed.bindings[1].output) == "leftx");
+    CHECK(parsed.metadata.size() == 5 && parsed.metadata[0].key == "crc" && parsed.metadata[2].key == "sdk>=" && parsed.metadata[4].key == "x");
 
     // An unmapped pad: exactly the recorded pairs, as before the merge existed.
     const std::string guid = "03000000790000001100000000000000";
@@ -78,6 +95,17 @@ int main() {
     const auto hinted = BuildSetupMapping(guid, "Hinted", Record({{"lk", {RawKind::Button, 3}}}),
         guid + ",Hinted,a:b0,crc:67fa,platform:Windows,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,type:xbox360,platform:Windows,");
     CHECK(hinted == guid + ",Hinted,a:b3,crc:67fa,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,type:xbox360,platform:Windows,");
+    // A composite hat binding goes when a recorded direction reads one of its bits;
+    // a hat binding sharing no bit stays.
+    const std::string hatGuid = "03000000790000001200000000000000";
+    const auto composite = BuildSetupMapping(hatGuid, "Hat pad", Record({{"up", {RawKind::HatUp, 0}}, {"right", {RawKind::HatRight, 0}}, {"lk", {RawKind::Button, 3}}}),
+        hatGuid + ",Hat pad,leftshoulder:h0.3,rightshoulder:h0.4,lefttrigger:h0.6,a:b0,platform:Windows,");
+    CHECK(composite == hatGuid + ",Hat pad,dpup:h0.1,dpright:h0.2,a:b3,rightshoulder:h0.4,platform:Windows,");
+    // Binding-shaped metadata stays: crc:b003 with button 3 recorded, and hint and sdk>= fields.
+    const std::string crcGuid = "03000000790000001300000000000000";
+    const auto crc = BuildSetupMapping(crcGuid, "Crc pad", Record({{"lk", {RawKind::Button, 3}}}),
+        crcGuid + ",Crc pad,a:b0,y:b3,crc:b003,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,sdk>=:21,platform:Windows,");
+    CHECK(crc == crcGuid + ",Crc pad,a:b3,crc:b003,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,sdk>=:21,platform:Windows,");
 
     nlohmann::json prefs = {{"controllerMappings", {{guid, full}}}};
     CHECK(sf4e::netplay::ReadControllerMappings(nlohmann::json::parse(prefs.dump())).at(guid) == full);
@@ -85,7 +113,7 @@ int main() {
     CHECK(sf4e::netplay::ReadControllerMappings({{"controllerMappings", {{guid, 5}}}}).empty());
     SDL_SetHint(SDL_HINT_JOYSTICK_THREAD, "0");
     CHECK(SDL_Init(SDL_INIT_GAMEPAD));
-    for (const auto& mapping : {full, stick, sticks, merged, hinted}) CHECK(SDL_AddGamepadMapping(mapping.c_str()) >= 0);
+    for (const auto& mapping : {full, stick, sticks, moved, half, merged, hinted, composite, crc}) CHECK(SDL_AddGamepadMapping(mapping.c_str()) >= 0);
     char* mapping = SDL_GetGamepadMappingForGUID(SDL_StringToGUID(guid.c_str())); CHECK(mapping); SDL_free(mapping);
     // SDL adds the GUID's CRC to what it stores; merging over that keeps one crc and one platform.
     mapping = SDL_GetGamepadMappingForGUID(SDL_StringToGUID(steam.c_str())); CHECK(mapping);

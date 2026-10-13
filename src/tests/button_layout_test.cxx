@@ -104,11 +104,11 @@ static void Writer() {
     placements[1]->instance = 19; CHECK(apply().size() == 1);
     // The game's edit copy now contains only its own tables, across two owners.
     placements[0] = LayoutPlacement{Pad(1), DefaultLayout}; apply();
-    ButtonScreenSwap screen; CHECK(screen.Open(owners, records) && screen.IsOpen());
+    GameTableSwap screen; CHECK(screen.Open(GameTableUse::ButtonScreen, owners, records) && screen.Use() == GameTableUse::ButtonScreen);
     for (unsigned slot : {0u, 1u}) { ReadSlot(records, slot, read); CHECK(read == owners[slot]->gameCopy); }
     auto newGame = DefaultLayout; newGame[2] = 0x50; WriteSlot(records, 0, newGame);
     auto otherGame = DefaultLayout; otherGame[3] = 0xA0; WriteSlot(records, 1, otherGame);
-    CHECK(screen.Close(owners, records) && !screen.IsOpen());
+    CHECK(screen.Close(owners, records) && !screen.Use());
     CHECK(owners[0]->gameCopy == newGame && owners[1]->gameCopy == otherGame);
     ReadSlot(records, 0, read); CHECK(read == owners[0]->buttons); ReadSlot(records, 1, read); CHECK(read == owners[1]->buttons);
     // Shutdown restores every owned slot, including a disconnected owner's slot.
@@ -119,7 +119,7 @@ static void Writer() {
     CHECK(ReadSlot(records, 0, read) && read == newGame && !owners[0]);
     CHECK(ReadSlot(records, 1, read) && read == otherGame && !owners[1]);
 }
-// The game's config load replaces owned tables after Ember wrote them.
+// The game's config load (.ctrlsav) rewrites owned tables after Ember wrote them.
 static void Reload() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 4> memory; memory.fill(0);
     PadBindingRecords records(memory.data(), memory.data() + memory.size());
@@ -128,26 +128,52 @@ static void Reload() {
     const auto apply = [&] { CHECK(ApplySlotWrites(owners, placements, SlotWritePlan(owners, placements, occupied), records)); };
     placements[0] = LayoutPlacement{Pad(1), LayoutPresets[1].buttons}; placements[2] = LayoutPlacement{Pad(2), LayoutPresets[2].buttons};
     occupied[0] = occupied[2] = true; apply();
-    ButtonScreenSwap screen; ButtonLayout read;
-    CHECK(ReclaimReloadedSlots(owners, records, screen).empty());
+    GameTableSwap tables; ButtonLayout read;
+    // The loader runs on the game's own tables, and what it leaves is kept.
+    CHECK(tables.Open(GameTableUse::ConfigLoad, owners, records));
+    for (unsigned slot : {0u, 2u}) CHECK(ReadSlot(records, slot, read) && read == DefaultLayout);
     auto loaded = DefaultLayout; loaded[0] = 0x50; WriteSlot(records, 0, loaded);
     auto unowned = DefaultLayout; unowned[1] = 0xA0; WriteSlot(records, 1, unowned);
-    CHECK(ReclaimReloadedSlots(owners, records, screen) == std::vector<unsigned>{0});
+    CHECK(tables.Close(owners, records) && !tables.Use());
     CHECK(owners[0]->gameCopy == loaded && ReadSlot(records, 0, read) && read == LayoutPresets[1].buttons);
     CHECK(owners[2]->gameCopy == DefaultLayout && ReadSlot(records, 2, read) && read == LayoutPresets[2].buttons);
     CHECK(!owners[1] && ReadSlot(records, 1, read) && read == unowned);
-    CHECK(ReclaimReloadedSlots(owners, records, screen).empty());
     // A later remove writes back the reloaded table, not the one saved at placement.
     placements[0].reset(); apply();
     CHECK(!owners[0] && ReadSlot(records, 0, read) && read == loaded);
-    // Bounds failure: slot 2 lies outside these records, so nothing is written.
-    WriteSlot(records, 2, unowned); auto before = memory;
+    // Bounds failure: slot 2 lies outside these records, so nothing is written
+    // and the tables stay with Ember until a Close succeeds.
+    auto before = memory;
     PadBindingRecords shortRecords(memory.data(), memory.data() + 2 * PadBindingRecords::Stride);
-    CHECK(ReclaimReloadedSlots(owners, shortRecords, screen).empty() && memory == before && owners[2]->gameCopy == DefaultLayout);
-    // While the game's button screen is open its tables are meant to differ.
-    CHECK(screen.Open(owners, records)); WriteSlot(records, 2, loaded); before = memory;
-    CHECK(ReclaimReloadedSlots(owners, records, screen).empty() && memory == before && owners[2]->gameCopy == DefaultLayout);
-    CHECK(screen.Close(owners, records) && owners[2]->gameCopy == loaded && ReadSlot(records, 2, read) && read == LayoutPresets[2].buttons);
+    CHECK(!tables.Open(GameTableUse::ConfigLoad, owners, shortRecords) && memory == before && !tables.Use());
+    CHECK(tables.Open(GameTableUse::ConfigLoad, owners, records)); WriteSlot(records, 2, loaded); before = memory;
+    CHECK(!tables.Close(owners, shortRecords) && memory == before && tables.Use() == GameTableUse::ConfigLoad);
+    CHECK(tables.Close(owners, records) && owners[2]->gameCopy == loaded && ReadSlot(records, 2, read) && read == LayoutPresets[2].buttons);
+    // A load while the button screen holds the tables is left to the screen's Close.
+    CHECK(tables.Open(GameTableUse::ButtonScreen, owners, records) && !tables.Open(GameTableUse::ConfigLoad, owners, records));
+    auto edited = loaded; edited[4] = 0x20; WriteSlot(records, 2, edited);
+    CHECK(tables.Use() == GameTableUse::ButtonScreen && tables.Close(owners, records) && owners[2]->gameCopy == edited);
+}
+// A loaded table equal to the Ember layout still replaces the startup table.
+static void ReloadEqual() {
+    alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 4> memory; memory.fill(0);
+    PadBindingRecords records(memory.data(), memory.data() + memory.size());
+    for (unsigned slot = 0; slot < 4; ++slot) WriteSlot(records, slot, DefaultLayout);
+    LayoutOwners owners; LayoutPlacements placements; std::array<bool, 4> occupied{};
+    const auto apply = [&] { CHECK(ApplySlotWrites(owners, placements, SlotWritePlan(owners, placements, occupied), records)); };
+    const auto layout = LayoutPresets[1].buttons;
+    placements[0] = LayoutPlacement{Pad(1), layout}; occupied[0] = true; apply();
+    CHECK(owners[0]->gameCopy == DefaultLayout);
+    GameTableSwap tables; ButtonLayout read;
+    CHECK(tables.Open(GameTableUse::ConfigLoad, owners, records));
+    WriteSlot(records, 0, layout);
+    CHECK(tables.Close(owners, records) && owners[0]->gameCopy == layout && ReadSlot(records, 0, read) && read == layout);
+    // The button screen opened after the load shows the loaded table.
+    CHECK(tables.Open(GameTableUse::ButtonScreen, owners, records) && ReadSlot(records, 0, read) && read == layout);
+    CHECK(tables.Close(owners, records));
+    // Removing the layout restores the loaded table, not the startup one.
+    placements[0].reset(); apply();
+    CHECK(!owners[0] && ReadSlot(records, 0, read) && read == layout);
 }
 static void Capture() {
     LayoutCapture capture; capture.Begin(0, {"A"});
@@ -162,4 +188,4 @@ static void Capture() {
     capture.Begin(0, {}); CHECK(capture.Left(0) == 1 && capture.Left(2.5) == .75 && capture.Left(12) == 0);
     CHECK(capture.Read(10, {}, AllLayoutButtons).cancelled == LayoutCancel::Timeout && capture.Left(10) == 0);
 }
-int main() { Model(); Persistence(); Writer(); Reload(); Capture(); }
+int main() { Model(); Persistence(); Writer(); Reload(); ReloadEqual(); Capture(); }

@@ -109,6 +109,20 @@ void LogRenderingThread() {
     if (s_renderingThread.Applied()) spdlog::info("Display: {}", s_renderingThread.Describe());
 }
 
+// Holds the calling thread in the multithreaded COM apartment for its scope.
+// Only a successful call (S_OK, or S_FALSE when the thread already was in it)
+// takes a reference, and only that reference is released.
+class MultithreadedApartment {
+public:
+    MultithreadedApartment() : result_(CoInitializeEx(nullptr, COINIT_MULTITHREADED)) {}
+    ~MultithreadedApartment() { if (result_ == S_OK || result_ == S_FALSE) CoUninitialize(); }
+    MultithreadedApartment(const MultithreadedApartment&) = delete;
+    MultithreadedApartment& operator=(const MultithreadedApartment&) = delete;
+    HRESULT Result() const { return result_; }
+private:
+    HRESULT result_;
+};
+
 // Dev check for the limiter hook: SF4E_PACING_TEST_SHIFT_MS (2, -2, or 0 for a
 // baseline) replaces every pacing request with that shift and logs the
 // measured frame every 600 frames. Nothing reaches the pacing controller.
@@ -344,6 +358,14 @@ int fMain::Initialize(void* a, void* b, void* c) {
 	rMain::staticMethods.GetFocusStateSingleton();
 	// This hook is outside DllMain: worker creation and named-pipe IPC are safe.
 	sf4e::NetplayFacade::StartHelper();
+	// Order matters: Main::Initialize (0x77E3E0) asks for the multithreaded
+	// apartment and gives up with -3 when its CoInitializeEx returns
+	// RPC_E_CHANGED_MODE, and SDL's Windows backends, started by
+	// Gamepads::Start, join whichever apartment the thread is already in. So
+	// the thread enters the multithreaded apartment before both. This scope's
+	// reference ends when Initialize returns; the game's own reference, released
+	// in Main::Destroy (0x77E6C0), keeps the apartment for the session.
+	const MultithreadedApartment apartment;
 	sf4e::Gamepads::Start();
     if (sf4e::hSyncEvent != NULL) {
         SetEvent(sf4e::hSyncEvent);
@@ -417,6 +439,9 @@ int fMain::Initialize(void* a, void* b, void* c) {
         MessageBox(NULL, TEXT("Could not get appdata path for logs!"), NULL, MB_OK);
     }
     CoTaskMemFree(path);
+    if (apartment.Result() != S_OK && apartment.Result() != S_FALSE)
+        spdlog::warn("COM: the game thread could not enter the multithreaded apartment before Main::Initialize ({:#010x})",
+            static_cast<unsigned long>(apartment.Result()));
 
     if (rval != 0) {
         // The game failed to initialize and ends after this returns: it has no device to draw on.

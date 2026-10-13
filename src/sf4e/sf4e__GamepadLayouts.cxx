@@ -10,11 +10,11 @@ using namespace gamepads;
 namespace {
 std::vector<StoredLayout> layouts;
 LayoutOwners owners;
-ButtonScreenSwap gameScreen;
-bool closingGameScreen = false;
+GameTableSwap gameTables;
+// A Close refused by the bounds check is retried on each update.
+bool returningTables = false;
 struct LastSlot { Identity identity; int slot; };
 std::vector<LastSlot> lastSlots;
-std::array<bool, 4> reclaimLogged{};
 bool loggingReady = false;
 std::vector<std::pair<spdlog::level::level_enum, std::string>> pendingLogs;
 void Log(spdlog::level::level_enum level, std::string message) {
@@ -53,17 +53,9 @@ void Started(const Inventory& inventory, bool active) {
 void Set(std::vector<StoredLayout> next) { layouts = std::move(next); }
 const std::vector<StoredLayout>& Stored() { return layouts; }
 void Update(const Inventory& inventory) {
-    if (closingGameScreen) CloseGameScreen();
-    if (gameScreen.IsOpen()) return;
+    if (returningTables) ReturnGameTables(*gameTables.Use());
+    if (gameTables.Use()) return;
     const auto records = Dimps::Pad::BindingRecords();
-    // Every update, before the plan, so a removal or a new owner starts from the
-    // game's fresh table. If the game rewrote a table every frame (it does not),
-    // this would write the layout back every frame; the log stays once per slot.
-    for (const auto slot : ReclaimReloadedSlots(owners, records, gameScreen)) if (!reclaimLogged[slot]) {
-        reclaimLogged[slot] = true;
-        Log(spdlog::level::info, fmt::format("Input: slot {} fight table reloaded by the game; its table saved again and the layout for id {} written back",
-            slot + 1, owners[slot]->instance));
-    }
     LayoutPlacements placements;
     std::array<bool, 4> occupied{};
     std::array<const Pad*, 4> pads{};
@@ -113,19 +105,20 @@ void Read(PadFrame& frame, const Inventory& inventory) {
     frame.table = frame.layout.value_or(DefaultLayout);
     if (frame.pad.slot >= 0) ReadSlot(Dimps::Pad::BindingRecords(), frame.pad.slot, frame.table);
 }
-void OpenGameScreen() {
-    if (gameScreen.Open(owners, Dimps::Pad::BindingRecords()))
-        Log(spdlog::level::info, fmt::format("Input: game button screen open; Ember layouts set aside"));
+void LendGameTables(GameTableUse use) {
+    if (gameTables.Open(use, owners, Dimps::Pad::BindingRecords()) && use == GameTableUse::ButtonScreen)
+        Log(spdlog::level::info, "Input: game button screen open; Ember layouts set aside");
 }
-void CloseGameScreen() {
-    if (!gameScreen.IsOpen()) return;
-    closingGameScreen = !gameScreen.Close(owners, Dimps::Pad::BindingRecords());
-    if (!closingGameScreen) Log(spdlog::level::info, "Input: game button screen closed; Ember layouts restored");
+void ReturnGameTables(GameTableUse use) {
+    if (gameTables.Use() != use) return;
+    returningTables = !gameTables.Close(owners, Dimps::Pad::BindingRecords());
+    if (!returningTables) Log(spdlog::level::info, use == GameTableUse::ButtonScreen ?
+        "Input: game button screen closed; Ember layouts restored" : "Input: game button config loaded; Ember layouts reapplied");
 }
 void Shutdown() {
     if (!RestoreGameLayouts(owners, Dimps::Pad::BindingRecords()))
         Log(spdlog::level::warn, "Input: game button tables could not be restored at shutdown (invalid binding records)");
-    gameScreen = {};
-    closingGameScreen = false;
+    gameTables = {};
+    returningTables = false;
 }
 } }

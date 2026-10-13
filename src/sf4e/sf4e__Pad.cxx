@@ -4,6 +4,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "sf4e__InputLag.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Overlay.hxx"
@@ -46,6 +47,17 @@ void fSystem::Install() {
     unsigned int (fSystem:: * _fGetButtons_RawOn)(int) = &GetButtons_RawOn;
     DetourAttach((PVOID*)&rSystem::publicMethods.GetButtons_MappedOn, *(PVOID*)&_fGetButtons_MappedOn);
     DetourAttach((PVOID*)&rSystem::publicMethods.GetButtons_RawOn, *(PVOID*)&_fGetButtons_RawOn);
+    void (fSystem::* load)() = &LoadButtonConfig;
+    DetourAttach((PVOID*)&rSystem::publicMethods.LoadButtonConfig, *(PVOID*)&load);
+}
+
+// The game's .ctrlsav loader reads and writes the game's own tables: Ember's
+// layouts are set aside while it runs, and whatever it leaves becomes the
+// table each owned slot returns to (GameTableSwap).
+void fSystem::LoadButtonConfig() {
+    sf4e::Gamepads::LendGameTables(sf4e::gamepads::GameTableUse::ConfigLoad);
+    (this->*rSystem::publicMethods.LoadButtonConfig)();
+    sf4e::Gamepads::ReturnGameTables(sf4e::gamepads::GameTableUse::ConfigLoad);
 }
 
 void fSystem::UpdateInputs() {

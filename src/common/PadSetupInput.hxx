@@ -1,6 +1,5 @@
 #pragma once
 #include <algorithm>
-#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -29,35 +28,6 @@ inline std::string RawBinding(const RawInput& input) {
     case RawKind::Trigger: return "a" + i + (input.inverted ? "~" : "");
     default: return "h" + i + "." + std::to_string(1u << (static_cast<unsigned>(input.kind) - 1));
     }
-}
-// The inverse of RawBinding: bN, hN.mask, signed +aN/-aN, and aN or aN~.
-inline std::optional<RawInput> ParseRawBinding(std::string value) {
-    if (value.empty()) return {};
-    RawInput input;
-    if (value[0] == '+' || value[0] == '-') {
-        input.kind = value[0] == '+' ? RawKind::AxisPlus : RawKind::AxisMinus;
-        value.erase(0, 1);
-        if (value.empty() || value[0] != 'a') return {};
-    } else input.kind = value[0] == 'b' ? RawKind::Button : value[0] == 'h' ? RawKind::HatUp : RawKind::Trigger;
-    const char kind = value[0];
-    if (kind != 'a' && kind != 'b' && kind != 'h') return {};
-    const auto parsed = std::from_chars(value.data() + 1, value.data() + value.size(), input.index);
-    if (parsed.ec != std::errc{} || input.index < 0) return {};
-    if (kind == 'h') {
-        if (parsed.ptr == value.data() + value.size() || *parsed.ptr != '.') return {};
-        unsigned mask = 0;
-        const auto hat = std::from_chars(parsed.ptr + 1, value.data() + value.size(), mask);
-        if (hat.ec != std::errc{} || hat.ptr != value.data() + value.size()) return {};
-        if (mask == 1) input.kind = RawKind::HatUp;
-        else if (mask == 2) input.kind = RawKind::HatRight;
-        else if (mask == 4) input.kind = RawKind::HatDown;
-        else if (mask == 8) input.kind = RawKind::HatLeft;
-        else return {};
-    } else if (parsed.ptr != value.data() + value.size()) {
-        if (kind != 'a' || *parsed.ptr != '~' || parsed.ptr + 1 != value.data() + value.size()) return {};
-        input.inverted = true;
-    }
-    return input;
 }
 // Whether two bindings read the same physical input. A full axis (aN or aN~)
 // covers both of its halves.
