@@ -8,34 +8,10 @@
 #include <vector>
 #include <string>
 #include "FrameMeter.hxx"
+#include "RecordingTypes.hxx"
 
 namespace sf4e { namespace training {
-constexpr int SlotCount = 8;
-// One more slot, never selectable, holds the dummy's typed reply.
-constexpr int ReplySlot = SlotCount;
-constexpr int MaxFrames = 60 * 120;
 constexpr int HistoryRows = 12;
-constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
-constexpr unsigned AttackButtons = 0xcf0;
-// wait: a loaded frame that repeats, buttons held, until the fighter can act
-// again (1) or a hit lands (2), so typed moves take their timing from the
-// fight; offset: frames after the cue the press lands on. A free frame is
-// predicted from the fighter's script, so 0 is that frame itself and a
-// negative offset is before it; a hit is pressed on the frame after it is seen.
-// A reply's leading hold (3) repeats until the reply's first move is due
-// (ReplyFirstMoveDue); elsewhere it is met at once.
-struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
-constexpr int MinOffset = -120, MaxOffset = 120;
-// A slot holds its frames as played by a fighter facing right, so a move
-// recorded on one side comes out the same on the other: Left and Right are
-// swapped for a fighter facing left, in both words, per played frame.
-constexpr unsigned LeftBit = 4, RightBit = 8;
-inline unsigned MirrorDirections(unsigned bits) {
-    return (bits & ~(LeftBit | RightBit)) | (bits & LeftBit ? RightBit : 0) | (bits & RightBit ? LeftBit : 0);
-}
-inline Input Mirror(Input input) { input.mapped = MirrorDirections(input.mapped); input.raw = MirrorDirections(input.raw); return input; }
-// Between the slot's facing and a fighter's: the same swap both ways.
-inline Input ForFacing(const Input& input, bool facingRight) { return facingRight ? input : Mirror(input); }
 constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -149,11 +125,6 @@ inline bool ValidDummyPlan(const DummyPlan& plan) {
         plan.hold < plan.anchor && (plan.hold < 0 || plan.moves[plan.hold].wait == WaitReply) : !plan.offset && plan.anchor < 0 && plan.hold < 0;
     return plan.when >= 0 && plan.when <= 4 && plan.slot >= 0 && plan.slot < SlotCount && plan.chance >= 0 && plan.chance <= 100 &&
         plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && frames <= MaxFrames && schedule;
-}
-// A reply starts on its first pressed frame; -1 when it presses nothing.
-inline int ReplyStart(const std::vector<Input>& frames) {
-    const auto first = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & FightButtons) != 0; });
-    return first == frames.end() ? -1 : static_cast<int>(first - frames.begin());
 }
 // When a reply's first move lands, in frames of the reply as Session plays
 // it: start, its first played frame (ReplyStart); hold, the frame its
