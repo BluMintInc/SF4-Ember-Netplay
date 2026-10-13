@@ -12,9 +12,9 @@ import {
   TestPlayer,
   verifyWebhook,
 } from "../src/index.ts";
-import { missing, startBridge } from "./bridge-process.ts";
+import { startBridge } from "./bridge-process.ts";
 
-test("SDK drives a live bridge end to end", { skip: missing, timeout: 60_000 }, async () => {
+test("SDK drives a live bridge end to end", { timeout: 60_000 }, async () => {
   const bridge = await startBridge();
   const receiver = createServer();
   try {

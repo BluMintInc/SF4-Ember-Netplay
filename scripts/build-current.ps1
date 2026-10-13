@@ -33,8 +33,14 @@ if ($LASTEXITCODE) { throw 'Build failed' }
 # receipt names them, so testsPassed never implies they ran (ledger A-015).
 $excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 if (!$SkipTests) {
-    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests
+    $junit = Join-Path $build 'ctest-junit.xml'
+    Remove-Item -LiteralPath $junit -ErrorAction SilentlyContinue
+    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests --output-junit $junit
     if ($LASTEXITCODE) { throw 'Tests failed' }
+    # The receipt names these components, so the run itself must show them.
+    $ran = @(([xml](Get-Content -Raw -LiteralPath $junit)).testsuite.testcase | Where-Object { $_.status -eq 'run' -and !$_.failure } | ForEach-Object { $_.name })
+    $missing = @('HelperRust','EmberRust','BridgeSdk') | Where-Object { $_ -notin $ran }
+    if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }
@@ -45,4 +51,10 @@ if ((Get-FileHash -LiteralPath (Join-Path $stage 'GGPO.dll')).Hash -ne $dependen
 $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll' }) {
     [pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $file.FullName).Hash}
 }
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+$components = @(
+    [ordered]@{name='Windows native build and local staging';platform='windows';status='passed'},
+    [ordered]@{name='Default CTest including helper Rust, Ember Rust and BridgeSdk';platform='windows';status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
+    [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
+    [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
+    [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')

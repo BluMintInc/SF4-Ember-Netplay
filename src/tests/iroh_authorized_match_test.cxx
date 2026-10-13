@@ -1,3 +1,4 @@
+#include "network_completion.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/sf4e__SessionServer.hxx"
 #include "iroh_integration_fixture.hxx"
@@ -112,7 +113,7 @@ struct DiscardedControlStream {
 
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
-	CHECK(argc >= 2 && argc <= 4);
+	CHECK(argc >= 2 && argc <= 5);
 	bool relayOnly = false, terminalRecovery = false, benchmark = false, autoChecks = false;
 	for (int i = 2; i < argc; ++i) {
 		const std::wstring option = argv[i];
@@ -122,7 +123,7 @@ int wmain(int argc, wchar_t** argv) {
 		// Both fighters on Auto: each asks for its check one settle after the
 		// seats show, at the same moment, and asks once more if it fails.
 		else if (option == L"--auto-checks") autoChecks = true;
-		else CHECK(false);
+		else CHECK(sf4e::test::ParseNetworkCaseOption(option));
 	}
 	CHECK(!(autoChecks && benchmark));
 	constexpr std::size_t Count = 4;
@@ -695,4 +696,5 @@ int wmain(int argc, wchar_t** argv) {
 	for (auto& helper : helpers) CHECK(helper.Send("{\"type\":\"shutdown\"}"));
 	wait([&]() { return std::all_of(processes.begin(), processes.end(), [](const platform::HelperProcess& process) { return !process.IsRunning(); }); });
 	std::cout << "Four participants, three fresh authorized GGPO matches, same-pair rematches and spectator mapping passed. No SF4 simulation tested.\n";
+    sf4e::test::CompleteNetworkCase();
 }

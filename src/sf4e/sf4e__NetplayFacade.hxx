@@ -4,6 +4,7 @@
 #include "../ui/ChatTranscript.hxx"
 #include "../common/MenuInputCapture.hxx"
 #include "../common/TrainingCallInput.hxx"
+#include "../common/InstalledContent.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
@@ -93,7 +94,8 @@ namespace sf4e {
 			std::string displayName;
 			Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
 			int stage = 0;
-			selection::StageMask randomStageExcluded = 0;
+			// The stages Random may land on (P1 resolves Random with it).
+			selection::RandomPool randomPool;
 			netplay::PlayerPreferences preferences;
 			room::Action roomAction;
             int selectedDelay=-1;
@@ -129,6 +131,8 @@ namespace sf4e {
             std::uint64_t padHintUntil = 0;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
+            // The custom content installed on this PC: built once at the scan and shared, never copied.
+            selection::InstalledContentPtr installedContent;
 			netplay::Snapshot session;
 			room::Snapshot room;
 			// When `room` arrived (GetTickCount64); idle times count on from it.

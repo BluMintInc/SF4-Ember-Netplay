@@ -1,3 +1,4 @@
+#include "network_completion.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/sf4e__SessionServer.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
@@ -68,12 +69,11 @@ int wmain(int argc, wchar_t** argv) {
 		else if (arg == L"--game-cost-us") gameCostUs = static_cast<int>(number());
 		else if (arg == L"--cycles") rematchCycles = number();
 		else if (arg == L"--json") { CHECK(i + 1 < argc); jsonPath = argv[++i]; }
-		else CHECK(false);
+		else CHECK(sf4e::test::ParseNetworkCaseOption(arg));
 	}
 	if (!perTable) perTable = count;
 	CHECK(count >= 2 && count <= room::MaxMembers && perTable >= 2 && count % perTable == 0);
 	CHECK(perTable <= room::MaxMatchParticipants && count / perTable <= room::TableCount && rematchCycles >= 1);
-	const bool singleTable = count == perTable;
 	const std::size_t tableCount = count / perTable;
 	const int playerFrames = perf ? perfFrames + 20 : 80, watchFrames = perf ? perfFrames : 60;
 	if (perf) diag::SetEnabled(true);
@@ -786,4 +786,5 @@ int wmain(int argc, wchar_t** argv) {
 	wait([&]() { return std::all_of(processes.begin(), processes.end(), [](const platform::HelperProcess& process) { return !process.IsRunning(); }); });
 	std::cout << Count << " members; " << tableCount << " concurrent match(es) with " << (perTable - 2) << " spectator(s) each; "
 		<< rematchCycles << " games without automatic rotation and spectator input verification passed. No SF4 simulation tested.\n";
+    sf4e::test::CompleteNetworkCase();
 }

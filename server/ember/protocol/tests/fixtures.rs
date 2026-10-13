@@ -38,6 +38,22 @@ fn typed<T: serde::de::DeserializeOwned>(name: &str) -> T {
     json::parse_as(&bytes(name), MAX_BODY).unwrap()
 }
 
+#[test]
+fn shared_event_envelope_acceptance_vectors() {
+    #[derive(Deserialize)]
+    struct Vector {
+        name: String,
+        valid: bool,
+        event: serde_json::Value,
+    }
+    let vectors: Vec<Vector> = typed("event-envelope-vectors.json");
+    for vector in vectors {
+        let accepted = serde_json::from_value::<Event>(vector.event)
+            .is_ok_and(|event| event.check(OriginPolicy::AllowLoopbackHttp).is_ok());
+        assert_eq!(accepted, vector.valid, "{}", vector.name);
+    }
+}
+
 #[derive(Deserialize)]
 struct Vectors {
     identities: Vec<IdentityVector>,

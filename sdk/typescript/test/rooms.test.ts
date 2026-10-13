@@ -2,13 +2,13 @@
 // (built by `cargo build -p ember-bridge` in server/ember) with a stand-in room
 // supervisor (docs/design/PUBLIC_ROOMS.md, "Supervisor API"). The bridge asks
 // the supervisor which rooms are alive every five seconds, so the live test
-// waits on that. Skipped when the binary is absent.
+// waits on that. Requires EMBER_BRIDGE_TEST_BINARY from the tested build.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
 
 import { BridgeClient, BridgeError, eventType, isRoomEvent, parseEvent, TestPlayer, type BridgeEvent, type ConnectionRoom, type RoomEvent } from "../src/index.ts";
-import { linkPlayer, missing, startBridge, until } from "./bridge-process.ts";
+import { linkPlayer, startBridge, until } from "./bridge-process.ts";
 
 const SECRET = "sdk-supervisor-secret";
 const BUILD = "sdk-build";
@@ -103,7 +103,7 @@ function refusal(reason: string, status: number) {
   return (error: BridgeError) => error.status === status && error.details.reason === reason;
 }
 
-test("a connection opens, lists and closes rooms for linked players", { skip: missing, timeout: 90_000 }, async () => {
+test("a connection opens, lists and closes rooms for linked players", { timeout: 90_000 }, async () => {
   const supervisor = await startSupervisor();
   const bridge = await startBridge({
     config: { rooms: { supervisor_url: supervisor.url } },
@@ -197,7 +197,7 @@ test("a connection opens, lists and closes rooms for linked players", { skip: mi
   }
 });
 
-test("rooms are off for a connection without them, and for a bridge without a supervisor", { skip: missing, timeout: 60_000 }, async () => {
+test("rooms are off for a connection without them, and for a bridge without a supervisor", { timeout: 60_000 }, async () => {
   const bridge = await startBridge();
   try {
     const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });

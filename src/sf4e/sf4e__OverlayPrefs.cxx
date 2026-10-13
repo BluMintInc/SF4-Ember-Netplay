@@ -1,6 +1,7 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/SettingsWriter.hxx"
@@ -8,6 +9,7 @@
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../netplay/ButtonPromptPreference.hxx"
 
+#include <algorithm>
 #include <fstream>
 #include <climits>
 #include <mutex>
@@ -68,6 +70,20 @@ namespace OverlayPrefs {
             selection::ToNative(pick, c);
         }
 
+		// Picks of custom content the setup program has removed since: the original costume (color kept unless it's a
+		// custom one), color 1 of the costume, and the default stage. The selectors only offer what is installed (scanned once per game start).
+		void DropRemovedCustom(Data& data) {
+			const auto installed = custom::Installed();
+			auto costume = [&](CharaPick& c) {
+				if (selection::IsCustomCostume(c.costume) && !installed->HasCostume(c.charaID, c.costume)) c.costume = 0;
+				if (selection::IsCustomColor(c.color) && !installed->HasColor(c.charaID, c.costume, c.color)) c.color = 0;
+			};
+			costume(data.lobby);
+			for (auto& fighter : data.fighters) costume(fighter);
+			if (selection::IsCustomStage(data.stageID) && !installed->HasStage(data.stageID))
+				data.stageID = Data{}.stageID;
+		}
+
 
 	} // namespace
 
@@ -101,6 +117,7 @@ namespace OverlayPrefs {
 	}
 
 	void Clamp(Data& data) {
+        DropRemovedCustom(data);
         ClampChara(data.lobby, data.lobbyEditionSelect);
         for (int id = 0; id < selection::FighterCount; ++id) {
             data.fighters[id].charaID = static_cast<uint8_t>(id);
@@ -110,7 +127,7 @@ namespace OverlayPrefs {
         }
         if (data.lobby.charaID < data.fighters.size()) data.fighters[data.lobby.charaID] = data.lobby;
         data.stageID = selection::NormalizeStageChoice(data.stageID);
-        data.randomStageExcluded = selection::NormalizeRandomExclusions(data.randomStageExcluded);
+        data.randomPool = selection::RandomPool(std::vector<std::int64_t>(data.randomPool.Excluded().begin(), data.randomPool.Excluded().end()));
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
     }
@@ -134,10 +151,9 @@ namespace OverlayPrefs {
 		}
 		out.stageID = selection::PreferenceStage(j, "stageID", out.stageID);
 		if (j.contains("randomStageExcluded") && j["randomStageExcluded"].is_array()) {
-			std::uint64_t excluded = 0;
-			for (const auto& id : j["randomStageExcluded"])
-				if (id.is_number_integer() && selection::FindStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
-			out.randomStageExcluded = selection::NormalizeRandomExclusions(excluded);
+			std::vector<std::int64_t> excluded;
+			for (const auto& id : j["randomStageExcluded"]) if (id.is_number_integer()) excluded.push_back(id.get<std::int64_t>());
+			out.randomPool = selection::RandomPool(excluded);
 		}
 
 		if (j.contains("lobbySettings") && j["lobbySettings"].is_object()) {
@@ -173,8 +189,7 @@ namespace OverlayPrefs {
 		}
 		j["stageID"] = data.stageID;
 		j["randomStageExcluded"] = nlohmann::json::array();
-		for (const auto& stage : selection::StageList())
-			if (!selection::InRandomPool(stage.id, data.randomStageExcluded)) j["randomStageExcluded"].push_back(stage.id);
+		for (int id : data.randomPool.Excluded()) j["randomStageExcluded"].push_back(id);
 
 		j["lobbySettings"] = {
 			{"roundCountIdx", data.lobbyRoundCountIdx},

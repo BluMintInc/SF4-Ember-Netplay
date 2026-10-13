@@ -1,3 +1,4 @@
+#include "network_completion.hxx"
 #include "../session/IrohRoom.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionServer.hxx"
@@ -24,7 +25,7 @@ static SessionClient::Callbacks Callbacks(Observer& observer) {
 
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
-	CHECK(argc >= 2 && argc <= 4);
+	CHECK(argc >= 2 && argc <= 5);
 	bool relayOnly=false, quick=false, queueAcks=false, probeCheck=false, benchmark=false, rejoin=false;
 	for(int i=2;i<argc;++i) {
 		const std::wstring option=argv[i];
@@ -34,7 +35,7 @@ int wmain(int argc, wchar_t** argv) {
 		else if(option==L"--probe") { probeCheck=true; quick=true; }
 		else if(option==L"--benchmark") { probeCheck=true; benchmark=true; quick=true; }
 		else if(option==L"--rejoin") { rejoin=true; quick=true; }
-		else CHECK(false);
+		else CHECK(sf4e::test::ParseNetworkCaseOption(option));
 	}
 	platform::HelperProcess hostProcess, guestProcess;
 	CHECK(hostProcess.Start(argv[1], GetCurrentProcessId(), relayOnly));
@@ -171,6 +172,7 @@ int wmain(int argc, wchar_t** argv) {
 			CHECK(guestHelper.Send("{\"type\":\"shutdown\"}"));
 			wait([&]() {return !hostProcess.IsRunning() && !guestProcess.IsRunning();});
 			std::cout << "192 identical terminal retries retained one queued action; distinct generation and Chat survived in order. No SF4 gameplay tested.\n";
+			sf4e::test::CompleteNetworkCase();
 			return 0;
 		}
 		if(roomCycle==0) {
@@ -439,4 +441,5 @@ int wmain(int argc, wchar_t** argv) {
 	std::cout << "C++ SessionClient/SessionServer over two Iroh helpers passed: " << (quick?1:3)
 		<< " rooms, " << (quick?0:90) << " committed Ready/Unready cycles, neutral Leave, relay-only="
 		<< relayOnly << ". No SF4 gameplay tested.\n";
+    sf4e::test::CompleteNetworkCase();
 }

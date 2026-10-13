@@ -9,6 +9,7 @@
 #include "../common/GamepadIdentity.hxx"
 #include <nlohmann/json.hpp>
 #include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 
 #include "../Dimps/Dimps__GameEvents.hxx"
@@ -47,8 +48,8 @@ namespace OverlayPrefs {
 		// restores that fighter's entry; fighters[lobby.charaID] equals lobby.
 		std::array<CharaPick, selection::FighterCount> fighters;
 		int stageID = 0;
-		// Stages Random skips (selection::StageMask).
-		std::uint32_t randomStageExcluded = 0;
+		// The stages Random may land on (saved as the list of those taken out).
+		selection::RandomPool randomPool;
 
 		// Lobby match settings (host-editable in the network panel)
 		int lobbyRoundCountIdx = 1;
@@ -61,9 +62,9 @@ namespace OverlayPrefs {
 		std::optional<gamepads::Identity> deviceIdentity;
 		bool controllerLayer = true;
 		bool operator==(const Data& other) const {
-            return std::tie(lobby, fighters, stageID, randomStageExcluded, lobbyRoundCountIdx, lobbyRoundTimeIdx,
+            return std::tie(lobby, fighters, stageID, randomPool, lobbyRoundCountIdx, lobbyRoundTimeIdx,
                 lobbyEditionSelect, deviceIdx, deviceType, deviceIdentity, controllerLayer) ==
-                std::tie(other.lobby, other.fighters, other.stageID, other.randomStageExcluded,
+                std::tie(other.lobby, other.fighters, other.stageID, other.randomPool,
                     other.lobbyRoundCountIdx, other.lobbyRoundTimeIdx, other.lobbyEditionSelect,
                     other.deviceIdx, other.deviceType, other.deviceIdentity, other.controllerLayer);
         }

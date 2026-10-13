@@ -57,20 +57,59 @@ static int CheckPerFighterPicks() {
         Prefs::Clamp(clamped);
         check(clamped.stageID == 0, "clamping kept an unsupported stage");
     }
+    // Picks of custom content that isn't installed (here none is) go back to the defaults: the original costume with
+    // its color kept, and the default stage.
+    Prefs::Data removed;
+    removed.stageID = sf4e::selection::CustomStageId("C12");
+    removed.lobby.charaID = 0; removed.lobby.costume = 11; removed.lobby.color = 3;
+    removed.fighters[0] = removed.lobby;
+    Prefs::Clamp(removed);
+    check(removed.stageID == 0, "a custom stage that isn't installed stayed picked");
+    check(removed.lobby.costume == 0 && removed.lobby.color == 3 && removed.fighters[0].costume == 0,
+        "a custom costume that isn't installed stayed picked");
+    Prefs::Data removedCustomColor;
+    removedCustomColor.lobby.charaID = 0; removedCustomColor.lobby.costume = 11; removedCustomColor.lobby.color = 30;
+    removedCustomColor.fighters[0] = removedCustomColor.lobby;
+    Prefs::Clamp(removedCustomColor);
+    check(removedCustomColor.lobby.costume == 0 && removedCustomColor.lobby.color == 0,
+        "a custom color of a custom costume that isn't installed stayed picked");
+    Prefs::Data removedColor;
+    removedColor.lobby.charaID = 0; removedColor.lobby.costume = 1; removedColor.lobby.color = 30;
+    removedColor.fighters[0] = removedColor.lobby;
+    Prefs::Clamp(removedColor);
+    check(removedColor.lobby.costume == 1 && removedColor.lobby.color == 0 && removedColor.fighters[0].color == 0,
+        "a custom color that isn't installed stayed picked");
     // Stages taken out of Random round-trip as ids; unknown ids are dropped,
     // and a list that would leave Random nothing is forgotten.
-    random.randomStageExcluded = (1u << 0) | (1u << 26);
+    const int c71 = sf4e::selection::CustomStageId("C71");
+    random.randomPool = sf4e::selection::RandomPool(std::vector<std::int64_t>{0, 26, c71});
     Prefs::Data pool;
     Prefs::FromJson(Prefs::ToJson(random), pool);
     Prefs::Clamp(pool);
-    check(pool.randomStageExcluded == random.randomStageExcluded, "the Random stage pool did not round-trip");
+    check(pool.randomPool == random.randomPool && !pool.randomPool.Contains(c71) && pool.randomPool.Contains(1),
+        "the Random stage pool did not round-trip (custom stages are saved in the same list, by id)");
     Prefs::Data odd;
     Prefs::FromJson({{"randomStageExcluded", {1, 22, 99, -3, "x"}}}, odd);
-    check(odd.randomStageExcluded == (1u << 1), "unknown stages entered the Random exclusions");
+    check(odd.randomPool.Excluded() == std::vector<int>{1}, "unknown stages entered the Random exclusions");
     Prefs::Data none;
-    none.randomStageExcluded = ~0u;
+    std::vector<std::int64_t> everyStage;
+    for (const auto& stage : sf4e::selection::StageList()) everyStage.push_back(stage.id);
+    Prefs::FromJson({{"randomStageExcluded", everyStage}}, none);
     Prefs::Clamp(none);
-    check(none.randomStageExcluded == 0, "clamping kept exclusions that leave Random nothing");
+    check(none.randomPool.Excluded().empty(), "a list that leaves Random no game stage was kept");
+    // Any number of custom stages can be taken out, and none comes back to make room.
+    Prefs::Data many;
+    for (int n = 0; n < 100; ++n) {
+        const char code[4] = {'E', static_cast<char>('0' + n / 10), static_cast<char>('0' + n % 10), 0};
+        many.randomPool.Toggle(sf4e::selection::CustomStageId(code));
+    }
+    Prefs::Data manyBack;
+    Prefs::FromJson(Prefs::ToJson(many), manyBack);
+    check(manyBack.randomPool.Excluded().size() == 100 && manyBack.randomPool == many.randomPool, "a long Random exclusion list lost stages");
+    // The preferences compare field by field: a pool change counts, an identical copy doesn't.
+    Prefs::Data same = many, poolChanged = many;
+    poolChanged.randomPool.Toggle(1);
+    check(many == same && many != poolChanged, "the preferences comparison missed the Random pool");
 
     Prefs::Data controller;
     controller.controllerLayer = false;

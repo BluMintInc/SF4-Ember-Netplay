@@ -1875,6 +1875,9 @@ msgstr "Альт. {0}"
 msgid "selection.alternate_pack"
 msgstr "Альт. {0} / {1}"
 
+msgid "selection.custom"
+msgstr "Свой {0}"
+
 msgid "selection.stage_count"
 msgstr "АРЕН: {0} / USFIV"
 
