@@ -2,6 +2,7 @@
 #include "../netplay/ControllerMappings.hxx"
 #include "../sf4e/sf4e__GamepadBindings.hxx"
 #include <SDL3/SDL.h>
+#include <array>
 #include <initializer_list>
 #include <iostream>
 #include <stdexcept>
@@ -81,9 +82,9 @@ void PureMerge() {
     CHECK(MergeSetup(lk, {}) == Bindings({Bind("a", B(3))}));
 }
 void Writing() {
-    // An unmapped pad: the recorded pairs in step order, SDL's positional mark, then platform.
-    const std::string guid = "03000000790000001100000000000000", tail = "hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,platform:Windows,";
-    const auto write = [&](const std::string& name, const SetupState& state) { return WriteSdlMapping(guid, name, MergeSetup(state, {})).value(); };
+    // An unmapped pad: the recorded pairs in step order, its face, SDL's positional mark, then platform.
+    const std::string guid = "03000000790000001100000000000000", tail = "face:abxy,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,platform:Windows,";
+    const auto write = [&](const std::string& name, const SetupState& state) { return SetupMapping(state, SdlSnapshot{}, guid, name, {}).value(); };
     auto state = Record({{"up", {RawKind::HatUp, 0}}, {"down", {RawKind::HatDown, 0}}, {"left", {RawKind::AxisMinus, 1}}, {"right", {RawKind::AxisPlus, 1}},
         {"lp", {RawKind::Button, 0}}, {"mp", {RawKind::Button, 1}}, {"hp", {RawKind::Button, 2}}, {"lk", {RawKind::Button, 3}}, {"mk", {RawKind::Button, 4}},
         {"hk", {RawKind::Trigger, 5, false, true}}, {"3p", {RawKind::Button, 6}}, {"3k", {RawKind::Trigger, 6}}, {"start", {RawKind::Button, 8}}, {"select", {RawKind::Button, 9}}});
@@ -101,56 +102,71 @@ void Writing() {
         "leftstick:b11,leftx:a0,lefty:a2~,+rightx:b7,+righty:h1.4,start:b8," + tail);
     // Every input and output range in its canonical form.
     auto half = Bind("leftx", A(0, Hi, 0)); half.output = {SdlBindType::Axis, 0, 0, Lo};
-    CHECK(WriteSdlMapping(guid, "Forms", {half, Bind("lefty", A(1, Lo, 0)), Bind("lefttrigger", A(2, Hi, Lo)), Bind("misc1", H(1, 17))}).value() ==
+    CHECK(WriteSdlMapping(guid, "Forms", {{half, Bind("lefty", A(1, Lo, 0)), Bind("lefttrigger", A(2, Hi, Lo)), Bind("misc1", H(1, 17))}}).value() ==
         guid + ",Forms,-leftx:+a0~,lefty:-a1~,lefttrigger:a2~,misc1:h1.17," + tail);
 
     // Metadata as SDL reads it: the first of each key after the GUID and name,
-    // plain values only. Hints and platform go; platform is written once, last.
+    // plain values only. Face, hints and platform go; platform is written once, last.
     CHECK(SdlMetadata(guid + ",Name type:ps4,a:b0,type:xbox360,face:abxy,sdk>=:21,sdk<=:99,crc:b003,hint:SDL_X:=1,type:ps5,platform:Windows,") ==
-        "crc:b003,type:xbox360,face:abxy,sdk>=:21,sdk<=:99,");
+        "crc:b003,type:xbox360,sdk>=:21,sdk<=:99,");
     CHECK(SdlMetadata(guid + ",Name,a:b0,crc:67fa,platform:Windows,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1, type : xbox360,Platform:Windows,") == "crc:67fa,");
     CHECK(SdlMetadata(guid + ",Name,xtype:x-1,type:ps4,face:") == "" && SdlMetadata("") == "" && SdlMetadata(guid + ",Name") == "");
-    const auto kept = WriteSdlMapping(guid, "Kept", {Bind("a", B(3))}, guid + ",Kept,a:b0,crc:67fa,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,type:xbox360,platform:Windows,").value();
-    CHECK(kept == guid + ",Kept,a:b3,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,crc:67fa,type:xbox360,platform:Windows,");
+    // The snapshot's face is the only one, ahead of the other metadata.
+    const auto kept = WriteSdlMapping(guid, "Kept", {{Bind("a", B(3))}, SdlFace::Bayx},
+        guid + ",Kept,a:b0,face:abxy,crc:67fa,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,type:xbox360,platform:Windows,").value();
+    CHECK(kept == guid + ",Kept,a:b3,face:bayx,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,crc:67fa,type:xbox360,platform:Windows,");
 
     // A HIDAPI GUID: the first binding to a button from dpup on never reads
     // its own number, or SDL would move every button input.
     const std::string hid = "050000005e040000e002000000006800";
     CHECK(HidapiGuid(hid) && !HidapiGuid(guid));
     const Bindings own = {Bind("dpup", B(11)), Bind("dpdown", H(0, 4)), Bind("misc1", B(15))};
-    CHECK(WriteSdlMapping(hid, "Pad", own).value().find(",Pad,dpdown:h0.4,dpup:b11,misc1:b15,") != std::string::npos);
-    CHECK(WriteSdlMapping(guid, "Pad", own).value().find(",Pad,dpup:b11,dpdown:h0.4,misc1:b15,") != std::string::npos);
+    CHECK(WriteSdlMapping(hid, "Pad", {own}).value().find(",Pad,dpdown:h0.4,dpup:b11,misc1:b15,") != std::string::npos);
+    CHECK(WriteSdlMapping(guid, "Pad", {own}).value().find(",Pad,dpup:b11,dpdown:h0.4,misc1:b15,") != std::string::npos);
     const Bindings legacy = {Bind("a", B(0)), Bind("dpup", B(11)), Bind("dpdown", B(12)), Bind("dpleft", B(13)), Bind("dpright", B(14)), Bind("misc1", B(15))};
-    CHECK(!WriteSdlMapping(hid, "Pad", legacy) && WriteSdlMapping(guid, "Pad", legacy));
+    CHECK(!WriteSdlMapping(hid, "Pad", {legacy}) && WriteSdlMapping(guid, "Pad", {legacy}));
 }
-// SDL holds the mapping for a virtual pad; the bindings SDL makes for it, read
-// as SaveSetup reads them.
-Bindings Hold(SDL_JoystickID pad, const std::string& mapping) {
+// SDL holds the mapping for a virtual pad; what SDL makes of it, read as
+// SaveSetup reads it.
+SdlSnapshot Snap(SDL_JoystickID pad, const std::string& mapping) {
     if (SDL_AddGamepadMapping(mapping.c_str()) < 0) throw std::runtime_error("SDL rejected " + mapping);
-    return ReadBindings(pad, nullptr).value();
+    return ReadSnapshot(pad, nullptr).value();
 }
-// Merges the recorded steps over what SDL binds for body, as SaveSetup does,
-// writing for guid, and checks SDL binds the result exactly as expected. A
-// HIDAPI-style guid's mapping is decoded on the virtual pad, which has no fixup.
+Bindings Hold(SDL_JoystickID pad, const std::string& mapping) { return Snap(pad, mapping).bindings; }
+// The labels SDL gives the pad's south, east, west and north buttons.
+using Labels = std::array<SDL_GamepadButtonLabel, 4>;
+Labels LabelsOf(SDL_JoystickID pad) {
+    SDL_Gamepad* gamepad = SDL_OpenGamepad(pad); CHECK(gamepad);
+    Labels labels;
+    for (int i = 0; i < 4; ++i) labels[i] = SDL_GetGamepadButtonLabel(gamepad, static_cast<SDL_GamepadButton>(SDL_GAMEPAD_BUTTON_SOUTH + i));
+    SDL_CloseGamepad(gamepad);
+    return labels;
+}
+// Merges the recorded steps over what SDL makes of body, as SaveSetup does,
+// writing for guid, and checks SDL binds the result exactly as expected with
+// the labels SDL gave body. A HIDAPI-style guid's mapping is decoded on the
+// virtual pad, which has no fixup.
 std::string Merge(SDL_JoystickID pad, const SetupState& recorded, const std::string& body, const std::string& expected, std::string guid = {}) {
     const auto padGuid = GuidOf(pad);
     if (guid.empty()) guid = padGuid;
-    const auto existing = Hold(pad, padGuid + ",Pad," + body);
-    const auto merged = MergeSetup(recorded, existing);
-    auto written = WriteSdlMapping(guid, "Pad", merged, MappingText(padGuid)).value();
+    const auto existing = Snap(pad, padGuid + ",Pad," + body);
+    const auto labels = LabelsOf(pad);
+    auto written = SetupMapping(recorded, existing, guid, "Pad", MappingText(padGuid)).value();
     written.replace(0, guid.size(), padGuid);
     const auto decoded = Hold(pad, written);
+    const bool sameLabels = LabelsOf(pad) == labels;
     const auto want = Hold(pad, padGuid + ",Pad," + expected + "," + std::string(PositionalHint));
-    if (!(decoded == want) || (HidapiGuid(guid) && LegacyHidapi(decoded))) throw std::runtime_error("merge " + body + " gave " + written);
-    if (guid == padGuid) CHECK(decoded == merged);
+    if (!(decoded == want) || !sameLabels || (HidapiGuid(guid) && LegacyHidapi(decoded))) throw std::runtime_error("merge " + body + " gave " + written);
+    if (guid == padGuid) CHECK(decoded == MergeSetup(recorded, existing.bindings));
     return written;
 }
 void VirtualPads() {
     const auto pad = Attach("Ember mapping corpus");
     const auto padGuid = GuidOf(pad);
-    // Each binding SDL makes is written back as text SDL binds the same way:
-    // SDL's database mappings, composite hats, metadata, case and spaces,
-    // lenient inputs, colons, double signs, SDL's stop, and label hints.
+    // Each binding SDL makes is written back as text SDL binds the same way,
+    // with the labels SDL gave it: SDL's database mappings, composite hats,
+    // metadata, case and spaces, lenient inputs, colons, double signs, SDL's
+    // stop, label hints, a Sony type without a face and a GameCube hint.
     const std::string corpus[] = {
         "a:b0,b:b1,back:b6,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b10,leftshoulder:b4,leftstick:b8,lefttrigger:a2,leftx:a0,lefty:a1,"
             "rightshoulder:b5,rightstick:b9,righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3,",
@@ -169,11 +185,20 @@ void VirtualPads() {
         "crc:b003,hint:SDL_X:=1,type:xbox360,sdk>=:21,sdk<=:99,x:b2,platform:Windows,",
         "a:b0,b:b1,x:b2,y:b3,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
         "a:b0,b:b1,x:b2,y:b3,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
-        "a:b0,x:b2"};
+        "a:b0,x:b2",
+        "a:b0,b:b1,x:b2,y:b3,type:ps4,",
+        "a:b0,b:b1,x:b2,y:b3,hint:SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,"};
     for (const auto& body : corpus) {
-        const auto bound = Hold(pad, padGuid + ",Corpus," + body);
-        if (!(Hold(pad, WriteSdlMapping(padGuid, "Corpus", bound, MappingText(padGuid)).value()) == bound)) throw std::runtime_error("round trip " + body);
+        const auto held = Snap(pad, padGuid + ",Corpus," + body);
+        const auto labels = LabelsOf(pad);
+        const auto written = WriteSdlMapping(padGuid, "Corpus", held, MappingText(padGuid)).value();
+        if (!(Hold(pad, written) == held.bindings) || LabelsOf(pad) != labels || Count(written, "face:") != 1) throw std::runtime_error("round trip " + body);
     }
+    // The faces SDL gives them: Sony from the type, BAYX from a button label
+    // hint, and AXBY from any GameCube hint, even a negated one.
+    CHECK(Snap(pad, padGuid + ",Corpus," + corpus[16]).face == SdlFace::Sony && Snap(pad, padGuid + ",Corpus," + corpus[17]).face == SdlFace::Axby);
+    CHECK(Snap(pad, padGuid + ",Corpus," + corpus[13]).face == SdlFace::Bayx && Snap(pad, padGuid + ",Corpus," + corpus[14]).face == SdlFace::Axby);
+    CHECK(Snap(pad, padGuid + ",Corpus," + corpus[0]).face == SdlFace::Abxy);
 
     // SDL's database: the 2026-10-13 save over its XInput mapping keeps LB, LT,
     // LS, RS, both sticks and Guide for the skipped steps, in SDL's order.
@@ -216,16 +241,23 @@ void VirtualPads() {
         "a:b3,y:b4,+lefty:a1~,lefttrigger:-a2~,rightx:h1.17,touchpad:+a5~");
     SDL_DetachVirtualJoystick(pad);
 
-    // An unmapped pad binds nothing; the saved setup is exactly the recorded steps.
+    // An unmapped pad binds nothing; the saved setup is exactly the recorded
+    // steps, labelled as SDL labels the pad's type.
     const auto unmapped = Attach("Ember unmapped pad");
-    CHECK(!SDL_IsGamepad(unmapped) && ReadBindings(unmapped, nullptr).value().empty());
+    const auto snapshot = ReadSnapshot(unmapped, nullptr);
+    CHECK(!SDL_IsGamepad(unmapped) && snapshot && snapshot->bindings.empty());
+    const auto type = SDL_GetGamepadTypeForID(unmapped);
     const auto recorded = Record({{"up", {RawKind::HatUp, 0}}, {"lk", {RawKind::Button, 3}}, {"hk", {RawKind::Trigger, 5, false, true}}});
-    CHECK(Hold(unmapped, WriteSdlMapping(GuidOf(unmapped), "Unmapped", MergeSetup(recorded, {})).value()) ==
+    CHECK(Hold(unmapped, SetupMapping(recorded, snapshot, GuidOf(unmapped), "Unmapped", {}).value()) ==
         Bindings({Bind("dpup", H(0, 1)), Bind("a", B(3)), Bind("righttrigger", A(5, Hi, Lo))}));
+    for (int i = 0; i < 4; ++i) CHECK(LabelsOf(unmapped)[i] == SDL_GetGamepadButtonLabelForType(type, static_cast<SDL_GamepadButton>(SDL_GAMEPAD_BUTTON_SOUTH + i)));
+    // A read SDL fails is no snapshot, not a pad that binds nothing, and a save from it writes no mapping.
+    CHECK(!ReadBindings(nullptr) && !SetupMapping(recorded, std::nullopt, GuidOf(unmapped), "Unmapped", {}));
     SDL_DetachVirtualJoystick(unmapped);
 
-    // A GameCube pad: SDL swaps b and x of a mapping without a GameCube hint;
-    // the positional mark keeps them where the merge put them.
+    // A GameCube pad: SDL swaps b and x of a mapping without a GameCube hint
+    // and labels it AXBY; the positional mark keeps them where the merge put
+    // them, and the face keeps its labels.
     const auto cube = Attach("Ember GameCube pad", 0x1234, 0x5678);
     const auto cubeGuid = GuidOf(cube);
     CHECK(Hold(cube, cubeGuid + ",Cube,x:b2,b:b1,") == Bindings({Bind("b", B(2)), Bind("x", B(1))}));

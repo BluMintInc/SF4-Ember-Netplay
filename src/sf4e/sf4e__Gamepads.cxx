@@ -328,7 +328,8 @@ void UpdateLocked(bool rebuild) {
         if (handle != handles.end() && SDL_GamepadConnected(handle->second)) {
             frame.state = ReadState(handle->second);
             if (pad.hasEmberMapping) {
-                frame.bindings = ReadBindings(handle->second);
+                // A failed read names no bound inputs this frame.
+                frame.bindings = ReadBindings(handle->second).value_or(std::vector<SdlBinding>{});
                 frame.numberedHats = SDL_GetNumJoystickHats(SDL_GetGamepadJoystick(handle->second)) > 1;
             }
             const SDL_GamepadButton buttons[] = {SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER};
@@ -563,9 +564,11 @@ void BeginSetup(const Identity& identity, unsigned padId) {
     for (const auto& pad : inventory.pads) if (Same(pad.identity, identity)) {
         const auto handle = handles.find(pad.id);
         if (handle == handles.end() || !SDL_GetGamepadButton(handle->second, SDL_GAMEPAD_BUTTON_SOUTH)) break;
-        for (const auto& binding : ReadBindings(handle->second)) if (binding.output == SdlTarget("a") && binding.input.type == SdlBindType::Axis) {
-            entry = SetupAxisEntry{binding.input.index, binding.input.min}; break;
-        }
+        // A failed read finds no axis behind the entry press.
+        for (const auto& binding : ReadBindings(handle->second).value_or(std::vector<SdlBinding>{}))
+            if (binding.output == SdlTarget("a") && binding.input.type == SdlBindType::Axis) {
+                entry = SetupAxisEntry{binding.input.index, binding.input.min}; break;
+            }
         break;
     }
     setupModel.Start(GetTickCount64(), entry); setup.padId = padId; setup.identity = identity; setup.state = setupModel.State();
@@ -583,15 +586,15 @@ std::optional<std::string> SaveSetup() {
     UpdateLocked(false);
     if (!active || !setup.state.active || setup.state.mode != SetupMode::Summary || !setup.state.CanSave() || setup.state.feedback == SetupFeedback::Reconnect) return {};
     const auto guid = setup.identity.guid;
-    // The merge starts from what SDL binds for the pad; its mapping text only
-    // supplies the fields that bind nothing.
+    // The merge starts from SDL's snapshot of the pad, its bindings and face
+    // style; its mapping text only supplies the other fields that bind nothing.
     const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [](const Pad& candidate) { return Same(candidate.identity, setup.identity); });
     const auto handle = pad == inventory.pads.end() ? handles.end() : handles.find(pad->id);
-    const auto existing = pad == inventory.pads.end() ? std::nullopt : ReadBindings(pad->id, handle == handles.end() ? nullptr : handle->second);
+    const auto snapshot = pad == inventory.pads.end() ? std::nullopt : ReadSnapshot(pad->id, handle == handles.end() ? nullptr : handle->second);
     const auto text = MappingForGuid(guid);
-    const auto mapping = existing ? WriteSdlMapping(guid, setup.identity.name, MergeSetup(setup.state, *existing), text) : std::nullopt;
+    const auto mapping = SetupMapping(setup.state, snapshot, guid, setup.identity.name, text);
     std::string failure;
-    if (!existing) failure = fmt::format("the pad's bindings could not be read (SDL: {})", SDL_GetError());
+    if (!snapshot) failure = fmt::format("the pad's bindings could not be read (SDL: {})", SDL_GetError());
     else if (!mapping) failure = "SDL would take its d-pad for a legacy HIDAPI one and move its buttons";
     else if (SDL_AddGamepadMapping(mapping->c_str()) < 0) failure = fmt::format("SDL rejected {} ({})", *mapping, SDL_GetError());
     if (!failure.empty()) {

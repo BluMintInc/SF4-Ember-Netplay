@@ -2,6 +2,7 @@
 #include "../common/SdlMapping.hxx"
 #include <SDL3/SDL.h>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace sf4e { namespace gamepads {
@@ -9,11 +10,13 @@ static_assert(static_cast<int>(SdlBindType::Button) == SDL_GAMEPAD_BINDTYPE_BUTT
     static_cast<int>(SdlBindType::Hat) == SDL_GAMEPAD_BINDTYPE_HAT && SdlLeftTrigger == SDL_GAMEPAD_AXIS_LEFT_TRIGGER &&
     SdlDpadUp == SDL_GAMEPAD_BUTTON_DPAD_UP && SdlButtonNames.size() == SDL_GAMEPAD_BUTTON_COUNT && SdlAxisNames.size() == SDL_GAMEPAD_AXIS_COUNT,
     "SDL's binding model moved");
-// The one way Ember knows a pad's bindings: what SDL binds for an open
-// gamepad, in SDL's order, with label hints and the HIDAPI fixup already applied.
-inline std::vector<SdlBinding> ReadBindings(SDL_Gamepad* gamepad) {
+// What SDL binds for an open gamepad, in SDL's order, with label hints and the
+// HIDAPI fixup already applied. None when SDL cannot copy them, which is not a
+// pad that binds nothing.
+inline std::optional<std::vector<SdlBinding>> ReadBindings(SDL_Gamepad* gamepad) {
     int count = 0;
     SDL_GamepadBinding** bindings = SDL_GetGamepadBindings(gamepad, &count);
+    if (!bindings) return {};
     std::vector<SdlBinding> read;
     for (int i = 0; i < count; ++i) {
         const auto& sdl = *bindings[i];
@@ -29,15 +32,29 @@ inline std::vector<SdlBinding> ReadBindings(SDL_Gamepad* gamepad) {
     SDL_free(bindings);
     return read;
 }
-// A pad's bindings by id, from its open gamepad or one opened for the read. A
-// pad SDL has no mapping for binds nothing. Empty when SDL cannot open a mapped pad.
-inline std::optional<std::vector<SdlBinding>> ReadBindings(SDL_JoystickID id, SDL_Gamepad* open) {
-    if (open) return ReadBindings(open);
-    if (!SDL_IsGamepad(id)) return std::vector<SdlBinding>{};
-    SDL_Gamepad* gamepad = SDL_OpenGamepad(id);
+// The face style SDL labels by, told apart by its south and east labels.
+inline SdlFace FaceFromLabels(SDL_GamepadButtonLabel south, SDL_GamepadButtonLabel east) {
+    if (south == SDL_GAMEPAD_BUTTON_LABEL_CROSS) return SdlFace::Sony;
+    if (south == SDL_GAMEPAD_BUTTON_LABEL_B) return SdlFace::Bayx;
+    return east == SDL_GAMEPAD_BUTTON_LABEL_X ? SdlFace::Axby : SdlFace::Abxy;
+}
+// The one way Ember knows a pad: what SDL makes of it by id, from its open
+// gamepad or one opened for the read. A pad SDL has no mapping for binds
+// nothing and takes the face style of its type. None when SDL cannot open a
+// mapped pad or copy its bindings.
+inline std::optional<SdlSnapshot> ReadSnapshot(SDL_JoystickID id, SDL_Gamepad* open) {
+    if (!open && !SDL_IsGamepad(id)) {
+        const auto type = SDL_GetGamepadTypeForID(id);
+        return SdlSnapshot{{}, FaceFromLabels(SDL_GetGamepadButtonLabelForType(type, SDL_GAMEPAD_BUTTON_SOUTH),
+            SDL_GetGamepadButtonLabelForType(type, SDL_GAMEPAD_BUTTON_EAST))};
+    }
+    SDL_Gamepad* gamepad = open ? open : SDL_OpenGamepad(id);
     if (!gamepad) return {};
-    auto read = ReadBindings(gamepad);
-    SDL_CloseGamepad(gamepad);
+    std::optional<SdlSnapshot> read;
+    if (auto bindings = ReadBindings(gamepad))
+        read = SdlSnapshot{std::move(*bindings), FaceFromLabels(SDL_GetGamepadButtonLabel(gamepad, SDL_GAMEPAD_BUTTON_SOUTH),
+            SDL_GetGamepadButtonLabel(gamepad, SDL_GAMEPAD_BUTTON_EAST))};
+    if (!open) SDL_CloseGamepad(gamepad);
     return read;
 }
 } }
