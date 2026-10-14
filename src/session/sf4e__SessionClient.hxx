@@ -256,6 +256,8 @@ namespace sf4e {
 		bool HandleBattleHash(nlohmann::json& msg);
 		void ProjectSelectedRoomTable();
 		void TrySendPendingJoinRequest();
+		// The admission the hello and the fallback join_req both carry.
+		SessionProtocol::SessionJoinRequest BuildJoinRequest() const;
 		void ReconcileTerminalAcks();
 		RetainedRoomRetry* RetryRecord(room::ActionKind kind);
 		session::SendResult RetryRoomLifecycleAction(room::Action action,

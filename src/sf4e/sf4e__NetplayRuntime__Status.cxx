@@ -3,6 +3,7 @@
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "../netplay/PublishCadence.hxx"
+#include "../netplay/LatencyBoard.hxx"
 #include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -489,6 +490,7 @@ PostPublishState Publish() {
 		snapshot.shortInvitation = runtime->room->ShortInvitation();
 		snapshot.shortInvitationPending = runtime->room->ShortInvitationPending();
 		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
+		snapshot.memberLatency = runtime->room->MemberLatencies();
 	}
 	FillRoomView(snapshot);
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->readyIntent.Parked() &&
@@ -560,6 +562,17 @@ void PumpDiscordClient() {
     }
 }
 
+static netplay::LatencyBoardPulse latencyBoard;
+
+void TickMemberLatency() {
+	if (!runtime->room) return;
+	const auto session = runtime->controller.GetSnapshot();
+	static const room::Snapshot none;
+	const auto& room = runtime->attached && UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot() : none;
+	const bool shown = latencyBoard.Shown(room.roomEpoch, GetTickCount64());
+	runtime->room->WatchLatency(netplay::LatencyWanted(shown, session.room, session.match, room, runtime->replacementPending));
+}
+
 void PublishAndTickDiscordInvite() {
 	const auto view=PublishThrottled();
     std::string currentParty; std::uint64_t expiry=0;
@@ -585,6 +598,10 @@ std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, boo
     // Recovery ends (MatchRecovered) only once the session is idle at the main
     // menu; until then, and while native GGPO lives, nothing is retired yet.
     return match && !ggpoLive && !recovering ? match->RetiredGeneration() : 0;
+}
+
+void NoteLatencyBoard(std::uint64_t roomGeneration) {
+	internal::latencyBoard.Note(roomGeneration, GetTickCount64());
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

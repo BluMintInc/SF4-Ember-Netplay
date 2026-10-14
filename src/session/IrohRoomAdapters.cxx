@@ -96,6 +96,9 @@ public:
 		return room->state_ == IrohRoom::State::Ready || room->state_ == IrohRoom::State::Degraded ? ConnectionState::Connected : ConnectionState::Connecting;
 	}
 	std::string PeerAddress() const override { return {}; }
+	LatencyRoute LocalLatency() const override {
+		return closed || room->epoch_ != epoch ? LatencyRoute{} : room->localLatency_;
+	}
 	bool Poll(std::vector<Message>& messages, std::size_t maximum) override {
 		room->Poll();
 		if (State() == ConnectionState::Failed || State() == ConnectionState::Closed) return false;

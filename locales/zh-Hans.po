@@ -4046,6 +4046,21 @@ msgstr "{0}，{1}     排队 {2}     观战 {3}"
 msgid "room.streak"
 msgstr "连胜 {0} 组"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "估计网络延迟：约 {0} ms。"
+
+msgid "room.latency.tip.measuring"
+msgstr "正在测量网络延迟..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "无法获取网络延迟：尚未连接到该成员。"
+
+msgid "room.latency.tip.in_match"
+msgstr "该成员对战期间暂停测量网络延迟。"
+
 msgid "screen.public_rooms"
 msgstr "公开房间"
 

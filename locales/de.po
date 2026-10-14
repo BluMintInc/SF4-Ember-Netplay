@@ -4046,6 +4046,21 @@ msgstr "{0}, {1}     Warteschlange {2}     Zuschauer {3}"
 msgid "room.streak"
 msgstr "{0} Sätze in Folge"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Geschätzter Ping: etwa {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Ping wird gemessen..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping nicht verfügbar: noch keine Verbindung zu diesem Mitglied."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping pausiert, während dieses Mitglied spielt."
+
 msgid "screen.public_rooms"
 msgstr "Öffentliche Räume"
 

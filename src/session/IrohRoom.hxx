@@ -12,6 +12,7 @@
 #include "../common/RoomLimits.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "TournamentAnswers.hxx"
+#include "MemberLatency.hxx"
 #include <array>
 #include <deque>
 #include <map>
@@ -216,6 +217,16 @@ public:
 	virtual GameSnapshot Game(const std::string& peer) const;
 	std::unique_ptr<ServerTransport> Server();
 	std::unique_ptr<ClientTransport> Client();
+	// This member's latency route for the current room, from the helper's
+	// hosted or connected event; none until then and after every Host or Join.
+	const LatencyRoute& LocalLatency() const { return localLatency_; }
+	// The room board's latency subscription: on while `wanted` and the room is
+	// open, renewed every few seconds, and off otherwise (MemberLatency.hxx).
+	void WatchLatency(bool wanted);
+	// The ping to each other member for the active subscription; empty without one.
+	const MemberLatencyTable& MemberLatencies() const { return latency_.Table(); }
+	// The shared endpoint ID predicate (src/common/EndpointIdentity.hxx).
+	static bool IsEndpointIdentity(const std::string& identity);
 
 private:
 	class ServerAdapter;
@@ -228,7 +239,6 @@ private:
 	// Started participants may retain stable handles after leaving the room.
 	static constexpr std::size_t MaximumRemotePeers = room::MaxMembers - 1 + room::TableCount * room::MaxMatchParticipants;
 	static const std::string& NoInvitation() { static const std::string none; return none; }
-	static bool IsEndpointIdentity(const std::string& identity);
 	// Short, log-safe form of an endpoint identity.
 	static std::string PeerTag(const std::string& peer);
 	// One session of a remote endpoint. Its transitions live in
@@ -375,6 +385,10 @@ private:
 	std::uint64_t shortFailures_ = 0;
 	std::string error_;
 	std::string localIdentity_;
+	LatencyRoute localLatency_;
+	LatencySubscription latency_;
+	// Applies the latency fields of a hosted or connected event when it has them.
+	void ReadLocalLatency(const nlohmann::json& event);
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
 	netplay::IdentityView identity_;

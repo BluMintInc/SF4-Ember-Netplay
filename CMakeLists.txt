@@ -307,6 +307,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME LatencyMark SOURCES src/tests/latency_mark_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayScreenText SOURCES src/tests/replay_screen_text_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15)
     sf4e_add_unit_test(NAME NetworkFeedback SOURCES src/tests/network_feedback_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME NativeSelectionAvailability SOURCES src/tests/native_selection_availability_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
@@ -694,6 +695,8 @@ if(BUILD_TESTING)
         endif()
     endif()
     sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" STD 17 LIBS sf4e_iroh_room)
+    sf4e_add_unit_test(NAME SessionServerLatency SOURCES "src/tests/session_server_latency_test.cxx" STD 17 LIBS sf4e_iroh_room)
+    sf4e_add_unit_test(NAME MemberLatency SOURCES "src/tests/member_latency_test.cxx" STD 17 LIBS sf4e_iroh_room)
     sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
         LIBS sf4e_session_server)
     sf4e_add_unit_test(NAME RoomHostConfig SOURCES "src/tests/room_host_config_test.cxx" "server/roomhost/RoomHost.cxx" "server/roomhost/RoomHostStatus.cxx"

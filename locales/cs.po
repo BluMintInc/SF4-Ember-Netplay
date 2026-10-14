@@ -4046,6 +4046,21 @@ msgstr "{0}, {1}     Fronta: {2}     Sleduje: {3}"
 msgid "room.streak"
 msgstr "Sety v řadě: {0}"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Odhadovaný ping: asi {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Měření pingu..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping není k dispozici: k tomuto členovi zatím není spojení."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping je pozastaven, dokud tento člen hraje."
+
 msgid "screen.public_rooms"
 msgstr "Veřejné místnosti"
 

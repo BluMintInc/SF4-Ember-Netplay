@@ -55,11 +55,47 @@ static void TestPublicJoinRejectionWording() {
 	CHECK(std::string(SessionClient::JoinRejectionKey(Error::SCE_JOIN_REJECTED_REQUEST_INVALID)) == "runtime.room_request_failed");
 }
 
+// One builder serves the hello admission and the fallback join_req, and both
+// carry the transport's latency route.
+static void TestJoinRequestCarriesLatency() {
+	SessionClient::Callbacks callbacks = {};
+	callbacks.OnError = [](SessionClient::ErrorType, SessionClient*, const SessionClient::Callbacks&) {};
+	std::string name = "Player";
+	const auto route = LatencyRoute::Parsed(std::string(64, 'c'), "use1");
+	SessionClient room(callbacks, "build", 30000, name);
+	room.RequireCustomRooms();
+	auto* roomTransport = new MockClient();
+	roomTransport->latency = route;
+	CHECK(room.Connect(std::unique_ptr<session::ClientTransport>(roomTransport), false) == 0);
+	roomTransport->state = session::ConnectionState::Connected;
+	CHECK(room.Step() == 0 && roomTransport->sent.size() == 1);
+	const auto admission = roomTransport->sent.back().at("admission").get<protocol::SessionJoinRequest>();
+	CHECK(admission.latency.endpoint == route.endpoint && admission.latency.relay == "use1" && admission.customRooms);
+	SessionClient legacy(callbacks, "build", 30000, name);
+	auto* legacyTransport = new MockClient();
+	legacyTransport->latency = route;
+	CHECK(legacy.Connect(std::unique_ptr<session::ClientTransport>(legacyTransport), false) == 0);
+	legacyTransport->state = session::ConnectionState::Connected;
+	CHECK(legacy.Step() == 0);
+	protocol::SessionHelloResp hello; hello.cid = {"room", "player"};
+	legacyTransport->Push(json(hello)); CHECK(legacy.Step() == 0);
+	CHECK(legacyTransport->sent.back().at("type") == "join_req");
+	CHECK(legacyTransport->sent.back().get<protocol::SessionJoinRequest>().latency.endpoint == route.endpoint);
+	// A transport with no route sends no key.
+	SessionClient none(callbacks, "build", 30000, name);
+	none.RequireCustomRooms();
+	auto* noneTransport = new MockClient();
+	CHECK(none.Connect(std::unique_ptr<session::ClientTransport>(noneTransport), false) == 0);
+	noneTransport->state = session::ConnectionState::Connected;
+	CHECK(none.Step() == 0 && !noneTransport->sent.back().at("admission").contains("latency"));
+}
+
 struct Observer { int ready = 0, synced = 0, error = 0; };
 int main() {
 	TestFailedRoomCanLeaveAfterNativeTeardown();
 	TestJoinRejectionBelongsToOneConnection();
 	TestPublicJoinRejectionWording();
+	TestJoinRequestCarriesLatency();
 	Observer observer;
 	SessionClient::Callbacks callbacks = {};
 	callbacks.data = &observer;

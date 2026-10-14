@@ -4046,6 +4046,21 @@ msgstr "{0}, {1}     Kolejka: {2}     Widzowie: {3}"
 msgid "room.streak"
 msgstr "Sety z rzędu: {0}"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Szacowany ping: około {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Mierzenie pingu..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping niedostępny: brak jeszcze połączenia z tym członkiem."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping wstrzymany, gdy ten członek gra."
+
 msgid "screen.public_rooms"
 msgstr "Pokoje publiczne"
 

@@ -139,6 +139,21 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 				(member.data.flags & ~std::uint64_t(SessionProtocol::MF_BATTLE_LOADED))) return RefuseRestore("members");
 			candidate.clients.push_back(std::move(member));
 		}
+		// One normalized identity per member feeds its client row, the incarnation
+		// map, its stable record and the room snapshot. An old row without an
+		// incarnation takes the snapshot member's, which old snapshots read as 1.
+		for (auto& row : candidate.clients) {
+			const auto member = candidate.roomMembers.at(row.conn);
+			const auto snap = std::find_if(snapshot.members.begin(), snapshot.members.end(),
+				[&](const room::Member& value) { return value.id == member; });
+			const auto incarnation = row.data.incarnation ? row.data.incarnation : snap->incarnation;
+			row.data.incarnation = incarnation;
+			row.data.roomMember = member;
+			row.data.authenticatedEndpoint = candidate.roomPeerIdentities.at(member);
+			candidate._roomAuthority->SetMemberIncarnation(member, incarnation);
+			candidate.roomIncarnations[member] = incarnation;
+			candidate.roomMemberRecords[member] = row.data;
+		}
 		const auto readSets = [&](const char* key, auto& destination) {
 			const auto& rows = value.at(key);
 			if (!rows.is_array() || rows.size() != room::TableCount) return RefuseRestore(key);
@@ -177,6 +192,7 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 		clients = std::move(candidate.clients); cidMap = std::move(candidate.cidMap);
 		roomMembers = std::move(candidate.roomMembers); roomSelectedTables = std::move(candidate.roomSelectedTables);
 		roomPeerIdentities = std::move(candidate.roomPeerIdentities); roomBannedIdentities = std::move(candidate.roomBannedIdentities);
+		roomIncarnations = std::move(candidate.roomIncarnations); roomMemberRecords = std::move(candidate.roomMemberRecords);
 		roomFrozenMembers.clear();
 		_lobbyData = std::move(candidate._lobbyData); _matchData = candidate._matchData;
 		_roomMatchData = std::move(candidate._roomMatchData);
@@ -216,6 +232,8 @@ json SessionServer::RecoveryCheckpoint() const {
 		data.roomMember = member.id;
 		data.authenticatedEndpoint = roomPeerIdentities.count(member.id) ? roomPeerIdentities.at(member.id) : member.connection.user;
 		data.incarnation = roomIncarnations.count(member.id) ? roomIncarnations.at(member.id) : 1;
+		const auto record = roomMemberRecords.find(member.id);
+		if (record != roomMemberRecords.end()) data.latency = record->second.latency;
 		const auto* client = findClient(member.id);
 		if (client) {
 			data.ip = client->data.ip; data.port = client->data.port; data.flags = client->data.flags;
@@ -317,8 +335,12 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 			SessionProtocol::MemberData data = row.at("data").get<SessionProtocol::MemberData>();
 			data.connId = {endpoint.host, endpoint.user}; data.roomMember = member;
 			data.authenticatedEndpoint = row.value("authenticated_endpoint", data.authenticatedEndpoint);
-			data.incarnation = row.value("incarnation", data.incarnation ? data.incarnation : 1ULL);
-			if (!row.value("frozen", false)) {
+			// An active row with neither incarnation field keeps 0, so the canonical
+			// restore takes the snapshot member's. A frozen row has no snapshot member.
+			const bool frozen = row.value("frozen", false);
+			data.incarnation = frozen ? row.value("incarnation", data.incarnation ? data.incarnation : 1ULL)
+				: row.value("incarnation", data.incarnation);
+			if (!frozen) {
 				legacyMembers.push_back({{"connection", synthetic.at(member)}, {"data", data}, {"flags", data.flags}});
 				cids.push_back({synthetic.at(member), data.connId});
 				roomMemberRows.push_back({synthetic.at(member), member});
@@ -389,22 +411,22 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 			_recovery.SetAuthority(authority->term, authority->revision, authority->writable);
 			if (authority->term && authority->term != previousAuthorityTerm) _preparationCancellationRequested = true;
 		}
-		roomIncarnations.clear();
+		// RestoreCheckpoint has already normalized the active incarnations and
+		// records. Only frozen state is rebuilt here, and an active entry wins.
 		roomFrozenMembers.clear();
 		for (const auto& row : value.at("members")) {
+			if (!row.value("frozen", false)) continue;
 			const auto member = row.at("member").get<room::MemberId>();
-			const auto incarnation = row.value("incarnation", 1ULL);
-			roomIncarnations[member] = incarnation;
-			if (row.value("frozen", false)) {
-				FrozenMember frozen;
-				frozen.endpoint = row.at("endpoint").get<room::ConnectionRef>();
-				frozen.data = row.at("data").get<SessionProtocol::MemberData>();
-				frozen.data.connId = {frozen.endpoint.host, frozen.endpoint.user};
-				frozen.data.roomMember = member;
-				frozen.data.incarnation = incarnation;
-				frozen.incarnation = incarnation;
-				roomFrozenMembers[member] = std::move(frozen);
-			}
+			FrozenMember frozen;
+			frozen.endpoint = row.at("endpoint").get<room::ConnectionRef>();
+			frozen.data = row.at("data").get<SessionProtocol::MemberData>();
+			const auto incarnation = row.value("incarnation", frozen.data.incarnation ? frozen.data.incarnation : 1ULL);
+			roomIncarnations.emplace(member, incarnation);
+			frozen.data.connId = {frozen.endpoint.host, frozen.endpoint.user};
+			frozen.data.roomMember = member;
+			frozen.data.incarnation = incarnation;
+			frozen.incarnation = incarnation;
+			roomFrozenMembers[member] = std::move(frozen);
 		}
 		_recoveryPendingSelected.clear();
 		for (const auto& row : value.value("selected_members", json::array())) _recoveryPendingSelected[row.at("member").get<room::MemberId>()] = row.at("table").get<std::uint8_t>();

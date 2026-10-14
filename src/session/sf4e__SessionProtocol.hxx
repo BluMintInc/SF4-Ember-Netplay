@@ -11,6 +11,7 @@
 
 #include "SessionPlainTypes.hxx"
 #include "../common/StageValue.hxx"
+#include "../common/LatencyRoute.hxx"
 #include "RoomModel.hxx"
 
 constexpr int MAX_SF4E_PROTOCOL_USERS = 4;
@@ -67,6 +68,8 @@ namespace sf4e {
 			room::MemberId roomMember = 0;
 			std::string authenticatedEndpoint;
 			std::uint64_t incarnation = 0;
+			// The member's latency endpoint as admitted; none from an older client.
+			LatencyRoute latency;
 		};
 
 		struct LobbyData {
@@ -224,6 +227,16 @@ namespace sf4e {
 			JoinResult result;
 		};
 
+		// What RegisterToWait admits: one join request and the address it came from.
+		struct AdmissionRequest {
+			std::string sidecarHash;
+			std::string username;
+			std::string peerAddress;
+			uint16_t port = 0;
+			room::MemberProfile profile;
+			LatencyRoute latency;
+		};
+
 		struct SessionJoinRequest {
 			MessageType type = MT_SESSION_JOINREQ;
 			std::string sidecarHash;
@@ -244,6 +257,9 @@ namespace sf4e {
 			std::string country;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
+			// The member's latency endpoint; absent from older clients and read as
+			// none when malformed.
+			LatencyRoute latency;
 			room::MemberProfile Profile() const {
 				room::MemberProfile profile{mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)};
 				profile.steamId = SteamId::Parsed(steamId);
@@ -254,6 +270,9 @@ namespace sf4e {
 				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
 				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
 				country = profile.country.ToString();
+			}
+			AdmissionRequest Admission(const std::string& peerAddress) const {
+				return {sidecarHash, username, peerAddress, port, Profile(), latency};
 			}
 		};
 
@@ -409,7 +428,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConnectionID, host, user);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyID, host, key);
 
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MemberData, connId, name, ip, port, flags, roomMember, authenticatedEndpoint, incarnation);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MemberData, connId, name, ip, port, flags, roomMember, authenticatedEndpoint, incarnation, latency);
 		// WITH_DEFAULT so a LobbyData from a peer built before a field was
 		// added (e.g. trainingMode) deserializes with that field's default
 		// instead of throwing on the missing key.
@@ -427,6 +446,7 @@ namespace sf4e {
 				{"link", value.link}, {"nat", value.nat}, {"roomChatDelta", value.roomChatDelta}};
 			if (!value.steamId.empty()) j["steamId"] = value.steamId;
 			if (!value.country.empty()) j["country"] = value.country;
+			if (value.latency.Valid()) j["latency"] = value.latency;
 		}
 		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
 			const SessionJoinRequest defaults{};
@@ -448,6 +468,10 @@ namespace sf4e {
 			const auto country = j.find("country");
 			value.country.clear();
 			if (country != j.end() && country->is_string() && CountryCode::Parsed(country->get<std::string>()).Present()) value.country = country->get<std::string>();
+			// A malformed route is no route; the join itself is unaffected.
+			const auto latency = j.find("latency");
+			value.latency = {};
+			if (latency != j.end()) latency->get_to(value.latency);
 		}
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);

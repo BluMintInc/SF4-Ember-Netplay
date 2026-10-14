@@ -614,6 +614,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
 
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
+ boardDrawn_=false;
  const double now = ImGui::GetTime();
  UpdatePadSetup(v,submit,true);
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}

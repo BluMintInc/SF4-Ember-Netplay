@@ -774,6 +774,7 @@ void TickRuntime() {
 	NoteNativeScreen();
 	SayTraining();
 	TakeJoinLink();
+	TickMemberLatency();
 	PublishAndTickDiscordInvite();
 }
 

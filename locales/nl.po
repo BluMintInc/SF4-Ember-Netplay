@@ -4046,6 +4046,21 @@ msgstr "{0}, {1}     Wachtrij {2}     Kijken {3}"
 msgid "room.streak"
 msgstr "{0} sets op rij"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Geschatte ping: ongeveer {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Ping meten..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping niet beschikbaar: nog geen verbinding met dit lid."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping gepauzeerd terwijl dit lid speelt."
+
 msgid "screen.public_rooms"
 msgstr "Openbare kamers"
 

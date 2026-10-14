@@ -3697,6 +3697,21 @@ msgstr "{0}, {1}     Queue {2}     Watching {3}"
 msgid "room.streak"
 msgstr "{0} sets in a row"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Estimated ping: about {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Measuring ping..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping unavailable: no connection to this member yet."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping paused while this member plays."
+
 msgid "screen.public_rooms"
 msgstr "Public rooms"
 

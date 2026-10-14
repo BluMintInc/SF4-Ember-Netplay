@@ -433,6 +433,8 @@ PostPublishState Publish();
 PostPublishState PublishThrottled();
 void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
+// Keeps the helper's ping subscription in step with the room board.
+void TickMemberLatency();
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

@@ -4046,6 +4046,21 @@ msgstr "{0}, {1}     File {2}     Spect. {3}"
 msgid "room.streak"
 msgstr "{0} sets d'affilée"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Ping estimé : environ {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Mesure du ping..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping indisponible : pas encore de connexion avec ce membre."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping en pause pendant que ce membre joue."
+
 msgid "screen.public_rooms"
 msgstr "Salons publics"
 

@@ -4047,6 +4047,21 @@ msgstr "{0}, {1}     Очередь: {2}     Зрители: {3}"
 msgid "room.streak"
 msgstr "Сетов подряд: {0}"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Примерный пинг: около {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Измерение пинга..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Пинг недоступен: соединения с этим участником пока нет."
+
+msgid "room.latency.tip.in_match"
+msgstr "Пинг приостановлен, пока этот участник играет."
+
 msgid "screen.public_rooms"
 msgstr "Открытые лобби"
 

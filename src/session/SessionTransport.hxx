@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "../common/LatencyRoute.hxx"
+
 namespace sf4e {
 namespace session {
 
@@ -54,6 +56,8 @@ public:
 	virtual SendResult Send(const std::string& payload, bool reliable,
 		std::int64_t* messageId) = 0;
 	virtual std::string PeerAddress() const = 0;
+	// This member's latency route for its join request; none by default.
+	virtual LatencyRoute LocalLatency() const { return {}; }
 	virtual void Close() = 0;
 };
 

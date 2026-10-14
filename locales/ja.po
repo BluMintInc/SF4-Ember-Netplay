@@ -4046,6 +4046,21 @@ msgstr "{0}、{1}     順番待ち{2}     観戦{3}"
 msgid "room.streak"
 msgstr "{0}セット連続"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "推定Ping：約{0} ms。"
+
+msgid "room.latency.tip.measuring"
+msgstr "Pingを測定中..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Pingを取得できません：このメンバーとはまだ接続していません。"
+
+msgid "room.latency.tip.in_match"
+msgstr "このメンバーの対戦中はPingの測定を止めています。"
+
 msgid "screen.public_rooms"
 msgstr "公開ルーム"
 

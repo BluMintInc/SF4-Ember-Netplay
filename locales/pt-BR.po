@@ -3582,6 +3582,21 @@ msgstr "{0}, {1}     Fila {2}     Assistindo {3}"
 msgid "room.streak"
 msgstr "{0} sets seguidos"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Ping estimado: cerca de {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Medindo o ping..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping indisponível: ainda sem conexão com este membro."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping pausado enquanto este membro joga."
+
 msgid "screen.public_rooms"
 msgstr "Salas públicas"
 

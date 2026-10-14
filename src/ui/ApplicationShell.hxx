@@ -14,6 +14,7 @@
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
+#include "../session/MemberLatency.hxx"
 #include <array>
 #include <functional>
 #include <vector>
@@ -64,6 +65,8 @@ struct ShellView {
     std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
     bool probeBenchmark=false;
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
+    // The ping to each other member while the room board is open, by member.
+    session::MemberLatencyTable memberLatency;
     int localSlot = -1;
     std::string invitation, error, settingsError, build;
     // The room's short link, empty until the helper has one. A failure bumps
@@ -235,6 +238,8 @@ public:
     std::uint64_t ReplayInputsRevision() const { return replays_.InputsRevision(); }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
+    // The last Draw drew the room board, whose ping the runtime asks for only while it is drawn.
+    bool BoardDrawn() const { return boardDrawn_; }
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
@@ -427,6 +432,7 @@ private:
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
+    bool boardDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
     // Create's Practice room choice for the private room it opens. Never saved:

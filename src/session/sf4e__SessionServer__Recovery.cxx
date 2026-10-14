@@ -539,6 +539,9 @@ bool SessionServer::RebindMembers(const std::vector<StableRebind>& bindings) {
 		row.conn = local; row.data.connId = cid; row.data.name = roomMember->name;
 		row.data.roomMember = member; row.data.authenticatedEndpoint = roomPeerIdentities.count(member) ? roomPeerIdentities.at(member) : cid.user;
 		row.data.incarnation = incarnation;
+		// The route is the stable record's, whatever an older row held.
+		const auto record = roomMemberRecords.find(member);
+		row.data.latency = record != roomMemberRecords.end() ? record->second.latency : sf4e::LatencyRoute{};
 		newClients.push_back(row); newCids[local] = cid; newMembers[local] = member;
 		const auto priorSelected = prior == oldRows.end() ? roomSelectedTables.end() : roomSelectedTables.find(prior->second.conn);
 		newSelected[local] = priorSelected != roomSelectedTables.end() ? priorSelected->second :

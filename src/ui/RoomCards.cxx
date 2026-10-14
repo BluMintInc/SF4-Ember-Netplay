@@ -103,8 +103,8 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  const auto text=[&](ImVec2 at,float w,const std::string& value,float size,ImU32 color,bool centred=false){
   DrawCardText(elided,at,w,value,size,color,centred);
  };
- // A seat's country, named while the pointer is on its flag.
- std::string flagTip;
+ // A seat's country, named while the pointer is on its flag, and its ping on the pill.
+ std::string flagTip,pingTip;
  const ImU32 bannerColor=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
  text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",card.slot+1),16*s,palette::Ivory);
  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
@@ -130,6 +130,17 @@ CardInteraction DrawTableCard(const TableCardView& card) {
    const float mark=14*s;const ImVec2 centre(side?px+10*s:px+portrait-10*s,py+portrait-10*s);
    ImGui::GetWindowDrawList()->AddCircleFilled(centre,11*s,IM_COL32(20,19,18,225));
    DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(centre.x-mark*.5f,centre.y-mark*.5f),mark,seat.link);
+   // The ping sits in a pill beside the disc, towards the portrait's middle.
+   ImVec2 hoverMin(centre.x-11*s,centre.y-11*s),hoverMax(centre.x+11*s,centre.y+11*s);
+   if(!seat.latency.text.empty()){
+    const float size=12*s,textWidth=ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,seat.latency.text.c_str()).x;
+    const float left=side?centre.x+13*s:centre.x-13*s-textWidth-10*s;
+    const ImVec2 min(left,centre.y-8*s),max(left+textWidth+10*s,centre.y+8*s);
+    ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(20,19,18,225),8*s);
+    ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),size,ImVec2(min.x+5*s,centre.y-size*.5f),seat.latency.color,seat.latency.text.c_str());
+    hoverMin.x=(std::min)(hoverMin.x,min.x);hoverMax.x=(std::max)(hoverMax.x,max.x);
+   }
+   if(!seat.latency.tip.empty()&&ImGui::IsMouseHoveringRect(hoverMin,hoverMax))pingTip=seat.latency.tip;
   }
   // A readied fighter wears a badge on the portrait until the game starts.
   if(seat.occupied&&seat.ready){
@@ -189,6 +200,7 @@ CardInteraction DrawTableCard(const TableCardView& card) {
   DrawStrip(elided,strip,card.options,chosen);
  }else if(!card.options.empty())DrawStrip(elided,strip,card.options,-1);
  if(!flagTip.empty())elided=flagTip;
+ else if(!pingTip.empty())elided=pingTip;
  FlushCardTip(elided);
  return hit;
 }
@@ -202,11 +214,19 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  DrawCharacterPortrait(card.mainFighter,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
  // The flag leads the name; with none the name keeps its place.
  const auto flag=DrawCountryFlagBeside(ImGui::GetWindowDrawList(),p.x+64*s,p.y+7*s,16*s,card.country);
- DrawCardText(elided,ImVec2(p.x+64*s+flag.width,p.y+7*s),width-98*s-flag.width,card.label,16*s,palette::Ivory);
+ // The ping sits left of the link mark, and the name gives way to it.
+ float ping=0;
+ if(!card.latency.text.empty()){
+  ping=ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,card.latency.text.c_str()).x;
+  ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),14*s,ImVec2(p.x+width-34*s-ping,p.y+9*s),card.latency.color,card.latency.text.c_str());
+  ping+=6*s;
+ }
+ DrawCardText(elided,ImVec2(p.x+64*s+flag.width,p.y+7*s),width-98*s-flag.width-ping,card.label,16*s,palette::Ivory);
  DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(p.x+width-28*s,p.y+8*s),16*s,card.link);
  // A controller player reads the mark (or the Members list); a mouse can
- // also have it in words.
+ // also have it in words, with the ping.
  elided+=(elided.empty()?"":"\n")+std::string(NetworkLinkName(card.link));
+ if(!card.latency.tip.empty())elided+="\n"+card.latency.tip;
  DrawCardText(elided,ImVec2(p.x+64*s,p.y+31*s),width-76*s,card.status,14*s,palette::Muted);
  // Over the flag, the tip names the country.
  if(flag.hovered)elided=CountryName(card.country);

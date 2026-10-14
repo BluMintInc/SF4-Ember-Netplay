@@ -14,6 +14,13 @@ namespace sf4e { namespace ui {
 // The row a table card's banner takes, unscaled.
 constexpr float TableBannerHeight=22;
 
+// A member's ping (LatencyMark.hxx): its text in its band's colour, and the
+// tip that explains it. With neither, nothing is drawn.
+struct LatencyMark {
+    std::string text,tip;
+    ImU32 color=IM_COL32(181,169,155,255);
+};
+
 // Text cut to `width` with "...". The full text of anything it cut is added to
 // `elided`, one per line, for FlushCardTip.
 void DrawCardText(std::string& elided,ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false);
@@ -51,6 +58,8 @@ struct TableCardSeat {
     CountryCode country;
     // Ready badge on the portrait, and the banner's outline around it.
     bool ready=false,marked=false;
+    // A pill beside the link mark.
+    LatencyMark latency;
 };
 struct TableCardView {
     std::string id;
@@ -73,6 +82,8 @@ struct MemberCardView {
     NetworkLink link=NetworkLink::Unknown;
     // Its flag goes before the name; none draws none.
     CountryCode country;
+    // Left of the link mark.
+    LatencyMark latency;
     bool focused=false,focusChanged=false,disabled=false;
 };
 CardInteraction DrawMemberCard(const MemberCardView& card);

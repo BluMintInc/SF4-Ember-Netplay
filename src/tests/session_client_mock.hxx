@@ -28,6 +28,8 @@ public:
 	}
 	session::ConnectionState State() const override { return state; }
 	std::string PeerAddress() const override { return "127.0.0.1"; }
+	LatencyRoute latency;
+	LatencyRoute LocalLatency() const override { return latency; }
 	session::SendResult Send(const std::string& payload, bool reliable, std::int64_t* id) override {
 		if (!reliable) { std::cerr << "MockClient only carries reliable messages\n"; std::exit(1); }
 		if (!writable) return session::SendResult::QueueFull;

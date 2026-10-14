@@ -4046,6 +4046,21 @@ msgstr "{0}, {1}     Coda {2}     Spettatori {3}"
 msgid "room.streak"
 msgstr "{0} set di fila"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Ping stimato: circa {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Misurazione del ping..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping non disponibile: ancora nessuna connessione con questo membro."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping in pausa mentre questo membro gioca."
+
 msgid "screen.public_rooms"
 msgstr "Sale pubbliche"
 

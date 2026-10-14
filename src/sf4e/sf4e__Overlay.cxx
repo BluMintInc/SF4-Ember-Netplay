@@ -287,6 +287,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
     view.probeStatus=snapshot.probeStatus; view.probeSamples=snapshot.probeSamples; view.probeLost=snapshot.probeLost;
     view.probeSent=snapshot.probeSent; view.probeExpected=snapshot.probeExpected;
+    view.memberLatency=snapshot.memberLatency;
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
 	view.shortInvitation = snapshot.shortInvitation;
@@ -408,6 +409,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
 #endif
     );
+    if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
     if (!open) presentation.Close("Back on Ember's Home");
 }
 

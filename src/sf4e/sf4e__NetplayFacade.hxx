@@ -30,6 +30,7 @@
 #include "../common/TrainingEntry.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
+#include "../session/MemberLatency.hxx"
 #include <optional>
 #include "../common/NoticeSeverity.hxx"
 #include <vector>
@@ -201,6 +202,8 @@ namespace sf4e {
             std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
             bool probeBenchmark=false;
             unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
+            // The ping to each other member while the room board is open.
+            session::MemberLatencyTable memberLatency;
 			netplay::PlayerPreferences preferences;
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
@@ -287,6 +290,10 @@ namespace sf4e {
 		// Any thread. False when the command is malformed, the queue is full,
 		// or no runtime is accepting commands.
 		bool SubmitRuntimeCommand(RuntimeCommand command);
+		// Any thread: the room board of room `roomGeneration` (room::Snapshot::roomEpoch)
+		// was drawn this frame. The runtime asks for each member's ping only
+		// while the board is drawn (netplay/LatencyBoard.hxx).
+		void NoteLatencyBoard(std::uint64_t roomGeneration);
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
 		// a Room entry, the same session at the main menu and the room's own gate

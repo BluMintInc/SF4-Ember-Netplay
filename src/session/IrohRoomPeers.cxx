@@ -14,10 +14,17 @@ using nlohmann::json;
 
 std::string IrohRoom::PeerTag(const std::string& peer) { return peer.substr(0, 8); }
 
-bool IrohRoom::IsEndpointIdentity(const std::string& identity) {
-	return identity.size() == 64 && std::all_of(identity.begin(), identity.end(), [](char c) {
-		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-	});
+bool IrohRoom::IsEndpointIdentity(const std::string& identity) { return ::sf4e::IsEndpointIdentity(identity); }
+
+// A present but malformed latency field reads as no route, and a relay that is
+// not a region code as no hint. An event without the field leaves the route:
+// a host hears one connected event per joiner, none of them its own.
+void IrohRoom::ReadLocalLatency(const json& event) {
+	const auto endpoint = event.find("latency");
+	if (endpoint == event.end()) return;
+	const auto relay = event.find("latency_relay");
+	localLatency_ = !endpoint->is_string() ? LatencyRoute{} : LatencyRoute::Parsed(endpoint->get<std::string>(),
+		relay != event.end() && relay->is_string() ? relay->get<std::string>() : std::string());
 }
 
 std::string IrohRoom::PeerIdentity(Connection connection) const {
@@ -155,6 +162,9 @@ bool IrohRoom::HandleConnected(const json& event) {
 	const auto control = event.at("control").get<std::uint64_t>();
 	if (hosting_ && room != room_) { Fail("wrong_room"); return false; }
 	if (!hosting_ && state_ != State::Joining && !coordination_.active) { Fail("unexpected_peer"); return false; }
+	// The route belongs to one room: a joiner's own join completion carries it.
+	if (room != room_) localLatency_ = {};
+	ReadLocalLatency(event);
 	const auto known = FindPeer(identity);
 	if (coordination_.active && (known != peers_.end() || (!localIdentity_.empty() && identity == localIdentity_))) {
 		if (known != peers_.end()) {
