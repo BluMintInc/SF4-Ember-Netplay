@@ -1,5 +1,6 @@
 #pragma once
 #include "../ui/ButtonLayoutScreen.hxx"
+#include "../ui/ControllersScreen.hxx"
 namespace {
 template<class Draw, class Page>
 void ShootButtonLayout(sf4e::ui::ApplicationShell& shell, sf4e::ui::ShellView& view, const Draw& draw, const Page& page) {
@@ -23,9 +24,17 @@ void ShootButtonLayout(sf4e::ui::ApplicationShell& shell, sf4e::ui::ShellView& v
     draw("button-layout-switch");
     view.pads[0].brand = view.gameplayBrand = {Brand::Stick}; view.pads[0].name = "Eight button arcade stick"; view.pads[0].picture = "generic_joystick_red";
     view.pads[0].has[8] = view.pads[0].has[9] = false;
-    view.preferences.controllerMappings[pad.identity.guid] = pad.identity.guid + ",Stick,a:b7,b:b8,x:b4,y:b5,leftshoulder:b10,rightshoulder:b6,lefttrigger:a0,righttrigger:b9,";
+    // What SDL binds for the stick's Ember setup: faces and shoulders on buttons, LT on a whole axis.
+    const auto button = [](int index, const char* target) { return SdlBinding{{SdlBindType::Button, index}, SdlTarget(target)}; };
+    view.pads[0].bindings = {button(7, "a"), button(8, "b"), button(4, "x"), button(5, "y"), button(10, "leftshoulder"), button(6, "rightshoulder"),
+        {{SdlBindType::Axis, 0, SdlAxisMin, SdlAxisMax}, SdlTarget("lefttrigger")}, button(9, "righttrigger")};
+    const auto names = LayoutButtonNames(view.pads[0], view.preferences.buttonPrompts);
+    // Button 8, Button 11 and Trigger axis 1 in English, in the active locale's words.
+    Require(names[0] == RawInputName({RawKind::Button, 7}) && names[4] == RawInputName({RawKind::Button, 10}) && names[6] == RawInputName({RawKind::Trigger, 0}),
+        "The Stick render does not name its bound inputs");
     draw("button-layout-stick");
     view.pads[0].brand = view.gameplayBrand = pad.brand; view.pads[0].picture = pad.picture; view.pads[0].name = pad.name; view.pads[0].has = AllLayoutButtons;
+    view.pads[0].bindings.clear();
     view.pads[0].held.clear(); focus("fn-red-focus"); draw(nullptr, MenuInput::Select, 1); draw("button-layout-capture");
     view.pads[0].held = {"Start"}; draw(); view.pads[0].held.clear(); draw();
     focus("edit-button"); draw(nullptr, MenuInput::Select, 1); draw("button-layout-capture-pick"); view.pads[0].held = {"LB"}; draw(); view.pads[0].held.clear(); draw();
