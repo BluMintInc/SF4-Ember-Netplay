@@ -1425,13 +1425,13 @@ msgid "match.spectating"
 msgstr "观战中"
 
 msgid "match.behind"
-msgstr "Behind"
+msgstr "落后"
 
 msgid "match.delay_own"
-msgstr "Own"
+msgstr "各自"
 
 msgid "match.up_next"
-msgstr "You're up next"
+msgstr "下一个轮到你"
 
 msgid "match.preview_spacing"
 msgstr "{0} 间距／示例数值"
@@ -2282,7 +2282,7 @@ msgid "runtime.connection_restored"
 msgstr "连接已恢复。"
 
 msgid "runtime.spectator_stream_lost"
-msgstr "The spectator stream was dropped. You'll watch the next game at this table."
+msgstr "观战数据流已中断。你将观战此对战席的下一场对战。"
 
 msgid "runtime.match_connection_lost"
 msgstr "对战连接已断开。"
@@ -2294,10 +2294,10 @@ msgid "runtime.leaving_spectator"
 msgstr "正在退出观战画面。"
 
 msgid "runtime.spectator_sat_out"
-msgstr "The game started while you were away from the main menu. You'll watch the next one."
+msgstr "对战开始时你不在主菜单。你将观战下一场。"
 
 msgid "runtime.watching_hint"
-msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
+msgstr "按 Start 或 F10 打开 Ember，选择“停止观战”即可返回房间。"
 
 msgid "runtime.returning_room"
 msgstr "正在返回房间。"
@@ -2501,7 +2501,7 @@ msgid "room.leave.queue"
 msgstr " 您将失去队列中的位置。"
 
 msgid "room.leave.watching"
-msgstr " Your spectator view ends."
+msgstr " 您的观战画面将结束。"
 
 msgid "room.leave.host"
 msgstr " 另一名成员将成为房主。"
@@ -2895,7 +2895,7 @@ msgid "room.leave_queue"
 msgstr "退出队列"
 
 msgid "room.leave_queue.watching"
-msgstr " You keep watching this game until it ends."
+msgstr " 您将继续观战本场对战，直到结束。"
 
 msgid "room.join_queue"
 msgstr "加入队列"
@@ -2904,16 +2904,16 @@ msgid "room.stop_watching"
 msgstr "停止观战"
 
 msgid "room.stop_watching.detail"
-msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+msgstr "停止观战此对战席并返回房间。双方继续对战。"
 
 msgid "room.leave_game"
-msgstr "Leave this game"
+msgstr "离开这场对战"
 
 msgid "room.leave_game.detail"
-msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+msgstr "停止观战此场对战并返回房间。您保留队列中的位置，双方继续对战。"
 
 msgid "room.watching_ends"
-msgstr " Your spectator view ends; the fighters keep playing."
+msgstr " 您的观战画面将结束；双方继续对战。"
 
 msgid "room.watch_next"
 msgstr "观看下场对战"

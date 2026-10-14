@@ -1425,13 +1425,13 @@ msgid "match.spectating"
 msgstr "관전 중"
 
 msgid "match.behind"
-msgstr "Behind"
+msgstr "뒤처짐"
 
 msgid "match.delay_own"
-msgstr "Own"
+msgstr "각자"
 
 msgid "match.up_next"
-msgstr "You're up next"
+msgstr "다음 차례입니다"
 
 msgid "match.preview_spacing"
 msgstr "{0} 여백 / 예시 값"
@@ -2282,7 +2282,7 @@ msgid "runtime.connection_restored"
 msgstr "연결이 복구되었습니다."
 
 msgid "runtime.spectator_stream_lost"
-msgstr "The spectator stream was dropped. You'll watch the next game at this table."
+msgstr "관전 스트림이 끊어졌습니다. 이 테이블의 다음 대전을 관전합니다."
 
 msgid "runtime.match_connection_lost"
 msgstr "대전 연결이 끊겼습니다."
@@ -2294,10 +2294,10 @@ msgid "runtime.leaving_spectator"
 msgstr "관전을 종료하는 중입니다."
 
 msgid "runtime.spectator_sat_out"
-msgstr "The game started while you were away from the main menu. You'll watch the next one."
+msgstr "메인 메뉴에서 벗어나 있는 동안 대전이 시작되었습니다. 다음 대전부터 관전합니다."
 
 msgid "runtime.watching_hint"
-msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
+msgstr "Start 또는 F10으로 Ember를 열고 관전 중지를 선택하면 방으로 돌아갑니다."
 
 msgid "runtime.returning_room"
 msgstr "방으로 돌아가는 중입니다."
@@ -2501,7 +2501,7 @@ msgid "room.leave.queue"
 msgstr " 대기열의 자리를 잃습니다."
 
 msgid "room.leave.watching"
-msgstr " Your spectator view ends."
+msgstr " 관전이 종료됩니다."
 
 msgid "room.leave.host"
 msgstr " 다른 참가자가 방장이 됩니다."
@@ -2895,7 +2895,7 @@ msgid "room.leave_queue"
 msgstr "대기열 나가기"
 
 msgid "room.leave_queue.watching"
-msgstr " You keep watching this game until it ends."
+msgstr " 이 대전이 끝날 때까지 계속 관전합니다."
 
 msgid "room.join_queue"
 msgstr "대기열 참가"
@@ -2904,16 +2904,16 @@ msgid "room.stop_watching"
 msgstr "관전 중지"
 
 msgid "room.stop_watching.detail"
-msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+msgstr "이 테이블의 관전을 중지하고 방으로 돌아갑니다. 대전은 계속됩니다."
 
 msgid "room.leave_game"
-msgstr "Leave this game"
+msgstr "이 대전 나가기"
 
 msgid "room.leave_game.detail"
-msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+msgstr "이 대전의 관전을 중지하고 방으로 돌아갑니다. 대기열의 자리는 유지되며 대전은 계속됩니다."
 
 msgid "room.watching_ends"
-msgstr " Your spectator view ends; the fighters keep playing."
+msgstr " 관전이 종료됩니다. 대전은 계속됩니다."
 
 msgid "room.watch_next"
 msgstr "다음 대전 관전"

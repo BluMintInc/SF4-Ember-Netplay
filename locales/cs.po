@@ -1425,13 +1425,13 @@ msgid "match.spectating"
 msgstr "Sledování"
 
 msgid "match.behind"
-msgstr "Behind"
+msgstr "Pozadu"
 
 msgid "match.delay_own"
-msgstr "Own"
+msgstr "Vlastní"
 
 msgid "match.up_next"
-msgstr "You're up next"
+msgstr "Jste další na řadě"
 
 msgid "match.preview_spacing"
 msgstr "Odstup {0} / vzorové hodnoty"
@@ -2282,7 +2282,7 @@ msgid "runtime.connection_restored"
 msgstr "Spojení obnoveno."
 
 msgid "runtime.spectator_stream_lost"
-msgstr "The spectator stream was dropped. You'll watch the next game at this table."
+msgstr "Přenos pro diváky byl přerušen. Další zápas u tohoto stolu budete sledovat."
 
 msgid "runtime.match_connection_lost"
 msgstr "Spojení pro zápas se ztratilo."
@@ -2294,10 +2294,10 @@ msgid "runtime.leaving_spectator"
 msgstr "Ukončuje se sledování."
 
 msgid "runtime.spectator_sat_out"
-msgstr "The game started while you were away from the main menu. You'll watch the next one."
+msgstr "Zápas začal, když jste nebyli v hlavním menu. Další budete sledovat."
 
 msgid "runtime.watching_hint"
-msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
+msgstr "Start nebo F10 otevře Ember, kde vás volba Přestat sledovat vrátí do místnosti."
 
 msgid "runtime.returning_room"
 msgstr "Návrat do místnosti."
@@ -2501,7 +2501,7 @@ msgid "room.leave.queue"
 msgstr " Přijdete o místo ve frontě."
 
 msgid "room.leave.watching"
-msgstr " Your spectator view ends."
+msgstr " Váš pohled diváka skončí."
 
 msgid "room.leave.host"
 msgstr " Hostitelem se stane jiný člen."
@@ -2895,7 +2895,7 @@ msgid "room.leave_queue"
 msgstr "Opustit frontu"
 
 msgid "room.leave_queue.watching"
-msgstr " You keep watching this game until it ends."
+msgstr " Tento zápas budete sledovat až do konce."
 
 msgid "room.join_queue"
 msgstr "Do fronty"
@@ -2904,16 +2904,16 @@ msgid "room.stop_watching"
 msgstr "Přestat sledovat"
 
 msgid "room.stop_watching.detail"
-msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+msgstr "Přestane sledovat tento stůl a vrátí vás do místnosti. Hráči hrají dál."
 
 msgid "room.leave_game"
-msgstr "Leave this game"
+msgstr "Opustit tento zápas"
 
 msgid "room.leave_game.detail"
-msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+msgstr "Přestane sledovat tento zápas a vrátí vás do místnosti. Místo ve frontě vám zůstane, hráči hrají dál."
 
 msgid "room.watching_ends"
-msgstr " Your spectator view ends; the fighters keep playing."
+msgstr " Váš pohled diváka skončí; hráči hrají dál."
 
 msgid "room.watch_next"
 msgstr "Sledovat další zápas"

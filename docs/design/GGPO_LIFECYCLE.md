@@ -274,3 +274,7 @@ close session unless deferred (10 s window) → free all used save states →
 original `CloseBattle`. Rematch: lobby `LobbyReset` → new ready cycle → new
 `StartGGPO` (closes any leftover session first, `CancelDeferredGgpoClose`).
 Training rooms are ordinary VS battles with rounds=99 / huge time limit.
+
+A spectator's own leave (Stop watching, Leave this game) ends its view as
+`GgpoEnd::Leave`. It is not recorded as a stream failure and arms no lock
+release; the `Unwatch` it sent has already ended the lock-in.

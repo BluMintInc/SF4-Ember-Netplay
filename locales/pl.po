@@ -1425,13 +1425,13 @@ msgid "match.spectating"
 msgstr "Oglądasz"
 
 msgid "match.behind"
-msgstr "Behind"
+msgstr "Strata"
 
 msgid "match.delay_own"
-msgstr "Own"
+msgstr "Własne"
 
 msgid "match.up_next"
-msgstr "You're up next"
+msgstr "Następna jest twoja kolej"
 
 msgid "match.preview_spacing"
 msgstr "{0} odstęp / przykład"
@@ -2282,7 +2282,7 @@ msgid "runtime.connection_restored"
 msgstr "Połączenie przywrócone."
 
 msgid "runtime.spectator_stream_lost"
-msgstr "The spectator stream was dropped. You'll watch the next game at this table."
+msgstr "Strumień widza został przerwany. Następną walkę przy tym stole obejrzysz."
 
 msgid "runtime.match_connection_lost"
 msgstr "Utracono połączenie walki."
@@ -2294,10 +2294,10 @@ msgid "runtime.leaving_spectator"
 msgstr "Opuszczanie widoku widza."
 
 msgid "runtime.spectator_sat_out"
-msgstr "The game started while you were away from the main menu. You'll watch the next one."
+msgstr "Walka zaczęła się, gdy nie było cię w menu głównym. Następną obejrzysz."
 
 msgid "runtime.watching_hint"
-msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
+msgstr "Start lub F10 otwiera Ember, gdzie Przestań oglądać zabiera cię z powrotem do pokoju."
 
 msgid "runtime.returning_room"
 msgstr "Powrót do pokoju."
@@ -2501,7 +2501,7 @@ msgid "room.leave.queue"
 msgstr " Stracisz miejsce w kolejce."
 
 msgid "room.leave.watching"
-msgstr " Your spectator view ends."
+msgstr " Widok widza się zakończy."
 
 msgid "room.leave.host"
 msgstr " Inny uczestnik zostanie hostem."
@@ -2895,7 +2895,7 @@ msgid "room.leave_queue"
 msgstr "Opuść kolejkę"
 
 msgid "room.leave_queue.watching"
-msgstr " You keep watching this game until it ends."
+msgstr " Oglądasz tę walkę do jej końca."
 
 msgid "room.join_queue"
 msgstr "Do kolejki"
@@ -2904,16 +2904,16 @@ msgid "room.stop_watching"
 msgstr "Przestań oglądać"
 
 msgid "room.stop_watching.detail"
-msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+msgstr "Przestaje oglądać ten stół i wraca do pokoju. Gracze grają dalej."
 
 msgid "room.leave_game"
-msgstr "Leave this game"
+msgstr "Opuść tę walkę"
 
 msgid "room.leave_game.detail"
-msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+msgstr "Przestaje oglądać tę walkę i wraca do pokoju. Zachowujesz miejsce w kolejce, a gracze grają dalej."
 
 msgid "room.watching_ends"
-msgstr " Your spectator view ends; the fighters keep playing."
+msgstr " Widok widza się zakończy; gracze grają dalej."
 
 msgid "room.watch_next"
 msgstr "Oglądaj kolejną"

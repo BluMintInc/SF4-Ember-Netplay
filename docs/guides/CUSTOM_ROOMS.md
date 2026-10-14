@@ -117,14 +117,17 @@ positions. B on your queue card, or **Leave queue**, leaves the queue at once.
 Leaving the queue during a game lets you finish watching it; the place ends with
 that game unless you press **Watch next game**. Between games, leaving the queue
 returns you to the room. A queued member has no Watch or Stop watching action of
-its own.
+its own; during a game, Start or F10 opens Ember over it, where **Leave this
+game** stops watching that game and keeps the queue place.
 
 ## Watch
 
 **Watch next game** (**Watch** in the seat chooser) reserves a spectator place
 without joining the queue. A game already in progress cannot be joined halfway
 through. **Stop watching** returns the spectator to the room; the fighters
-continue playing.
+continue playing. During a game, Start or F10 opens Ember over it on the room
+board at **Stop watching**; Queue, Watch, Leave queue and Leave room there say what
+happens to the view.
 
 A spectator by choice can also use **Lock in to watch** in Table options
 (**Release lock-in** undoes it). If both fighters ready while a locked-in
@@ -141,9 +144,11 @@ a short notice says which.
 
 A spectator whose connection is still being set up when the fighters are ready
 (after a short grace period) misses that game and watches the next one. A
-spectator whose connection leaves about half a second of network frames
-unacknowledged, sustained for about a second, is dropped from that game and can
-watch the next. Slow playback alone does not drop anyone: the spectator plays
+spectator that was away from the main menu when the game started is told so and
+watches the next one. A spectator whose connection leaves about half a second of
+network frames unacknowledged, sustained for about a second, is dropped from that
+game, keeps its place and watches the next game at the table; it is told so.
+Slow playback alone does not drop anyone: the spectator plays
 extra frames to catch up and can trail by up to 1024 frames (about 17 seconds).
 
 ## Manage the room

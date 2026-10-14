@@ -1425,13 +1425,13 @@ msgid "match.spectating"
 msgstr "観戦中"
 
 msgid "match.behind"
-msgstr "Behind"
+msgstr "配信遅れ"
 
 msgid "match.delay_own"
-msgstr "Own"
+msgstr "各自"
 
 msgid "match.up_next"
-msgstr "You're up next"
+msgstr "次はあなたの番です"
 
 msgid "match.preview_spacing"
 msgstr "余白{0} / サンプル値"
@@ -2282,7 +2282,7 @@ msgid "runtime.connection_restored"
 msgstr "接続が復旧しました。"
 
 msgid "runtime.spectator_stream_lost"
-msgstr "The spectator stream was dropped. You'll watch the next game at this table."
+msgstr "観戦ストリームが切断されました。この対戦席の次の対戦を観戦します。"
 
 msgid "runtime.match_connection_lost"
 msgstr "対戦の接続が切れました。"
@@ -2294,10 +2294,10 @@ msgid "runtime.leaving_spectator"
 msgstr "観戦を終了しています。"
 
 msgid "runtime.spectator_sat_out"
-msgstr "The game started while you were away from the main menu. You'll watch the next one."
+msgstr "メインメニューを離れている間に対戦が始まりました。次の対戦から観戦します。"
 
 msgid "runtime.watching_hint"
-msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
+msgstr "StartかF10でEmberを開き、「観戦をやめる」でルームに戻れます。"
 
 msgid "runtime.returning_room"
 msgstr "ルームに戻っています。"
@@ -2501,7 +2501,7 @@ msgid "room.leave.queue"
 msgstr " 順番待ちから外れます。"
 
 msgid "room.leave.watching"
-msgstr " Your spectator view ends."
+msgstr " 観戦は終了します。"
 
 msgid "room.leave.host"
 msgstr " 別のメンバーがホストになります。"
@@ -2895,7 +2895,7 @@ msgid "room.leave_queue"
 msgstr "順番待ちをやめる"
 
 msgid "room.leave_queue.watching"
-msgstr " You keep watching this game until it ends."
+msgstr " この対戦は終了まで観戦を続けます。"
 
 msgid "room.join_queue"
 msgstr "順番待ちに入る"
@@ -2904,16 +2904,16 @@ msgid "room.stop_watching"
 msgstr "観戦をやめる"
 
 msgid "room.stop_watching.detail"
-msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+msgstr "この対戦席の観戦をやめてルームに戻ります。対戦は続きます。"
 
 msgid "room.leave_game"
-msgstr "Leave this game"
+msgstr "この対戦から退出"
 
 msgid "room.leave_game.detail"
-msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+msgstr "この対戦の観戦をやめてルームに戻ります。順番待ちの位置は保たれ、対戦は続きます。"
 
 msgid "room.watching_ends"
-msgstr " Your spectator view ends; the fighters keep playing."
+msgstr " 観戦は終了します。対戦は続きます。"
 
 msgid "room.watch_next"
 msgstr "次の対戦を観戦"
