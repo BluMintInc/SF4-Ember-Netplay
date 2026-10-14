@@ -497,6 +497,7 @@ add_library(sf4e_session_server STATIC
     "src/session/sf4e__SessionServer.cxx"
     "src/session/sf4e__SessionServer__Handlers.cxx"
     "src/session/sf4e__SessionServer__Recovery.cxx"
+    "src/session/sf4e__SessionServer__RecoveryCheckpoint.cxx"
     "src/session/sf4e__SessionServer__Rooms.cxx"
     "src/session/sf4e__SessionServer__Tournament.cxx"
     "src/session/sf4e__SessionProtocol.cxx"
