@@ -105,6 +105,15 @@ struct FighterSample {
     // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
 };
+// Whether a move, as last sampled, still had frames left before the end of its
+// own script: the one evidence that a following action cut its recovery short.
+// A move sampled on or past its last frame finished, so what follows replaced
+// nothing; a script with no known length gives no evidence either way.
+// interruptibleFrame is not used: it marks where a move opens to cancels, which
+// can be well before its end.
+inline bool RecoveryCutShort(const FighterSample& move) {
+    return move.totalFrames > 0 && move.actionFrame < static_cast<float>(move.totalFrames);
+}
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
 // alone when the script gives none.
@@ -556,7 +565,8 @@ private:
         return contact;
     }
     // A focus cancel forms only as a move, a focus that began while the move
-    // still played (no frame between them out of Skill), then a dash straight
+    // still played (no frame between them out of Skill, and the move short of
+    // the end of its script: RecoveryCutShort), then a dash straight
     // out of the focus. The move's readings are taken as the focus begins;
     // the dash puts the chain in this exchange's reading. Anything else after
     // the focus drops it, and another attack after the dash takes it out of
@@ -576,7 +586,8 @@ private:
             chain = {};
             return;
         }
-        if (!focus || !previous.valid || previous.status != ActorStatus::Skill || previous.actionClass != ActionClass::Other) return;
+        if (!focus || !previous.valid || previous.status != ActorStatus::Skill || previous.actionClass != ActionClass::Other ||
+            !RecoveryCutShort(previous)) return;
         chain.side = side; chain.focusFrames = 1;
         chain.startup = view_.startupFrames[side]; chain.provenance = view_.startupBoundaryProvenance[side];
         chain.startupUnavailable = view_.startupUnavailable[side]; chain.active = view_.moves[side].active;

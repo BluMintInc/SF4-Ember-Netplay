@@ -14,10 +14,15 @@ void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(w
 using S = ActorStatus;
 // A stretch of one action: actionFrame counts from, from + 1, ... through it
 // (from above 1 goes on with an action from an earlier stretch). first and
-// last: its attack boundary, -1 for none.
-struct Part { unsigned status; int action; ActionClass kind; int frames; int first, last; int from; };
+// last: its attack boundary, -1 for none. total and interruptible: the
+// script's own length and interruptible frame, -1 for unknown.
+struct Part { unsigned status; int action; ActionClass kind; int frames; int first, last; int from; int total = -1, interruptible = -1; };
 Part Stand(int frames) { return {S::Stand, 0, ActionClass::Other, frames, -1, -1, 1}; }
-Part Move(int frames, int first, int action = 400, int from = 1) { return {S::Skill, action, ActionClass::Other, frames, first, first + 2, from}; }
+// A move whose script runs total frames, long enough that it is still playing when it is cancelled.
+constexpr int LongMove = 40;
+Part Move(int frames, int first, int action = 400, int from = 1, int total = LongMove, int interruptible = -1) {
+    return {S::Skill, action, ActionClass::Other, frames, first, first + 2, from, total, interruptible};
+}
 Part Focus(int frames, int first, int from = 1) { return {S::Skill, 322, ActionClass::Focus, frames, first, first + 2, from}; }
 Part Struck(bool blocked, int frames, int from = 1) { return {blocked ? S::DamageGuard : S::Damage, 500, ActionClass::Other, frames, -1, -1, from}; }
 // A dash out of a focus, as the game plays it (the command move DASH or
@@ -35,6 +40,7 @@ std::vector<FighterSample> Lay(std::initializer_list<Part> parts) {
             s.valid = true; s.posture = 0; s.timeScale = 1; s.basicActionInhibited = false;
             s.status = part.status; s.action = part.action; s.actionFrame = static_cast<float>(part.from + i - 1);
             s.firstActiveFrame = part.first; s.lastActiveFrame = part.last; s.actionClass = part.kind;
+            s.totalFrames = part.total; s.interruptibleFrame = part.interruptible;
             if (part.first >= 0) s.boundaryProvenance = BoundaryProvenance::BacActionHeader;
             out.push_back(s);
         }
@@ -74,10 +80,10 @@ struct Bout {
 // guard or the hit, two active frames, a focus three frames long, then the
 // dash. The other is in stun for stun frames from the contact. What Player 1
 // is left with: positive when it was free first.
-struct Fadc { int dpFirst = 4, focusFirst = 21, dash = 18, stun = 20; bool forward = true, blocked = true, status = false; };
+struct Fadc { int dpFirst = 4, focusFirst = 21, dash = 18, stun = 20, dpTotal = LongMove; bool forward = true, blocked = true, status = false; };
 int Exchange(Bout& bout, const Fadc& f) {
     const int focus = 3;
-    bout.Play(Lay({Stand(2), Move(f.dpFirst + 2, f.dpFirst), Focus(focus, f.focusFirst), Dash(f.forward, f.status, f.dash), Stand(8)}),
+    bout.Play(Lay({Stand(2), Move(f.dpFirst + 2, f.dpFirst, 400, 1, f.dpTotal), Focus(focus, f.focusFirst), Dash(f.forward, f.status, f.dash), Stand(8)}),
         Lay({Stand(2 + f.dpFirst - 1), Struck(f.blocked, f.stun), Stand(8)}));
     const int attacker = 2 + f.dpFirst + 2 + focus + f.dash, defender = 2 + f.dpFirst - 1 + f.stun;
     return defender - attacker;
@@ -150,6 +156,26 @@ int main() {
             Require(ChainOf(bout.View().advantage, 0) && bout.View().advantage.pending, "The dash did not confirm the cancel");
         }
 
+        // The boundary: a focus on the move's last frame of script finds nothing
+        // to cut; one frame short of it, the move was cut. The interruptible
+        // frame, before or after the focus, changes neither.
+        for (int interruptible : {-1, 3, 5, 30}) {
+            Fadc f; f.stun = 12;
+            auto exchange = [&](int total) {
+                Bout bout;
+                bout.Play(Lay({Stand(2), Move(f.dpFirst + 2, f.dpFirst, 400, 1, total, interruptible), Focus(3, f.focusFirst),
+                    Dash(true, false, f.dash), Stand(8)}), Lay({Stand(2 + f.dpFirst - 1), Struck(true, f.stun), Stand(8)}));
+                return bout;
+            };
+            const int last = f.dpFirst + 2;
+            const auto finished = exchange(last), cut = exchange(last + 1);
+            Require(!ChainOf(finished.View().advantage, 0) && !ChainOf(finished.View().lastAdvantage, 0), "A focus on the last frame was a cancel");
+            Require(ChainOf(cut.View().advantage, 0) && ChainOf(cut.View().advantage, 0)->recoveryCancelled &&
+                ChainOf(cut.View().lastAdvantage, 0), "A focus one frame short of the end was not a cancel");
+            finished.SameAsPlain("A finished move changed the ordinary readings");
+            cut.SameAsPlain("A cut move changed the ordinary readings");
+        }
+
         // Consecutive exchanges: each reading keeps its own cancel, and a
         // plain move after them has none.
         {
@@ -193,6 +219,21 @@ int main() {
             "A dash with no focus was a focus cancel");
         none(Lay({Stand(2), Move(6, 4), Focus(3, 21), Stand(2), Dash(true, true, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
             "A focus let go before the dash was a cancel");
+        // The move's own length is the evidence that a focus cut its recovery
+        // short. A move that had played all its frames and went straight into a
+        // buffered focus and a dash, with no neutral sample between, is no cancel.
+        none(Lay({Stand(2), Move(6, 4, 400, 1, 6), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+            "A move that finished, then a focus and a dash, was a cancel");
+        none(Lay({Stand(2), Move(7, 4, 400, 1, 6), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+            "A move sampled past its length, then a focus and a dash, was a cancel");
+        none(Lay({Stand(2), Move(6, 4, 400, 1, 6, 3), Focus(3, 21), Dash(false, true, 18), Stand(4)}), Lay({Stand(5), Struck(false, 12)}),
+            "A finished move with an early interruptible frame was a cancel");
+        // No length known, or none usable: no evidence, no cancel.
+        for (int total : {-1, 0})
+            none(Lay({Stand(2), Move(6, 4, 400, 1, total), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+                "A move of unknown length was a cancel");
+        none(Lay({Stand(2), Move(6, 4, 400, 1, -1, 30), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+            "An interruptible frame alone was evidence of a cancel");
         {
             auto unknown = Lay({Stand(2), Move(6, 4), Focus(3, 21), Dash(true, false, 18), Stand(4)});
             for (auto& s : unknown) if (s.action == 400) s.actionClass = ActionClass::Unknown;
