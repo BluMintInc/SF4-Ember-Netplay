@@ -52,6 +52,9 @@ void TestSubscription() {
 	CHECK(!subscription.Read(Table(1, kOtherRoom, 2, json::array()), 1, kRoom));
 	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}, {"rtt_ms", 0}}})), 1, kRoom));
 	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "fast"}}})), 1, kRoom));
+	// A value without its estimate and an unavailable row without its reason are malformed.
+	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "value"}}})), 1, kRoom));
+	CHECK(!subscription.Read(Table(1, kRoom, 2, json::array({{{"member", 2}, {"incarnation", 1}, {"state", "unavailable"}}})), 1, kRoom));
 	json twice = json::array({{{"member", 2}, {"incarnation", 1}, {"state", "measuring"}}, {{"member", 2}, {"incarnation", 1}, {"state", "measuring"}}});
 	CHECK(!subscription.Read(Table(1, kRoom, 2, twice), 1, kRoom));
 	json many = json::array();

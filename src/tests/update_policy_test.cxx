@@ -5,6 +5,7 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/UpdatePolicy.hxx"
 #include "../launcher/update/InstallOffer.hxx"
+#include "../common/Localization.hxx"
 #include <atomic>
 #include <chrono>
 #include <iostream>
@@ -40,10 +41,11 @@ UpdateCheckResult Failure() {
 struct Memory {
     UpdatePreferences saved;
     int lastCheckWrites = 0, skipWrites = 0;
+    bool failSkip = false;
     UpdatePolicy::Store Store() {
         return {[this] { return saved; },
             [this](std::uint64_t time) { saved.lastCheck = time; ++lastCheckWrites; return true; },
-            [this](const std::string& tag) { saved.skipped = tag; ++skipWrites; return true; }};
+            [this](const std::string& tag) { if (failSkip) return false; saved.skipped = tag; ++skipWrites; return true; }};
     }
 };
 
@@ -194,6 +196,49 @@ int main() {
         CHECK(service.RequestLaunchCheck());
         const auto done = Settled(service);
         CHECK(launch.checks == 2 && done.launchOffer && memory.lastCheckWrites == 1);
+    }
+    // A skip that cannot be saved keeps the offer, says why, and can be tried again.
+    {
+        Memory memory; memory.failSkip = true; Launch launch; launch.release = Release("v1.3.0", DigestA);
+        ApplicationServices service(root.wstring(), launch.Hooks(memory));
+        CHECK(service.RequestLaunchCheck());
+        const auto found = Settled(service);
+        CHECK(found.launchOffer && found.skipFailures == 0 && found.skipError.empty());
+        CHECK(service.SkipUpdate(*found.launchOffer));
+        const auto failed = Settled(service);
+        CHECK(!failed.succeeded && failed.launchOffer == found.launchOffer && failed.skipFailures == 1);
+        CHECK(!failed.skipError.empty() && failed.skipError == loc::T("common.save_failed") && failed.message == failed.skipError);
+        CHECK(memory.saved.skipped.empty() && memory.skipWrites == 0);
+        memory.failSkip = false;
+        CHECK(service.SkipUpdate(*found.launchOffer));
+        const auto saved = Settled(service);
+        CHECK(saved.succeeded && !saved.launchOffer && saved.skipFailures == 1 && memory.saved.skipped == "v1.3.0" && memory.skipWrites == 1);
+    }
+    // A skip refused while another operation runs is counted, and the offer stays.
+    {
+        Memory memory; Launch launch; launch.release = Release("v1.3.0", DigestA);
+        std::atomic<bool> hold{false};
+        auto hooks = launch.Hooks(memory);
+        const auto check = hooks.checkForUpdate;
+        hooks.checkForUpdate = [&hold, check](UpdateChannel channel) {
+            while (hold) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            return check(channel);
+        };
+        ApplicationServices service(root.wstring(), hooks);
+        CHECK(service.RequestLaunchCheck());
+        const auto found = Settled(service);
+        CHECK(found.launchOffer);
+        hold = true;
+        CHECK(service.Request(ServiceAction::CheckUpdates) && service.Snapshot().pending);
+        CHECK(!service.SkipUpdate(*found.launchOffer));
+        const auto refused = service.Snapshot();
+        CHECK(refused.skipFailures == 1 && !refused.skipError.empty() && refused.skipError == loc::T("runtime.operation_busy") && memory.skipWrites == 0);
+        hold = false;
+        const auto after = Settled(service);
+        CHECK(after.skipFailures == 1 && after.skipError == refused.skipError && after.launchOffer == found.launchOffer);
+        CHECK(service.SkipUpdate(*found.launchOffer));
+        const auto saved = Settled(service);
+        CHECK(saved.succeeded && !saved.launchOffer && memory.saved.skipped == "v1.3.0");
     }
     // Turned off in Settings: no check at all.
     {

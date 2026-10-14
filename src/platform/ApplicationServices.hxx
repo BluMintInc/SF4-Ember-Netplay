@@ -104,6 +104,11 @@ struct ServiceSnapshot {
     // the one they skipped).
     LaunchCheck launchCheck = LaunchCheck::Off;
     std::optional<launcher::InstallOffer> launchOffer;
+    // Skip this version did not take: the count of refusals and failed saves
+    // so far, and why the last one failed. The offer stays, so it can be
+    // skipped again.
+    unsigned skipFailures = 0;
+    std::string skipError;
     // The version on this PC and the channel its checks use, read once at
     // start; the worker changes the channel, so no one else reads the file.
     std::string installedVersion;

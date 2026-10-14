@@ -406,7 +406,12 @@ async fn one_deadline_covers_the_whole_dial_and_then_it_backs_off() {
     assert!(a.actor.latency.openings_out.is_empty());
     a.actor.latency_report();
     let rows = a.latency_events().pop().unwrap().1;
-    assert_eq!(rows[0].reason.as_deref(), Some("unreachable"));
+    assert_eq!(
+        rows[0].state,
+        LatencyState::Unavailable {
+            reason: LatencyUnavailable::Unreachable
+        }
+    );
     assert!(a.actor.latency.handles.is_empty());
     holder.abort();
     for member in members {
@@ -526,7 +531,7 @@ async fn a_completion_queued_before_a_departure_and_rejoin_is_never_installed() 
     members[0].latency_events();
     members[0].actor.latency_report();
     let rows = members[0].latency_events().pop().unwrap().1;
-    assert!(rows.iter().all(|row| row.state != "value"), "{rows:?}");
+    assert!(rows.iter().all(|row| !matches!(row.state, LatencyState::Value { .. })), "{rows:?}");
     for member in members {
         member.stop().await;
     }

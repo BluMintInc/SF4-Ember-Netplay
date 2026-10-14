@@ -312,6 +312,8 @@ private:
     void SetLaunchCheck(bool enabled);
     UpdatePrompt updatePrompt_;
     netplay::Generation updateGeneration_;
+    // The failed skips the service had counted when the view was last drawn.
+    unsigned skipFailuresSeen_=0;
     double launchCheckAskedAt_=-1e9;
     // The failure of Update now (the Launcher would not start) has been said.
     bool updateNowReported_=false;

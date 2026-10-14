@@ -50,6 +50,42 @@ void UpdateLaunchJourneys() {
   Check(!h.shell.NoticeOpen() && h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::SkipUpdate &&
    h.actions.back().updateOffer == Offer, "Skip this version did not send the offer that was shown");
  }
+ // A skip the queue refused is said on Home, and the question comes back so it can be answered again.
+ {
+  Harness h; Found(h); h.Screen("home"); h.Frame(0, 2);
+  std::string status; Tone tone = Tone::Neutral;
+  SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+  h.accept = false;
+  h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(Count(h, ServiceAction::SkipUpdate) == 1 && status == loc::T("error.queue_failed") && tone == Tone::Error, "A refused skip went unsaid");
+  h.Frame(0, 3);
+  Check(h.shell.NoticeOpen(), "A skip the queue refused was not offered again");
+  h.accept = true;
+  h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(Count(h, ServiceAction::SkipUpdate) == 2 && !h.shell.NoticeOpen(), "The skip could not be sent again");
+  SetMenuStatusProbe({});
+ }
+ // A skip the service could not save is said on Home and offered again; a saved one is final.
+ {
+  Harness h; Found(h); h.Screen("home"); h.Frame(0, 2);
+  std::string status; Tone tone = Tone::Neutral;
+  SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+  h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(Count(h, ServiceAction::SkipUpdate) == 1, "The skip was not sent");
+  h.Frame(0, 120);
+  Check(!h.shell.NoticeOpen() && status != loc::T("common.save_failed"), "The question came back before the service answered the skip");
+  h.view.services.skipFailures = 1; h.view.services.skipError = loc::T("common.save_failed");
+  h.Frame(0, 3);
+  Check(status == loc::T("common.save_failed") && tone == Tone::Error, "A skip that was not saved went unsaid");
+  Check(h.shell.NoticeOpen(), "A skip that was not saved was not offered again");
+  h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(Count(h, ServiceAction::SkipUpdate) == 2 && !h.shell.NoticeOpen(), "The unsaved skip could not be sent again");
+  h.Frame(0, 120);
+  Check(!h.shell.NoticeOpen(), "The question came back while the second skip was unanswered");
+  h.view.services.launchOffer.reset(); h.Frame(0, 120);
+  Check(!h.shell.NoticeOpen() && Count(h, ServiceAction::SkipUpdate) == 2, "A saved skip came back");
+  SetMenuStatusProbe({});
+ }
  // Later is highlighted, so a press meant for the menu behind cannot close the game; it and Back send nothing
  // and the question is not asked again in the same run.
  {

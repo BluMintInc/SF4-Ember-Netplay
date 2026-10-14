@@ -20,7 +20,10 @@ use tokio::{
     time::Instant,
 };
 
-use super::{Actor, Event, MAX_CONTROL_PEERS, protocol::MemberLatencyRow};
+use super::{
+    Actor, Event, MAX_CONTROL_PEERS,
+    protocol::{LatencyState, LatencyUnavailable, MemberLatencyRow},
+};
 use crate::coordination::Committed;
 
 mod authority;
@@ -190,28 +193,20 @@ fn milliseconds(rtt: Duration) -> u16 {
     ((rtt.as_micros() + 500) / 1000).clamp(1, 999) as u16
 }
 
-fn row(member: u64, incarnation: u64, state: &str) -> MemberLatencyRow {
+fn row(member: u64, incarnation: u64, state: LatencyState) -> MemberLatencyRow {
     MemberLatencyRow {
         member,
         incarnation,
-        state: state.into(),
-        rtt_ms: None,
-        reason: None,
+        state,
     }
 }
 
-fn unavailable(member: u64, incarnation: u64, reason: &str) -> MemberLatencyRow {
-    MemberLatencyRow {
-        reason: Some(reason.into()),
-        ..row(member, incarnation, "unavailable")
-    }
+fn unavailable(member: u64, incarnation: u64, reason: LatencyUnavailable) -> MemberLatencyRow {
+    row(member, incarnation, LatencyState::Unavailable { reason })
 }
 
-fn value(member: u64, incarnation: u64, rtt: u16) -> MemberLatencyRow {
-    MemberLatencyRow {
-        rtt_ms: Some(rtt),
-        ..row(member, incarnation, "value")
-    }
+fn value(member: u64, incarnation: u64, rtt_ms: u16) -> MemberLatencyRow {
+    row(member, incarnation, LatencyState::Value { rtt_ms })
 }
 
 impl Latency {
@@ -299,7 +294,7 @@ impl Latency {
                     .iter()
                     .filter(|entry| entry.primary != primary)
                     .take(MAX_CONTROL_PEERS)
-                    .map(|entry| unavailable(entry.member, entry.incarnation, "room_unavailable"))
+                    .map(|entry| unavailable(entry.member, entry.incarnation, LatencyUnavailable::RoomUnavailable))
                     .collect()
             });
         };
@@ -321,11 +316,11 @@ impl Latency {
             .map(|entry| {
                 let (member, incarnation) = (entry.member, entry.incarnation);
                 if entry.latency.is_none() {
-                    return unavailable(member, incarnation, "no_latency_route");
+                    return unavailable(member, incarnation, LatencyUnavailable::NoLatencyRoute);
                 }
                 if entry.in_match {
                     return kept(member, incarnation).map_or_else(
-                        || unavailable(member, incarnation, "in_match"),
+                        || unavailable(member, incarnation, LatencyUnavailable::InMatch),
                         |rtt| value(member, incarnation, rtt),
                     );
                 }
@@ -343,11 +338,11 @@ impl Latency {
                     .filter(|dial| dial.binding.incarnation == incarnation)
                     .and_then(|dial| dial.failure)
                 {
-                    Some(DialFailure::Refused) => unavailable(member, incarnation, "refused"),
+                    Some(DialFailure::Refused) => unavailable(member, incarnation, LatencyUnavailable::Refused),
                     Some(DialFailure::Unreachable) => {
-                        unavailable(member, incarnation, "unreachable")
+                        unavailable(member, incarnation, LatencyUnavailable::Unreachable)
                     }
-                    None => row(member, incarnation, "measuring"),
+                    None => row(member, incarnation, LatencyState::Measuring),
                 }
             })
             .collect()

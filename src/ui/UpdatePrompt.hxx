@@ -16,7 +16,8 @@ namespace sf4e { namespace ui {
 // It asks only where a player is free to answer: on Home with no room, match,
 // editor or other dialog, and after the launch-time settings notice. An offer is
 // asked once per run; Later asks again on the next launch (the policy's cooldown
-// and the saved skip decide whether that run offers it).
+// and the saved skip decide whether that run offers it). A skip is not final
+// until the service has saved it: a refused or unsaved skip puts the offer back.
 class UpdatePrompt {
 public:
     struct Place {
@@ -35,15 +36,26 @@ public:
     // The question went on screen.
     void Asked(const launcher::InstallOffer& offer) { open_ = offer; }
     bool Open() const { return open_.has_value(); }
-    // The question closed: the offer it was about, which is not asked about again this run.
+    // The question closed: the offer it was about. It is asked about again
+    // unless the caller settles it (Settle) or sends a skip (Skipping).
     std::optional<launcher::InstallOffer> Close();
+    // The offer was answered for this run and is not asked about again.
+    void Settle(const launcher::InstallOffer& offer) { done_ = offer; }
+    // A skip of `offer` was queued, when the service had counted `failuresSeen` failed skips.
+    // The offer is held back until the service answers (Resolve).
+    void Skipping(const launcher::InstallOffer& offer, unsigned failuresSeen) { skip_ = Sent{offer, failuresSeen}; }
+    // Reads the service's answer to a queued skip: settled once the offer is gone,
+    // or, when the skip failed, the offer is asked about again and the reason is returned.
+    std::optional<std::string> Resolve(const platform::ServiceSnapshot& services);
     // What a closed notice's result means for the open question: Update now and
     // Skip are their buttons; anything else (Later, Back, another notice taking
     // the place) leaves it unanswered, which asks again next launch.
     static Answer AnswerOf(NoticeResult result);
 
 private:
+    struct Sent { launcher::InstallOffer offer; unsigned failuresSeen; };
     std::optional<launcher::InstallOffer> open_, done_;
+    std::optional<Sent> skip_;
 };
 
 } }

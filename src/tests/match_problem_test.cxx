@@ -1,5 +1,6 @@
 #include "../session/sf4e__SessionProtocol.hxx"
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include "test_support.hxx"
 
 using sf4e::SessionProtocol::FindMatchProblem;
@@ -57,6 +58,35 @@ int main() {
         CHECK(FindMatchProblem(lobby, delayed) == MatchProblem::Delay);
         delayed.inputDelay[side] = 255;
         CHECK(FindMatchProblem(lobby, delayed) == MatchProblem::Delay);
+    }
+
+    // The delays are read as the sender wrote them, before any narrowing to eight bits.
+    {
+        const auto base = nlohmann::json(match);
+        const auto withDelay = [&](nlohmann::json delay) { auto j = base; j["inputDelay"] = std::move(delay); return j; };
+        const auto reads = [&](const nlohmann::json& j) { try { j.get<MatchData>(); return true; } catch (const std::exception&) { return false; } };
+        for (int first = 0; first <= 10; ++first)
+            for (const int second : {0, 10}) {
+                const auto read = withDelay(nlohmann::json::array({first, second})).get<MatchData>();
+                CHECK(read.inputDelay[0] == first && read.inputDelay[1] == second);
+            }
+        for (const auto& bad : {nlohmann::json::array({257, 2}), nlohmann::json::array({2, 258}), nlohmann::json::array({2, 4294967298ull}),
+            nlohmann::json::array({11, 2}), nlohmann::json::array({2, 255}), nlohmann::json::array({-1, 2}), nlohmann::json::array({2, -255}),
+            nlohmann::json::array({1.5, 2}), nlohmann::json::array({2, 2.0}), nlohmann::json::array({"2", 2}), nlohmann::json::array({true, 2}),
+            nlohmann::json::array({nullptr, 2}), nlohmann::json::array(), nlohmann::json::array({2}), nlohmann::json::array({2, 2, 2}),
+            nlohmann::json(2), nlohmann::json("2,2"), nlohmann::json(nullptr), nlohmann::json::object()})
+            CHECK(!reads(withDelay(bad)));
+        // Parsed text takes the same path as a value built in code.
+        CHECK(!reads(nlohmann::json::parse(R"({"inputDelay":[257,2]})")));
+        CHECK(!reads(nlohmann::json::parse(R"({"inputDelay":[2,-1]})")));
+        CHECK(!reads(nlohmann::json::parse(R"({"inputDelay":[2.5,2]})")));
+        CHECK(!reads(nlohmann::json::parse(R"({"inputDelay":[18446744073709551615,2]})")));
+        // A match written without the field keeps the default delay; the rest still reads.
+        auto absent = base; absent.erase("inputDelay");
+        const auto defaulted = absent.get<MatchData>();
+        CHECK(defaulted.inputDelay[0] == 2 && defaulted.inputDelay[1] == 2 && defaulted.stageID == match.stageID);
+        CHECK(nlohmann::json::parse("{}").get<MatchData>().inputDelay[1] == 2);
+        CHECK(base.at("inputDelay") == nlohmann::json::array({2, 2}));
     }
 
     std::cout << "Match problems: settings, stage, either fighter and a delay past the wire ceiling refused; a valid match passes\n";

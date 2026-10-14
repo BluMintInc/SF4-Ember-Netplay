@@ -292,28 +292,29 @@ int wmain(int argc, wchar_t** argv) {
 	// Match the player UI: probe occupied seats before Ready sends selections.
 	CHECK(clients[0]->GetRoomSnapshot().members[0].fighter == -1);
 	const auto pairRevision = clients[0]->GetRoomSnapshot().tables[0].revision;
+	// AutoDelayCheck's schedule: each side waits until its room view and its
+	// own committed copy of the room seat the pair at the same table
+	// revision (ProbePairCommitted), and for one settle (SettleMs) since
+	// that revision last moved.
+	const auto clear = [&](std::size_t side) {
+		const auto* committed = recoveryPeers[side].server->RoomSnapshot();
+		return committed && room::ProbePairCommitted(clients[side]->GetRoomSnapshot().tables[0], committed->tables[0]);
+	};
+	const auto settle = [&]() {
+		std::array<std::uint64_t, 2> seen{{0, 0}};
+		auto movedAt = GetTickCount64();
+		wait([&]() {
+			pump();
+			for (std::size_t side = 0; side < 2; ++side) {
+				const auto revision = clients[side]->GetRoomSnapshot().tables[0].revision;
+				if (revision != seen[side]) { seen[side] = revision; movedAt = GetTickCount64(); }
+			}
+			return clear(0) && clear(1) && GetTickCount64() >= movedAt + 1000;
+		});
+	};
 	if (autoChecks) {
-		// AutoDelayCheck's schedule: each side waits until its room view and its
-		// own committed copy of the room seat the pair at the same table
-		// revision (ProbePairCommitted), and for one settle (SettleMs) since
-		// that revision last moved; then both ask at once, and ask once more
-		// RetryMs after a check that ends without a recommendation.
-		const auto clear = [&](std::size_t side) {
-			const auto* committed = recoveryPeers[side].server->RoomSnapshot();
-			return committed && room::ProbePairCommitted(clients[side]->GetRoomSnapshot().tables[0], committed->tables[0]);
-		};
-		const auto settle = [&]() {
-			std::array<std::uint64_t, 2> seen{{0, 0}};
-			auto movedAt = GetTickCount64();
-			wait([&]() {
-				pump();
-				for (std::size_t side = 0; side < 2; ++side) {
-					const auto revision = clients[side]->GetRoomSnapshot().tables[0].revision;
-					if (revision != seen[side]) { seen[side] = revision; movedAt = GetTickCount64(); }
-				}
-				return clear(0) && clear(1) && GetTickCount64() >= movedAt + 1000;
-			});
-		};
+		// Both ask at once, and ask once more RetryMs after a check that ends
+		// without a recommendation.
 		settle();
 		const std::array<std::string, 2> peers{{rooms[1]->LocalIdentity(), rooms[0]->LocalIdentity()}};
 		std::array<int, 2> attempts{{0, 0}};
@@ -357,14 +358,31 @@ int wmain(int argc, wchar_t** argv) {
 		std::cout << "Both seated players on Auto measured each other before Ready\n";
 	}
 	if (!autoChecks) {
-	CHECK(rooms[0]->RequestProbe(probePeer, 1, pairRevision, benchmark));
-	wait([&]() {
-		pump();
+	const auto firstMeasured = [&]() {
 		const auto& probe = rooms[0]->Probe();
 		return (probe.status == "ready" || probe.status == "complete") && probe.samples >= (benchmark ? 480U : 80U) &&
             probe.sent == (benchmark ? 600U : 100U) &&
 			probe.samples + probe.lost == (benchmark ? 600 : 100) && probe.route != "" && probe.recommended >= 0;
+	};
+	auto checkRevision = pairRevision;
+	CHECK(rooms[0]->RequestProbe(probePeer, 1, checkRevision, benchmark));
+	// The helper refuses a revision its committed room has moved past (probe
+	// pair unavailable, code 8). The real client's Auto path waits for its view
+	// to settle and asks again; so does this check, once, and only for that refusal.
+	bool refused = false;
+	wait([&]() {
+		pump();
+		if (firstMeasured()) return true;
+		const auto& probe = rooms[0]->Probe();
+		return refused = probe.request == 1 && probe.status == "unavailable" && probe.failureReason == 8;
 	});
+	if (refused) {
+		std::cout << "First connection check refused (probe pair unavailable); asking again after the room settled\n";
+		settle();
+		checkRevision = clients[0]->GetRoomSnapshot().tables[0].revision;
+		CHECK(rooms[0]->RequestProbe(probePeer, 2, checkRevision, benchmark));
+		wait([&]() { pump(); return firstMeasured(); });
+	}
 	const auto probeRoute = rooms[0]->Probe().route;
 	std::cout << "Probe route=" << probeRoute << " valid=" << rooms[0]->Probe().samples
 		<< " lost=" << rooms[0]->Probe().lost << " p95_rtt_us=" << rooms[0]->Probe().p95RttUs
@@ -376,7 +394,7 @@ int wmain(int argc, wchar_t** argv) {
     std::cout << "Datagram measurement bytes=" << measured.packetBytes << " sent=" << measured.sent << " scheduled=" << measured.expected
         << " replies=" << measured.samples << " missed=" << measured.lost << " p50_us=" << measured.p50RttUs
         << " p95_us=" << measured.p95RttUs << " p99_us=" << measured.p99RttUs << " variation_us=" << measured.jitterUs << '\n';
-	CHECK(rooms[1]->RequestProbe(rooms[0]->LocalIdentity(), 1, pairRevision));
+	CHECK(rooms[1]->RequestProbe(rooms[0]->LocalIdentity(), 1, checkRevision));
 	// A serves this check while holding its own result. Serving it must not
 	// touch that result, whichever order the two helpers finish in.
 	wait([&]() {

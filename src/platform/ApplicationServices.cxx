@@ -126,7 +126,8 @@ bool ApplicationServices::UpdateNow(const launcher::InstallOffer& offer) {
 }
 bool ApplicationServices::SkipUpdate(const launcher::InstallOffer& offer) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (stop_ || state_.pending || !state_.launchOffer || *state_.launchOffer != offer) return false;
+    if (stop_ || !state_.launchOffer || *state_.launchOffer != offer) return false;
+    if (state_.pending) { ++state_.skipFailures; state_.skipError = loc::T("runtime.operation_busy"); return false; }
     offer_ = offer;
     return Start(ServiceAction::SkipUpdate, {}, state_.channel);
 }
@@ -171,6 +172,7 @@ void ApplicationServices::Run() {
         launcher::UpdateChannel channel;
         std::optional<reports::Operation> reportOperation;
         std::optional<launcher::InstallOffer> offer;
+        bool skipFailed = false;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
@@ -212,6 +214,7 @@ void ApplicationServices::Run() {
             } else if (action == ServiceAction::SkipUpdate) {
                 next.succeeded = offer && policy_.Skip(offer->tag);
                 if (next.succeeded) next.launchOffer.reset();
+                else { skipFailed = true; next.message = loc::T("common.save_failed"); }
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
                 std::filesystem::create_directories(directory);
@@ -313,13 +316,20 @@ void ApplicationServices::Run() {
                     next.message = result.ok ? loc::T("services.update_prepared") : result.error;
                 }
             }
-        } catch (...) { next.succeeded = false; next.message = loc::T("services.operation_failed"); }
+        } catch (...) { next.succeeded = false; next.message = loc::T("services.operation_failed"); skipFailed = action == ServiceAction::SkipUpdate; }
         if (cancelled_ && !next.installed && !reportOperation) {
             next.succeeded = false;
             next.message = loc::T("services.operation_cancelled");
         }
         next.pending = false;
-        { std::lock_guard<std::mutex> lock(mutex_); next.connectionHistory = std::move(state_.connectionHistory); state_ = std::move(next); }
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            next.connectionHistory = std::move(state_.connectionHistory);
+            // A skip refused while this ran was counted on state_ itself.
+            next.skipFailures = state_.skipFailures + (skipFailed ? 1 : 0);
+            next.skipError = skipFailed ? next.message : std::move(state_.skipError);
+            state_ = std::move(next);
+        }
     }
 }
 } }

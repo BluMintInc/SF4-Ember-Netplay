@@ -897,7 +897,7 @@ async fn the_subscription_has_a_lease_a_single_view_and_no_events_after_it_stops
     let (view, rows) = events.last().expect("a table").clone();
     assert_eq!(view, 5);
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].state, "value");
+    assert!(matches!(rows[0].state, LatencyState::Value { .. }), "{rows:?}");
 
     // Stale epoch, room or view: ignored.
     members[0].actor.latency_watch(2, ROOM, 6, true);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <array>
@@ -10,6 +11,7 @@
 #include <nlohmann/json.hpp>
 
 #include "SessionPlainTypes.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/StageValue.hxx"
 #include "../common/LatencyRoute.hxx"
 #include "RoomModel.hxx"
@@ -433,7 +435,34 @@ namespace sf4e {
 		// added (e.g. trainingMode) deserializes with that field's default
 		// instead of throwing on the missing key.
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbyData, id, editionSelect, roundCount, roundTime, trainingMode, members);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay, lowerInputLag);
+		inline void to_json(nlohmann::json& j, const MatchData& value) {
+			j = nlohmann::json{{"readyMessageNum", value.readyMessageNum}, {"chara", value.chara}, {"stageID", value.stageID},
+				{"rngSeed", value.rngSeed}, {"inputDelay", value.inputDelay}, {"lowerInputLag", value.lowerInputLag}};
+		}
+		// Written by hand so the delays are checked as the sender wrote them: the
+		// generic reader narrows a number to eight bits first, which would turn
+		// [257, 2] into [1, 2]. A missing field keeps its default, as for the others.
+		inline void from_json(const nlohmann::json& j, MatchData& value) {
+			const MatchData defaults;
+			value.readyMessageNum = j.value("readyMessageNum", defaults.readyMessageNum);
+			value.chara = j.value("chara", defaults.chara);
+			value.stageID = j.value("stageID", defaults.stageID);
+			value.rngSeed = j.value("rngSeed", defaults.rngSeed);
+			value.lowerInputLag = j.value("lowerInputLag", defaults.lowerInputLag);
+			value.inputDelay = defaults.inputDelay;
+			const auto delay = j.find("inputDelay");
+			if (delay == j.end()) return;
+			if (!delay->is_array() || delay->size() != 2) throw std::invalid_argument("match input delay");
+			for (std::size_t seat = 0; seat < 2; ++seat) {
+				const auto& item = delay->at(seat);
+				if (!item.is_number_integer()) throw std::invalid_argument("match input delay");
+				const bool inRange = item.is_number_unsigned()
+					? item.get<std::uint64_t>() <= static_cast<std::uint64_t>(InputDelayWireCeiling)
+					: item.get<std::int64_t>() >= 0 && item.get<std::int64_t>() <= InputDelayWireCeiling;
+				if (!inRange) throw std::out_of_range("match input delay");
+				value.inputDelay[seat] = static_cast<std::uint8_t>(item.get<std::int64_t>());
+			}
+		}
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloMsg, type, cid, authenticatedEndpoint, incarnation, admission);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);

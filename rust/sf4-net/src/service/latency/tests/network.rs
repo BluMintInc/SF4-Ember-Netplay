@@ -205,13 +205,17 @@ fn values(rows: &[MemberLatencyRow], count: usize) -> bool {
     rows.len() == count
         && rows
             .iter()
-            .all(|row| row.state == "value" && row.rtt_ms.is_some_and(|ms| (1..=999).contains(&ms)))
+            .all(|row| matches!(row.state, LatencyState::Value { rtt_ms } if (1..=999).contains(&rtt_ms)))
 }
 
-fn state_of(rows: &[MemberLatencyRow], member: u64) -> Option<(&str, Option<&str>)> {
+fn is_value(state: LatencyState) -> bool {
+    matches!(state, LatencyState::Value { .. })
+}
+
+fn state_of(rows: &[MemberLatencyRow], member: u64) -> Option<LatencyState> {
     rows.iter()
         .find(|row| row.member == member)
-        .map(|row| (row.state.as_str(), row.reason.as_deref()))
+        .map(|row| row.state)
 }
 
 #[tokio::test]
@@ -305,13 +309,13 @@ async fn strangers_wrong_incarnations_old_incarnations_and_rowless_members_are_r
         .await;
     assert!(
         rows.iter()
-            .all(|row| row.reason.as_deref() == Some("room_unavailable")),
+            .all(|row| row.state == LatencyState::Unavailable { reason: LatencyUnavailable::RoomUnavailable }),
         "{rows:?}"
     );
     nodes[0].watch(1, true).await;
     let rows = nodes[0]
         .table(1, Duration::from_secs(20), |rows| {
-            state_of(rows, 3) == Some(("unavailable", Some("refused")))
+            state_of(rows, 3) == Some(LatencyState::Unavailable { reason: LatencyUnavailable::Refused })
         })
         .await;
     assert_eq!(
@@ -460,13 +464,13 @@ async fn departure_rejoin_a_match_and_leaving_the_room() {
         .await;
     let rows = nodes[0]
         .table(1, Duration::from_secs(30), |rows| {
-            state_of(rows, 2).is_some_and(|(state, _)| state != "value")
+            state_of(rows, 2).is_some_and(|state| !is_value(state))
         })
         .await;
     assert!(
         matches!(
             state_of(&rows, 2),
-            Some(("unavailable", _) | ("measuring", _))
+            Some(LatencyState::Unavailable { .. } | LatencyState::Measuring)
         ),
         "{rows:?}"
     );
@@ -477,8 +481,8 @@ async fn departure_rejoin_a_match_and_leaving_the_room() {
     nodes[0].watch(1, true).await;
     let rows = nodes[0]
         .table(1, Duration::from_secs(10), |rows| {
-            state_of(rows, 2).is_some_and(|(state, _)| state == "value")
-                || state_of(rows, 2) == Some(("unavailable", Some("in_match")))
+            state_of(rows, 2).is_some_and(is_value)
+                || state_of(rows, 2) == Some(LatencyState::Unavailable { reason: LatencyUnavailable::InMatch })
         })
         .await;
     assert!(state_of(&rows, 3).is_some());
@@ -590,7 +594,7 @@ async fn a_public_room_measures_over_relays_even_with_a_direct_route() {
             );
         }
         let rows = member.latency_events().pop().expect("a table").1;
-        assert_eq!(rows[0].state, "value");
+        assert!(is_value(rows[0].state), "{rows:?}");
         assert_eq!(member.latency_endpoint().addr().ip_addrs().count(), 0);
     }
     assert!(direct.close_reason().is_none());
@@ -662,7 +666,7 @@ async fn a_join_never_waits_for_the_latency_relay() {
     .await;
     members[0].actor.latency_second().await;
     let rows = members[0].latency_events().pop().expect("a table").1;
-    assert_eq!(rows[0].state, "value");
+    assert!(is_value(rows[0].state), "{rows:?}");
     for member in members {
         member.stop().await;
     }

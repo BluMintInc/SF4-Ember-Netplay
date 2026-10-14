@@ -83,7 +83,7 @@ async fn both_boards_subscribed_hold_one_slot_each_way_and_values_come_from_outb
         let events = member.latency_events();
         let rows = &events.last().expect("a table").1;
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].state, "value");
+        assert!(matches!(rows[0].state, LatencyState::Value { .. }), "{rows:?}");
         assert_eq!(open_slots(&member.actor), (1, 1));
     }
     for member in members {
