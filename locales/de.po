@@ -1904,6 +1904,9 @@ msgstr "Schräg"
 msgid "training.meter.style.flat"
 msgstr "Flach"
 
+msgid "training.meter.style.classic"
+msgstr "Klassisch"
+
 msgid "training.meter.frames_shown"
 msgstr "Gezeigte Frames"
 
@@ -1952,6 +1955,21 @@ msgstr "Kürzel im HUD"
 msgid "training.meter.hud_status"
 msgstr "Aufnahme im HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Datenzeile im HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Eingabespuren"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6-Farben und Meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legende, Marker und Rand"
+
+msgid "training.meter.classic_slant"
+msgstr "Schräge Zellen"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zeigt diesen Teil des Trainings-HUD im Kampf. F5 blendet das ganze HUD aus."
 
@@ -1967,11 +1985,23 @@ msgstr "Anzeige-Einstellungen"
 msgid "training.meter.settings.detail"
 msgstr "Wo die Anzeige sitzt, wie weit sie zurückreicht und was sie nach einer Pause tut."
 
+msgid "training.meter.classic"
+msgstr "Klassische Anzeige"
+
+msgid "training.meter.classic.detail"
+msgstr "Die Balkenhöhe der klassischen Anzeige und ihre Teile."
+
 msgid "training.meter.position"
 msgstr "Anzeigeposition"
 
 msgid "training.meter.position.detail"
 msgstr "Wie weit unten die Anzeige sitzt, gemessen bis zu ihrer Unterkante. 82 % hält sie knapp über den Super-Leisten; kleinere Werte schieben sie nach oben."
+
+msgid "training.meter.bar_height"
+msgstr "Balkenhöhe"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Wie hoch die Balken der klassischen Anzeige sind."
 
 msgid "training.recovery_frames"
 msgstr "Erh. {0} F"

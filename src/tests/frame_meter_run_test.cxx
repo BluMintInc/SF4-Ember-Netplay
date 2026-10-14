@@ -75,6 +75,20 @@ int main() {
                 fill.Cell((length - 1) % 60) == static_cast<int>(MeterHistory) - 1,
                 "The newest frame left its cell once the oldest were dropped");
         }
+        // Meaty frames are marked once, when the other is seen up: its last
+        // frame down, and the attacker's active frames before the one that met it.
+        {
+            std::deque<MeterFrame> bars(6);
+            const MeterKind kinds[] = {MeterKind::Startup, MeterKind::Active, MeterKind::Active, MeterKind::Active, MeterKind::Active, MeterKind::Active};
+            for (std::size_t i = 0; i < bars.size(); ++i) { bars[i].cells[0].kind = kinds[i]; bars[i].cells[1].kind = MeterKind::Down; }
+            MarkMeaty(bars, 1);
+            Require(bars[5].cells[1].meaty && !bars[4].cells[1].meaty, "The frame the fighter could first be hit on was not marked");
+            Require(!bars[0].cells[0].meaty && bars[1].cells[0].meaty && bars[4].cells[0].meaty && !bars[5].cells[0].meaty,
+                "The attack's active frames before the one that met the fighter were not the meaty ones");
+            bars.back().cells[0].kind = MeterKind::Recovery; for (auto& frame : bars) frame.cells[0].meaty = false;
+            MarkMeaty(bars, 1);
+            Require(!bars[3].cells[0].meaty, "An attack no longer active as the fighter got up was marked meaty");
+        }
         // After a pause the next exchange starts on clear bars, or, continuing,
         // goes on after the last one, the quiet frames between left out.
         for (const bool continuous : {false, true}) {

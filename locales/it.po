@@ -1904,6 +1904,9 @@ msgstr "Inclinato"
 msgid "training.meter.style.flat"
 msgstr "Piatto"
 
+msgid "training.meter.style.classic"
+msgstr "Classico"
+
 msgid "training.meter.frames_shown"
 msgstr "Frame mostrati"
 
@@ -1952,6 +1955,21 @@ msgstr "Scorciatoie nell'HUD"
 msgid "training.meter.hud_status"
 msgstr "Registrazione nell'HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Riga dati sull'HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Corsie input"
+
+msgid "training.meter.classic_colors"
+msgstr "Colori SF6 e meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, indicatori e bordo"
+
+msgid "training.meter.classic_slant"
+msgstr "Celle inclinate"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Mostra questa parte dell'HUD di allenamento durante lo scontro. F5 nasconde tutto l'HUD."
 
@@ -1967,11 +1985,23 @@ msgstr "Impostazioni del misuratore"
 msgid "training.meter.settings.detail"
 msgstr "Dove si trova il misuratore, quanto conserva e cosa fa dopo una pausa."
 
+msgid "training.meter.classic"
+msgstr "Misuratore classico"
+
+msgid "training.meter.classic.detail"
+msgstr "L'altezza delle barre del misuratore classico e le sue parti."
+
 msgid "training.meter.position"
 msgstr "Posizione del misuratore"
 
 msgid "training.meter.position.detail"
 msgstr "Quanto in basso sullo schermo si trova il misuratore, misurato al suo bordo inferiore. 82% lo tiene appena sopra le barre delle super; numeri più bassi lo alzano."
+
+msgid "training.meter.bar_height"
+msgstr "Altezza delle barre"
+
+msgid "training.meter.bar_height.detail"
+msgstr "L'altezza delle barre del misuratore classico."
 
 msgid "training.recovery_frames"
 msgstr "Rec. {0} f"

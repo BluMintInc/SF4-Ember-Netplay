@@ -405,6 +405,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  trainingMenu.backHint=nav.Screen()==nav.Root()?loc::T("training.close_controls"):"";
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
+ const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
  const bool recordingGrid=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
  if(screen=="home"){
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
@@ -454,13 +455,12 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows={Row("p1",loc::T("training.player_one"),TrainingFrameData(v.meter,0)),
         Row("p2",loc::T("training.player_two"),TrainingFrameData(v.meter,1)),
         Row("color-key",loc::T("training.color_key"),""),
-        Value("meter-style",loc::T("training.meter.style"),loc::T(lab.meter.flat?"training.meter.style.flat":"training.meter.style.angled"),loc::T("training.meter.style.detail")),
+        Value("meter-style",loc::T("training.meter.style"),loc::T(lab.meter.style==MeterStyle::Classic?"training.meter.style.classic":lab.meter.style==MeterStyle::Flat?"training.meter.style.flat":"training.meter.style.angled"),loc::T("training.meter.style.detail")),
         Value("frames-shown",loc::T("training.meter.frames_shown"),std::to_string(lab.meter.shown),loc::T("training.meter.frames_shown.detail")),
         Value("hud-recovery",loc::T("training.meter.hud_recovery"),onOff(lab.meter.recovery),loc::T("training.meter.hud_recovery.detail"))};
   rows[0].reading=rows[1].reading=rows[2].reading=true;
  }else if(screen=="hud"){
   LoadPractice();
-  const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
   rows.push_back(Value("hud-size",loc::T("training.meter.hud_size"),loc::T(sizes[lab.meter.size]),loc::T("training.meter.hud_size.detail")));
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
   // The meter's own settings, Ember's beside the HUD's, on a page of their own.
@@ -470,6 +470,14 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail")),
         Value("meter-history",loc::T("training.meter.history"),loc::Tf("training.meter.history_seconds",lab.meter.history/60),loc::T("training.meter.history.detail")),
         Value("meter-after-pause",loc::T("training.meter.after_pause"),loc::T(lab.meter.continuous?"training.meter.after_pause.continue":"training.meter.after_pause.start_over"),loc::T("training.meter.after_pause.detail"))};
+  if(lab.meter.style==MeterStyle::Classic)rows.push_back(Row("meter-classic",loc::T("training.meter.classic"),loc::T("training.meter.classic.detail")));
+ }else if(screen=="meter-classic"){
+  LoadPractice();
+  // A bar height for each size name, so the heights are named as the HUD's sizes are.
+  static_assert(sizeof(ClassicBarHeights)/sizeof(*ClassicBarHeights)==HudSizes,"Each bar height needs a size name");
+  const auto bar=std::find(std::begin(ClassicBarHeights),std::end(ClassicBarHeights),lab.meter.barHeight)-std::begin(ClassicBarHeights);
+  rows.push_back(Value("bar-height",loc::T("training.meter.bar_height"),loc::T(sizes[bar]),loc::T("training.meter.bar_height.detail")));
+  for(const auto& part:ClassicParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
   rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
@@ -500,27 +508,30 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
  // A recorded reply with no slot that can be one would do nothing; the page says so.
  else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&!v.replyable){status=loc::T("training.reply.no_recordings_on");statusTone=Tone::Pending;}
- trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"||screen=="meter-settings"?.58f:.5f;
+ trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"||screen=="meter-settings"||screen=="meter-classic"?.58f:.5f;
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
-  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(!lab.meter.flat);
+  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
  },recordingGrid?2:1,{},GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,recordingGrid?30:100,false,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
- if(a.kind==MenuAction::Activate&&a.id=="meter-settings"){nav.Push(a.id);return;}
+ if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic")){nav.Push(a.id);return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-after-pause"){lab.meter.continuous=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-position"){Step(lab.meter.position,{std::begin(MeterPositions),std::end(MeterPositions)},a.delta);SavePractice();return;}
+ if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&a.id=="bar-height"){Step(lab.meter.barHeight,{std::begin(ClassicBarHeights),std::end(ClassicBarHeights)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
- if(screen=="hud"&&a.kind==MenuAction::Adjust)for(const auto& part:HudParts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return;}
+ const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};
+ if(screen=="hud"&&a.kind==MenuAction::Adjust&&turn(HudParts))return;
+ if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&turn(ClassicParts))return;
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
-  // Angled first, then Flat; 60, 90, then 120 frames; Recovery Off, then On.
-  if(a.id=="meter-style")lab.meter.flat=a.delta>0;
+  // Angled, Flat, then Classic; 60, 90, then 120 frames; Recovery Off, then On.
+  if(a.id=="meter-style")lab.meter.style=static_cast<MeterStyle>((std::max)(0,(std::min)(MeterStyles-1,static_cast<int>(lab.meter.style)+a.delta)));
   else if(a.id=="frames-shown")Step(lab.meter.shown,{std::begin(MeterShownChoices),std::end(MeterShownChoices)},a.delta);
   else lab.meter.recovery=a.delta>0;
   SavePractice();return;

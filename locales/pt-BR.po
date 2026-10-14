@@ -1701,6 +1701,9 @@ msgstr "Inclinado"
 msgid "training.meter.style.flat"
 msgstr "Plano"
 
+msgid "training.meter.style.classic"
+msgstr "Clássico"
+
 msgid "training.meter.frames_shown"
 msgstr "Quadros mostrados"
 
@@ -1749,6 +1752,21 @@ msgstr "Atalhos no HUD"
 msgid "training.meter.hud_status"
 msgstr "Gravação no HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Linha de dados no HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Faixas de entrada"
+
+msgid "training.meter.classic_colors"
+msgstr "Cores do SF6 e meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, marcadores e borda"
+
+msgid "training.meter.classic_slant"
+msgstr "Células inclinadas"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Mostra esta parte do HUD de treino durante a luta. F5 oculta todo o HUD."
 
@@ -1764,11 +1782,23 @@ msgstr "Configurações do medidor"
 msgid "training.meter.settings.detail"
 msgstr "Onde o medidor fica, quanto guarda para trás e o que faz após uma pausa."
 
+msgid "training.meter.classic"
+msgstr "Medidor clássico"
+
+msgid "training.meter.classic.detail"
+msgstr "A altura das barras do medidor clássico e suas partes."
+
 msgid "training.meter.position"
 msgstr "Posição do medidor"
 
 msgid "training.meter.position.detail"
 msgstr "Quão abaixo na tela fica o medidor, medido pela borda inferior. 82% o mantém logo acima das barras de super; números menores o sobem."
+
+msgid "training.meter.bar_height"
+msgstr "Altura das barras"
+
+msgid "training.meter.bar_height.detail"
+msgstr "A altura das barras do medidor clássico."
 
 msgid "training.recovery_frames"
 msgstr "Rec. {0} q"

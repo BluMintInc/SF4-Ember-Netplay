@@ -1905,6 +1905,9 @@ msgstr "Наклонный"
 msgid "training.meter.style.flat"
 msgstr "Плоский"
 
+msgid "training.meter.style.classic"
+msgstr "Классический"
+
 msgid "training.meter.frames_shown"
 msgstr "Кадров на шкале"
 
@@ -1953,6 +1956,21 @@ msgstr "Клавиши на HUD"
 msgid "training.meter.hud_status"
 msgstr "Запись на HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Строка данных на HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Дорожки ввода"
+
+msgid "training.meter.classic_colors"
+msgstr "Цвета SF6 и meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Легенда, метки и рамка"
+
+msgid "training.meter.classic_slant"
+msgstr "Наклонные ячейки"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Показывает эту часть HUD тренировки во время боя. F5 скрывает весь HUD."
 
@@ -1968,11 +1986,23 @@ msgstr "Настройки счётчика"
 msgid "training.meter.settings.detail"
 msgstr "Где находится счётчик, сколько он хранит и что делает после паузы."
 
+msgid "training.meter.classic"
+msgstr "Классический счётчик"
+
+msgid "training.meter.classic.detail"
+msgstr "Высота полос классического счётчика и его части."
+
 msgid "training.meter.position"
 msgstr "Положение счётчика"
 
 msgid "training.meter.position.detail"
 msgstr "Насколько низко на экране находится счётчик, по его нижнему краю. 82% держит его прямо над шкалами суперприёмов; меньшие числа поднимают его."
+
+msgid "training.meter.bar_height"
+msgstr "Высота полос"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Высота полос классического счётчика."
 
 msgid "training.recovery_frames"
 msgstr "Восст.: {0} к."

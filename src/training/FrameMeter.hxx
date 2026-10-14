@@ -104,6 +104,8 @@ struct FighterSample {
     bool throwRecovery = false;
     // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
+    // The side's pad this frame (FightButtons), for the classic meter's input lanes; 0 when none was read.
+    unsigned input = 0;
 };
 // The frame a move's recovery ends on: where the script says the fighter is
 // free again, its interruptible frame, else its end; -1 when neither is known.
@@ -168,15 +170,25 @@ constexpr int MeterShownChoices[] = {60, 90, 120};
 // chip and its hint) and status (the strip a recording or a playback adds).
 // size: the HUD's, small, standard or large (0 to HudSizes - 1).
 constexpr int HudSizes = 3;
-struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
+// classic: the first meter's style instead (TrainingMeter.cxx: ClassicMeter),
+// with its own parts, each on until it is turned off: the data line, the
+// input lanes, Street Fighter 6's colours with meaty frames, and the colour
+// key, scroll markers and trim.
+// The bars' style: angled, the default; Stable's flat bars; or the first meter's.
+enum class MeterStyle { Angled, Flat, Classic };
+constexpr int MeterStyles = 3;
+struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
+    bool classicData = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
     // The frames the meter keeps, one of MeterHistoryChoices.
     int history = 1200;
     // After a pause the next exchange goes on after the last instead of starting over.
     bool continuous = false;
     // Where the meter's bottom edge sits, in percent of the screen's height
-    // from the top (MeterPositions; 82 is just above the super meters).
-    int position = 82; };
+    // from the top (MeterPositions; 82 is just above the super meters), and
+    // the classic bars' height (ClassicBarHeights, at the HUD's scale).
+    int position = 82, barHeight = 16; };
 constexpr int MeterPositions[] = {12, 25, 40, 55, 70, 82, 92};
+constexpr int ClassicBarHeights[] = {12, 16, 22};
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
     switch (status) {
@@ -263,6 +275,11 @@ struct MeterCell {
     MeterKind kind = MeterKind::Unknown;
     Phase phase = Phase::Unknown;
     bool newAction = false, split = false;
+    // Set later, once, when the other fighter is seen up (FrameMeter::MarkMeaty):
+    // the frame a fighter could first be hit after a knockdown, or an attack's
+    // active frame that had passed before the one that met it. Only the
+    // classic style draws it.
+    bool meaty = false;
     // The status the guard this cell is part of began from, carried from
     // cell to cell, so a long guard stays what it began as.
     unsigned guardFrom = ~0u;
@@ -294,6 +311,17 @@ struct MeterFrame {
     std::array<MeterCell, 2> cells;
     int frame = 0;
 };
+// The fighter on side `up` is first seen up on the frame after the bars'
+// last. That last frame is the one it could first be hit on, and the other's
+// active frames before it, if it was met with an active frame too, are the
+// meaty ones (MeterCell::meaty).
+inline void MarkMeaty(std::deque<MeterFrame>& bars, int up) {
+    if (bars.empty()) return;
+    bars.back().cells[up].meaty = true;
+    const int attacker = 1 - up;
+    if (bars.back().cells[attacker].kind != MeterKind::Active) return;
+    for (auto at = bars.rbegin() + 1; at != bars.rend() && at->cells[attacker].kind == MeterKind::Active; ++at) at->cells[attacker].meaty = true;
+}
 // A frame added after the last of frames, its cells resolved after that one's
 // as the meter resolves them: for bars made by hand, a preview or a test.
 inline void AppendMeterFrame(std::deque<MeterFrame>& frames, const std::array<FighterSample, 2>& fighters, int frame) {
@@ -442,7 +470,7 @@ public:
                 }
                 // The frame a meaty meets is the one before the fighter is seen up: a status is read
                 // after its update, so the fighter could already be hit in the frame that ended the rise.
-                if (sample.wake) { wakeAt_[side] = now - 1; Meaty(1 - side); }
+                if (sample.wake) { wakeAt_[side] = now - 1; Meaty(1 - side); MarkMeaty(view_.frames, side); }
             }
             if (sample.valid && previous.valid && sample.action >= 0 && sample.action == previous.action &&
                 sample.actionFrame >= previous.actionFrame) ++view_.actionFrames[side];

@@ -121,16 +121,16 @@ int main() {
     for (const char* defaults : {"null", "{}", "[]", "true", R"({"style":"Flat","hud_recovery":"true"})", R"({"style":1,"hud_recovery":1})",
         R"({"style":"angled","hud_recovery":false})"}) {
         const auto options = ReadMeterOptions(json::parse(defaults));
-        CHECK(!options.flat && !options.recovery);
+        CHECK(options.style == MeterStyle::Angled && !options.recovery);
     }
-    CHECK(ReadMeterOptions(json::parse(R"({"style":"flat"})")).flat);
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"flat"})")).style == MeterStyle::Flat);
     for (const char* shown : {"{}", R"({"frames_shown":30})", R"({"frames_shown":"90"})", R"({"frames_shown":90.5})", R"({"frames_shown":-60})"})
         CHECK(ReadMeterOptions(json::parse(shown)).shown == 60);
     for (const int choice : MeterShownChoices) CHECK(ReadMeterOptions(json{{"frames_shown", choice}}).shown == choice);
     for (int bits = 0; bits < 4; ++bits) {
-        MeterOptions options; options.flat = (bits & 1) != 0; options.recovery = (bits & 2) != 0; options.shown = bits == 3 ? 120 : 90;
+        MeterOptions options; options.style = (bits & 1) ? MeterStyle::Flat : MeterStyle::Angled; options.recovery = (bits & 2) != 0; options.shown = bits == 3 ? 120 : 90;
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(options).dump()));
-        CHECK(read.flat == options.flat && read.recovery == options.recovery && read.shown == options.shown);
+        CHECK(read.style == options.style && read.recovery == options.recovery && read.shown == options.shown);
     }
     // The meter keeps 20 seconds unless one of the offered lengths is saved.
     for (const char* history : {"{}", R"({"history_frames":500})", R"({"history_frames":"600"})", R"({"history_frames":-240})"})
@@ -139,13 +139,23 @@ int main() {
         MeterOptions saved; saved.history = choice;
         CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).history == choice);
     }
-    // The meter sits above the super meters unless an offered place is saved.
-    CHECK(ReadMeterOptions(json::parse(R"({"position":50})")).position == 82 && ReadMeterOptions(json::parse(R"({"position":"40"})")).position == 82);
+    // The meter sits above the super meters at the standard bar height unless an offered place or height is saved.
+    CHECK(ReadMeterOptions(json::parse(R"({"position":50,"bar_height":"22"})")).position == 82 && ReadMeterOptions(json::parse(R"({"bar_height":17})")).barHeight == 16);
     for (const int choice : MeterPositions) { MeterOptions saved; saved.position = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).position == choice); }
+    for (const int choice : ClassicBarHeights) { MeterOptions saved; saved.barHeight = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).barHeight == choice); }
     // The meter starts over after a pause unless "continue" is saved.
     CHECK(!ReadMeterOptions(json::object()).continuous && !ReadMeterOptions(json::parse(R"({"after_pause":true})")).continuous);
-    {
-        MeterOptions going; going.continuous = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(going).dump())).continuous);
+    { MeterOptions going; going.continuous = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(going).dump())).continuous); }
+    // The classic style is its own choice: only "classic" picks it, never with
+    // flat, and its parts show unless saved as a literal false, each apart.
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"classic"})")).style == MeterStyle::Classic);
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"Classic"})")).style == MeterStyle::Angled);
+    { MeterOptions classic; classic.style = MeterStyle::Classic; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(classic).dump())).style == MeterStyle::Classic); }
+    for (const auto& part : ClassicParts) {
+        CHECK(ReadMeterOptions(json::object()).*part.shown);
+        MeterOptions off; off.*part.shown = false;
+        const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
+        for (const auto& other : ClassicParts) CHECK(read.*other.shown == (other.key != part.key));
     }
     // Every part of the HUD shows unless it is saved as a literal false, and
     // a round trip keeps each one apart from the others.

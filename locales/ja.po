@@ -1904,6 +1904,9 @@ msgstr "斜め"
 msgid "training.meter.style.flat"
 msgstr "フラット"
 
+msgid "training.meter.style.classic"
+msgstr "クラシック"
+
 msgid "training.meter.frames_shown"
 msgstr "表示フレーム数"
 
@@ -1952,6 +1955,21 @@ msgstr "HUDにショートカットを表示"
 msgid "training.meter.hud_status"
 msgstr "HUDに記録を表示"
 
+msgid "training.meter.classic_data"
+msgstr "HUDのデータ行"
+
+msgid "training.meter.classic_inputs"
+msgstr "入力レーン"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6カラーとメイティ"
+
+msgid "training.meter.classic_extras"
+msgstr "凡例・マーカー・縁取り"
+
+msgid "training.meter.classic_slant"
+msgstr "斜めのセル"
+
 msgid "training.meter.hud_part.detail"
 msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"
 
@@ -1967,11 +1985,23 @@ msgstr "メーター設定"
 msgid "training.meter.settings.detail"
 msgstr "メーターの位置、履歴の長さ、停止後の動作。"
 
+msgid "training.meter.classic"
+msgstr "クラシックメーター"
+
+msgid "training.meter.classic.detail"
+msgstr "クラシックメーターのバーの高さと各部分。"
+
 msgid "training.meter.position"
 msgstr "メーターの位置"
 
 msgid "training.meter.position.detail"
 msgstr "メーター下端の画面上の位置。82%でスーパーゲージのすぐ上、数値を下げるほど上に移動します。"
+
+msgid "training.meter.bar_height"
+msgstr "バーの高さ"
+
+msgid "training.meter.bar_height.detail"
+msgstr "クラシックメーターのバーの高さ。"
 
 msgid "training.recovery_frames"
 msgstr "硬直{0}F"

@@ -108,7 +108,7 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
             Require(MenuPromptDevice()==(pad?input::PadXInput:input::PadKeyboard),"The HUD's prompts did not follow the device");
             layers.challenger.goNowGlyph=GoNowGlyph(MenuPromptDevice());
             for(const int shown:training::MeterShownChoices)for(const bool flat:{false,true})for(const bool recovery:{false,true}){
-                training::MeterOptions options;options.flat=flat;options.recovery=recovery;options.shown=shown;SetTrainingMeterOptions(options);
+                training::MeterOptions options;options.style=flat?training::MeterStyle::Flat:training::MeterStyle::Angled;options.recovery=recovery;options.shown=shown;SetTrainingMeterOptions(options);
                 const bool shot=shown==60&&!recovery;
                 draw(shot?(pad?(flat?"training-call-hud-flat-pad":"training-call-hud-angled-pad"):(flat?"training-call-hud-flat":"training-call-hud-angled")):nullptr);
                 Require(WindowDrawn("Training room status")&&WindowDrawn("Training frame meter"),"The called member's training HUD was not drawn whole");

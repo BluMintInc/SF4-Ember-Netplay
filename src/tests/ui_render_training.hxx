@@ -80,7 +80,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","dummy","reply","tools"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
@@ -116,7 +116,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     // Angled and Off at first; Right picks Flat and turns the number on, and
     // the colour key names what the chosen style draws.
     {
-        Require(!TrainingMeterOptions().flat&&!TrainingMeterOptions().recovery&&TrainingMeterOptions().shown==60,"Meter options are not Angled, Off and 60 frames at first");
+        Require(TrainingMeterOptions().style==training::MeterStyle::Angled&&!TrainingMeterOptions().recovery&&TrainingMeterOptions().shown==60,"Meter options are not Angled, Off and 60 frames at first");
         TrainingNavigation().Home();TrainingNavigation().Push("frame-data");draw();
         for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         const auto focus=[&](const char* id){
@@ -124,13 +124,13 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             Require(TrainingNavigation().Focus()==id,"Frame data row unreachable");};
         focus("color-key");draw("training-color-key");
         focus("meter-style");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-        Require(TrainingMeterOptions().flat&&!TrainingMeterOptions().recovery,"Meter style row did not pick Flat");
+        Require(TrainingMeterOptions().style==training::MeterStyle::Flat&&!TrainingMeterOptions().recovery,"Meter style row did not pick Flat");
         focus("frames-shown");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(TrainingMeterOptions().shown==90,"Frames shown row did not step to 90");
         draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(TrainingMeterOptions().shown==120,"Frames shown row went past 120");
         focus("hud-recovery");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-        Require(TrainingMeterOptions().flat&&TrainingMeterOptions().recovery,"Recovery row did not turn the HUD number on");
+        Require(TrainingMeterOptions().style==training::MeterStyle::Flat&&TrainingMeterOptions().recovery,"Recovery row did not turn the HUD number on");
         draw("training-meter-options");
         for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         focus("color-key");draw("training-color-key-flat");
@@ -212,7 +212,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         std::map<std::string,std::pair<ImVec2,ImVec2>> bars;
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});
         for(const int shown:training::MeterShownChoices)for(bool angled:{true,false})for(const int last:{shown,7}) {
-            training::MeterOptions options;options.flat=!angled;options.shown=shown;SetTrainingMeterOptions(options);
+            training::MeterOptions options;options.style=angled?training::MeterStyle::Angled:training::MeterStyle::Flat;options.shown=shown;SetTrainingMeterOptions(options);
             // Ten pages, then the last frames on a page of their own unless they fill one.
             const int total=10*shown+(last==shown?0:last);
             training.meter.frames.clear();training.meter.length=0;
@@ -260,7 +260,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     // The F6 colour key must describe the flat bars: each entry's colour is the
     // one they draw for a status of that phase, and no two entries share one.
     {
-        SetTrainingMeterOptions({true,false});
+        SetTrainingMeterOptions({training::MeterStyle::Flat,false});
         const auto keyEntries=TrainingColorKeyEntries(false);
         Require(keyEntries.size()==6,"Colour key does not list the phases the bars draw");
         std::set<unsigned> keyColors;
@@ -319,8 +319,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.meter=savedMeter;
     // The default zoom flat, the whole history at once, and the recovery
     // number keep the meter's size.
-    for(const auto& shot:{std::make_pair("training-hud-flat",training::MeterOptions{true,false,60}),std::make_pair("training-hud-120",training::MeterOptions{false,false,120}),
-        std::make_pair("training-hud-recovery",training::MeterOptions{false,true,60})}) {
+    for(const auto& shot:{std::make_pair("training-hud-flat",training::MeterOptions{training::MeterStyle::Flat,false,60}),std::make_pair("training-hud-120",training::MeterOptions{training::MeterStyle::Angled,false,120}),
+        std::make_pair("training-hud-recovery",training::MeterOptions{training::MeterStyle::Angled,true,60})}) {
         SetTrainingMeterOptions(shot.second);draw(shot.first);
         hud=FindWindow("Training frame meter");Require(hud->Size.x<=620*hudScale+1&&hud->Size.y<size.h*.17f,"Meter option made the HUD too large");
         Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Meter option moved the HUD over the game's super meters");
@@ -392,13 +392,13 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         runs.startupFrames={{5,-1}};runs.moves[0].seen=true;runs.moves[0].active=4;runs.moves[0].recovery=25;
         runs.advantage.valid=true;runs.advantage.frames={{3,-3}};runs.advantage.attacker=0;
-        training.meter=runs;SetTrainingMeterOptions({false,true,60});draw("training-hud-markers");
-        SetTrainingMeterOptions({false,true,120});draw("training-hud-runs");
+        training.meter=runs;SetTrainingMeterOptions({training::MeterStyle::Angled,true,60});draw("training-hud-markers");
+        SetTrainingMeterOptions({training::MeterStyle::Angled,true,120});draw("training-hud-runs");
         // The next exchange is being measured: the last reading stays, dimmed,
         // and Frame data still gives it.
         runs.lastAdvantage=runs.advantage;runs.advantage=training::FrameAdvantage{};runs.advantage.pending=true;runs.advantage.attacker=1;
         runs.advantage.unavailable=training::MeasurementUnavailable::MeasuringRecovery;
-        training.meter=runs;SetTrainingMeterOptions({false,true,120});draw("training-hud-measuring");
+        training.meter=runs;SetTrainingMeterOptions({training::MeterStyle::Angled,true,120});draw("training-hud-measuring");
         Require(TrainingFrameData(runs,0).find(std::string(loc::T("training.meter.hit"))+" +3")!=std::string::npos,"Frame data dropped the last reading while the next was measured");
         // A focus cancel: the HUD and Frame data both give the move it
         // cancelled, its recovery cancelled and the dash, from the one reading.
@@ -409,7 +409,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             auto& chain=cancel.advantage.chain;chain.valid=chain.recoveryCancelled=true;chain.side=0;chain.startup=3;chain.active=2;
             chain.provenance=training::BoundaryProvenance::BacActionHeader;chain.startupUnavailable=training::MeasurementUnavailable::None;
             chain.dash=training::ActionClass::ForwardDash;cancel.lastAdvantage=cancel.advantage;
-            training.meter=cancel;SetTrainingMeterOptions({false,true,60});draw("training-hud-focus-cancel");
+            training.meter=cancel;SetTrainingMeterOptions({training::MeterStyle::Angled,true,60});draw("training-hud-focus-cancel");
             const auto text=TrainingFrameData(cancel,0);
             const auto label=[](const char* id,const std::string& value){return std::string(loc::T(id))+": "+value;};
             Require(text.find(label("training.startup","3"))!=std::string::npos&&text.find(label("training.meter.recovery",loc::T("training.meter.cancelled")))!=std::string::npos&&

@@ -456,6 +456,7 @@ void AfterUpdate(Native* system) {
     if (delta != 0) dummyControl.Simulated();
     if (sampling && delta == 1) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
+        if (commitInput) for (int side = 0; side < 2; ++side) fighters[side].input = output[side].raw & FightButtons;
         // The dummy as its stun is timed, for a reply's wait now and its decision below.
         const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
         // A playback's waiting frames read the fight: the fighter playing it

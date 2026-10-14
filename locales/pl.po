@@ -1904,6 +1904,9 @@ msgstr "Ukośny"
 msgid "training.meter.style.flat"
 msgstr "Płaski"
 
+msgid "training.meter.style.classic"
+msgstr "Klasyczny"
+
 msgid "training.meter.frames_shown"
 msgstr "Pokazane klatki"
 
@@ -1952,6 +1955,21 @@ msgstr "Skróty na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nagrywanie na HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Wiersz danych na HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Ścieżki wejść"
+
+msgid "training.meter.classic_colors"
+msgstr "Kolory SF6 i meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, znaczniki i obramowanie"
+
+msgid "training.meter.classic_slant"
+msgstr "Ukośne komórki"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Pokazuje tę część HUD treningu podczas walki. F5 ukrywa cały HUD."
 
@@ -1967,11 +1985,23 @@ msgstr "Ustawienia wskaźnika"
 msgid "training.meter.settings.detail"
 msgstr "Gdzie jest wskaźnik, jak daleko wstecz pamięta i co robi po przerwie."
 
+msgid "training.meter.classic"
+msgstr "Klasyczny wskaźnik"
+
+msgid "training.meter.classic.detail"
+msgstr "Wysokość pasków klasycznego wskaźnika i jego części."
+
 msgid "training.meter.position"
 msgstr "Położenie wskaźnika"
 
 msgid "training.meter.position.detail"
 msgstr "Jak nisko na ekranie jest wskaźnik, mierzone do jego dolnej krawędzi. 82% trzyma go tuż nad paskami super; mniejsze liczby przesuwają go w górę."
+
+msgid "training.meter.bar_height"
+msgstr "Wysokość pasków"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Wysokość pasków klasycznego wskaźnika."
 
 msgid "training.recovery_frames"
 msgstr "Powr. {0} kl."

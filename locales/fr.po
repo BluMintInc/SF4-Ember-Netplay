@@ -1904,6 +1904,9 @@ msgstr "Incliné"
 msgid "training.meter.style.flat"
 msgstr "Plat"
 
+msgid "training.meter.style.classic"
+msgstr "Classique"
+
 msgid "training.meter.frames_shown"
 msgstr "Frames affichées"
 
@@ -1952,6 +1955,21 @@ msgstr "Raccourcis sur le HUD"
 msgid "training.meter.hud_status"
 msgstr "Enregistrement sur le HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Ligne de données sur le HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Pistes d'entrées"
+
+msgid "training.meter.classic_colors"
+msgstr "Couleurs SF6 et meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Légende, repères et liseré"
+
+msgid "training.meter.classic_slant"
+msgstr "Cellules inclinées"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Affiche cet élément du HUD d'entraînement pendant le combat. F5 masque tout le HUD."
 
@@ -1967,11 +1985,23 @@ msgstr "Réglages du compteur"
 msgid "training.meter.settings.detail"
 msgstr "Où se trouve le compteur, jusqu'où il garde l'historique et ce qu'il fait après une pause."
 
+msgid "training.meter.classic"
+msgstr "Compteur classique"
+
+msgid "training.meter.classic.detail"
+msgstr "La hauteur des barres du compteur classique et ses éléments."
+
 msgid "training.meter.position"
 msgstr "Position du compteur"
 
 msgid "training.meter.position.detail"
 msgstr "À quelle hauteur de l'écran se trouve le compteur, mesurée à son bord inférieur. 82 % le garde juste au-dessus des jauges de super ; une valeur plus basse le remonte."
+
+msgid "training.meter.bar_height"
+msgstr "Hauteur des barres"
+
+msgid "training.meter.bar_height.detail"
+msgstr "La hauteur des barres du compteur classique."
 
 msgid "training.recovery_frames"
 msgstr "Récup. {0} tr."

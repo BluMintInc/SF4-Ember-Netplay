@@ -33,6 +33,10 @@ struct HudPart { const char* key; const char* label; bool MeterOptions::* shown;
 constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &MeterOptions::numbers}, {"hud_bars", "training.meter.hud_bars", &MeterOptions::bars},
     {"hud_state", "training.meter.hud_state", &MeterOptions::state}, {"hud_shortcuts", "training.meter.hud_shortcuts", &MeterOptions::shortcuts},
     {"hud_status", "training.meter.hud_status", &MeterOptions::status}};
+// The classic style's parts, on the same page while that style is chosen.
+constexpr HudPart ClassicParts[] = {{"classic_data", "training.meter.classic_data", &MeterOptions::classicData},
+    {"classic_inputs", "training.meter.classic_inputs", &MeterOptions::classicInputs}, {"classic_colors", "training.meter.classic_colors", &MeterOptions::classicColors},
+    {"classic_extras", "training.meter.classic_extras", &MeterOptions::classicExtras}, {"classic_slant", "training.meter.classic_slant", &MeterOptions::classicSlant}};
 // The meter's drawing options: angled unless the style is "flat", the
 // recovery number only for a literal true, 60 frames shown unless 90 or 120
 // is saved, every part of the HUD unless it is saved as a literal false, and
@@ -40,24 +44,28 @@ constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &M
 inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     MeterOptions options;
     if (!meter.is_object()) return options;
-    options.flat = meter.value("style", nlohmann::json()) == "flat";
+    const auto style = meter.value("style", nlohmann::json());
+    options.style = style == "flat" ? MeterStyle::Flat : style == "classic" ? MeterStyle::Classic : MeterStyle::Angled;
     options.recovery = meter.value("hud_recovery", nlohmann::json(false)) == true;
     const auto shown = meter.value("frames_shown", nlohmann::json());
     for (const int choice : MeterShownChoices) if (shown.is_number_integer() && shown == choice) options.shown = choice;
     const auto history = meter.value("history_frames", nlohmann::json());
     for (const int choice : MeterHistoryChoices) if (history.is_number_integer() && history == choice) options.history = choice;
     options.continuous = meter.value("after_pause", nlohmann::json()) == "continue";
-    const auto position = meter.value("position", nlohmann::json());
+    const auto position = meter.value("position", nlohmann::json()), barHeight = meter.value("bar_height", nlohmann::json());
     for (const int choice : MeterPositions) if (position.is_number_integer() && position == choice) options.position = choice;
+    for (const int choice : ClassicBarHeights) if (barHeight.is_number_integer() && barHeight == choice) options.barHeight = choice;
     for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
+    for (const auto& part : ClassicParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     const auto size = meter.value("hud_size", nlohmann::json());
     for (int choice = 0; choice < HudSizes; ++choice) if (size.is_number_integer() && size == choice) options.size = choice;
     return options;
 }
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
-    nlohmann::json meter{{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"},
-        {"position", options.position}};
+    nlohmann::json meter{{"style", options.style == MeterStyle::Classic ? "classic" : options.style == MeterStyle::Flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"},
+        {"position", options.position}, {"bar_height", options.barHeight}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
+    for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;
     return meter;
 }
 // Old replies accepted these shared names without a fighter database.

@@ -1904,6 +1904,9 @@ msgstr "Schuin"
 msgid "training.meter.style.flat"
 msgstr "Vlak"
 
+msgid "training.meter.style.classic"
+msgstr "Klassiek"
+
 msgid "training.meter.frames_shown"
 msgstr "Getoonde frames"
 
@@ -1952,6 +1955,21 @@ msgstr "Sneltoetsen op de HUD"
 msgid "training.meter.hud_status"
 msgstr "Opname op de HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Datalijn op HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Invoerbanen"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6-kleuren en meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, markeringen en rand"
+
+msgid "training.meter.classic_slant"
+msgstr "Schuine cellen"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."
 
@@ -1967,11 +1985,23 @@ msgstr "Meterinstellingen"
 msgid "training.meter.settings.detail"
 msgstr "Waar de meter staat, hoe ver hij terug bewaart en wat hij doet na een pauze."
 
+msgid "training.meter.classic"
+msgstr "Klassieke meter"
+
+msgid "training.meter.classic.detail"
+msgstr "De balkhoogte van de klassieke meter en zijn onderdelen."
+
 msgid "training.meter.position"
 msgstr "Meterpositie"
 
 msgid "training.meter.position.detail"
 msgstr "Hoe ver naar beneden de meter staat, gemeten tot de onderrand. 82% houdt hem net boven de supermeters; lagere getallen schuiven hem omhoog."
+
+msgid "training.meter.bar_height"
+msgstr "Balkhoogte"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Hoe hoog de balken van de klassieke meter zijn."
 
 msgid "training.recovery_frames"
 msgstr "Herst. {0} f"

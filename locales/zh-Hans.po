@@ -1904,6 +1904,9 @@ msgstr "倾斜"
 msgid "training.meter.style.flat"
 msgstr "平直"
 
+msgid "training.meter.style.classic"
+msgstr "经典"
+
 msgid "training.meter.frames_shown"
 msgstr "显示帧数"
 
@@ -1952,6 +1955,21 @@ msgstr "在 HUD 显示快捷键"
 msgid "training.meter.hud_status"
 msgstr "在 HUD 显示录制"
 
+msgid "training.meter.classic_data"
+msgstr "HUD 数据行"
+
+msgid "training.meter.classic_inputs"
+msgstr "输入轨道"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6 配色与压起身"
+
+msgid "training.meter.classic_extras"
+msgstr "图例、标记与边框"
+
+msgid "training.meter.classic_slant"
+msgstr "倾斜格子"
+
 msgid "training.meter.hud_part.detail"
 msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
 
@@ -1967,11 +1985,23 @@ msgstr "计量表设置"
 msgid "training.meter.settings.detail"
 msgstr "计量表的位置、保留的历史长度以及暂停后的处理。"
 
+msgid "training.meter.classic"
+msgstr "经典计量表"
+
+msgid "training.meter.classic.detail"
+msgstr "经典计量表的条形高度及其各部分。"
+
 msgid "training.meter.position"
 msgstr "计量表位置"
 
 msgid "training.meter.position.detail"
 msgstr "计量表底边在屏幕上的位置。82% 位于超必杀槽正上方；数值越小越靠上。"
+
+msgid "training.meter.bar_height"
+msgstr "条形高度"
+
+msgid "training.meter.bar_height.detail"
+msgstr "经典计量表条形的高度。"
 
 msgid "training.recovery_frames"
 msgstr "硬直 {0} 帧"

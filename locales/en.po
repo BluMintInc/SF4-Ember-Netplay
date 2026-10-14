@@ -1904,6 +1904,9 @@ msgstr "Angled"
 msgid "training.meter.style.flat"
 msgstr "Flat"
 
+msgid "training.meter.style.classic"
+msgstr "Classic"
+
 msgid "training.meter.frames_shown"
 msgstr "Frames shown"
 
@@ -1952,6 +1955,21 @@ msgstr "Shortcuts on HUD"
 msgid "training.meter.hud_status"
 msgstr "Recording on HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Data line on HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Input lanes"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6 colors"
+
+msgid "training.meter.classic_extras"
+msgstr "Key and markers"
+
+msgid "training.meter.classic_slant"
+msgstr "Slanted cells"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Shows this part of the training HUD over the fight. F5 hides all of it."
 
@@ -1967,11 +1985,23 @@ msgstr "Meter settings"
 msgid "training.meter.settings.detail"
 msgstr "Where the meter sits, how far back it keeps, and what it does after a pause."
 
+msgid "training.meter.classic"
+msgstr "Classic meter"
+
+msgid "training.meter.classic.detail"
+msgstr "The classic meter's bar height and its parts."
+
 msgid "training.meter.position"
 msgstr "Meter position"
 
 msgid "training.meter.position.detail"
 msgstr "How far down the screen the meter sits, measured to its bottom edge. 82% keeps it just above the super meters; lower numbers move it up."
+
+msgid "training.meter.bar_height"
+msgstr "Bar height"
+
+msgid "training.meter.bar_height.detail"
+msgstr "How tall the classic meter's bars are."
 
 msgid "training.recovery_frames"
 msgstr "Rec {0} f"

@@ -3,6 +3,8 @@
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
 #include "TextPill.hxx"
+#include "InputGlyphs.hxx"
+#include "../common/ButtonLayoutTypes.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -163,7 +165,22 @@ std::string Unavailable(const char* label, MeasurementUnavailable reason) {
     }
     return loc::Tf("training.unavailable", label, loc::T(reasonId));
 }
+// The frames a held meter shows: a notch of the mouse wheel over the bars
+// (from, to) steps a page back, as far as the frames it keeps, and the newest
+// frame's page shows again once it runs.
+BarWindow HeldWindow(const MeterView& meter, int cells, ImVec2 from, ImVec2 to) {
+    static std::size_t back = 0;
+    if (!meter.frozen) { back = 0; return {cells, 0}; }
+    const int notches = static_cast<int>(ImGui::GetIO().MouseWheel);
+    if (notches && ImGui::IsMouseHoveringRect(from, to, false))
+        back = notches > 0 ? back + notches : back - (std::min)(back, static_cast<std::size_t>(-notches));
+    // Every frame, as Frames shown can change while the meter is held.
+    back = (std::min)(back, MeterBackLimit(meter.frames.size(), meter.length, static_cast<std::size_t>(cells)));
+    return {cells, back};
+}
+void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& options);
 void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) {
+    if (options.style == MeterStyle::Classic) { ClassicMeter(meter, hudScale, options); return; }
     const float gap = 10 * hudScale;
     const auto measure=[&](const char* value){return ImGui::CalcTextSize(value).x;};
     // The startup and recovery columns are sized from the translated text they will show.
@@ -175,22 +192,10 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     const float height = 14 * hudScale;
     const float width = (std::max)(120.f, ImGui::GetContentRegionAvail().x - label);
     // The bars fill from the left and an exchange longer than them goes on
-    // from their left edge (MeterFrameIndex). A held meter steps back a page
-    // a notch of the mouse wheel over the bars, as far as the frames it keeps,
-    // and shows the newest frame's page again once it runs.
-    static std::size_t back = 0;
-    BarWindow window{options.shown, 0};
-    if (!meter.frozen) back = 0;
-    else {
-        const ImVec2 bars(ImGui::GetCursorScreenPos().x + label, ImGui::GetCursorScreenPos().y);
-        const float rows = 2 * ((std::max)(height, ImGui::GetTextLineHeight()) + ImGui::GetStyle().ItemSpacing.y);
-        const int notches = static_cast<int>(ImGui::GetIO().MouseWheel);
-        if (notches && ImGui::IsMouseHoveringRect(bars, ImVec2(bars.x + width, bars.y + rows), false))
-            back = notches > 0 ? back + notches : back - (std::min)(back, static_cast<std::size_t>(-notches));
-        // Every frame, as Frames shown can change while the meter is held.
-        back = (std::min)(back, MeterBackLimit(meter.frames.size(), meter.length, static_cast<std::size_t>(window.cells)));
-        window.back = back;
-    }
+    // from their left edge (MeterFrameIndex).
+    const ImVec2 bars(ImGui::GetCursorScreenPos().x + label, ImGui::GetCursorScreenPos().y);
+    const float rows = 2 * ((std::max)(height, ImGui::GetTextLineHeight()) + ImGui::GetStyle().ItemSpacing.y);
+    const BarWindow window = HeldWindow(meter, options.shown, bars, ImVec2(bars.x + width, bars.y + rows));
     for (int side = 0; side < 2; ++side) {
         const float rowStart = ImGui::GetCursorPosX();
         if (options.numbers) {
@@ -218,7 +223,7 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
         }
         if (!options.bars) continue;
         const ImVec2 origin = ImGui::GetCursorScreenPos();
-        if (options.flat) FlatBar(ImGui::GetWindowDrawList(), meter, side, origin, width, height, window);
+        if (options.style == MeterStyle::Flat) FlatBar(ImGui::GetWindowDrawList(), meter, side, origin, width, height, window);
         else AngledBar(ImGui::GetWindowDrawList(), meter, side, origin, width, height, window);
         ReportMenuCard(side ? "training-bar-2" : "training-bar-1", origin, ImVec2(origin.x + width, origin.y + height));
         ImGui::Dummy(ImVec2(width, height));
@@ -247,7 +252,9 @@ std::string MeasurementReason(const MeterView& meter) {
         return "P"+std::to_string(side+1)+" "+Unavailable(loc::T("training.startup"),meter.startupUnavailable[side]);
     return {};
 }
-struct Reading { std::string label, value; };
+// What a reading is, so a reader of it need not go by its place or its words.
+enum class ReadingKind { Startup, Active, Recovery, Cancel, Meaty, Result, Last };
+struct Reading { std::string label, value; ReadingKind kind; };
 std::vector<Reading> Readings(const MeterView& meter, int side) {
     const auto& move = meter.moves[side];
     const auto number = [](int value) { return value > 0 ? std::to_string(value) : std::string("--"); };
@@ -256,10 +263,10 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
     const auto& advantage = meter.advantage;
     const auto* chain = ChainOf(advantage, side);
     std::vector<Reading> readings{
-        {loc::T("training.startup"), number(chain ? chain->startup : meter.startupFrames[side])},
-        {loc::T("training.meter.active"), number(chain ? chain->active : move.seen ? move.active : 0)},
-        {loc::T("training.meter.recovery"), chain ? std::string(loc::T("training.meter.cancelled")) : number(move.seen && !move.live ? move.recovery : 0)}};
-    if (chain) readings.push_back({ChainName(*chain), std::string()});
+        {loc::T("training.startup"), number(chain ? chain->startup : meter.startupFrames[side]), ReadingKind::Startup},
+        {loc::T("training.meter.active"), number(chain ? chain->active : move.seen ? move.active : 0), ReadingKind::Active},
+        {loc::T("training.meter.recovery"), chain ? std::string(loc::T("training.meter.cancelled")) : number(move.seen && !move.live ? move.recovery : 0), ReadingKind::Recovery}};
+    if (chain) readings.push_back({ChainName(*chain), std::string(), ReadingKind::Cancel});
     // What the move met, and the frames it left its user ahead or behind:
     // this exchange's, so it is never told of another's move.
     const auto met = [&](const FrameAdvantage& exchange) -> const char* {
@@ -275,20 +282,221 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
         const int offset = meter.meatyFrames[side];
         const bool landed = offset <= 0 && -offset < (std::max)(1, move.active);
         char timing[16]; std::snprintf(timing, sizeof timing, landed ? "%d" : "%+d", landed ? -offset : offset);
-        readings.push_back({loc::T("training.meter.meaty"), timing});
+        readings.push_back({loc::T("training.meter.meaty"), timing, ReadingKind::Meaty});
     }
     if (result) readings.push_back({loc::T("training.result"), std::string(loc::T(result)) +
-        (std::string(result) == "training.meter.whiff" ? "" : " " + signedFrames(advantage))});
-    else readings.push_back({loc::T("training.advantage"), signedFrames(advantage)});
+        (std::string(result) == "training.meter.whiff" ? "" : " " + signedFrames(advantage)), ReadingKind::Result});
+    else readings.push_back({loc::T("training.advantage"), signedFrames(advantage), ReadingKind::Result});
     // The HUD keeps the last exchange measured until the next one is
     // (ShownAdvantage); here it is a reading of its own, apart from the moves above.
     const auto& last = meter.lastAdvantage;
     if (!advantage.valid && last.valid) {
         const auto* lastChain = ChainOf(last, side);
         readings.push_back({lastChain ? ChainName(*lastChain, true) : loc::T("training.last_advantage"),
-            (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last)});
+            (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last), ReadingKind::Last});
     }
     return readings;
+}
+
+// The first meter's colours, Street Fighter 6's: green startup, red active,
+// blue recovery, yellow block, orange hit, pink meaty frames.
+ImU32 ClassicColor(MeterKind kind) {
+    switch (kind) {
+    case MeterKind::Neutral: return IM_COL32(70, 74, 78, 150);
+    case MeterKind::Movement: return IM_COL32(120, 150, 160, 245);
+    case MeterKind::Startup: return IM_COL32(60, 196, 110, 245);
+    case MeterKind::Active: return IM_COL32(236, 56, 96, 245);
+    case MeterKind::Recovery: return IM_COL32(60, 120, 232, 245);
+    case MeterKind::Attack: return (palette::Ember & ~IM_COL32_A_MASK) | (245u << IM_COL32_A_SHIFT);
+    case MeterKind::Guard: return IM_COL32(244, 222, 96, 245);
+    case MeterKind::Hit: return IM_COL32(246, 176, 48, 245);
+    case MeterKind::Down: return IM_COL32(150, 92, 196, 245);
+    case MeterKind::Rise: return IM_COL32(216, 184, 240, 245);
+    case MeterKind::Sequence: return IM_COL32(220, 206, 166, 245);
+    case MeterKind::Meaty: return IM_COL32(255, 72, 214, 245);
+    default: return IM_COL32(48, 50, 54, 245);
+    }
+}
+// The data line's colour for a reading: the three move numbers in their bar
+// colours, a meaty in pink, a result or advantage green ahead and red behind.
+ImU32 ReadingColor(const Reading& reading) {
+    switch (reading.kind) {
+    case ReadingKind::Startup: return ClassicColor(MeterKind::Startup);
+    case ReadingKind::Active: return ClassicColor(MeterKind::Active);
+    case ReadingKind::Recovery: return ClassicColor(MeterKind::Recovery);
+    case ReadingKind::Meaty: return ClassicColor(MeterKind::Meaty);
+    case ReadingKind::Cancel: return palette::Ivory;
+    case ReadingKind::Result: case ReadingKind::Last: break;
+    }
+    const auto sign = reading.value.find_first_of("+-");
+    if (sign == std::string::npos || sign + 1 >= reading.value.size()) return palette::Ivory;
+    return reading.value[sign] == '+' ? IM_COL32(118, 224, 160, 255) : IM_COL32(255, 121, 129, 255);
+}
+// The first meter, as the classic style draws it: a data line per fighter
+// (startup, active, recovery, meaty and the result), each fighter's presses on
+// a lane beside its bar, and dots between the bars counting frames, every
+// fifth bold. A cell keeps a width that reads, so more frames than fit show
+// the newest that do instead of squeezing them. The second bar is set back by
+// the slant, so a frame's two cells lean on one line.
+void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& options) {
+    auto* draw = ImGui::GetWindowDrawList();
+    const float full = ImGui::GetContentRegionAvail().x;
+    const ImVec2 top = ImGui::GetCursorScreenPos();
+    if (options.classicExtras)
+        // The game's own trim: a bar that runs from orange into yellow.
+        draw->AddRectFilledMultiColor(ImVec2(top.x, top.y), ImVec2(top.x + full, top.y + 2 * hudScale),
+            palette::Ember, IM_COL32(255, 214, 72, 255), IM_COL32(255, 214, 72, 255), palette::Ember);
+    ImGui::Dummy(ImVec2(full, 2 * hudScale));
+    const float line = ImGui::GetTextLineHeight(), small = line * .72f, gap = 8 * hudScale, half = full / 2;
+    if (options.classicData) {
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        for (int side = 0; side < 2; ++side) {
+            const auto readings = Readings(meter, side);
+            const char tag[3] = {'P', static_cast<char>('1' + side), 0};
+            // Labels where there is room for them, coloured ticks with the numbers where there is not.
+            float labelled = ImGui::CalcTextSize(tag).x + gap;
+            for (const auto& reading : readings) labelled += ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x + 4 * hudScale + ImGui::CalcTextSize(reading.value.c_str()).x + gap;
+            const bool labels = labelled <= half;
+            float x = at.x + side * half;
+            Edged(draw, line, ImVec2(x, at.y), side ? IM_COL32(120, 190, 255, 255) : IM_COL32(255, 120, 110, 255), tag);
+            x += ImGui::CalcTextSize(tag).x + gap;
+            for (std::size_t i = 0; i < readings.size(); ++i) {
+                const auto& reading = readings[i];
+                const ImU32 colour = ReadingColor(reading);
+                // A result always names itself: hit, block or whiff is the news.
+                if (labels || i + 1 == readings.size() || reading.value.empty()) {
+                    draw->AddText(ImGui::GetFont(), small, ImVec2(x, at.y + line - small - 1), palette::Ember, reading.label.c_str());
+                    x += ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x + 4 * hudScale;
+                } else {
+                    draw->AddRectFilled(ImVec2(x, at.y + line * .25f), ImVec2(x + 3 * hudScale, at.y + line * .85f), colour);
+                    x += 5 * hudScale;
+                }
+                const bool move = reading.kind == ReadingKind::Startup || reading.kind == ReadingKind::Active || reading.kind == ReadingKind::Recovery;
+                Edged(draw, line, ImVec2(x, at.y), move ? IM_COL32(255, 255, 255, 255) : colour, reading.value.c_str());
+                x += ImGui::CalcTextSize(reading.value.c_str()).x + gap;
+            }
+        }
+        ImGui::Dummy(ImVec2(full, line));
+    }
+    if (!options.bars) return;
+    // Geometry: rows apart by pitch, the second set back by the slant's share
+    // of it, and as many whole fives of cells as fit at the narrowest width
+    // that still reads, never more than Frames shown.
+    // Upright cells when the slant is off: the bars then sit straight over each other.
+    const float height = options.barHeight * hudScale, slant = options.classicSlant ? height * .35f : 0.f, dots = 6 * hudScale, pitch = height + dots;
+    const float setBack = slant * pitch / height, lane = 13 * hudScale, digits = height * .82f;
+    const float usable = (std::max)(60.f, full - slant - setBack);
+    const int fit = (std::max)(10, static_cast<int>(usable / (4 * hudScale)) / 5 * 5);
+    const int cells = (std::min)(options.shown, fit);
+    const float cell = usable / cells;
+    const ImVec2 start = ImGui::GetCursorScreenPos();
+    const float lanes = options.classicInputs ? 2 * (lane + 2 * hudScale) : 0;
+    const BarWindow window = HeldWindow(meter, cells, start, ImVec2(start.x + full, start.y + 2 * height + dots + lanes));
+    const auto index = [&](int i) { return MeterFrameIndex(meter.frames.size(), meter.length, static_cast<std::size_t>(i), static_cast<std::size_t>(cells), window.back); };
+    float y = start.y;
+    // What each fighter pressed, at the frame they did: a direction as it
+    // changes, a button as it goes down. Presses too close to draw apart move
+    // right, in order, and are left out more than a few cells late.
+    const auto inputs = [&](int side, float x0) {
+        float cursor = x0;
+        unsigned before = 0;
+
+        static const ImU32 colours[] = {IM_COL32(96, 176, 255, 255), IM_COL32(255, 214, 72, 255), IM_COL32(255, 96, 96, 255)};
+        for (int i = 0; i < cells; ++i) {
+            const int at = index(i);
+            if (at < 0) continue;
+            const unsigned now = meter.frames[at].fighters[side].input;
+            const float spotAt = x0 + slant / 2 + i * cell;
+            const auto place = [&]() { const float x = (std::max)(spotAt, cursor); return x - spotAt > 6 * cell ? -1.f : x; };
+            const unsigned way = now & 0xF;
+            if (way != (before & 0xF) && way) {
+                const int dx = ((way & 8) ? 1 : 0) - ((way & 4) ? 1 : 0), dy = ((way & 1) ? 1 : 0) - ((way & 2) ? 1 : 0);
+                const char digit = static_cast<char>('5' + dx + 3 * dy);
+                const float spot = place();
+                if (digit != '5' && spot >= 0) cursor = spot + glyphs::Arrow(draw, ImVec2(spot, y), lane, digit, false, IM_COL32(235, 235, 235, 255));
+            }
+            for (int button = 0; button < static_cast<int>(gamepads::AttackMasks.size()); ++button) {
+                if (!(now & gamepads::AttackMasks[button]) || (before & gamepads::AttackMasks[button])) continue;
+                const float spot = place();
+                if (spot >= 0) cursor = spot + glyphs::Disc(draw, ImVec2(spot, y), lane, button < 3 ? 'P' : 'K', colours[button % 3], IM_COL32(255, 255, 255, 255));
+            }
+            before = now;
+        }
+        y += lane + 2 * hudScale;
+    };
+    for (int side = 0; side < 2; ++side) {
+        const float x0 = start.x + (side ? 0 : setBack);
+        if (options.classicInputs && side == 0) inputs(0, x0);
+        const ImVec2 origin(x0, y);
+        // A cell leans as the game's gauges do: its top edge sits further right.
+        const auto quad = [&](float from, float to, ImU32 colour) {
+            draw->AddQuadFilled(ImVec2(origin.x + from + slant, origin.y), ImVec2(origin.x + to + slant, origin.y),
+                ImVec2(origin.x + to, origin.y + height), ImVec2(origin.x + from, origin.y + height), colour);
+        };
+        quad(0, cells * cell, IM_COL32(12, 12, 14, 200));
+        const auto label = [&](int from, int to, MeterKind kind) {
+            if (kind == MeterKind::Neutral || to - from < 2) return;
+            const auto text = std::to_string(to - from);
+            const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(digits, FLT_MAX, 0, text.c_str());
+            if (extent.x + 2 > (to - from) * cell) return;
+            Edged(draw, digits, ImVec2(origin.x + slant / 2 + (from + to) * cell / 2 - extent.x / 2, origin.y + (height - extent.y) / 2), IM_COL32(255, 255, 255, 255), text.c_str());
+        };
+        int runStart = -1, runEnd = 0; MeterKind runKind = MeterKind::Neutral;
+        for (int i = 0; i < cells; ++i) {
+            const int at = index(i);
+            // Frames still to come stay dim, so the bar keeps its length.
+            if (at < 0) { quad(i * cell, (i + 1) * cell - 1, IM_COL32(48, 50, 54, 120)); continue; }
+            const auto& shown = meter.frames[at].cells[side];
+            // Meaty frames, as the model marked them once the other was up (MeterCell::meaty).
+            const MeterKind kind = options.classicColors && shown.meaty ? MeterKind::Meaty : shown.kind;
+            quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), options.classicColors ? ClassicColor(kind) : TrainingCellColor(shown, true));
+            // A new count inside a run (a cancel, each hit of a combo) is parted by a dark edge.
+            const bool split = runStart >= 0 && shown.split;
+            if (split && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(12, 12, 14, 255));
+            if (runStart < 0) { runStart = i; runKind = kind; }
+            else if (kind != runKind || split) { label(runStart, i, runKind); runStart = i; runKind = kind; }
+            runEnd = i + 1;
+        }
+        if (runStart >= 0) label(runStart, runEnd, runKind);
+        if (options.classicExtras) {
+            // Earlier frames lie to the left, later ones to the right, of what is shown.
+            if (index(0) > 0) Edged(draw, digits, ImVec2(origin.x - digits * .45f, origin.y + (height - digits) / 2), IM_COL32(255, 214, 72, 255), "<");
+            if (window.back > 0) Edged(draw, digits, ImVec2(origin.x + cells * cell + slant, origin.y + (height - digits) / 2), IM_COL32(255, 214, 72, 255), ">");
+        }
+        ReportMenuCard(side ? "training-bar-2" : "training-bar-1", origin, ImVec2(origin.x + cells * cell + slant, origin.y + height));
+        y += height;
+        if (side == 0) {
+            // Between the bars, a dot a frame on the line the cells lean on,
+            // every fifth bold, for counting.
+            const float mid = y + dots / 2, lean = slant * (dots / 2) / height;
+            for (int i = 0; i < cells; ++i) {
+                const bool fifth = (i + 1) % 5 == 0;
+                draw->AddCircleFilled(ImVec2(x0 + (i + .5f) * cell - lean, mid), (fifth ? 1.6f : .9f) * hudScale,
+                    fifth ? IM_COL32(255, 214, 72, 235) : IM_COL32(200, 200, 200, 150));
+            }
+            y += dots;
+        }
+        if (options.classicInputs && side == 1) inputs(1, x0);
+    }
+    ImGui::Dummy(ImVec2(full, y - start.y));
+    if (options.classicExtras) {
+        // What the colours mean, going on to a next line where one is full.
+        const float left = ImGui::GetCursorScreenPos().x, box = line * .55f;
+        float x = left, yKey = ImGui::GetCursorScreenPos().y;
+        int lines = 1;
+        auto entries = TrainingColorKeyEntries(true);
+        // Meaty frames are pink only in Street Fighter 6's colours.
+        if (options.classicColors) entries.push_back({"training.meter.meaty", Phase::Attack, MeterKind::Meaty, ClassicColor(MeterKind::Meaty)});
+        for (const auto& entry : entries) {
+            const char* name = loc::T(entry.label);
+            const float w = box + 3 * hudScale + ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, name).x + gap;
+            if (x > left && x + w > top.x + full) { x = left; yKey += line; ++lines; }
+            draw->AddRectFilled(ImVec2(x, yKey + (line - box) / 2), ImVec2(x + box, yKey + (line + box) / 2), options.classicColors ? ClassicColor(entry.kind) : entry.color);
+            draw->AddText(ImGui::GetFont(), small, ImVec2(x + box + 3 * hudScale, yKey + line - small - 1), palette::Ivory, name);
+            x += w;
+        }
+        ImGui::Dummy(ImVec2(full, lines * line));
+    }
 }
 }
 std::string TrainingFrameData(const training::MeterView& meter, int side) {
@@ -518,7 +726,10 @@ void DrawMatchMeter(const training::View& view) {
     if (!view.watching) return;
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
-    const auto options = TrainingMeterOptions();
+    // A match's inputs stay hidden, the opponent's above all, and the match
+    // records none: the classic meter's input lanes are Training's alone.
+    auto options = TrainingMeterOptions();
+    options.classicInputs = false;
     MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
 }
 void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {

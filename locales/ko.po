@@ -1904,6 +1904,9 @@ msgstr "기울임"
 msgid "training.meter.style.flat"
 msgstr "평면"
 
+msgid "training.meter.style.classic"
+msgstr "클래식"
+
 msgid "training.meter.frames_shown"
 msgstr "표시 프레임"
 
@@ -1952,6 +1955,21 @@ msgstr "HUD에 단축키 표시"
 msgid "training.meter.hud_status"
 msgstr "HUD에 녹화 표시"
 
+msgid "training.meter.classic_data"
+msgstr "HUD 데이터 줄"
+
+msgid "training.meter.classic_inputs"
+msgstr "입력 레인"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6 색상과 메이티"
+
+msgid "training.meter.classic_extras"
+msgstr "범례, 표시, 테두리"
+
+msgid "training.meter.classic_slant"
+msgstr "기울어진 칸"
+
 msgid "training.meter.hud_part.detail"
 msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."
 
@@ -1967,11 +1985,23 @@ msgstr "미터 설정"
 msgid "training.meter.settings.detail"
 msgstr "미터 위치, 보관 기록 길이, 멈춘 뒤의 동작."
 
+msgid "training.meter.classic"
+msgstr "클래식 미터"
+
+msgid "training.meter.classic.detail"
+msgstr "클래식 미터의 막대 높이와 구성 요소."
+
 msgid "training.meter.position"
 msgstr "미터 위치"
 
 msgid "training.meter.position.detail"
 msgstr "미터 아래 가장자리가 화면에서 놓이는 위치. 82%면 슈퍼 게이지 바로 위이며, 숫자를 낮추면 위로 올라갑니다."
+
+msgid "training.meter.bar_height"
+msgstr "막대 높이"
+
+msgid "training.meter.bar_height.detail"
+msgstr "클래식 미터 막대의 높이."
 
 msgid "training.recovery_frames"
 msgstr "경직 {0} f"

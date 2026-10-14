@@ -1904,6 +1904,9 @@ msgstr "Šikmý"
 msgid "training.meter.style.flat"
 msgstr "Plochý"
 
+msgid "training.meter.style.classic"
+msgstr "Klasický"
+
 msgid "training.meter.frames_shown"
 msgstr "Zobrazené snímky"
 
@@ -1952,6 +1955,21 @@ msgstr "Zkratky na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nahrávání na HUD"
 
+msgid "training.meter.classic_data"
+msgstr "Řádek dat na HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Stopy vstupů"
+
+msgid "training.meter.classic_colors"
+msgstr "Barvy SF6 a meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, značky a lem"
+
+msgid "training.meter.classic_slant"
+msgstr "Šikmé buňky"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
 
@@ -1967,11 +1985,23 @@ msgstr "Nastavení měřiče"
 msgid "training.meter.settings.detail"
 msgstr "Kde měřič je, jak daleko zpět uchovává a co dělá po pauze."
 
+msgid "training.meter.classic"
+msgstr "Klasický měřič"
+
+msgid "training.meter.classic.detail"
+msgstr "Výška pruhů klasického měřiče a jeho části."
+
 msgid "training.meter.position"
 msgstr "Poloha měřiče"
 
 msgid "training.meter.position.detail"
 msgstr "Jak nízko na obrazovce měřič je, měřeno k jeho spodnímu okraji. 82 % ho drží těsně nad ukazateli super; menší čísla ho posunou nahoru."
+
+msgid "training.meter.bar_height"
+msgstr "Výška pruhů"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Výška pruhů klasického měřiče."
 
 msgid "training.recovery_frames"
 msgstr "Zot. {0} sn."
