@@ -526,7 +526,7 @@ unsigned ClearReservedInputBits(unsigned raw) {
 }
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
-void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
+void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
         if (!matchShown) return;
@@ -537,7 +537,8 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
     // No script-file fallback here, so a projectile move without attack
     // frames shows no startup in a match; the file read does not belong in a
     // rollback frame. Load it at battle start if it is missed.
-    const auto fighters = ReadFighters(system, false);
+    auto fighters = ReadFighters(system, false);
+    if (inputs) for (int side = 0; side < 2; ++side) fighters[side].input = inputs[side] & FightButtons;
     // A spectator plays confirmed inputs only and has no save frame to name one by.
     if (stateFrame <= 0) meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
     else {
@@ -547,7 +548,7 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
         do meter.Observe(frame, next); while (confirmed.Next(lastConfirmedInput, frame, next));
     }
     std::lock_guard<std::mutex> lock(mutex);
-    published.meter = meter.View(); published.watching = matchShown = true;
+    published.meter = meter.View(); published.watching = matchShown = true; published.replayInputs = inputs != nullptr;
 }
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {

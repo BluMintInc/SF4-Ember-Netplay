@@ -727,9 +727,10 @@ void DrawMatchMeter(const training::View& view) {
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
     // A match's inputs stay hidden, the opponent's above all, and the match
-    // records none: the classic meter's input lanes are Training's alone.
+    // records none: the classic meter's input lanes show over a replay only,
+    // whose file has every input.
     auto options = TrainingMeterOptions();
-    options.classicInputs = false;
+    options.classicInputs = options.classicInputs && view.replayInputs;
     MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
 }
 void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {

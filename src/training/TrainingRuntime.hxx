@@ -26,7 +26,8 @@ void AfterUpdate(Dimps::Game::Battle::System* system);
 // its inputs are confirmed. stateFrame: the GGPO save frame of the state
 // just reached, 0 or less for a spectator, who plays confirmed inputs only.
 // lastConfirmedInput: -1 to capture without showing anything yet.
-void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput);
+// inputs: both sides' pads for the frame, a replay's (FighterSample::input); null in a match.
+void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs = nullptr);
 // SetMatchPractice: whether the battle being prepared is a Practice room's
 // match. Game thread.
 void SetMatchPractice(bool enabled);

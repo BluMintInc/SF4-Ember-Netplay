@@ -402,6 +402,9 @@ struct View {
     // A rollback match whose frame meter is shown: the meter is filled,
     // nothing else, and no command is taken.
     bool watching = false;
+    // The meter's samples carry each side's pad (FighterSample::input): a
+    // replay's, read from its file. A live match's inputs are never kept.
+    bool replayInputs = false;
     std::uint64_t generation = 0;
     // Where Player 1 and Player 2 stand (x), as the adapter reads them each frame.
     float x[2] = {0, 0};

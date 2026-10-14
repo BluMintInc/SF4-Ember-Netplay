@@ -560,7 +560,10 @@ void fSystem::BattleUpdate() {
         // watched match's does, with no input to confirm. A
         // frame the replay controls (or the game's half speed) held is not
         // one: the meter would take the repeated frame as a gap and start over.
-        if (sf4e::replayplayback::AfterUpdate(_this)) sf4e::training::ObserveMatch(_this, 0, -1);
+        if (sf4e::replayplayback::AfterUpdate(_this)) {
+            unsigned inputs[2] = {0, 0};
+            sf4e::training::ObserveMatch(_this, 0, -1, sf4e::replayplayback::PlayedInputs(inputs) ? inputs : nullptr);
+        }
     }
 
     if (nExtraFramesToSimulate > 0) {
