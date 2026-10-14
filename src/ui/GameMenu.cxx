@@ -283,7 +283,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     float homeLift=0;
     if(home&&roomy&&!entries.empty()) {
         const float rows=entries.size()*(std::max)(44*Scale(),28*Scale()+2*ImGui::GetStyle().FramePadding.y)+(entries.size()-1)*ImGui::GetStyle().ItemSpacing.y;
-        const float footer=MenuLegend(windowSize.x-homeMargin-ImGui::GetStyle().WindowPadding.x,selectGlyph,backGlyph,false,false,menuArt,unit,loc::T("menu.select"),{},backHint.c_str())+
+        const float footer=MenuLegend(windowSize.x-homeMargin-ImGui::GetStyle().WindowPadding.x,selectGlyph,backGlyph,false,false,menuArt,unit,loc::T("menu.select"),{},backHint.c_str(),nullptr,true,!backInert)+
             8*unit+3*ImGui::GetStyle().ItemSpacing.y+HomeStatusHeight*unit+ImGui::GetStyle().WindowPadding.y;
         homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
         homeTop-=homeLift;
@@ -362,14 +362,14 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendWidth=ImGui::GetContentRegionAvail().x;
     // An open dialog takes the screen's shortcuts away.
     const char* back=dialog?dialogBack.c_str():backHint.c_str();
-    const float standardLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back,nullptr,listEnabled);
+    const float standardLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back,nullptr,listEnabled,!backInert);
     // A pad button the player made Select or Back is no shortcut, so its hint goes.
     std::vector<LegendHint> offered;
     for(const auto& hint:shortcutHints) if(!listEnabled||KeyboardPrompts()||(std::strcmp(hint.glyph,selectGlyph)&&std::strcmp(hint.glyph,backGlyph))) offered.push_back(hint);
     const bool hintsFit=!listEnabled||(!dialog&&(menuDeviceType==input::PadXInput||KeyboardPrompts())&&!offered.empty()&&
-        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,offered,back,nullptr,listEnabled)<=standardLegend);
+        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,offered,back,nullptr,listEnabled,!backInert)<=standardLegend);
     const auto& extras=hintsFit?offered:noHints;
-    const float reservedLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled);
+    const float reservedLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled,!backInert);
     // The footer note goes in the bottom right corner, level with the legend's
     // last row when it fits beside it. Otherwise it takes a line of its own
     // under the legend while the list keeps its least height and a row more,
@@ -377,7 +377,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float noteFont=12*unit,noteGap=24*unit;
     std::string note=flyout?std::string():footerNote;
     float legendEnd=0;
-    if(!note.empty())MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd,listEnabled);
+    if(!note.empty())MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd,listEnabled,!backInert);
     const float noteWidth=note.empty()?0.f:ImGui::GetFont()->CalcTextSizeA(noteFont,FLT_MAX,0,note.c_str()).x;
     const float besideRoom=legendWidth-legendEnd-noteGap;
     const float lineCost=noteFont+6*unit+ImGui::GetStyle().ItemSpacing.y;
@@ -590,7 +590,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendTop=ImGui::GetCursorScreenPos().y;
     ImGui::Dummy(ImVec2(0,8*unit));if(home)ImGui::SetCursorPosX(homeMargin);
     const auto legendStart=ImGui::GetCursorScreenPos();
-    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectPrompt,backGlyph,true,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled);
+    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectPrompt,backGlyph,true,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled,!backInert);
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(!note.empty()) {
         // Right-aligned to the legend's own right edge.

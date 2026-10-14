@@ -72,6 +72,8 @@ namespace sf4e {
 			void* Destroy(DWORD arg1);
 			void OnModeSelected(int mode);
 			int GetItemObserverState();
+			// On the event, not its item observer.
+			void IdleTask(int arg);
 
 			// On the item observer (ToItemObserver), like GoToVersusMode.
 			void GoToLocalBattleLog();

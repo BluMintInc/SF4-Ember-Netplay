@@ -102,6 +102,15 @@ namespace Dimps {
 				int (MainMenu::* GetItemObserverState)();
 			} __itemObserverMethods;
 
+			// The task the menu runs every frame while it is idle (0x613980, one
+			// argument, `this` is the event). Besides a dialog hook that nothing
+			// sets, it is where the Button 1 and Button 4 shortcuts for SET TITLE
+			// and SET ICON are read: it checks the item observer's state field
+			// itself, so GetItemObserverState does not guard them.
+			typedef struct __taskMethods {
+				void (MainMenu::* IdleTask)(int arg);
+			} __taskMethods;
+
 			typedef struct __staticMethods {
 				MainMenu* (*Factory)(DWORD arg1, DWORD arg2, DWORD arg3);
 			} __staticMethods;
@@ -132,6 +141,7 @@ namespace Dimps {
 			static constexpr int FlowRowMainMenu = 1, FlowRowLocalBattleLog = 15;
 
 			static __itemObserverMethods itemObserverMethods;
+			static __taskMethods taskMethods;
 			static __exitMethods exitMethods;
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;

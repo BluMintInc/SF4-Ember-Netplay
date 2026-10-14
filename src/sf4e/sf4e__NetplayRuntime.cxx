@@ -5,6 +5,7 @@
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
+#include "../common/NativeMenuLock.hxx"
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
 #include "sf4e__Steam.hxx"
@@ -50,6 +51,32 @@ bool AtMainMenu() {
 	if (!root) return false;
 	char* query[] = { "MainMenu" };
 	return Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1) != nullptr;
+}
+
+// The native screen in front ("MainMenu", "Option", ...), empty while the
+// foreground is changing or before the event system is up. Game thread.
+static std::string NativeForegroundName() {
+	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return {};
+	auto* root = Dimps::App::GetRootEvent();
+	if (!root) return {};
+	using Dimps::Event::EventController;
+	auto* controller = (root->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)();
+	if (!controller || (controller->*EventController::publicMethods.GetForegroundEventStatus)() != EventController::EQS_FOREGROUND) return {};
+	auto* event = (controller->*EventController::publicMethods.GetForegroundEvent)();
+	return event ? std::string(Dimps::Event::EventBase::GetName(event)) : std::string();
+}
+
+// While a room is joined the native screen is logged whenever it changes, so
+// a log shows what was in front of the player's pad.
+static void NoteNativeScreen() {
+	static std::string last;
+	const auto state = runtime->controller.GetSnapshot();
+	if (state.room == netplay::RoomState::Idle) { last.clear(); return; }
+	const std::string now = NativeForegroundName();
+	if (now.empty() || now == last) return;
+	spdlog::info("Room: native screen {} (was {}), room {}, match {}", now, last.empty() ? "none seen" : last,
+		input::RoomStateName(state.room), input::MatchStateName(state.match));
+	last = now;
 }
 
 void CloseRoom() {
@@ -587,8 +614,10 @@ static void CallOutOpponentReady() {
 // battle or its transitions. The log lines let a crash report show whether
 // and when it rang.
 void internal::PlayChallengerCall(int volumePercent) {
-	if (!AtMainMenu() || Game::Battle::System::ggpo) {
-		spdlog::info("Room: challenger call skipped outside the main menu");
+	const bool atMenu = AtMainMenu();
+	if (!atMenu || Game::Battle::System::ggpo) {
+		if (!atMenu) spdlog::info("Room: challenger call skipped outside the main menu (native screen '{}')", NativeForegroundName());
+		else spdlog::info("Room: challenger call skipped outside the main menu (a game session is still live)");
 		return;
 	}
 	if (!Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger, Dimps::Sound::SystemChannel::Voice, volumePercent / 100.f))
@@ -742,6 +771,7 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
+	NoteNativeScreen();
 	SayTraining();
 	TakeJoinLink();
 	PublishAndTickDiscordInvite();

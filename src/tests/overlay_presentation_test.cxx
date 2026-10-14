@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <thread>
 #include "test_support.hxx"
 // A reader of the hold, on the game thread, while the drawing thread answers
@@ -113,6 +114,20 @@ int main() {
         practice.Open(); CHECK(!practice.Visible());
         practice.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
         CHECK(practice.Visible() && practice.Reopened());
+    }
+    // The log says why the shell showed or hid.
+    {
+        OverlayPresentation why;
+        why.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        CHECK(std::string(why.Why()) == "the main menu is in front");
+        why.Toggle(); CHECK(!why.Visible() && std::string(why.Why()) == "F10");
+        why.Open("Start"); CHECK(why.Visible() && std::string(why.Why()) == "Start");
+        why.Close("Back on Ember's Home"); CHECK(!why.Visible() && std::string(why.Why()) == "Back on Ember's Home");
+        why.Open(); CHECK(std::string(why.Why()) == "opened");
+        why.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
+        CHECK(!why.Visible() && std::string(why.Why()) == "a game is starting or running");
+        why.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
+        CHECK(why.Visible() && std::string(why.Why()) == "a match ended");
     }
     // Game-thread open requests wait for the drawing thread and coalesce, Play first.
     {

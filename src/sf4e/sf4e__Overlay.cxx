@@ -20,6 +20,7 @@
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/MatchFrameMeter.hxx"
+#include "../common/NativeMenuLock.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -104,17 +105,20 @@ void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const,
     PushNetplayAlert(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ? SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)));
 }
 // Game thread: the native menu's Network item opens the room shell instead.
+// In a room or a match it is the only item that goes through: a button held
+// from the end of a game can land on any of them as the menu comes back, and
+// Benchmark then reads the battle system the game has just freed. The menu
+// is also kept from input there (fMainMenu::GetItemObserverState); this is
+// the second layer, for a selection that gets past it.
+static_assert(rMainMenu::MainMenuItemID::MMI_NETWORK == sf4e::input::NativeNetworkItem, "the Network item changed");
 static int OnMainMenuModeSelected(int mode) {
-    spdlog::info("Main menu: native selection {}", mode);
-    if (mode == rMainMenu::MainMenuItemID::MMI_BENCHMARK) {
-        // A button still held from the end of a room match can land on Benchmark
-        // as the menu comes back, and Benchmark then reads the battle system the
-        // game has just freed. It has no place in a room, so it is refused there.
-        const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
-        if (snapshot->session.room != sf4e::netplay::RoomState::Idle || sf4e::netplay::Fighting(snapshot->session.match)) {
-            spdlog::warn("Main menu: Benchmark refused while a room or match is open");
-            return 1;
-        }
+    const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+    const auto lock = sf4e::input::NativeMenuLockFor(snapshot->session.room, snapshot->session.match);
+    spdlog::info("Main menu: native selection {} (room {}, match {}, Ember menu {})", mode, sf4e::input::RoomStateName(snapshot->session.room),
+        sf4e::input::MatchStateName(snapshot->session.match), s_menuPads.Holds() ? "shown" : "hidden");
+    if (!sf4e::input::NativeSelectionAllowed(lock, mode)) {
+        spdlog::warn("Main menu: selection {} refused while a room or match is open", mode);
+        return 1;
     }
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
     s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
@@ -394,7 +398,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
 		// Training from inside a room: the menu closes behind it while the runtime
 		// sends the game on.
-		if (action.training == sf4e::TrainingEntry::Room) presentation.Close();
+		if (action.training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
 		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -404,7 +408,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
 #endif
     );
-    if (!open) presentation.Close();
+    if (!open) presentation.Close("Back on Ember's Home");
 }
 
 
@@ -437,29 +441,29 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
     if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
-        presentation.Open();
+        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" : "Start");
         if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
     }
     static bool inviteShown=false;
-    if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
+    if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open("a Discord invite"); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;
     // A room link from the browser opens the menu at the main menu, where
     // the shell puts it on the Join screen.
     static std::uint64_t joinLinkShown=0;
     if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open(); joinLinkShown=snapshot.pendingJoinSequence;
+        presentation.Open("a room link"); joinLinkShown=snapshot.pendingJoinSequence;
     }
     // Called out of Training: back at the main menu the menu opens on the
     // player's table, which the shell turns to, so the Ready row is in reach.
     static std::uint64_t trainingCallShown=0;
     if (snapshot.trainingCallSequence!=trainingCallShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open(); trainingCallShown=snapshot.trainingCallSequence;
+        presentation.Open("a Training call"); trainingCallShown=snapshot.trainingCallSequence;
     }
     // A Discord connect link likewise, at the main menu only: during play it
     // waits until the player opens Ember, which then asks before going on.
     static std::uint64_t connectLinkShown=0;
     if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
+        presentation.Open("a Discord connect link"); connectLinkShown=snapshot.tournament.connect.sequence;
     }
     // A replay link opens the menu at the main menu with no room, where the
     // shell puts its question on the Replays screen; in a room or in play it
@@ -468,14 +472,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (snapshot.replays.link.empty()) replayLinkShown.clear();
     else if (snapshot.replays.link != replayLinkShown && snapshot.atMainMenu && presentation.Available() &&
         snapshot.session.room == sf4e::netplay::RoomState::Idle) {
-        presentation.Open(); replayLinkShown = snapshot.replays.link;
+        presentation.Open("a replay link"); replayLinkShown = snapshot.replays.link;
     }
     // A public room link the player was free to follow opens the menu, where
     // the shell takes them to Public rooms; during play it waits until the
     // player opens Ember, and the shell says so.
     static std::uint64_t roomLinkShown=0;
     if (snapshot.tournament.roomLink.sequence!=roomLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        if (snapshot.tournament.roomLink.free) presentation.Open();
+        if (snapshot.tournament.roomLink.free) presentation.Open("a public room link");
         roomLinkShown=snapshot.tournament.roomLink.sequence;
     }
     sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
@@ -499,7 +503,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
     // Start opens Ember at the main menu and over a Practice match; in
     // Training and over an export it is the game's pause.
-    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
+    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
@@ -509,9 +513,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // gets out of the way, and comes back on that screen when the replay
     // operation says the main menu is back (sf4e__ReplayStore.hxx).
     static std::uint64_t logOpensSeen = 0, returnsSeen = 0;
-    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close(); }
-    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.ShowReplays(); }
-    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
+    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close("the battle log opened"); }
+    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open("the battle log closed"); shell.ShowReplays(); }
+    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle("F10");
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
@@ -697,6 +701,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool capturing = CapturesInput();
     if (wasCapturing && !capturing) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
     wasCapturing = capturing;
+    // Said when it changes, with the room: the shell's visibility decides
+    // whether the pad reaches Ember's menu or the game's.
+    static bool shellWasVisible = false;
+    if (presentation.Visible() != shellWasVisible) {
+        shellWasVisible = presentation.Visible();
+        spdlog::info("Overlay: Ember menu {} ({}), room {}, match {}", shellWasVisible ? "shown" : "hidden", presentation.Why(),
+            sf4e::input::RoomStateName(snapshot.session.room), sf4e::input::MatchStateName(snapshot.session.match));
+    }
     // The native menu stays parked under a shown shell, focused or not, and
     // while the pad update hides the pads from it (behind another window, or
     // a press held from the shell), so a pad press while alt-tabbed cannot drive it.

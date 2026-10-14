@@ -10,6 +10,8 @@ void RoomJourneys() {
  std::set<std::string> legend;
  SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
  SetMenuGlyphs(3,0x40000,0x20000);legend.clear();h.Frame();Check(legend.count("Return to SF4"),"Idle Home's Back does not say it returns to SF4");
+ // Outside a room Back at Home still hides Ember, and sends nothing.
+ {const auto before=h.actions.size();h.Press(MenuInput::Back);Check(!h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==before,"Back on an idle Home did not hide Ember");h.open=true;}
  h.Screen("player");h.view.inputCapture=input::Capture::ReleaseAll;legend.clear();h.Frame();
  Check(legend.count("Cancel")&&!legend.count("Back"),"Controller assignment's Back does not say it cancels");
  SetMenuTextProbe({});h.Press(MenuInput::Back);
@@ -164,17 +166,18 @@ void RoomJourneys() {
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X in fighter selection did not return to the board");
  h.Press(MenuInput::Fighter);h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View in fighter selection did not open chat");
  h.Press(MenuInput::Chat);h.selection=[]{};h.view.canEditSelection=false;
- // B on the board with no seat goes to Home, and B there returns to the room
- // rather than dropping to the game's own menu.
+ // B on the board with no seat goes to Home, and B there does nothing rather
+ // than dropping to the game's own menu.
  h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","B on the board did not reach Home");
- // Home in a room says Back returns to the game, and it hides Ember without
- // leaving the room or sending anything.
+ // Home in a room does not offer a way back to the game, and Back there does
+ // nothing: Ember stays up, the room is kept and nothing is sent, because the
+ // game's own menu behind it is locked.
  legend.clear();SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});h.Frame();SetMenuTextProbe({});
- Check(legend.count("Return to SF4"),"Home in a room does not say Back returns to SF4");
+ Check(!legend.count("Return to SF4")&&!legend.count("Back")&&legend.count("Select"),"Home in a room offers Back, or lost its Select");
  raced=h.actions.size();h.Press(MenuInput::Back);
- Check(!h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==raced&&h.view.session.room==netplay::RoomState::Joined,
-  "B at Home in a room did not hide Ember, or sent a command");
- h.open=true;h.Screen("room");
+ Check(h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==raced&&h.view.session.room==netplay::RoomState::Joined,
+  "B at Home in a room hid Ember, left Home, or sent a command");
+ h.Screen("room");
  h.Choose("table-2");h.Press(MenuInput::Back);h.Press(MenuInput::Options);
  h.view.room.members[0].table=2;h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;h.view.room.tables[2].p2=2;
   h.view.room.tables[2].phase=room::TablePhase::Waiting;h.view.canReady=true;
@@ -307,8 +310,8 @@ void RoomJourneys() {
  Check(boardStatus.find(finishFirst)==std::string::npos,"A refusal followed the player to Home");
  h.view.room.tables[2].phase=room::TablePhase::Waiting;
  SetMenuStatusProbe({});
- h.Press(MenuInput::Back);Check(!h.open&&h.shell.Navigation().Screen()=="home","B at Home did not hide Ember");
- h.open=true;h.Screen("room");
+ h.Press(MenuInput::Back);Check(h.open&&h.shell.Navigation().Screen()=="home","B at Home in a room hid Ember");
+ h.Screen("room");
  // Walking down past other tables to the toolbar still opens your own table.
  h.FocusOn("table-2");h.Choose("options");
  std::vector<MenuEntry> optionRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});

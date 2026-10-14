@@ -122,13 +122,13 @@ inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size
 struct LegendHint { const char* glyph; std::string label; };
 inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
                         const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr,
-                        float* lastRowEnd=nullptr,bool standard=true) {
+                        float* lastRowEnd=nullptr,bool standard=true,bool offerBack=true) {
     const bool keyboard=!std::strcmp(select,"Enter")||!std::strcmp(select,"Ctrl+Enter");
     std::vector<LegendHint> hints;
     if(standard) hints={{keyboard?"arrows":"dpad",loc::T("menu.navigate")}};
     if(primary)hints.push_back({select,primary});
     const char* backWord=backText&&*backText?backText:loc::T("common.back");
-    if(standard) hints.push_back({back,backWord});
+    if(standard&&offerBack) hints.push_back({back,backWord});
     if(adjustable)hints.push_back({keyboard?"keys-horizontal":"horizontal",loc::T("menu.adjust")});
     hints.insert(hints.end(),extras.begin(),extras.end());
     for(auto& hint:hints)hint.label=PromptLabel(hint.glyph,hint.label,MenuPromptBrand());

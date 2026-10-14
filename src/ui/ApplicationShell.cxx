@@ -13,6 +13,7 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/MatchFrameMeter.hxx"
+#include "../common/NativeMenuLock.hxx"
 #include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "ReplaySummaryText.hxx"
@@ -734,6 +735,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ menu_.backInert=false;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
@@ -846,8 +848,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v),v.services.channel):std::string();
  if(screen=="home"){
-  menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
-  menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
+  // In a room Back does nothing here (the game's own menu is locked behind
+  // Ember), so Home offers no way out and the legend no Back.
+  if(opening||input::HomeBackHidesShell(v.session.room)){
+   menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
+   menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
+  }else menu_.backInert=true;
  }else if(!keys)menu_.backHint=placeExit;
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
@@ -862,8 +868,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // A room being opened keeps its Stop row in reach.
   nav.Push(OpeningScreen(v));
  }else if(a.kind==MenuAction::Close||a.id=="return"){
-  // Back at the root hides Ember; a joined room is kept, and the Ember shortcut returns to it.
-  if(open)*open=false;
+  // Back at the root hides Ember, unless a room is joined: the game's menu
+  // behind it is locked there, so Ember stays up (F10 can still hide it).
+  if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
   if(inRoom)RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);

@@ -22,8 +22,8 @@ public:
         const bool atMenu = input::MenuShownIn(context);
         const bool fighting = input::FightKeepsMenuAway(netplay::Fighting(match), context);
         if (match == netplay::MatchState::PostMatch && previousMatch_ != match) reopen_ = true;
-        if (offline && !previousOffline_) requested_ = false;
-        if (fighting) requested_ = false;
+        if (offline && !previousOffline_) { requested_ = false; why_ = "Play Offline"; }
+        if (fighting) { requested_ = false; why_ = "a game is starting or running"; }
         // The native foreground query drops for a frame or two during menu
         // transitions. Hiding the shell on each drop re-armed every input gate
         // and strobed the room controls, so availability falls only after a
@@ -31,9 +31,11 @@ public:
         // and so does a Practice match's end, once the fight is no longer one
         // the menu is shown over.
         awayFrames_ = atMenu ? 0 : awayFrames_ + 1;
+        const bool wasAvailable = available_;
         available_ = !fighting && (atMenu || (available_ && awayFrames_ < AwayFrames));
+        if (available_ != wasAvailable && !fighting) why_ = available_ ? "the main menu is in front" : "the main menu is no longer in front";
         focused_ = focused;
-        if (available_ && reopen_) { requested_ = true; reopen_ = false; reopened_ = true; }
+        if (available_ && reopen_) { requested_ = true; reopen_ = false; reopened_ = true; why_ = "a match ended"; }
         previousMatch_ = match;
         previousOffline_ = offline;
     }
@@ -43,15 +45,18 @@ public:
     // screen, and the pad still drives it there (Open, Close); only the keys
     // and the mouse need focus, and the caller gates those.
     bool Visible() const { return available_ && requested_; }
-    // F10's toggle: a key, so only with the focus.
-    void Toggle() { if (available_ && focused_) requested_ = !requested_; }
-    void Open() { if (available_) requested_ = true; }
-    void Close() { requested_ = false; }
+    // F10's toggle: a key, so only with the focus. The words say why, for the
+    // log; Why() is the latest of them.
+    void Toggle(const char* why = "F10") { if (available_ && focused_) { requested_ = !requested_; why_ = why; } }
+    void Open(const char* why = "opened") { if (available_) { requested_ = true; why_ = why; } }
+    void Close(const char* why = "closed") { requested_ = false; why_ = why; }
+    const char* Why() const { return why_; }
     // Consecutive updates away from the main menu before the shell hides: ~0.5 s at 60 fps.
     static constexpr unsigned AwayFrames = 30;
 private:
     bool requested_ = true, available_ = false, focused_ = true;
     unsigned awayFrames_ = 0;
+    const char* why_ = "";
     bool reopened_ = false, reopen_ = false, previousOffline_ = false;
     netplay::MatchState previousMatch_ = netplay::MatchState::None;
 };
