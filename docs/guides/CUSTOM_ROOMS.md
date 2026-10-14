@@ -142,7 +142,8 @@ Unready or Cancel the start, and then the game does not start. Without lock-in
 the fighters do not wait: a spectator still closing out the previous game joins
 the game after that. Lock-in ends when you stop watching, move to another table
 or seat, or your view of a game fails, so it cannot hold up the fighters again;
-a short notice says which.
+a short notice says which, unless you ended it yourself with Stop watching
+during a game or with Release lock-in.
 
 A spectator whose connection is still being set up when the fighters are ready
 (after a short grace period) misses that game and watches the next one. A

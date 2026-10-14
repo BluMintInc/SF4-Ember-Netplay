@@ -397,6 +397,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.stage = lobbyStageID;
 		request.randomPool = lobbyRandomPool;
 		request.training = action.training;
+		request.leaveWatchedGame = action.leaveWatchedGame;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
 		// Training from inside a room: the menu closes behind it while the runtime
 		// sends the game on.

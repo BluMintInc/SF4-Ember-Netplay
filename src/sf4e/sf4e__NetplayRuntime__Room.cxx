@@ -98,6 +98,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		else runtime->error = loc::T("room.training.unavailable");
 		return DispatchOutcome::Dropped;
 	}
+	// Stop watching names the game; what leaving it takes is decided here, so
+	// a press never outlives the stream it was about. A retry decides afresh.
+	if (command.leaveWatchedGame.Active()) {
+		if (attempt == Attempt::Fresh) runtime->roomActionIntent.Clear();
+		const auto outcome = LeaveWatchedGame(command.leaveWatchedGame);
+		return outcome == DispatchOutcome::Deferred ? Defer(runtime->roomActionIntent, command) : outcome;
+	}
     if (command.discordAction != discord::InviteAction::None) {
         if (!runtime->discordInvite.Matches(command.discordRevision)) return DispatchOutcome::Dropped;
         if (command.discordAction == discord::InviteAction::Cancel) runtime->discordInvite.Cancel();
@@ -234,10 +241,11 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			const bool immediateSpectatorAction = localSpectator &&
 				(action == room::ActionKind::Unqueue || action == room::ActionKind::Unwatch);
 			if (immediateSpectatorAction) {
-				if (EndWatchedViewOnly(command.roomAction)) return DispatchOutcome::Dispatched;
 				// Removing a queued spectator preserves the current spectator
-				// stream. Unwatch is sent before local GGPO retirement so P1
-				// receives game_peer_end while the generation is still current.
+				// stream. An Unwatch here leaves a table whose watched game the
+				// room has already finished (the live game's leave is
+				// leaveWatchedGame); it is sent before local GGPO retirement so
+				// P1 receives game_peer_end while the generation is still current.
 				if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
 					runtime->error = loc::T("runtime.spectator_action_retrying");
 					return Defer(runtime->roomActionIntent, command);
@@ -837,7 +845,8 @@ void ResolvePendingIntents(bool helperReady) {
 	const bool healthyRoomControl = gate.controlHealthy && gate.authorityWritable;
 	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent}) {
 		const auto* parked = intent->Parked();
-		if (parked && netplay::ParkedActionRetryable(parked->roomAction, gate)) Retry(*intent, helperReady);
+		if (parked && (parked->leaveWatchedGame.Active() ? netplay::ParkedWatchedLeaveRetryable(gate) :
+			netplay::ParkedActionRetryable(parked->roomAction, gate))) Retry(*intent, helperReady);
 	}
 	// A sent Ready keeps its budget; the pump clears it on commit or failure.
 	if (runtime->readyIntent.Parked() && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate &&

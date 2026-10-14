@@ -663,15 +663,11 @@ static void StreamWatchedGame(WatchedGame& game) {
 	CHECK(watched.Active() && watched.table == 0 && watched.generation == game.generation);
 }
 
-// Stop watching as the shell submits it: an Unwatch scoped to the watched game.
+// Stop watching as the shell submits it: the leave of the watched game, by name.
 static void SubmitStopWatching(WatchedGame& game) {
-	const auto view = game.authority.SnapshotFor(game.member);
-	sf4e::NetplayFacade::RuntimeCommand leave;
-	leave.command = {sf4e::netplay::CommandKind::RoomAction, game.r.runtime->controller.GetSnapshot().generation, {}};
-	leave.roomAction.kind = sf4e::room::ActionKind::Unwatch;
-	leave.roomAction.table = 0;
-	leave.roomAction.roomEpoch = view.roomEpoch;
-	leave.roomAction.matchGeneration = game.generation;
+	sf4e::NetplayFacade::RuntimeCommand leave{};
+	leave.command.generation = game.r.runtime->controller.GetSnapshot().generation;
+	leave.leaveWatchedGame = {0, game.generation};
 	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(leave)));
 }
 
@@ -789,6 +785,23 @@ void TestSpectatorLeavesWatchedGame() {
 	std::cout << "TestSpectatorLeavesWatchedGame passed\n";
 }
 
+// A queued watcher's leave (Leave this game) is an Unwatch of the watched game
+// that keeps its place, decided by the runtime when it runs.
+void TestQueuedWatcherLeavesTheGame() {
+	namespace room = sf4e::room;
+	WatchedGame game(false, true, true);
+	StreamWatchedGame(game);
+	sf4e::NetplayFacade::ClearMatchNotice();
+	const auto sentBefore = game.r.transport->sent.size();
+	SubmitStopWatching(game);
+	sf4e::NetplayFacade::internal::DrainCommands(true);
+	CheckLeftTheStream();
+	const auto kept = SentActions(game, room::ActionKind::Unwatch, sentBefore);
+	CHECK(kept.size() == 1 && kept[0].matchGeneration == game.generation && kept[0].keepWatching);
+	sf4e::NetplayFacade::ClearMatchNotice();
+	std::cout << "TestQueuedWatcherLeavesTheGame passed\n";
+}
+
 // Stop watching parks when its first send finds the control link unable to
 // take it, and goes once the link can, while the room is still catching up on
 // its checkpoint (healthy control, authority not yet writable), just as its
@@ -865,6 +878,38 @@ void TestFinishedWatchEndsOnlyTheView() {
 		facade::ClearMatchNotice();
 	}
 	std::cout << "TestFinishedWatchEndsOnlyTheView passed\n";
+}
+
+// Stop watching is queued, and the stream retires before the game thread
+// takes it (the spectator drain ran out, or the stream failed), whether the
+// room still plays the game or has finished it. The leave finds no view: it
+// sends nothing, raises no error and leaves nothing parked.
+void TestLeaveAfterTheViewRetired() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	for (const bool finished : {false, true}) {
+		WatchedGame game(false);
+		auto* runtime = game.r.runtime;
+		StreamWatchedGame(game);
+		if (finished) {
+			game.End(room::MatchResult::P1Win);
+			game.r.Snapshot(game.authority.SnapshotFor(game.member));
+			CHECK(sf4e::Game::Battle::System::ggpo);
+		}
+		facade::ClearMatchNotice();
+		runtime->error.clear();
+		const auto sentBefore = game.r.transport->sent.size();
+		SubmitStopWatching(game);
+		facade::internal::RetireFinishedMatch("test_drain");
+		CHECK(!sf4e::Game::Battle::System::ggpo && !facade::internal::WatchedGameNow().Active());
+		facade::internal::DrainCommands(true);
+		facade::internal::ResolvePendingIntents(true);
+		CHECK(SentActions(game, room::ActionKind::Unwatch, sentBefore).empty());
+		CHECK(runtime->error.empty() && !runtime->roomActionIntent.Parked());
+		CHECK(std::string(facade::GetStatus().lastError).empty());
+		facade::ClearMatchNotice();
+	}
+	std::cout << "TestLeaveAfterTheViewRetired passed\n";
 }
 
 // A spectator away from the main menu when its game starts sits it out once
@@ -971,6 +1016,8 @@ int main() {
 	TestFailedSetupThroughRuntime(false, false, true);
 	TestUnscoredEndNotice();
 	TestSpectatorLeavesWatchedGame();
+	TestQueuedWatcherLeavesTheGame();
+	TestLeaveAfterTheViewRetired();
 	TestParkedStopWatchingCatchesUp();
 	TestFinishedWatchEndsOnlyTheView();
 	TestSpectatorSitOutNotice();

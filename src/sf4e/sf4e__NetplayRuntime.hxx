@@ -388,10 +388,13 @@ void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverit
 // The room ended this PC's game with no result: retire it and say so.
 void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
-// The player's leave (an Unwatch) of the game this PC watches, once the room
-// needs nothing for it: only the rest of the stream ends. True when that was
-// the whole of the leave, false when the room is still owed it.
-bool EndWatchedViewOnly(const room::Action& leave);
+// The player's leave of the game this PC watches (RuntimeCommand::
+// leaveWatchedGame), decided against the stream and the room as they are when
+// it runs (netplay::LeaveOfWatchedGame): nothing once that view is gone, only
+// the rest of the stream once the room has finished the game, otherwise an
+// Unwatch scoped to the game and the player's own end of the stream. Deferred
+// when the room's control could not take that Unwatch yet.
+netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& game);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();
 // Game thread: the announcer's challenger call at a percent of the game's voice volume.

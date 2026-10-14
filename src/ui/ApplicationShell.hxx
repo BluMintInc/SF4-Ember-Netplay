@@ -191,6 +191,10 @@ struct ShellAction {
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
+    // Leave the game this PC watches (ShellView::watchedGame), named as the
+    // press saw it; sent alone. The runtime decides, when it takes it, whether
+    // the room still needs an Unwatch or only the rest of the stream ends.
+    netplay::WatchedGame leaveWatchedGame;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -373,8 +377,10 @@ private:
     void ToggleReady(const ShellView& view, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
-    // Leaves the game this PC watches (Stop watching), once confirmed.
-    void LeaveWatchedGame(const ShellView& view, const Submit& submit);
+    // Leaves the game this PC watches (Stop watching, or the table's own
+    // Unwatch of it), once confirmed: the press names the game, and the
+    // runtime decides what leaving it takes. False when nothing was sent.
+    bool LeaveWatchedGame(const ShellView& view, const Submit& submit);
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
@@ -384,7 +390,23 @@ private:
     void TrackLockIn(const ShellView& view, double now);
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0;
-    double lockInReleasedUntil_=0;
+    // The player's own end of their lock-in at `table`, until the room shows
+    // it or can no longer take it. Stop watching leaves the table, and its
+    // Unwatch is refused once the watched game (`generation`) has ended.
+    // Release keeps the watch, and is about the lock-in on the game the table
+    // was at when pressed (`generation`): it goes within its parked budget,
+    // so a lock-in still held once the next game has begun outlived it.
+    struct OwnLockRelease {
+        std::uint64_t roomEpoch=0;
+        room::MemberId member=0;
+        int table=-1;
+        std::uint64_t generation=0;
+        bool leavesTable=false;
+        // Whether the lock-in `room` no longer shows at lockedTable ended by this press.
+        bool Explains(const room::Snapshot& room,int lockedTable,bool watching) const;
+        bool Lapsed(const room::Snapshot& room) const;
+    };
+    std::optional<OwnLockRelease> ownLockRelease_;
     bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
@@ -552,10 +574,7 @@ private:
     std::set<room::MemberId> muted_;
     std::uint64_t mutedEpoch_ = 0;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
-    // A press checked against the room's guards, then posted.
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    // Stamps an action with the room's revisions and hands it to the runtime.
-    bool PostRoom(room::Action action, const ShellView& view, const Submit& submit);
     bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
 };
 

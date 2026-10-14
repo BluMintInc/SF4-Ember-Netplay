@@ -63,17 +63,16 @@ bool LeaveBlocked(const ShellView& v);
 // its own fighter. The rows that offer it and dispatch read this one answer.
 enum class AbandonableGame { None, Unresolved, Practice };
 AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t);
-// How a spectator leaves the game it watches (ShellView::watchedGame), from
-// Ember over that game: netplay::LeaveOfWatchedGame, so a watcher by choice
-// stops watching the table, a queued member leaves this game alone, and once
-// the room has finished the game only the rest of the stream ends. None away
-// from a watched game and at a tournament's table, where the room takes no
-// seating change. The row that offers it and dispatch read this one answer.
-netplay::WatchedLeave ExitFromWatchedGame(const ShellView& v);
+// Whether an Unwatch at `table` leaves the game this PC watches while the room
+// still plays it (netplay::LeaveOfWatchedGame). Every such press, from Stop
+// watching or the table's own Unwatch, goes as that game's leave
+// (ShellAction::leaveWatchedGame), which the runtime scopes to the watched
+// game when it runs, never as an Unwatch of whatever the table plays by then.
+bool LeavesWatchedGame(const ShellView& v, std::size_t table);
 // Whether the room takes a press of `kind` at `table` now. Everything waits
-// for a writable authority but the Unwatch the watched game's exit sends: the
-// runtime sends that straight to the live link, and the authority scopes it
-// by the game's generation rather than the table's revision, so a room still
+// for a writable authority but the watched game's leave: the runtime sends
+// its Unwatch straight to the live link, and the authority scopes it by the
+// game's generation rather than the table's revision, so a room still
 // catching up on its checkpoint takes it too. SendRoom, the board's Stop
 // watching row and the seat chooser read it; the table page keeps its own
 // wait wording for the whole page.

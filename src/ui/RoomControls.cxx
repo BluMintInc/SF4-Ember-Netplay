@@ -119,16 +119,14 @@ AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t) {
     if (t.phase == room::TablePhase::Paused) return AbandonableGame::Unresolved;
     return t.phase == room::TablePhase::Playing && v.practiceFight ? AbandonableGame::Practice : AbandonableGame::None;
 }
-netplay::WatchedLeave ExitFromWatchedGame(const ShellView& v) {
-    if (v.room.tournament.Active() && v.watchedGame.table == room::TournamentTable) return netplay::WatchedLeave::None;
-    return netplay::LeaveOfWatchedGame(v.room, v.watchedGame);
+bool LeavesWatchedGame(const ShellView& v, std::size_t table) {
+    const auto leave = netplay::LeaveOfWatchedGame(v.room, v.watchedGame);
+    return (leave == netplay::WatchedLeave::Unwatch || leave == netplay::WatchedLeave::LeaveGame) &&
+        table == static_cast<std::size_t>(v.watchedGame.table);
 }
 bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table) {
-    if (RoomActionsAvailable(v)) return true;
-    const auto exit = ExitFromWatchedGame(v);
-    return RoomCheckpointPending(v) && kind == room::ActionKind::Unwatch &&
-        (exit == netplay::WatchedLeave::Unwatch || exit == netplay::WatchedLeave::LeaveGame) &&
-        table == static_cast<std::size_t>(v.watchedGame.table);
+    return RoomActionsAvailable(v) ||
+        (RoomCheckpointPending(v) && kind == room::ActionKind::Unwatch && LeavesWatchedGame(v, table));
 }
 std::string WatchingNote(const ShellView& v, room::ActionKind kind) {
     if (!v.watchedGame.Active()) return {};

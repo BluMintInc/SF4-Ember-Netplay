@@ -1,12 +1,12 @@
 // Ember opened over a room game this PC only watches lands on the board at
-// Stop watching, which asks first and leaves the game with one Unwatch scoped
-// to the watched game. A watcher by choice leaves the table; a queued member
-// leaves this game alone (Leave this game) and keeps its queue place. Once the
-// room has finished the game while its stream still plays, the row stays and
-// only ends the rest of the stream. Dispatch reads the same rule as the row
-// (room_controls::ExitFromWatchedGame) when the answer comes, so a press never
-// outlives the game it was about, and a room still catching up on its
-// checkpoint takes the leave all the same.
+// Stop watching, which asks first and submits one leave naming the watched
+// game (ShellAction::leaveWatchedGame); the runtime decides what leaving it
+// takes when it runs. A watcher by choice is offered Stop watching, a queued
+// member Leave this game. Once the room has finished the game while its stream
+// still plays, the row stays and says so. The row and dispatch read the same
+// rule (netplay::LeaveOfWatchedGame), so a press never outlives the game it
+// was about, and a room still catching up on its checkpoint takes the leave
+// all the same. The table's own Unwatch of that game is the same leave.
 #include "../ui/ApplicationShell.hxx"
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
@@ -60,8 +60,8 @@ struct WatchedBoard {
     room::Table& Table() { return view.room.tables[0]; }
     room::Member& Local() { return view.room.members[0]; }
     ApplicationShell::Submit Submit() { return [this](ShellAction action) { actions.push_back(std::move(action)); return true; }; }
-    void Frame(unsigned buttons = 0) {
-        ImGui::GetIO().DeltaTime = 1.f / 60; SetMenuInput({buttons, 0}); ImGui::NewFrame();
+    void Frame(unsigned buttons = 0, float seconds = 1.f / 60) {
+        ImGui::GetIO().DeltaTime = seconds; SetMenuInput({buttons, 0}); ImGui::NewFrame();
         shell.Draw(view, &open, Submit(), [] {});
         ImGui::Render();
     }
@@ -82,13 +82,20 @@ struct WatchedBoard {
         if (found == rows.end()) throw std::runtime_error(std::string("missing room row: ") + id);
         return *found;
     }
-    // Other submissions (a preference save) may ride along; only the Unwatches count.
-    std::vector<room::Action> Unwatches(std::size_t from = 0) const {
-        std::vector<room::Action> sent;
-        for (std::size_t i = from; i < actions.size(); ++i)
-            if (actions[i].command.kind == netplay::CommandKind::RoomAction && actions[i].roomAction.kind == room::ActionKind::Unwatch)
-                sent.push_back(actions[i].roomAction);
+    // Other submissions (a preference save) may ride along; only the leaves
+    // count. No press may send an Unwatch of its own for the watched game.
+    std::vector<netplay::WatchedGame> Leaves() const {
+        std::vector<netplay::WatchedGame> sent;
+        for (const auto& action : actions) {
+            Check(action.command.kind != netplay::CommandKind::RoomAction || action.roomAction.kind != room::ActionKind::Unwatch,
+                "A press sent an Unwatch of its own instead of the watched game's leave");
+            if (action.leaveWatchedGame.Active()) sent.push_back(action.leaveWatchedGame);
+        }
         return sent;
+    }
+    bool LeftOnce() const {
+        const auto sent = Leaves();
+        return sent.size() == 1 && sent[0] == netplay::WatchedGame{0, 9};
     }
     // The room has taken the member off the table: no longer listed, and its lock-in gone.
     void LeftTable() {
@@ -109,11 +116,9 @@ void ByChoiceWatcherStopsWatching() {
     Check(row.enabled && row.confirm && row.label == loc::T("room.stop_watching") && row.detail == loc::T("room.stop_watching.detail"),
         "Stop watching was not an enabled row that asks first");
     board.Press(MenuInput::Select);
-    Check(board.Unwatches().empty(), "Stop watching did not ask first");
+    Check(board.Leaves().empty(), "Stop watching did not ask first");
     board.Press(MenuInput::Right); board.Press(MenuInput::Select);
-    const auto sent = board.Unwatches();
-    Check(sent.size() == 1 && sent[0].table == 0 && sent[0].matchGeneration == 9 && !sent[0].keepWatching,
-        "Stop watching did not send one Unwatch scoped to the watched game");
+    Check(board.LeftOnce(), "Stop watching did not submit one leave of the watched game");
     // Leaving the table and the room both say what they end over the game.
     Check(board.Row("leave").detail.find(loc::T("room.leave.watching")) != std::string::npos,
         "Leave room did not say it ends the spectator view");
@@ -128,7 +133,7 @@ void ByChoiceWatcherStopsWatching() {
 }
 
 // A queued member watches the game it waits out: Leave this game leaves that
-// game alone and keeps the queue place.
+// game alone and keeps the queue place (the runtime's Unwatch keeps watching).
 void QueuedWatcherLeavesTheGame() {
     WatchedBoard board;
     board.Table().queue = {1}; board.Local().status = room::MemberStatus::Queued;
@@ -136,38 +141,34 @@ void QueuedWatcherLeavesTheGame() {
     Check(board.shell.Navigation().Focus() == "stop-watching" && board.Row("stop-watching").label == loc::T("room.leave_game") &&
         board.Row("stop-watching").detail == loc::T("room.leave_game.detail"), "A queued watcher was not offered Leave this game");
     board.Confirm();
-    const auto sent = board.Unwatches();
-    Check(sent.size() == 1 && sent[0].table == 0 && sent[0].matchGeneration == 9 && sent[0].keepWatching,
-        "Leave this game did not keep the queued watcher's place");
+    Check(board.LeftOnce(), "Leave this game did not submit one leave of the watched game");
     std::cout << "QueuedWatcherLeavesTheGame passed\n";
 }
 
-// The answer is read when it comes: a queued watcher whose queue place ended
-// while the question was open stops watching instead. Once the game is no
-// longer watched the row and its question go, and nothing is sent.
+// Once the game is no longer watched the row and its question go, and
+// nothing is sent.
 void DispatchReadsTheRuleWhenAnswered() {
-    {
-        WatchedBoard board;
-        board.Table().queue = {1};
-        board.OpenOverGame();
-        board.Press(MenuInput::Select);
-        Check(board.shell.Navigation().Confirming(), "Leave this game did not ask first");
-        board.Table().queue.clear(); ++board.Table().revision; ++board.view.room.revision;
-        board.Press(MenuInput::Right); board.Press(MenuInput::Select);
-        const auto sent = board.Unwatches();
-        Check(sent.size() == 1 && !sent[0].keepWatching, "A leave answered after the queue place ended kept a place it no longer had");
-    }
-    {
-        WatchedBoard board;
-        board.OpenOverGame();
-        board.Press(MenuInput::Select);
-        board.view.watchedGame = {}; board.Frame();
-        Check(!board.Has("stop-watching") && !board.shell.Navigation().Confirming(),
-            "Stop watching, or the question about it, outlived the watched game");
-        board.Press(MenuInput::Right); board.Press(MenuInput::Select);
-        Check(board.Unwatches().empty(), "A press after the stream ended still sent a leave");
-    }
+    WatchedBoard board;
+    board.OpenOverGame();
+    board.Press(MenuInput::Select);
+    board.view.watchedGame = {}; board.Frame();
+    Check(!board.Has("stop-watching") && !board.shell.Navigation().Confirming(),
+        "Stop watching, or the question about it, outlived the watched game");
+    board.Press(MenuInput::Right); board.Press(MenuInput::Select);
+    Check(board.Leaves().empty(), "A press after the stream ended still sent a leave");
     std::cout << "DispatchReadsTheRuleWhenAnswered passed\n";
+}
+
+// The table page's own Stop watching of the game the room still plays is the
+// same leave, never an Unwatch scoped to whatever the table plays when it lands.
+void TableUnwatchIsTheSameLeave() {
+    WatchedBoard board;
+    board.OpenOverGame();
+    board.shell.Navigation().Push("room-table"); board.Frame();
+    board.shell.Navigation().Focus("unwatch", board.rows);
+    board.Press(MenuInput::Select);
+    Check(board.LeftOnce(), "The table's own Stop watching did not submit the watched game's leave");
+    std::cout << "TableUnwatchIsTheSameLeave passed\n";
 }
 
 // A fighter has no spectator's exit, whatever the context says.
@@ -177,28 +178,71 @@ void FighterHasNoWatchedExit() {
     board.Table().spectators.clear();
     board.view.room.members[1].table = -1; board.view.room.members[1].seat = -1;
     board.OpenOverGame();
-    Check(!board.Has("stop-watching") && board.Unwatches().empty(), "A fighter was offered Stop watching");
+    Check(!board.Has("stop-watching") && board.Leaves().empty(), "A fighter was offered Stop watching");
     std::cout << "FighterHasNoWatchedExit passed\n";
 }
 
 // The player's own leave of a locked-in watch is not reported as the room
-// ending the lock-in; the room ending it otherwise still is.
+// ending the lock-in, however long the room takes to show it; the room ending
+// it otherwise still is. A leave the room can no longer take (the game ended
+// first) explains nothing that happens to the lock-in later.
 void LockedInLeaveIsNotReported() {
-    const auto ended = [](bool leftByPlayer) {
+    enum class Then { RoomTakesIt, ViewDrops, GameEndsFirst };
+    const auto notice = [](bool leftByPlayer, Then then) {
         WatchedBoard board;
         board.Local().spectatorLocked = true;
         board.OpenOverGame();
         if (leftByPlayer) {
             board.Confirm();
-            Check(board.Unwatches().size() == 1, "A locked-in watcher's Stop watching sent no Unwatch");
+            Check(board.LeftOnce(), "A locked-in watcher's Stop watching submitted no leave");
         }
-        board.view.watchedGame = {}; board.LeftTable();
+        // The stream retires at once; the room's answer is slow to show.
+        board.view.watchedGame = {};
+        for (int i = 0; i < 7; ++i) board.Frame(0, 1.f);
+        board.status.clear();
+        if (then == Then::GameEndsFirst) {
+            board.Table().phase = room::TablePhase::Waiting; ++board.Table().revision; ++board.view.room.revision;
+            board.Frame();
+        }
+        if (then != Then::ViewDrops) board.LeftTable();
+        else { board.Local().spectatorLocked = false; ++board.view.room.revision; }
         for (int i = 0; i < 5; ++i) board.Frame();
-        return board.status == loc::T("room.lock_in_ended.stopped");
+        return board.status;
     };
-    Check(ended(false), "The room ending a lock-in by itself was not reported");
-    Check(!ended(true), "The player's own Stop watching was reported as a released lock-in");
+    Check(notice(false, Then::RoomTakesIt) == loc::T("room.lock_in_ended.stopped"), "The room ending a lock-in by itself was not reported");
+    const auto own = notice(true, Then::RoomTakesIt);
+    for (const char* id : {"room.lock_in_ended.stopped", "room.lock_in_ended.moved", "room.lock_in_ended.playing", "room.lock_in_ended.dropped"})
+        Check(own != loc::T(id), "The player's own Stop watching, shown late, was reported as a released lock-in");
+    Check(notice(true, Then::ViewDrops) == loc::T("room.lock_in_ended.dropped"),
+        "A lock-in the view's drop ended was taken for the player's Stop watching");
+    Check(notice(true, Then::GameEndsFirst) == loc::T("room.lock_in_ended.stopped"),
+        "A Stop watching the room could no longer take hid a later end of the lock-in");
     std::cout << "LockedInLeaveIsNotReported passed\n";
+}
+
+// Release lock-in from Table options is the player's own too, however late
+// the room shows it. A release the room never took, with the lock-in still
+// held once the table's next game has begun, explains nothing later.
+void ReleaseIsNotReported() {
+    const auto notice = [](bool nextGameFirst) {
+        WatchedBoard board;
+        board.Local().spectatorLocked = true;
+        board.OpenOverGame();
+        board.shell.Navigation().Push("room-table"); board.Frame();
+        board.shell.Navigation().Focus("lock-spectating", board.rows);
+        board.Press(MenuInput::Select);
+        Check(!board.actions.empty() && board.actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
+            !board.actions.back().roomAction.locked, "Release lock-in was not sent");
+        for (int i = 0; i < 7; ++i) board.Frame(0, 1.f);
+        board.status.clear();
+        if (nextGameFirst) { ++board.Table().matchGeneration; ++board.Table().revision; ++board.view.room.revision; board.Frame(); }
+        board.Local().spectatorLocked = false; ++board.view.room.revision;
+        for (int i = 0; i < 5; ++i) board.Frame();
+        return board.status;
+    };
+    Check(notice(false) != loc::T("room.lock_in_ended.dropped"), "The player's own release, shown late, was announced as the room's");
+    Check(notice(true) == loc::T("room.lock_in_ended.dropped"), "A release the room never took hid a later end of the lock-in");
+    std::cout << "ReleaseIsNotReported passed\n";
 }
 
 // A room still catching up on its checkpoint takes the leave; a room whose
@@ -213,8 +257,7 @@ void CatchingUpRoomTakesTheLeave() {
         Check(std::any_of(choices.begin(), choices.end(), [](const MenuChoice& choice) { return choice.id == "unwatch" && choice.enabled; }),
             "The watched table's own Unwatch choice waited for the room to catch up");
         board.Confirm();
-        const auto sent = board.Unwatches();
-        Check(sent.size() == 1 && sent[0].matchGeneration == 9, "A room catching up did not take Stop watching");
+        Check(board.LeftOnce(), "A room catching up did not take Stop watching");
     }
     {
         WatchedBoard board;
@@ -222,7 +265,7 @@ void CatchingUpRoomTakesTheLeave() {
         board.OpenOverGame();
         Check(board.Has("stop-watching") && !board.Row("stop-watching").enabled, "Stop watching was offered over a lost room control");
         board.Confirm();
-        Check(board.Unwatches().empty(), "Stop watching was sent over a lost room control");
+        Check(board.Leaves().empty(), "Stop watching was sent over a lost room control");
     }
     std::cout << "CatchingUpRoomTakesTheLeave passed\n";
 }
@@ -231,8 +274,8 @@ void CatchingUpRoomTakesTheLeave() {
 // the table is back in Waiting, a queued watcher was rotated into a seat, or
 // the table already plays its next game. Stop watching stays, says the game
 // is over, and needs no room, so a lost control does not take it away. Its
-// Unwatch is scoped to the watched game, never to the table's newer one, and
-// the runtime only ends the rest of the stream (EndWatchedViewOnly).
+// leave names the watched game, never the table's newer one, and the runtime
+// only ends the rest of the stream (LeaveWatchedGame).
 void FinishedGameEndsOnlyTheView() {
     enum class After { Waiting, RotatedIntoSeat, NextGame };
     for (const auto after : {After::Waiting, After::RotatedIntoSeat, After::NextGame}) {
@@ -254,9 +297,7 @@ void FinishedGameEndsOnlyTheView() {
         Check(row.enabled && row.label == loc::T("room.stop_watching") && row.detail == loc::T("room.stop_watching.finished"),
             "Stop watching did not stay for the rest of a finished game's stream");
         board.Confirm();
-        const auto sent = board.Unwatches();
-        Check(sent.size() == 1 && sent[0].table == 0 && sent[0].matchGeneration == 9 && !sent[0].keepWatching,
-            "The rest of a finished game's stream was not left with one leave scoped to it");
+        Check(board.LeftOnce(), "The rest of a finished game's stream was not left with one leave naming it");
     }
     std::cout << "FinishedGameEndsOnlyTheView passed\n";
 }
@@ -267,8 +308,10 @@ int main() try {
     ByChoiceWatcherStopsWatching();
     QueuedWatcherLeavesTheGame();
     DispatchReadsTheRuleWhenAnswered();
+    TableUnwatchIsTheSameLeave();
     FighterHasNoWatchedExit();
     LockedInLeaveIsNotReported();
+    ReleaseIsNotReported();
     CatchingUpRoomTakesTheLeave();
     FinishedGameEndsOnlyTheView();
     std::cout << "Watched match exit tests passed\n";

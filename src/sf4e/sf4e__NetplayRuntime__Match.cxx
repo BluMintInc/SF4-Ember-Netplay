@@ -307,22 +307,47 @@ void RetireFinishedMatch(const char* label) {
 	runtime->match->End();
 }
 
-// Leaving the watched game owes the room nothing once it has finished that
-// game (its end event can come before the snapshot shows it) or no longer
-// lists this member there. The rest of the stream then ends the way the
-// spectator drain ends it (PollSpectatorExit), as the player's own choice.
-bool EndWatchedViewOnly(const room::Action& leave) {
+netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& asked) {
 	const auto game = WatchedGameNow();
-	if (leave.kind != room::ActionKind::Unwatch || !game.Active() || leave.matchGeneration != game.generation ||
-		!UserApp::netplay) return false;
-	if (runtime->committedEndGeneration != game.generation &&
-		netplay::LeaveOfWatchedGame(UserApp::netplay->client.GetRoomSnapshot(), game) != netplay::WatchedLeave::EndView)
-		return false;
-	spdlog::info("Room: closing the spectator view of generation {} table={}; the room needs no leave", game.generation, game.table);
-	RetireFinishedMatch("spectator_left");
-	// Retiring the session clears a transient notice, so this comes after it.
-	PushAlert(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
-	return true;
+	// The stream ended before the press was taken (the spectator drain, a
+	// failure, an earlier press): nothing is left to leave or to tell the room.
+	if (!UserApp::netplay || !(game == asked)) {
+		spdlog::info("Room: Stop watching generation {} table={} found no live view", asked.generation, asked.table);
+		return netplay::DispatchOutcome::Dropped;
+	}
+	auto& client = UserApp::netplay->client;
+	const auto& room = client.GetRoomSnapshot();
+	auto leave = netplay::LeaveOfWatchedGame(room, game);
+	// The game's end event can come before the snapshot shows it.
+	if (leave != netplay::WatchedLeave::None && runtime->committedEndGeneration == game.generation) leave = netplay::WatchedLeave::EndView;
+	if (leave == netplay::WatchedLeave::None) return netplay::DispatchOutcome::Dropped;
+	if (leave == netplay::WatchedLeave::EndView) {
+		// The room needs nothing: the rest of the stream ends the way the
+		// spectator drain ends it (PollSpectatorExit).
+		spdlog::info("Room: closing the spectator view of generation {} table={}; the room needs no leave", game.generation, game.table);
+		RetireFinishedMatch("spectator_left");
+		// Retiring the session clears a transient notice, so this comes after it.
+		PushAlert(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
+		return netplay::DispatchOutcome::Dispatched;
+	}
+	room::Action unwatch;
+	unwatch.kind = room::ActionKind::Unwatch;
+	unwatch.table = static_cast<std::uint8_t>(game.table);
+	unwatch.matchGeneration = game.generation;
+	unwatch.keepWatching = leave == netplay::WatchedLeave::LeaveGame;
+	unwatch.roomEpoch = room.roomEpoch; unwatch.revision = room.revision;
+	unwatch.tableRevision = room.tables[game.table].revision;
+	// Sent before the stream retires, so P1 receives game_peer_end while the
+	// generation is still current.
+	if (client.SendRoomAction(unwatch) != session::SendResult::Queued) {
+		runtime->error = loc::T("runtime.spectator_action_retrying");
+		return netplay::DispatchOutcome::Deferred;
+	}
+	// The player chose to leave: a passing note, not an error, and no stream
+	// failure, whose lock release would race the Unwatch that already ends the
+	// lock-in.
+	AbortLocalMatch(GgpoEnd::Leave(loc::T("runtime.leaving_spectator")));
+	return netplay::DispatchOutcome::Dispatched;
 }
 
 void RetryPendingAbort() {

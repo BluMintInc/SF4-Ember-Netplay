@@ -637,7 +637,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
   languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
-  lockInReleasedUntil_ = RebaseUiTimestamp(lockInReleasedUntil_, lastUiTime_, now);
   shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   roomUpdateStarted_ = -1;

@@ -135,6 +135,9 @@ namespace sf4e {
             // Leave the main menu for Training (common/TrainingEntry.hxx). The
             // runtime judges it when it takes it and only then asks the menu.
             TrainingEntry training = TrainingEntry::None;
+            // Leave this watched game (Stop watching); empty for every other
+            // command. The runtime decides what leaving it takes when it runs.
+            netplay::WatchedGame leaveWatchedGame;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
