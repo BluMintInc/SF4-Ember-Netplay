@@ -473,7 +473,7 @@ msgid "screen.room"
 msgstr "Лобби"
 
 msgid "screen.table"
-msgstr "Стол"
+msgstr "Ячейка"
 
 msgid "screen.members"
 msgstr "Участники"
@@ -719,7 +719,7 @@ msgid "home.selection_ultra_double"
 msgstr "Двойная"
 
 msgid "home.selection_locked"
-msgstr "Вернитесь к своему столу, чтобы узнать состояние выбора."
+msgstr "Вернитесь в свою ячейку, чтобы узнать состояние выбора."
 
 msgid "home.profile"
 msgstr "Профиль игрока"
@@ -1013,7 +1013,7 @@ msgid "settings.input_delay.auto"
 msgstr "Авто"
 
 msgid "room.name"
-msgstr "Название лобби"
+msgstr "Имя лобби"
 
 msgid "room.capacity"
 msgstr "Вместимость"
@@ -1261,7 +1261,7 @@ msgid "about.controls"
 msgstr "Управление"
 
 msgid "about.controls_detail"
-msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Кнопка, выбранная для слабого удара ногой, выбирает, а для среднего удара ногой возвращает назад независимо от раскладки кнопок. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на столе позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
+msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Кнопка, выбранная для слабого удара ногой, выбирает, а для среднего удара ногой возвращает назад независимо от раскладки кнопок. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на ячейке позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
 
 msgid "about.controls_keyboard"
 msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В лобби F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
@@ -1336,7 +1336,7 @@ msgid "room.reconnecting"
 msgstr "Переподключение..."
 
 msgid "room.table_setup_title"
-msgstr "СТОЛ {0} / НАСТРОЙКА БОЯ"
+msgstr "ЯЧЕЙКА {0} / НАСТРОЙКА БОЯ"
 
 msgid "room.waiting_opponent"
 msgstr "Ожидание соперника"
@@ -1369,7 +1369,7 @@ msgid "room.match_in_progress"
 msgstr "Матч идёт"
 
 msgid "room.table_closed"
-msgstr "Стол закрыт"
+msgstr "Ячейка закрыта"
 
 msgid "controller.disconnected"
 msgstr "Контроллер отключён. Подключите его снова или выберите другой в Настройки > Игрок и контроллер."
@@ -1537,7 +1537,7 @@ msgid "training.mirror"
 msgstr "Отразить выбранную запись"
 
 msgid "training.mirror.detail"
-msgstr "Меняет местами лево и право в этой ячейке, для сохранённой записи, которая играет зеркально."
+msgstr "Меняет местами лево и право в этом слоте, для сохранённой записи, которая играет зеркально."
 
 msgid "training.recording_saved"
 msgstr "Запись сохранена как {0}."
@@ -1597,7 +1597,7 @@ msgid "training.reply"
 msgstr "Ответ манекена"
 
 msgid "training.reply.detail"
-msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: воспроизводит «Приёмы ответа» или ячейку ответа, если эта строка пуста. Ответ ждёт, пока идёт воспроизведение или запись."
+msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: воспроизводит «Приёмы ответа» или слот ответа, если эта строка пуста. Ответ ждёт, пока идёт воспроизведение или запись."
 
 msgid "training.reply.hit"
 msgstr "После сорванного комбо"
@@ -1744,28 +1744,28 @@ msgid "training.close_controls.detail"
 msgstr "Закройте Ember, затем меню паузы SF4, если оно открыто."
 
 msgid "training.slot"
-msgstr "Ячейка {0}"
+msgstr "Слот {0}"
 
 msgid "training.slot_selected"
-msgstr "Ячейка {0} / ВЫБРАНА"
+msgstr "Слот {0} / ВЫБРАН"
 
 msgid "training.slot.detail"
-msgstr "Записано кадров: {0}. «Выбрать» включает или выключает ячейку: «Пуск» и ответ манекена берут включённые ячейки. Ячейки остаются за этим бойцом-манекеном, пока игра не закрыта."
+msgstr "Записано кадров: {0}. «Выбрать» включает или выключает слот: «Пуск» и ответ манекена берут включённые слоты. Слоты остаются за этим бойцом-манекеном, пока игра не закрыта."
 
 msgid "training.slot.empty"
 msgstr "Пусто"
 
 msgid "training.slot.empty_detail"
-msgstr "Ничего не записано. «Выбрать» назначает эту ячейку для «Запись»."
+msgstr "Ничего не записано. «Выбрать» назначает этот слот для «Запись»."
 
 msgid "training.record"
 msgstr "Запись"
 
 msgid "training.record.overwrite"
-msgstr "Перезаписать занятую ячейку и вернуться к тренировке."
+msgstr "Перезаписать занятый слот и вернуться к тренировке."
 
 msgid "training.record.choose"
-msgstr "Влево и вправо выбирают ячейку для записи; строки ниже тоже используют её."
+msgstr "Влево и вправо выбирают слот для записи; строки ниже тоже используют его."
 
 msgid "training.record.standby_detail"
 msgstr "Ожидание: P1 управляет манекеном, тренировка продолжается. {0} или {1} начинает запись, повторное нажатие останавливает её."
@@ -1774,7 +1774,7 @@ msgid "training.play"
 msgstr "Пуск"
 
 msgid "training.play.on_detail"
-msgstr "Воспроизводит включённую ячейку по порядку воспроизведения и возвращает к тренировке. Записи следуют стороне, куда смотрит манекен. Влево и вправо выбирают повтор; каждый повтор выбирает заново."
+msgstr "Воспроизводит включённый слот по порядку воспроизведения и возвращает к тренировке. Записи следуют стороне, куда смотрит манекен. Влево и вправо выбирают повтор; каждый повтор выбирает заново."
 
 msgid "training.order"
 msgstr "Порядок воспроизведения"
@@ -1804,7 +1804,7 @@ msgid "training.clear_recording"
 msgstr "Очистить выбранную запись"
 
 msgid "training.clear_recording.detail"
-msgstr "Удалить запись из этой ячейки до конца текущего боя."
+msgstr "Удалить запись из этого слота до конца текущего боя."
 
 msgid "training.player_one"
 msgstr "Игрок 1"
@@ -2047,7 +2047,7 @@ msgid "selection.adjust_saves"
 msgstr "Влево и вправо меняют значение, оно сразу сохраняется."
 
 msgid "selection.locked_detail"
-msgstr "Выбор заблокирован. Вернитесь к столу, чтобы узнать состояние."
+msgstr "Выбор заблокирован. Вернитесь в свою ячейку, чтобы узнать состояние."
 
 msgid "selection.title"
 msgstr "ВЫБОР БОЙЦА"
@@ -2227,7 +2227,7 @@ msgid "selection.status_adjust"
 msgstr "«Влево/вправо» сохраняет / «Назад» возвращает."
 
 msgid "selection.status_locked"
-msgstr "Выбор заблокирован: вернитесь к столу."
+msgstr "Выбор заблокирован: вернитесь в свою ячейку."
 
 msgid "runtime.room_recovering"
 msgstr "Управление лобби восстанавливается. Соединение матча сохранено."
@@ -2304,7 +2304,7 @@ msgid "runtime.connection_restored"
 msgstr "Связь восстановлена."
 
 msgid "runtime.spectator_stream_lost"
-msgstr "Поток зрителя прерван. Следующий бой за этим столом вы будете смотреть."
+msgstr "Поток зрителя прерван. Следующий бой в этой ячейке вы будете смотреть."
 
 msgid "runtime.match_connection_lost"
 msgstr "Связь в матче потеряна."
@@ -2325,13 +2325,13 @@ msgid "runtime.returning_room"
 msgstr "Возвращение в лобби."
 
 msgid "runtime.table_game_cancelled"
-msgstr "Бой за этим столом отменён. Вернитесь в лобби, чтобы снова нажать «Готов»."
+msgstr "Бой в этой ячейке отменён. Вернитесь в лобби, чтобы снова нажать «Готов»."
 
 msgid "runtime.practice_ended"
 msgstr "Тренировка завершена. Вернитесь в лобби, чтобы снова нажать «Готов»."
 
 msgid "runtime.result_not_recorded"
-msgstr "Не удалось записать результат: стол изменился до подтверждения."
+msgstr "Не удалось записать результат: ячейка изменилась до подтверждения."
 
 msgid "runtime.participant_left"
 msgstr "Участник матча покинул лобби. Бой завершится."
@@ -2457,7 +2457,7 @@ msgid "room.status.queued"
 msgstr "В очереди"
 
 msgid "room.status.seated"
-msgstr "За столом"
+msgstr "В ячейке"
 
 msgid "room.status.ready"
 msgstr "Готов"
@@ -2535,7 +2535,7 @@ msgid "room.connecting"
 msgstr "Подключение"
 
 msgid "room.table_occupancy"
-msgstr "Стол {0}   {1}/2"
+msgstr "Ячейка {0}   {1}/2"
 
 msgid "room.member_you"
 msgstr "{0} / ВЫ"
@@ -2592,10 +2592,10 @@ msgid "chat.event.host"
 msgstr "{0} теперь ведущий"
 
 msgid "chat.event.game_won"
-msgstr "{0}: победа в бою за столом {1} ({2})"
+msgstr "{0}: победа в бою в ячейке {1} ({2})"
 
 msgid "chat.event.set_won"
-msgstr "{0}: победа в сете за столом {1} ({2})"
+msgstr "{0}: победа в поединке в ячейке {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Настройки бойца"
@@ -2607,7 +2607,7 @@ msgid "room.settings"
 msgstr "Настройки лобби"
 
 msgid "room.settings.detail"
-msgstr "Название, вместимость и доступ в лобби."
+msgstr "Имя, вместимость и доступ в лобби."
 
 msgid "room.settings.host_only"
 msgstr "Лобби может управлять только ведущий."
@@ -2655,7 +2655,7 @@ msgid "room.updating"
 msgstr "Обновление лобби..."
 
 msgid "room.battle_slot"
-msgstr "СТОЛ БОЯ {0}"
+msgstr "ЯЧЕЙКА БОЯ {0}"
 
 msgid "room.looking_for_fight"
 msgstr "Ищет бой"
@@ -2733,10 +2733,10 @@ msgid "room.action_rejected"
 msgstr "Лобби изменилось или отклонило действие. Проверьте текущее состояние и попробуйте снова."
 
 msgid "room.leave_current_table"
-msgstr "Сначала покиньте текущий стол."
+msgstr "Сначала покиньте текущую ячейку."
 
 msgid "room.choose_action"
-msgstr "Выберите действие для этого стола."
+msgstr "Выберите действие для этой ячейки."
 
 msgid "room.result_unresolved.detail"
 msgstr "Прошлый результат не установлен. Выберите «Отказаться от результата» или попросите ведущего отменить бой; победа не будет засчитана."
@@ -2787,7 +2787,7 @@ msgid "room.ready_timeout.other"
 msgstr "Бойцу {1} осталось {0} с для подтверждения готовности"
 
 msgid "chat.event.ready_timeout"
-msgstr "{0} покидает стол {1}: готовность не подтверждена вовремя"
+msgstr "{0} покидает ячейку {1}: готовность не подтверждена вовремя"
 
 msgid "room.hold.status"
 msgstr "Ждём зрителей: {0} с"
@@ -2893,7 +2893,7 @@ msgid "room.leave_seat.keep"
 msgstr "Остаться"
 
 msgid "room.leave_seat.costs_score"
-msgstr "Если встать, серия закончится и счёт сбросится ({0})."
+msgstr "Если встать, поединок закончится и счёт сбросится ({0})."
 
 msgid "room.leave_seat.hands_over"
 msgstr "Ваше место займёт следующий игрок в очереди."
@@ -2905,13 +2905,13 @@ msgid "room.abandon_result"
 msgstr "Отказаться от результата"
 
 msgid "room.abandon_result.detail"
-msgstr "Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
+msgstr "Результат не будет записан. Оба бойца останутся в ячейке и смогут снова подтвердить готовность."
 
 msgid "room.end_practice"
 msgstr "Завершить тренировку"
 
 msgid "room.end_practice.detail"
-msgstr "Сразу завершает этот тренировочный матч для обоих бойцов. Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
+msgstr "Сразу завершает этот тренировочный матч для обоих бойцов. Результат не будет записан. Оба бойца останутся в ячейке и смогут снова подтвердить готовность."
 
 msgid "room.leave_queue"
 msgstr "Выйти из очереди"
@@ -2926,7 +2926,7 @@ msgid "room.stop_watching"
 msgstr "Не смотреть"
 
 msgid "room.stop_watching.detail"
-msgstr "Прекращает просмотр этого стола и возвращает в лобби. Бойцы продолжают играть."
+msgstr "Прекращает просмотр этой ячейки и возвращает в лобби. Бойцы продолжают играть."
 
 msgid "room.stop_watching.finished"
 msgstr "Лобби уже завершило этот бой. Прекращает просмотр оставшейся части и возвращает в лобби."
@@ -2959,13 +2959,13 @@ msgid "room.unlock_spectating"
 msgstr "Снять закрепление"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другому столу."
+msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другой ячейке."
 
 msgid "room.lock_in_ended.stopped"
 msgstr "Закрепление снято: вы перестали смотреть."
 
 msgid "room.lock_in_ended.moved"
-msgstr "Закрепление снято: вы смотрите другой стол."
+msgstr "Закрепление снято: вы смотрите другую ячейку."
 
 msgid "room.lock_in_ended.playing"
 msgstr "Закрепление снято: вы заняли место или встали в очередь."
@@ -2974,16 +2974,16 @@ msgid "room.lock_in_ended.dropped"
 msgstr "Закрепление снято: трансляция для зрителя прервалась. Закрепитесь снова, чтобы следующий матч вас подождал."
 
 msgid "room.table_rules"
-msgstr "Правила стола"
+msgstr "Правила ячейки"
 
 msgid "room.rules_summary"
 msgstr "Раундов: {0}, {1} с, выбор издания: {2}"
 
 msgid "room.table_options"
-msgstr "Настройки стола"
+msgstr "Настройки ячейки"
 
 msgid "room.table_options.detail"
-msgstr "Стол {0}: Задержка, проверка связи, правила, очередь и просмотр для этого стола."
+msgstr "Ячейка {0}: Задержка, проверка связи, правила, очередь и просмотр для этой ячейки."
 
 msgid "room.legend_fighter"
 msgstr "Боец"
@@ -3016,16 +3016,16 @@ msgid "room.rules.apply_note"
 msgstr "Изменения ещё не применены."
 
 msgid "room.rules.host_only"
-msgstr "Правила стола может менять только ведущий."
+msgstr "Правила ячейки может менять только ведущий."
 
 msgid "room.rules.tournament"
-msgstr "Правила за этим столом задаёт турнир."
+msgstr "Правила в этой ячейке задаёт турнир."
 
 msgid "room.apply_rules"
 msgstr "Применить"
 
 msgid "room.apply_rules.detail"
-msgstr "Отправить полный набор новых правил для этого стола."
+msgstr "Отправить полный набор новых правил для этой ячейки."
 
 msgid "room.member_status_host_muted"
 msgstr "{0} / ВЕДУЩИЙ / Чат скрыт"
@@ -3085,10 +3085,10 @@ msgid "room.admission.detail"
 msgstr "Закрытое лобби не принимает новых."
 
 msgid "room.apply_name"
-msgstr "Сохранить название"
+msgstr "Сохранить имя"
 
 msgid "room.apply_name.detail"
-msgstr "Сохранить название лобби."
+msgstr "Сохранить имя лобби."
 
 msgid "room.apply_capacity"
 msgstr "Применить лимит"
@@ -3256,7 +3256,7 @@ msgid "runtime.room_catchup_timeout"
 msgstr "Лобби не успело синхронизироваться. Последнее действие не применено; попробуйте снова."
 
 msgid "runtime.previous_match_close_timeout"
-msgstr "Прошлый матч не успел завершиться. Примените настройки стола ещё раз."
+msgstr "Прошлый матч не успел завершиться. Примените настройки ячейки ещё раз."
 
 msgid "runtime.spectator_close_timeout"
 msgstr "Матч не успел завершиться. Просмотр зрителя остановлен."
@@ -3283,10 +3283,10 @@ msgid "room.reject.stale_room"
 msgstr "Лобби изменилось до получения вашего действия. Повторите попытку."
 
 msgid "room.reject.stale_table"
-msgstr "Стол изменился до получения вашего действия. Повторите попытку."
+msgstr "Ячейка изменилась до получения вашего действия. Повторите попытку."
 
 msgid "room.reject.wrong_phase"
-msgstr "Стол не готов к этому действию."
+msgstr "Ячейка не готова к этому действию."
 
 msgid "room.reject.wrong_generation"
 msgstr "Этот бой уже закончился."
@@ -3295,10 +3295,10 @@ msgid "room.reject.unauthorized"
 msgstr "Это может сделать только ведущий."
 
 msgid "room.reject.not_seated"
-msgstr "Вы не заняли место за этим столом."
+msgstr "Вы не заняли место в этой ячейке."
 
 msgid "room.reject.already_seated"
-msgstr "Вы уже сидите за столом."
+msgstr "Вы уже заняли место в ячейке."
 
 msgid "room.reject.already_queued"
 msgstr "Вы уже в очереди."
@@ -3307,13 +3307,13 @@ msgid "room.reject.not_queued"
 msgstr "Вас нет в очереди."
 
 msgid "room.reject.not_watching"
-msgstr "Вы не смотрите этот стол."
+msgstr "Вы не смотрите эту ячейку."
 
 msgid "room.reject.seat_taken"
 msgstr "Это место только что заняли. Выберите снова."
 
 msgid "room.reject.invalid_rules"
-msgstr "Правила этого стола недопустимы."
+msgstr "Правила этой ячейки недопустимы."
 
 msgid "room.reject.invalid_capacity"
 msgstr "Недопустимая вместимость."
@@ -3361,7 +3361,7 @@ msgid "runtime.ready.selection_unavailable"
 msgstr "Этот выбор бойца недоступен. Выберите доступные костюм, цвет, издание и Ультра."
 
 msgid "runtime.ready.take_seat"
-msgstr "Займите место за столом, прежде чем нажать «Готов»."
+msgstr "Займите место в ячейке, прежде чем нажать «Готов»."
 
 msgid "runtime.ready.refused"
 msgstr "Лобби отклонило вашу готовность. Нажмите «Готов» снова."
@@ -4057,7 +4057,7 @@ msgid "tournament.failure.link_service"
 msgstr "Доверьтесь этому турнирному сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на матч."
 
 msgid "rules.set_length"
-msgstr "Длина сета"
+msgstr "Длина поединка"
 
 msgid "rules.set_length.none"
 msgstr "Без длины"
@@ -4066,10 +4066,10 @@ msgid "rules.set_length.first_to"
 msgstr "До {0} побед"
 
 msgid "rules.set_length.detail"
-msgstr "Сет заканчивается, когда игрок выигрывает столько игр. Без длины те же двое продолжают играть."
+msgstr "Поединок заканчивается, когда игрок выигрывает столько игр. Без длины те же двое продолжают играть."
 
 msgid "rules.rotation"
-msgstr "После сета"
+msgstr "После поединка"
 
 msgid "rules.rotation.winner_stays"
 msgstr "Победитель остаётся"
@@ -4090,19 +4090,19 @@ msgid "rules.rotation.both_rotate.detail"
 msgstr "Оба игрока встают в конец очереди, а садятся следующие двое."
 
 msgid "rules.rotation.needs_set"
-msgstr "Сначала выберите длину сета. Без неё никто не меняется."
+msgstr "Сначала выберите длину поединка. Без неё никто не меняется."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
 msgid "room.table_set"
-msgstr "Сет"
+msgstr "Поединок"
 
 msgid "room.table_footer_set"
 msgstr "{0}, {1}     Очередь: {2}     Зрители: {3}"
 
 msgid "room.streak"
-msgstr "Сетов подряд: {0}"
+msgstr "Поединков подряд: {0}"
 
 msgid "room.latency.estimate"
 msgstr "~{0} ms"
@@ -4129,10 +4129,10 @@ msgid "public.create"
 msgstr "Создать открытое лобби"
 
 msgid "public.create_detail"
-msgstr "Открывает лобби, видимое всем игрокам с Ember ID, и делает вас ведущим. Затем выберите название, размер и правила столов."
+msgstr "Открывает лобби, видимое всем игрокам с Ember ID, и делает вас ведущим. Затем выберите имя, размер и правила ячеек."
 
 msgid "public.create_requirements"
-msgstr "Создаёт открытое лобби в сервисе Ember ID, входит в него и задаёт эти правила на всех столах. Потом их можно изменить в настройках стола."
+msgstr "Создаёт открытое лобби в сервисе Ember ID, входит в него и применяет эти настройки ко всем ячейкам. Потом каждую ячейку можно настроить отдельно в настройках ячейки."
 
 msgid "public.create_needs_id"
 msgstr "Для открытых лобби нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые лобби."
@@ -4189,7 +4189,7 @@ msgid "public.failure.unsupported_build"
 msgstr "Открытые лобби пока недоступны в этой версии."
 
 msgid "public.failure.invalid_name"
-msgstr "Это название лобби нельзя использовать. Выберите другое."
+msgstr "Это имя лобби нельзя использовать. Выберите другое."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Открытые лобби сейчас недоступны."
@@ -4534,10 +4534,10 @@ msgid "export.line_text"
 msgstr "Текст строки матча"
 
 msgid "export.set"
-msgstr "Счёт сета"
+msgstr "Счёт поединка"
 
 msgid "export.set_detail"
-msgstr "Победы каждого игрока в сете на данный момент, рядом с именем. Считаются по матчам, которые эти двое сыграли прямо перед этим; измените, если счёт неверный."
+msgstr "Победы каждого игрока в поединке на данный момент, рядом с именем. Считаются по матчам, которые эти двое сыграли прямо перед этим; измените, если счёт неверный."
 
 msgid "export.set_wins"
 msgstr "Победы игрока {0}"
@@ -4588,7 +4588,7 @@ msgid "training.result"
 msgstr "Результат"
 
 msgid "training.room.table"
-msgstr "Стол {0}"
+msgstr "Ячейка {0}"
 
 msgid "training.room.waiting"
 msgstr "Ожидание соперника"
