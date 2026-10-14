@@ -202,6 +202,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
+  // Fighter select's hint is a line of labels over a line of short values.
+  if(v.canEditSelection&&!v.hintFighter.empty())rows[1].columns={{loc::T("selection.fighter"),v.hintFighter},
+   {loc::T("home.selection_costume_color"),v.hintAppearance},{loc::T("home.selection_ultra"),v.hintUltra}};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Ember ID lives under Online play; tournament matches ready to play are

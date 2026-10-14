@@ -697,6 +697,27 @@ msgstr "返回当前房间。"
 msgid "home.fighter_select"
 msgstr "角色选择"
 
+msgid "home.selection_costume_color"
+msgstr "服装、颜色"
+
+msgid "home.selection_ultra"
+msgstr "终极组合"
+
+msgid "home.selection_alternate"
+msgstr "替换版 {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}，颜色 {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "双重"
+
 msgid "home.selection_locked"
 msgstr "请返回对战席查看当前选择状态。"
 

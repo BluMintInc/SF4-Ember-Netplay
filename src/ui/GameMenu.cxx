@@ -219,23 +219,60 @@ MenuInput ReadMenuInput(bool textEditing,bool typesText,unsigned additionalPad) 
     value.held|=textEditing?keys&~MenuInput::Select:keys; value.keyboard=keys;
     return value;
 }
+// 420 lets every standard size have three; 1280x720 at 200% (360 tall) keeps two.
+int GameMenu::HomeLines() { return ImGui::GetWindowSize().y>=420*Scale()?3:2; }
 void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin) {
     ImGui::SetCursorPosX(homeMargin);
+    const int lines=HomeLines();
     const auto current=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
     if(current!=entries.end()){
         // The focused row's help and the status each keep a line of their
         // own, so a save or an error never hides what the row does. Each is
-        // clipped to its line, so neither can move the list.
-        const float s=Scale(),width=ImGui::GetContentRegionAvail().x,line=HomeStatusHeight*s*.5f;
-        const auto p=ImGui::GetCursorScreenPos();auto* d=ImGui::GetWindowDrawList();
-        const auto clipped=[&](float y,ImU32 color,const char* text){
-            d->PushClipRect(ImVec2(p.x,p.y+y),ImVec2(p.x+width,p.y+y+line),true);
-            d->AddText(ImGui::GetFont(),12*s,ImVec2(p.x,p.y+y),color,text,nullptr,width);
+        // clipped to its line, so neither can move the list. The help sits on
+        // the line above the status; a row with columns (Fighter select) puts
+        // its labels on the line above that, over their values.
+        const float s=Scale(),width=ImGui::GetContentRegionAvail().x,line=HomeLineHeight*s,font=12*s,help=(lines-2)*line;
+        const auto p=ImGui::GetCursorScreenPos();auto* d=ImGui::GetWindowDrawList();auto* face=ImGui::GetFont();
+        const auto clipped=[&](float x,float y,float w,ImU32 color,const char* text,float wrap){
+            d->PushClipRect(ImVec2(p.x+x,p.y+y),ImVec2(p.x+x+w+2*s,p.y+y+line),true);
+            d->AddText(face,font,ImVec2(p.x+x,p.y+y),color,text,nullptr,wrap);
             d->PopClipRect();};
-        clipped(0,palette::Muted,current->detail.c_str());
-        if(*status)clipped(line,statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Ivory,status);
+        const auto& columns=current->columns;
+        if(columns.empty()||lines<3)clipped(0,help,width,palette::Muted,current->detail.c_str(),width);
+        else{
+            // Each column is as wide as its label or value. When they do not
+            // fit, the gaps narrow and then the widest columns share what is
+            // left alike, cut with an ellipsis.
+            const auto measure=[&](const std::string& text){return face->CalcTextSizeA(font,FLT_MAX,0,text.c_str()).x;};
+            std::vector<float> natural,fitted(columns.size());
+            for(const auto& c:columns)natural.push_back((std::max)(measure(c.first),measure(c.second)));
+            float gap=28*s,total=(columns.size()-1)*gap;
+            for(const float w:natural)total+=w;
+            if(total>width)gap=16*s;
+            std::vector<std::size_t> order(columns.size());
+            for(std::size_t i=0;i<order.size();++i)order[i]=i;
+            std::sort(order.begin(),order.end(),[&](std::size_t a,std::size_t b){return natural[a]<natural[b];});
+            float room=width-(columns.size()-1)*gap;
+            for(std::size_t k=0;k<order.size();++k){fitted[order[k]]=(std::max)(0.f,(std::min)(natural[order[k]],room/(order.size()-k)));room-=fitted[order[k]];}
+            const auto fit=[&](const std::string& text,float w){
+                if(measure(text)<=w)return text;
+                const char* end=nullptr;face->CalcTextSizeA(font,(std::max)(0.f,w-measure("...")-1),0,text.c_str(),nullptr,&end);
+                return std::string(text.c_str(),end)+"...";};
+            float x=0;
+            for(std::size_t i=0;i<columns.size();++i){
+                const auto& c=columns[i];const float w=fitted[i];
+                clipped(x,0,w,palette::Muted,fit(c.first,w).c_str(),0);
+                clipped(x,line,w,palette::Ivory,fit(c.second,w).c_str(),0);
+                // The probe measures the full text, so a cut one counts as an overflow.
+                const std::string probe="home-hint/"+std::to_string(i);
+                ReportMenuText(probe.c_str(),font,line,measure(c.first),w);
+                ReportMenuText((probe+"-value").c_str(),font,line,measure(c.second),w);
+                x+=w+gap;
+            }
+        }
+        if(*status)clipped(0,help+line,width,statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Ivory,status,width);
     }
-    ImGui::Dummy(ImVec2(0,HomeStatusHeight*Scale()));ImGui::SetCursorPosX(homeMargin);
+    ImGui::Dummy(ImVec2(0,lines*HomeLineHeight*Scale()));ImGui::SetCursorPosX(homeMargin);
 }
 MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone,bool home) {
     const bool flyout=flyoutScale>0;
@@ -284,7 +321,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(home&&roomy&&!entries.empty()) {
         const float rows=entries.size()*(std::max)(44*Scale(),28*Scale()+2*ImGui::GetStyle().FramePadding.y)+(entries.size()-1)*ImGui::GetStyle().ItemSpacing.y;
         const float footer=MenuLegend(windowSize.x-homeMargin-ImGui::GetStyle().WindowPadding.x,selectGlyph,backGlyph,false,false,menuArt,unit,loc::T("menu.select"),{},backHint.c_str(),nullptr,true,!backInert)+
-            8*unit+3*ImGui::GetStyle().ItemSpacing.y+HomeStatusHeight*unit+ImGui::GetStyle().WindowPadding.y;
+            8*unit+3*ImGui::GetStyle().ItemSpacing.y+HomeLines()*HomeLineHeight*unit+ImGui::GetStyle().WindowPadding.y;
         homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
         homeTop-=homeLift;
     }
@@ -354,7 +391,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
-        (home?HomeStatusHeight*unit+ImGui::GetStyle().ItemSpacing.y:0);
+        (home?HomeLines()*HomeLineHeight*unit+ImGui::GetStyle().ItemSpacing.y:0);
     // Shortcut hints ride along only on an Xbox pad or the keyboard, which
     // have the buttons, and only when they fit
     // without another legend row; a narrow window keeps the standard legend.

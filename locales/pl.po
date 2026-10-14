@@ -697,6 +697,27 @@ msgstr "Wróć do bieżącego pokoju."
 msgid "home.fighter_select"
 msgstr "Wybór postaci"
 
+msgid "home.selection_costume_color"
+msgstr "Strój, kolor"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, kolor {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Podwójne"
+
 msgid "home.selection_locked"
 msgstr "Wróć do swojego stołu, aby sprawdzić stan wyboru."
 

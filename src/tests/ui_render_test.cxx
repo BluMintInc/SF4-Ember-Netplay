@@ -533,10 +533,11 @@ int main(int argc, char** argv) {
         // row a translation needs shortened, with the locale and size it hit.
         std::string probeContext;
         std::set<std::string> overflows;
-        sf4e::ui::SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){
+        const sf4e::ui::MenuTextProbe overflowProbe=[&](const char* id,float text,float interior,float width,float available){
             if(text>interior+.5f)overflows.insert(probeContext+" row "+id+": text height "+std::to_string(static_cast<int>(text))+" exceeds padded row "+std::to_string(static_cast<int>(interior)));
             if(width>available+.5f)overflows.insert(probeContext+" row "+id+": label width "+std::to_string(static_cast<int>(width))+" exceeds "+std::to_string(static_cast<int>(available)));
-        });
+        };
+        sf4e::ui::SetMenuTextProbe(overflowProbe);
 
         // A negative locale is the pseudo catalog.
         struct LocalePass { std::string name; int locale; };
@@ -558,6 +559,8 @@ int main(int argc, char** argv) {
             ApplicationShell shell;ShellView view;bool open=true;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
+            {selection::Pick hint;hint.fighter=1;hint.costume=1;hint.color=11;hint.ultra=2;
+             view.hintFighter="Ken";view.hintAppearance=ShortAppearanceLabel(hint);view.hintUltra=ShortUltraLabel(hint.ultra);}
             FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
             const selection::InstalledContent* selectorContent=nullptr;
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
@@ -670,7 +673,24 @@ int main(int argc, char** argv) {
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
-            page("home");
+            // Fighter select's hint is two lines: each label over its value.
+            {
+                page("home");
+                for(int i=0;i<8&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+                std::vector<MenuEntry> homeRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
+                std::set<std::string> drawn;
+                SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){drawn.insert(id);overflowProbe(id,text,interior,width,available);});
+                draw("home-selection");
+                SetMenuTextProbe(overflowProbe);SetMenuEntriesProbe({});
+                const auto row=std::find_if(homeRows.begin(),homeRows.end(),[](const MenuEntry& e){return e.id=="selection";});
+                Require(shell.Navigation().Focus()=="selection"&&row!=homeRows.end()&&row->columns.size()==3&&
+                    row->columns[0].first==loc::T("selection.fighter")&&row->columns[0].second=="Ken"&&
+                    row->columns[1].second==view.hintAppearance&&row->columns[2].second==view.hintUltra,"Fighter select's hint lost its columns");
+                // A window under 420 units tall keeps two lines (GameMenu::HomeLines) and the one-line detail.
+                const bool floors=size.h>=420*size.dpi;
+                for(int i=0;i<3;++i)Require(floors==(drawn.count("home-hint/"+std::to_string(i))&&drawn.count("home-hint/"+std::to_string(i)+"-value")),
+                    floors?"Home did not draw Fighter select's labels over their values":"A short Home drew Fighter select's columns");
+            }
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw("home-last-row");
             // Real editor activation and cancellation through the same input snapshot.

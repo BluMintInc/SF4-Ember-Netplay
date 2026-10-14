@@ -120,6 +120,9 @@ struct ShellView {
     // the table page's rows; ultraSteps and colorSteps when there is more than
     // one to step through.
     std::string fighterName, ultraName, appearanceName, fighterOptionsName, stageName;
+    // Home's Fighter select hint in short forms ("Ken", "Alt 1, color 3",
+    // "U1"); none when no fighter is chosen, and Home shows selectionSummary.
+    std::string hintFighter, hintAppearance, hintUltra;
     bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the

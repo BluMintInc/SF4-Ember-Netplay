@@ -343,6 +343,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
+    if (fighter) {
+        view.hintFighter = fighter->name; view.hintUltra = sf4e::ui::ShortUltraLabel(summaryPick.ultra);
+        view.hintAppearance = sf4e::ui::ShortAppearanceLabel(summaryPick, snapshot.installedContent.get());
+    }
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;

@@ -14,6 +14,10 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art);
 // choice reads the same as the card that made it.
 std::string CostumeLabel(const selection::Pick& pick, const selection::InstalledContent* installed = nullptr);
 const char* UltraLabel(int ultra);
+// Home's short forms of the same: "Alt 1, color 3" (a pack costume by its
+// pack's name alone, one costume each) and "U1", "U2" or "Double".
+std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::InstalledContent* installed = nullptr);
+const char* ShortUltraLabel(int ultra);
 // A stage's name (a custom stage's installed name, or "Custom C12"), or Random.
 std::string StageLabel(int stageId, const selection::InstalledContent* installed = nullptr);
 class FighterSelector {

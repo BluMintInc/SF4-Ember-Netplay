@@ -697,6 +697,27 @@ msgstr "Retourner à votre salon actuel."
 msgid "home.fighter_select"
 msgstr "Sélection personnage"
 
+msgid "home.selection_costume_color"
+msgstr "Costume, couleur"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, couleur {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Double"
+
 msgid "home.selection_locked"
 msgstr "Retournez à votre table pour voir l'état de la sélection."
 

@@ -697,6 +697,27 @@ msgstr "Volte para sua sala atual."
 msgid "home.fighter_select"
 msgstr "Seleção de lutador"
 
+msgid "home.selection_costume_color"
+msgstr "Traje, cor"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, cor {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Duplo"
+
 msgid "home.selection_locked"
 msgstr "Volte à sua mesa para ver o estado atual da seleção."
 

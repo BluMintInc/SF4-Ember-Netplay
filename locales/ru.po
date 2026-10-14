@@ -697,6 +697,27 @@ msgstr "Вернуться в текущее лобби"
 msgid "home.fighter_select"
 msgstr "Выбор бойца"
 
+msgid "home.selection_costume_color"
+msgstr "Костюм, цвет"
+
+msgid "home.selection_ultra"
+msgstr "Ультра"
+
+msgid "home.selection_alternate"
+msgstr "Альт. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, цвет {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Двойная"
+
 msgid "home.selection_locked"
 msgstr "Вернитесь к своему столу, чтобы узнать состояние выбора."
 

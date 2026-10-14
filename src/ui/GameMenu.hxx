@@ -177,8 +177,12 @@ public:
     // that scrolls with them.
     unsigned Held() const { return held_; }
 private:
-    // Home's help line and status line, reserved whether or not they are empty.
-    static constexpr float HomeStatusHeight=36;
+    // Home's help and status lines, reserved whether or not they are empty:
+    // three when the window is tall enough, so a row's columns can put their
+    // labels over their values, else two, where the columns give way to the
+    // row's one-line detail. Unscaled height; it reads the current window.
+    static constexpr float HomeLineHeight=18;
+    static int HomeLines();
     // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,
     // AnswerConfirmation) live in MenuDialogs.cxx.
     // An open dialog owns the legend and the header: Select names its

@@ -697,6 +697,27 @@ msgstr "Vrátit se do aktuální místnosti."
 msgid "home.fighter_select"
 msgstr "Výběr postavy"
 
+msgid "home.selection_costume_color"
+msgstr "Kostým, barva"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, barva {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Double"
+
 msgid "home.selection_locked"
 msgstr "Aktuální stav výběru najdete u svého stolu."
 
