@@ -65,20 +65,23 @@ inline std::string FormatBinding(const SdlBinding& binding) {
 // SDL gives the south, east, west and north buttons.
 enum class SdlFace { Abxy, Axby, Bayx, Sony };
 inline constexpr std::array<std::string_view, 4> SdlFaceNames = {"abxy", "axby", "bayx", "sony"};
-// What SDL makes of a pad: the bindings it decodes and the face style its
-// button labels follow.
+// What SDL makes of a pad: the bindings it decodes, the face style its button
+// labels follow, and SDL's name for the type it gives the pad when that is not
+// the type SDL finds for the device itself. The type is empty when they agree,
+// so a mapping never pins a type SDL would find anyway.
 struct SdlSnapshot {
     std::vector<SdlBinding> bindings;
     SdlFace face = SdlFace::Abxy;
+    std::string type;
 };
 
 // The fields of a mapping that bind nothing and are safe to carry over, as SDL
 // reads them: each key where it first appears after the GUID and name, up to
-// the next comma. crc picks which pads the mapping matches, type only names
-// the pad, and sdk>= and sdk<= apply on Android alone. A value is kept only
-// when it is plain letters and digits, so no kept field can hold another key.
-// Face is written from the snapshot instead. Hints go: a label hint would
-// rename positional bindings, and any other hint can stop SDL adding the mapping at all.
+// the next comma. crc picks which pads the mapping matches, and sdk>= and
+// sdk<= apply on Android alone. A value is kept only when it is plain letters
+// and digits, so no kept field can hold another key. Face and type are
+// written from the snapshot instead. Hints go: a label hint would rename
+// positional bindings, and any other hint can stop SDL adding the mapping at all.
 inline std::string SdlMetadata(std::string_view mapping) {
     const auto name = mapping.find(',');
     const auto body = name == std::string_view::npos ? name : mapping.find(',', name + 1);
@@ -86,7 +89,7 @@ inline std::string SdlMetadata(std::string_view mapping) {
     mapping.remove_prefix(body + 1);
     const auto plain = [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); };
     std::string kept;
-    for (const std::string_view key : {"crc:", "type:", "sdk>=:", "sdk<=:"}) {
+    for (const std::string_view key : {"crc:", "sdk>=:", "sdk<=:"}) {
         const auto at = mapping.find(key);
         if (at == std::string_view::npos) continue;
         auto value = mapping.substr(at + key.size());
@@ -104,9 +107,9 @@ inline bool HidapiGuid(std::string_view guid) { return guid.size() == 32 && guid
 // field names the labels, so the face field always goes with it.
 inline constexpr std::string_view PositionalHint = "hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1";
 
-// The mapping SDL decodes back to exactly this pad's bindings and face style,
-// with the other metadata existing mapping text carries, or none when SDL
-// cannot be given them.
+// The mapping SDL decodes back to exactly this pad's bindings, face style and
+// type, with the other metadata existing mapping text carries, or none when
+// SDL cannot be given them.
 // SDL_FixupHIDAPIMapping takes a HIDAPI mapping for a legacy one when the first
 // binding to a button from dpup on reads that same button number, and then
 // moves every button input. These bindings are SDL's own, already fixed up, so
@@ -128,9 +131,10 @@ inline std::optional<std::string> WriteSdlMapping(const std::string& guid, std::
     std::replace(name.begin(), name.end(), ',', ' ');
     auto text = guid + "," + name + ",";
     for (const auto& binding : bindings) text += FormatBinding(binding) + ",";
-    // face goes first of the fields that bind nothing, as SDL takes the first
-    // one; platform goes once, last: SDL cuts a returned mapping at a second one (CreateMappingString).
+    // face and type go first of the fields that bind nothing, as SDL takes the first of each;
+    // platform goes once, last: SDL cuts a returned mapping at a second one (CreateMappingString).
     text += "face:" + std::string(SdlFaceNames[static_cast<int>(pad.face)]) + ",";
+    if (!pad.type.empty()) text += "type:" + pad.type + ",";
     return text + std::string(PositionalHint) + "," + SdlMetadata(existing) + "platform:Windows,";
 }
 } }

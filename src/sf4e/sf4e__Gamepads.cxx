@@ -61,23 +61,6 @@ std::atomic<void*> originalState{nullptr}, originalCapabilities{nullptr}, origin
 
 std::string Text(const char* value) { return value ? value : ""; }
 
-Type PadType(Id id) {
-    switch (SDL_GetGamepadTypeForID(id)) {
-    case SDL_GAMEPAD_TYPE_STANDARD: return Type::Standard;
-    case SDL_GAMEPAD_TYPE_XBOX360: return Type::Xbox360;
-    case SDL_GAMEPAD_TYPE_XBOXONE: return Type::XboxOne;
-    case SDL_GAMEPAD_TYPE_PS3: return Type::PS3;
-    case SDL_GAMEPAD_TYPE_PS4: return Type::PS4;
-    case SDL_GAMEPAD_TYPE_PS5: return Type::PS5;
-    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO: return Type::SwitchPro;
-    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT: return Type::JoyConLeft;
-    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT: return Type::JoyConRight;
-    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR: return Type::JoyConPair;
-    case SDL_GAMEPAD_TYPE_GAMECUBE: return Type::GameCube;
-    default: return Type::Unknown;
-    }
-}
-
 const char* TypeName(Type type) {
     switch (type) {
     case Type::Standard: return "standard";
@@ -586,8 +569,8 @@ std::optional<std::string> SaveSetup() {
     UpdateLocked(false);
     if (!active || !setup.state.active || setup.state.mode != SetupMode::Summary || !setup.state.CanSave() || setup.state.feedback == SetupFeedback::Reconnect) return {};
     const auto guid = setup.identity.guid;
-    // The merge starts from SDL's snapshot of the pad, its bindings and face
-    // style; its mapping text only supplies the other fields that bind nothing.
+    // The merge starts from SDL's snapshot of the pad, its bindings, face style
+    // and type; its mapping text only supplies the other fields that bind nothing.
     const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [](const Pad& candidate) { return Same(candidate.identity, setup.identity); });
     const auto handle = pad == inventory.pads.end() ? handles.end() : handles.find(pad->id);
     const auto snapshot = pad == inventory.pads.end() ? std::nullopt : ReadSnapshot(pad->id, handle == handles.end() ? nullptr : handle->second);

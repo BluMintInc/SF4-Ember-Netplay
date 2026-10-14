@@ -267,11 +267,13 @@ inline std::vector<SdlBinding> MergeSetup(const SetupState& state, const std::ve
     return merged;
 }
 // The mapping a save installs: the recorded steps over SDL's snapshot of the
-// pad, with its face style. None when SDL could not be read, since a failed
-// read is not a pad that binds nothing, or when SDL cannot be given the merge.
-inline std::optional<std::string> SetupMapping(const SetupState& state, const std::optional<SdlSnapshot>& pad, const std::string& guid,
+// pad, which keeps the rest of the snapshot. None when SDL could not be read,
+// since a failed read is not a pad that binds nothing, or when SDL cannot be
+// given the merge.
+inline std::optional<std::string> SetupMapping(const SetupState& state, std::optional<SdlSnapshot> pad, const std::string& guid,
     const std::string& name, std::string_view existing) {
     if (!pad) return {};
-    return WriteSdlMapping(guid, name, {MergeSetup(state, pad->bindings), pad->face}, existing);
+    pad->bindings = MergeSetup(state, pad->bindings);
+    return WriteSdlMapping(guid, name, std::move(*pad), existing);
 }
 } }

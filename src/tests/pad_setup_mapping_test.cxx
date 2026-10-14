@@ -1,3 +1,4 @@
+#include "../common/GamepadBrand.hxx"
 #include "../common/PadSetup.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "../sf4e/sf4e__GamepadBindings.hxx"
@@ -6,6 +7,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 using namespace sf4e::gamepads;
 #define CHECK(x) do { if (!(x)) throw std::runtime_error(#x); } while (0)
 int Step(const char* name) {
@@ -106,15 +108,15 @@ void Writing() {
         guid + ",Forms,-leftx:+a0~,lefty:-a1~,lefttrigger:a2~,misc1:h1.17," + tail);
 
     // Metadata as SDL reads it: the first of each key after the GUID and name,
-    // plain values only. Face, hints and platform go; platform is written once, last.
+    // plain values only. Face, type, hints and platform go; platform is written once, last.
     CHECK(SdlMetadata(guid + ",Name type:ps4,a:b0,type:xbox360,face:abxy,sdk>=:21,sdk<=:99,crc:b003,hint:SDL_X:=1,type:ps5,platform:Windows,") ==
-        "crc:b003,type:xbox360,sdk>=:21,sdk<=:99,");
+        "crc:b003,sdk>=:21,sdk<=:99,");
     CHECK(SdlMetadata(guid + ",Name,a:b0,crc:67fa,platform:Windows,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1, type : xbox360,Platform:Windows,") == "crc:67fa,");
     CHECK(SdlMetadata(guid + ",Name,xtype:x-1,type:ps4,face:") == "" && SdlMetadata("") == "" && SdlMetadata(guid + ",Name") == "");
-    // The snapshot's face is the only one, ahead of the other metadata.
-    const auto kept = WriteSdlMapping(guid, "Kept", {{Bind("a", B(3))}, SdlFace::Bayx},
+    // The snapshot's face and type are the only ones, ahead of the other metadata.
+    const auto kept = WriteSdlMapping(guid, "Kept", {{Bind("a", B(3))}, SdlFace::Bayx, "switchpro"},
         guid + ",Kept,a:b0,face:abxy,crc:67fa,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,type:xbox360,platform:Windows,").value();
-    CHECK(kept == guid + ",Kept,a:b3,face:bayx,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,crc:67fa,type:xbox360,platform:Windows,");
+    CHECK(kept == guid + ",Kept,a:b3,face:bayx,type:switchpro,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,crc:67fa,platform:Windows,");
 
     // A HIDAPI GUID: the first binding to a button from dpup on never reads
     // its own number, or SDL would move every button input.
@@ -133,30 +135,40 @@ SdlSnapshot Snap(SDL_JoystickID pad, const std::string& mapping) {
     return ReadSnapshot(pad, nullptr).value();
 }
 Bindings Hold(SDL_JoystickID pad, const std::string& mapping) { return Snap(pad, mapping).bindings; }
-// The labels SDL gives the pad's south, east, west and north buttons.
-using Labels = std::array<SDL_GamepadButtonLabel, 4>;
-Labels LabelsOf(SDL_JoystickID pad) {
+// What a pad shows beyond its bindings: the labels SDL gives its south, east,
+// west and north buttons, the type SDL gives the open gamepad, and the brand
+// Ember detects from the type it reads by id.
+struct Shown {
+    std::array<SDL_GamepadButtonLabel, 4> labels;
+    SDL_GamepadType type;
+    PromptBrand brand;
+    bool operator==(const Shown& b) const { return labels == b.labels && type == b.type && brand == b.brand; }
+};
+Shown ShownOf(SDL_JoystickID pad) {
     SDL_Gamepad* gamepad = SDL_OpenGamepad(pad); CHECK(gamepad);
-    Labels labels;
-    for (int i = 0; i < 4; ++i) labels[i] = SDL_GetGamepadButtonLabel(gamepad, static_cast<SDL_GamepadButton>(SDL_GAMEPAD_BUTTON_SOUTH + i));
+    Shown shown;
+    for (int i = 0; i < 4; ++i) shown.labels[i] = SDL_GetGamepadButtonLabel(gamepad, static_cast<SDL_GamepadButton>(SDL_GAMEPAD_BUTTON_SOUTH + i));
+    shown.type = SDL_GetGamepadType(gamepad);
     SDL_CloseGamepad(gamepad);
-    return labels;
+    Pad model; model.type = PadType(pad);
+    shown.brand = DetectBrand(model);
+    return shown;
 }
 // Merges the recorded steps over what SDL makes of body, as SaveSetup does,
-// writing for guid, and checks SDL binds the result exactly as expected with
-// the labels SDL gave body. A HIDAPI-style guid's mapping is decoded on the
-// virtual pad, which has no fixup.
+// writing for guid, and checks SDL binds the result exactly as expected and
+// shows the pad as it showed body. A HIDAPI-style guid's mapping is decoded on
+// the virtual pad, which has no fixup.
 std::string Merge(SDL_JoystickID pad, const SetupState& recorded, const std::string& body, const std::string& expected, std::string guid = {}) {
     const auto padGuid = GuidOf(pad);
     if (guid.empty()) guid = padGuid;
     const auto existing = Snap(pad, padGuid + ",Pad," + body);
-    const auto labels = LabelsOf(pad);
+    const auto shown = ShownOf(pad);
     auto written = SetupMapping(recorded, existing, guid, "Pad", MappingText(padGuid)).value();
     written.replace(0, guid.size(), padGuid);
     const auto decoded = Hold(pad, written);
-    const bool sameLabels = LabelsOf(pad) == labels;
+    const bool sameShown = ShownOf(pad) == shown;
     const auto want = Hold(pad, padGuid + ",Pad," + expected + "," + std::string(PositionalHint));
-    if (!(decoded == want) || !sameLabels || (HidapiGuid(guid) && LegacyHidapi(decoded))) throw std::runtime_error("merge " + body + " gave " + written);
+    if (!(decoded == want) || !sameShown || (HidapiGuid(guid) && LegacyHidapi(decoded))) throw std::runtime_error("merge " + body + " gave " + written);
     if (guid == padGuid) CHECK(decoded == MergeSetup(recorded, existing.bindings));
     return written;
 }
@@ -164,9 +176,10 @@ void VirtualPads() {
     const auto pad = Attach("Ember mapping corpus");
     const auto padGuid = GuidOf(pad);
     // Each binding SDL makes is written back as text SDL binds the same way,
-    // with the labels SDL gave it: SDL's database mappings, composite hats,
-    // metadata, case and spaces, lenient inputs, colons, double signs, SDL's
-    // stop, label hints, a Sony type without a face and a GameCube hint.
+    // with the labels, type and brand SDL gave it: SDL's database mappings,
+    // composite hats, metadata, case and spaces, lenient inputs, colons, double
+    // signs, SDL's stop, label hints, a Sony type without a face, a GameCube
+    // hint, and a type past SDL's stop or with a sign.
     const std::string corpus[] = {
         "a:b0,b:b1,back:b6,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b10,leftshoulder:b4,leftstick:b8,lefttrigger:a2,leftx:a0,lefty:a1,"
             "rightshoulder:b5,rightstick:b9,righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3,",
@@ -187,13 +200,24 @@ void VirtualPads() {
         "a:b0,b:b1,x:b2,y:b3,hint:!SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
         "a:b0,x:b2",
         "a:b0,b:b1,x:b2,y:b3,type:ps4,",
-        "a:b0,b:b1,x:b2,y:b3,hint:SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,"};
+        "a:b0,b:b1,x:b2,y:b3,hint:SDL_GAMECONTROLLER_USE_GAMECUBE_LABELS:=1,",
+        "a:b0,b:b1,x:b2,y:b3,platform:Windows,platform:Windows,type:ps4,",
+        "a:b0,b:b1,x:b2,y:b3,type:+ps4,"};
+    std::vector<std::string> written;
+    std::vector<Shown> shown;
     for (const auto& body : corpus) {
         const auto held = Snap(pad, padGuid + ",Corpus," + body);
-        const auto labels = LabelsOf(pad);
-        const auto written = WriteSdlMapping(padGuid, "Corpus", held, MappingText(padGuid)).value();
-        if (!(Hold(pad, written) == held.bindings) || LabelsOf(pad) != labels || Count(written, "face:") != 1) throw std::runtime_error("round trip " + body);
+        shown.push_back(ShownOf(pad));
+        written.push_back(WriteSdlMapping(padGuid, "Corpus", held, MappingText(padGuid)).value());
+        if (!(Hold(pad, written.back()) == held.bindings) || !(ShownOf(pad) == shown.back()) || Count(written.back(), "face:") != 1 || Count(written.back(), "type:") > 1)
+            throw std::runtime_error("round trip " + body);
     }
+    // The types SDL gives them: PS4 from a type field, even past SDL's stop at
+    // a second platform or with a sign, and Ember's PS4 brand with it. A pad
+    // with no type field keeps the device's own, which the mapping does not pin.
+    for (const int typed : {16, 18, 19})
+        CHECK(shown[typed].type == SDL_GAMEPAD_TYPE_PS4 && shown[typed].brand == PromptBrand(Brand::PlayStation, PlayStationArt::PS4) && Count(written[typed], ",type:ps4,") == 1);
+    CHECK(shown[0].type == SDL_GAMEPAD_TYPE_STANDARD && Count(written[0], "type:") == 0 && Count(written[12], ",type:xbox360,") == 1);
     // The faces SDL gives them: Sony from the type, BAYX from a button label
     // hint, and AXBY from any GameCube hint, even a negated one.
     CHECK(Snap(pad, padGuid + ",Corpus," + corpus[16]).face == SdlFace::Sony && Snap(pad, padGuid + ",Corpus," + corpus[17]).face == SdlFace::Axby);
@@ -250,7 +274,9 @@ void VirtualPads() {
     const auto recorded = Record({{"up", {RawKind::HatUp, 0}}, {"lk", {RawKind::Button, 3}}, {"hk", {RawKind::Trigger, 5, false, true}}});
     CHECK(Hold(unmapped, SetupMapping(recorded, snapshot, GuidOf(unmapped), "Unmapped", {}).value()) ==
         Bindings({Bind("dpup", H(0, 1)), Bind("a", B(3)), Bind("righttrigger", A(5, Hi, Lo))}));
-    for (int i = 0; i < 4; ++i) CHECK(LabelsOf(unmapped)[i] == SDL_GetGamepadButtonLabelForType(type, static_cast<SDL_GamepadButton>(SDL_GAMEPAD_BUTTON_SOUTH + i)));
+    const auto shownUnmapped = ShownOf(unmapped);
+    CHECK(shownUnmapped.type == type && snapshot->type.empty());
+    for (int i = 0; i < 4; ++i) CHECK(shownUnmapped.labels[i] == SDL_GetGamepadButtonLabelForType(type, static_cast<SDL_GamepadButton>(SDL_GAMEPAD_BUTTON_SOUTH + i)));
     // A read SDL fails is no snapshot, not a pad that binds nothing, and a save from it writes no mapping.
     CHECK(!ReadBindings(nullptr) && !SetupMapping(recorded, std::nullopt, GuidOf(unmapped), "Unmapped", {}));
     SDL_DetachVirtualJoystick(unmapped);
@@ -263,6 +289,15 @@ void VirtualPads() {
     CHECK(Hold(cube, cubeGuid + ",Cube,x:b2,b:b1,") == Bindings({Bind("b", B(2)), Bind("x", B(1))}));
     Merge(cube, Record({{"lp", {RawKind::Button, 2}}, {"mk", {RawKind::Button, 5}}}), "a:b0,b:b1,", "x:b2,b:b5,a:b0");
     SDL_DetachVirtualJoystick(cube);
+
+    // A pad SDL finds to be a PS4 by its VID and PID: a save without a type
+    // field keeps that without pinning it, and a standard type a mapping gives
+    // over it is written, so the type never moves.
+    const auto sony = Attach("Ember Sony pad", 0x054c, 0x09cc);
+    const auto lk = Record({{"lk", {RawKind::Button, 3}}});
+    CHECK(Count(Merge(sony, lk, "a:b0,b:b1,", "a:b3,b:b1"), "type:") == 0 && PadType(sony) == Type::PS4);
+    CHECK(Count(Merge(sony, lk, "a:b0,b:b1,type:standard,", "a:b3,b:b1"), ",type:standard,") == 1);
+    SDL_DetachVirtualJoystick(sony);
 }
 int main() {
     Overlap();
