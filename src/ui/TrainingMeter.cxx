@@ -520,20 +520,18 @@ void DrawMatchMeter(const training::View& view) {
     const float hudScale = TrainingHudScale();
     MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingHudBottom, TrainingMeterOptions());
 }
-// A Training table's match HUD explains why shared position controls are
-// unavailable, and how a fighter ends the game, which no knockout does.
-void DrawMatchPracticeNotice() {
+void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=TrainingHudScale();
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
     ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(4*hudScale,3*hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
-    if(ImGui::Begin("Match practice keys",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
+    if(ImGui::Begin(MatchKeysWindow,nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing)) {
         ImGui::SetWindowFontScale(.8f*hudScale/Scale());
         // Ember's own words, so each line must fit the screen in every language.
-        for(const char* key:{"training.match.checkpoint_disabled","training.match.end_hint"}){
+        for(const char* key:keys){
             const char* line=loc::T(key);
             ReportMenuText(key,ImGui::GetTextLineHeight(),ImGui::GetTextLineHeight(),ImGui::CalcTextSize(line).x,vp->Size.x*.9f);
             ImGui::TextDisabled("%s",line);

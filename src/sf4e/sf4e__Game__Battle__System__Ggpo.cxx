@@ -66,6 +66,7 @@ static NetplayWindow s_window;
 static constexpr uint64_t kNetplayWindowMs = 15000;
 
 void NoteSpectatorBacklog(int backlogFrames, int catchUpFrames) {
+    fSystem::matchTelemetry.backlog = backlogFrames;
     s_window.spectator.Sample(backlogFrames);
     s_window.spectator.CaughtUp(catchUpFrames);
 }

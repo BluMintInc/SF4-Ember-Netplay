@@ -466,6 +466,8 @@ struct Place {
 	enum class Kind : std::uint8_t { None, Seat, Queue } kind = Kind::None;
 	int table = -1;
 	int seat = -1;
+	// In a queue: the place in it, from 1 for the member who plays next.
+	int position = 0;
 };
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	Place place;
@@ -475,11 +477,14 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 		place.kind = Place::Kind::Seat; place.table = member->table; place.seat = member->seat;
 		return place;
 	}
-	for (const auto& table : snapshot.tables)
-		if (std::find(table.queue.begin(), table.queue.end(), id) != table.queue.end()) {
+	for (const auto& table : snapshot.tables) {
+		const auto queued = std::find(table.queue.begin(), table.queue.end(), id);
+		if (queued != table.queue.end()) {
 			place.kind = Place::Kind::Queue; place.table = table.id;
+			place.position = static_cast<int>(queued - table.queue.begin()) + 1;
 			return place;
 		}
+	}
 	return place;
 }
 

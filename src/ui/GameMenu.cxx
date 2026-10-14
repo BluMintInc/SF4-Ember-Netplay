@@ -288,7 +288,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
         homeTop-=homeLift;
     }
-    if(menuArt&&!flyout) {
+    if(menuArt&&!flyout&&backdrop) {
         const auto art=menuArt->MenuBackdrop();const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
         if(art.texture){auto* d=ImGui::GetWindowDrawList();
             ImVec2 uv0(0,0),uv1(1,1);

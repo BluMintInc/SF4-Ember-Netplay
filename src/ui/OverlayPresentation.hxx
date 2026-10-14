@@ -11,6 +11,22 @@ inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bo
     return !shellVisible && !trainingControlsOpen && !nativePaused;
 }
 
+// A hint for the first seconds of a state (a watched game): due from when the
+// state begins until `seconds` later, and again only once it has ended and
+// begun anew. `now` in seconds, from any clock that does not go back.
+class TimedHint {
+public:
+    explicit TimedHint(double seconds) : seconds_(seconds) {}
+    bool Due(bool active, double now) {
+        if (active && !active_) since_ = now;
+        active_ = active;
+        return active && now - since_ < seconds_;
+    }
+private:
+    double seconds_, since_ = 0;
+    bool active_ = false;
+};
+
 // Presentation state survives device recreation. Only native menu states may
 // capture input; rendering never changes session or simulation state.
 class OverlayPresentation {

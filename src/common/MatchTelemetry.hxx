@@ -9,6 +9,9 @@ class MatchTelemetry {
 public:
     int appliedDelay = -1;
     bool spectator = false;
+    // A spectator's frames behind its host stream at its last update
+    // (SpectatorCatchUp); -1 until the stream runs.
+    int backlog = -1;
     // Every ping Sample took this session, for Auto to read at its end.
     GamePing pings;
     void Reset(bool watching = false) { *this = {}; spectator = watching; }

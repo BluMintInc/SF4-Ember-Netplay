@@ -211,6 +211,17 @@ int main() {
         reset.Reset();
         CHECK(!reset.Holds() && reset.Take().kind == MenuPads::Kind::None && reset.Takes());
     }
+    {
+        // A watched game's hint: for its first ten seconds, whatever the clock read when it began,
+        // not again while it lasts, and again for the next game.
+        sf4e::ui::TimedHint hint(10);
+        CHECK(!hint.Due(false, 0));
+        CHECK(hint.Due(true, 5) && hint.Due(true, 14.9) && !hint.Due(true, 15) && !hint.Due(true, 60));
+        CHECK(!hint.Due(false, 61));
+        CHECK(hint.Due(true, 62) && !hint.Due(true, 72));
+        sf4e::ui::TimedHint first(10);
+        CHECK(first.Due(true, 0) && first.Due(true, 9.9) && !first.Due(true, 10));
+    }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

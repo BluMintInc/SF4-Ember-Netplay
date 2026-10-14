@@ -608,7 +608,8 @@ int main(int argc, char** argv) {
                     else if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
-                        if(mode==9)DrawMatchPracticeNotice();
+                        if(mode==9)DrawMatchKeysNotice({"training.match.checkpoint_disabled","training.match.end_hint"});
+                        if(mode==10)DrawMatchKeysNotice({"runtime.watching_hint"});
                     }
                     if(overlayTooltip) {
                         ImGui::Begin("Open window tooltip");ImGui::TextUnformatted("Detail");
@@ -1036,11 +1037,14 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            // A Practice match's notice: no shared reset there, and how a fighter ends the game.
-            mode=9;draw("match-practice-notice");
-            const auto* practiceNotice=FindWindow("Match practice keys");
-            Require(WindowDrawn("Match practice keys")&&practiceNotice->Pos.x>=0&&practiceNotice->Pos.x+practiceNotice->Size.x<=size.w&&
-                practiceNotice->Pos.y+practiceNotice->Size.y<=size.h,"The Practice match notice left the screen");
+            // The keys over a fight Ember opens over: a Practice match's (no shared reset there, and how a
+            // fighter ends the game), then a watched game's first seconds (how a spectator leaves it).
+            for(const int keys:{9,10}){
+                mode=keys;draw(keys==9?"match-practice-notice":"match-watching-notice");
+                const auto* notice=FindWindow(MatchKeysWindow);
+                Require(WindowDrawn(MatchKeysWindow)&&notice->Pos.x>=0&&notice->Pos.x+notice->Size.x<=size.w&&
+                    notice->Pos.y+notice->Size.y<=size.h,"A match keys notice left the screen");
+            }
             // The crash report's offer (ui_render_reports.hxx), then the launch window and the updater (ui_render_updates.hxx).
             mode=4;ShootCrashReportOffer(recoveryMenu,recoveryState,recoveryReport,recoveryMessage,draw);
             ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);

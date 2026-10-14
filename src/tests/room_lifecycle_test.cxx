@@ -269,6 +269,17 @@ static void TestQueuedWatcherLeavesOneGame() {
 	CHECK(live.Has(live.authority.MatchRoster(0), live.q) && live.Has(live.table().queue, live.q));
 }
 
+// A queued member's place, as a spectator's HUD shows it: from 1 for the next
+// to play; a seat is not a queue place.
+static void TestQueuePlaceCountsFromNext() {
+	LiveTable live;
+	CHECK(PlaceOf(live.authority.SnapshotView(), live.q).position == 1);
+	CHECK(live.Do(live.w, ActionKind::Queue).accepted);
+	const auto later = PlaceOf(live.authority.SnapshotView(), live.w);
+	CHECK(later.kind == Place::Kind::Queue && later.table == 0 && later.position == 2);
+	CHECK(PlaceOf(live.authority.SnapshotView(), live.a).position == 0);
+}
+
 // A spectator's HUD keeps the score the watched game started with, however far
 // the room has moved on; a fighter's follows the table.
 static void TestHudScoreFollowsTheWatchedGame() {
@@ -357,6 +368,7 @@ int main() {
 	TestLeavingQueueEndsTheQueuedWatch();
 	TestQueuedWatcherLeavesOneGame();
 	TestHudScoreFollowsTheWatchedGame();
+	TestQueuePlaceCountsFromNext();
 
 	if (failures) return 1;
 	std::puts("RoomLifecycle test passed");

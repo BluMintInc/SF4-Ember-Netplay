@@ -4,6 +4,7 @@
 #include "../common/NetworkLink.hxx"
 #include "MenuNavigation.hxx"
 #include "FontMetrics.hxx"
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <string>
@@ -30,6 +31,11 @@ constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1); }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
+// Ember over a game the player watches (ShellView::watchedMatch) lets the game
+// show through: the shell's window and the room board's and Chat's panels are
+// lighter, and the menu art is left out. Their text keeps its own backing.
+constexpr float WatchedMatchWindowAlpha = .72f;
+inline ImVec4 BoardPanelColor(bool watchedMatch) { return ImVec4(.08f,.075f,.07f,watchedMatch ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.
 // Text is drawn at Windows' DPI scale for the window times the player's
@@ -123,6 +129,15 @@ struct MatchStripView {
     int nameOffset = 0;
     // Members watching this match; the split layout shows "Watching N" when above zero.
     int spectators = 0;
+    // What a spectator, which has no link of its own, is shown instead (MatchTelemetryCells):
+    // its frames behind the host stream (-1 before the stream runs), and ownDelays when each
+    // fighter plays at their own delay rather than at appliedDelay. On the state line, its
+    // place in the table's queue (from 1, of queueLength; 0 when not queued) and the room
+    // chat's unread count.
+    int behindFrames = -1;
+    bool ownDelays = false;
+    int queuePosition = 0, queueLength = 0;
+    unsigned unreadChat = 0;
     // Link state and the latest netplay notice, drawn on a line above the
     // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
     std::string notice;
@@ -136,7 +151,17 @@ void DrawMatchStrip(const MatchStripView& view);
 std::string SetScoreText(const std::uint32_t (&score)[2]);
 // The single line the strip shows for the link state, or empty. Exposed so
 // the render harness and tests can check the wording without a draw list.
+// With nothing more urgent to say, a spectator's line is where it stands in
+// the room: its queue place and the unread chat.
 std::string MatchStripStateLine(const MatchStripView& view);
+// One telemetry cell: a label (empty for a bare value), the value, and the
+// widest value the cell keeps room for so the layout does not jump.
+struct MatchTelemetryCell { std::string label, value, reserve; };
+// The three cells both layouts show about the match's link. A fighter's Ping,
+// Rollback and Delay. A spectator's stream has no ping and never rolls back,
+// so it shows the Delay the game is played at, the frames it is Behind, and
+// that it is spectating.
+std::array<MatchTelemetryCell, 3> MatchTelemetryCells(const MatchStripView& view);
 // A notice without the telemetry strip (match HUD hidden by the player).
 void DrawMatchNotice(const std::string& message, int severity);
 // Exposed for the render harness: Small/Standard/Large must not collapse.

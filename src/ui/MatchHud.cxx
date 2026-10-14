@@ -1,6 +1,6 @@
 // The in-match network HUD: the Ember strip (one panel) and the split layout (a name
-// plate per fighter and a small telemetry panel). One text fitter, one
-// state-line painter and one panel anchoring serve both; only how the names and the
+// plate per fighter and a small telemetry panel). One text fitter, one set of
+// telemetry cells, one state-line painter and one panel anchoring serve both; only how the names and the
 // telemetry are arranged differs. The declarations live in Theme.hxx with the other
 // presentation views.
 #include "Theme.hxx"
@@ -13,6 +13,11 @@
 #include <vector>
 
 namespace sf4e { namespace ui {
+namespace {
+// What the HUD shows for a value it does not have.
+const char* const Unavailable="\xe2\x80\x94";
+std::string Frames(int frames){return frames<0?Unavailable:std::to_string(frames)+"f";}
+}
 std::string MatchStripStateLine(const MatchStripView& view) {
     // The most urgent condition wins: a hard notice, then a stall (the game
     // is visibly frozen and the player needs to know why), then a warning.
@@ -23,7 +28,22 @@ std::string MatchStripStateLine(const MatchStripView& view) {
             return loc::Tf("match.connection_countdown",(view.disconnectCountdownMs+999)/1000);
         return loc::T("match.connection_unstable");
     }
-    return view.notice;
+    if(!view.notice.empty()||!view.spectator)return view.notice;
+    // A spectator's place in the room, in the words of the Training room line.
+    const std::string place=view.queuePosition==1?loc::T("match.up_next"):
+        view.queuePosition>1?loc::Tf("training.room.queued",view.queuePosition,view.queueLength):std::string();
+    const std::string unread=view.unreadChat?loc::Tf("training.room.unread",view.unreadChat):std::string();
+    return place+(place.empty()||unread.empty()?"":"  \xC2\xB7  ")+unread;
+}
+std::array<MatchTelemetryCell,3> MatchTelemetryCells(const MatchStripView& view) {
+    if(view.spectator)return {{
+        {loc::T("match.delay"),view.ownDelays?loc::T("match.delay_own"):Frames(view.appliedDelay),"99f"},
+        {loc::T("match.behind"),Frames(view.behindFrames),"99f"},
+        {"",loc::T("match.spectating"),""}}};
+    return {{
+        {loc::T("match.ping"),view.pingMs<0?Unavailable:std::to_string(view.pingMs)+" ms","999 ms"},
+        {loc::T("match.rollback"),std::to_string(view.rollbackFrames)+"f","99f"},
+        {loc::T("match.delay"),Frames(view.appliedDelay),"99f"}}};
 }
 void DrawMatchNotice(const std::string& message,int severity) {
     if(message.empty())return;
@@ -147,18 +167,18 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     text(x,p.y+6*s,versus,16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
     text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
     DrawNetworkLinkGlyph(draw,ImVec2(x+rightWidth+glyphGap,p.y+7*s),glyph,view.links[1]);
-    const std::string labels[]={loc::T("match.ping"),loc::T("match.rollback"),view.spectator?"":loc::T("match.delay")};
-    const std::string values[]={view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms",
-        std::to_string(view.rollbackFrames)+"f",view.spectator?loc::T("match.spectating"):view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f"};
+    const auto cells=MatchTelemetryCells(view);
     const float column=(w-24*s)/3;
     for(int i=0;i<3;++i){
+        const auto& cell=cells[i];
         const float x=p.x+12*s+column*i;
         // Fixed label/value anchors keep the layout stable as values change.
-        text(x,p.y+33*s,labels[i],16*s,IM_COL32(181,169,155,255));
-        const float valueX=x+(labels[i].empty()?0:TextWidth(16*s,labels[i])+8*s);
-        // A translated label must leave room for its whole value.
-        ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+TextWidth(22*s,values[i]),column-4*s);
-        const auto value=FitText(values[i],x+column-valueX-4*s,22*s);
+        text(x,p.y+33*s,cell.label,16*s,IM_COL32(181,169,155,255));
+        const float valueX=x+(cell.label.empty()?0:TextWidth(16*s,cell.label)+8*s);
+        // A translated label must leave room for its whole value, at its widest.
+        const float valueWidth=(std::max)(TextWidth(22*s,cell.value),TextWidth(22*s,cell.reserve));
+        ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+valueWidth,column-4*s);
+        const auto value=FitText(cell.value,x+column-valueX-4*s,22*s);
         text(valueX,p.y+29*s,value,22*s,IM_COL32(243,235,221,255));
     }
 }
@@ -206,19 +226,16 @@ struct Cell{std::string label,value;float width=0;ImU32 color=palette::Ivory;};
 struct Telemetry{std::vector<Cell> cells;float w=0,h=SplitHeight,s=1;};
 Telemetry MakeTelemetry(const MatchStripView& view,float s,float maxWidth){
     Telemetry t;t.s=s;t.h=SplitHeight*s;
-    struct Spec{std::string label,value,reserve;ImU32 color;};
+    struct Spec{MatchTelemetryCell text;ImU32 color=palette::Ivory;};
     std::vector<Spec> specs;
-    if(!view.score.empty())specs.push_back({"",view.score,"",IM_COL32(255,135,56,230)});
-    specs.push_back({loc::T("match.ping"),view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms","999 ms",palette::Ivory});
-    specs.push_back({loc::T("match.rollback"),std::to_string(view.rollbackFrames)+"f","99f",palette::Ivory});
-    specs.push_back(view.spectator?Spec{"",loc::T("match.spectating"),"",palette::Ivory}:
-        Spec{loc::T("match.delay"),view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f","99f",palette::Ivory});
-    if(view.spectators>0)specs.push_back({loc::T("room.status.watching"),std::to_string(view.spectators),"99",palette::Ivory});
+    if(!view.score.empty())specs.push_back({{"",view.score,""},IM_COL32(255,135,56,230)});
+    for(auto& cell:MatchTelemetryCells(view))specs.push_back({std::move(cell)});
+    if(view.spectators>0)specs.push_back({{loc::T("room.status.watching"),std::to_string(view.spectators),"99"}});
     float total=0;
     for(const auto& spec:specs){
-        Cell c;c.label=spec.label;c.value=spec.value;c.color=spec.color;
+        Cell c;c.label=spec.text.label;c.value=spec.text.value;c.color=spec.color;
         const float label=c.label.empty()?0:TextWidth(SplitLabel*s,c.label)+6*s;
-        c.width=20*s+label+(std::max)(TextWidth(SplitValue*s,c.value),TextWidth(SplitValue*s,spec.reserve));
+        c.width=20*s+label+(std::max)(TextWidth(SplitValue*s,c.value),TextWidth(SplitValue*s,spec.text.reserve));
         total+=c.width;t.cells.push_back(std::move(c));
     }
     // Over a narrow viewport the cells share what there is; values then truncate.

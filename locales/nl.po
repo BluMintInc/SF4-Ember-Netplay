@@ -1424,6 +1424,15 @@ msgstr "Vertraging"
 msgid "match.spectating"
 msgstr "Toeschouwen"
 
+msgid "match.behind"
+msgstr "Behind"
+
+msgid "match.delay_own"
+msgstr "Own"
+
+msgid "match.up_next"
+msgstr "You're up next"
+
 msgid "match.preview_spacing"
 msgstr "{0} afstand / voorbeeldwaarden"
 
@@ -2286,6 +2295,9 @@ msgstr "Toeschouwersbeeld verlaten."
 
 msgid "runtime.spectator_sat_out"
 msgstr "The game started while you were away from the main menu. You'll watch the next one."
+
+msgid "runtime.watching_hint"
+msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
 
 msgid "runtime.returning_room"
 msgstr "Terug naar de kamer."

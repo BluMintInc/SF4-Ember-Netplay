@@ -62,6 +62,13 @@ namespace sf4e {
         bool spectator = false;
         // Members watching the local member's table (the HUD's "Watching N"); from the room snapshot.
         int spectators = 0;
+        // A spectator's frames behind its host stream, -1 before it runs.
+        int spectatorBacklog = -1;
+        // From the room snapshot, for a spectator: its table's games are played at
+        // each fighter's own delay (an Own room), not at appliedDelay; and the local
+        // member's place in that table's queue, from 1, of queueLength (0 when not queued).
+        bool ownDelays = false;
+        int queuePosition = 0, queueLength = 0;
         // Live GGPO link state for the match HUD.
         bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
         bool predictionStalled = false;   // GGPO refused local input this frame

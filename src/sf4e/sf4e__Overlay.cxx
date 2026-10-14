@@ -681,7 +681,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
-        strip.spectator = status.spectator;
+        strip.spectator = status.spectator; strip.behindFrames = status.spectatorBacklog; strip.ownDelays = status.ownDelays;
+        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength; strip.unreadChat = shell.UnreadChat();
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.layout = snapshot.preferences.matchHudLayout; strip.nameOffset = snapshot.preferences.matchHudNameOffset; strip.spectators = status.spectators;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
@@ -719,8 +720,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
         ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
-    if (layers.matchActive && focused && passive && !status.spectator && snapshot.practiceMatch)
-        sf4e::ui::DrawMatchPracticeNotice();
+    // A watched game says how to leave it, for its first seconds.
+    static sf4e::ui::TimedHint watchingHint(10);
+    const bool watchingHintDue = watchingHint.Due(snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, ImGui::GetTime());
+    if (layers.matchActive && focused && passive) {
+        if (!status.spectator && snapshot.practiceMatch)
+            sf4e::ui::DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
+        else if (watchingHintDue) sf4e::ui::DrawMatchKeysNotice({"runtime.watching_hint"});
+    }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
     prefs.randomPool = lobbyRandomPool;

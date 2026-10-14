@@ -1424,6 +1424,15 @@ msgstr "지연"
 msgid "match.spectating"
 msgstr "관전 중"
 
+msgid "match.behind"
+msgstr "Behind"
+
+msgid "match.delay_own"
+msgstr "Own"
+
+msgid "match.up_next"
+msgstr "You're up next"
+
 msgid "match.preview_spacing"
 msgstr "{0} 여백 / 예시 값"
 
@@ -2286,6 +2295,9 @@ msgstr "관전을 종료하는 중입니다."
 
 msgid "runtime.spectator_sat_out"
 msgstr "The game started while you were away from the main menu. You'll watch the next one."
+
+msgid "runtime.watching_hint"
+msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
 
 msgid "runtime.returning_room"
 msgstr "방으로 돌아가는 중입니다."

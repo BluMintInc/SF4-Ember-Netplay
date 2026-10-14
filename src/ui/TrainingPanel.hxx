@@ -3,6 +3,7 @@
 #include "../common/TrainingPad.hxx"
 #include "../common/ButtonPrompts.hxx"
 #include <functional>
+#include <initializer_list>
 #include <string>
 #include <vector>
 #include "MenuNavigation.hxx"
@@ -108,7 +109,10 @@ const TrainingStripShown& LastTrainingStrip();
 constexpr const char* FrameMeterWindow = "Training frame meter";
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
-// In a Practice room's match: says that shared save and reset
-// are not available there, and that Start or F10 opens End practice.
-void DrawMatchPracticeNotice();
+// Over a fight Ember's menu opens over (input::MenuOverFight): the lines that
+// say what Start or F10 does there, one locale key each, at the bottom of the
+// screen. A Practice match says that shared save and reset are not available
+// and that End practice ends it; a watched game, that Stop watching leaves it.
+constexpr const char* MatchKeysWindow = "Match keys";
+void DrawMatchKeysNotice(std::initializer_list<const char*> keys);
 } }

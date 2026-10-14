@@ -1424,6 +1424,15 @@ msgstr "输入延迟"
 msgid "match.spectating"
 msgstr "观战中"
 
+msgid "match.behind"
+msgstr "Behind"
+
+msgid "match.delay_own"
+msgstr "Own"
+
+msgid "match.up_next"
+msgstr "You're up next"
+
 msgid "match.preview_spacing"
 msgstr "{0} 间距／示例数值"
 
@@ -2286,6 +2295,9 @@ msgstr "正在退出观战画面。"
 
 msgid "runtime.spectator_sat_out"
 msgstr "The game started while you were away from the main menu. You'll watch the next one."
+
+msgid "runtime.watching_hint"
+msgstr "Start or F10 opens Ember, where Stop watching returns you to the room."
 
 msgid "runtime.returning_room"
 msgstr "正在返回房间。"
