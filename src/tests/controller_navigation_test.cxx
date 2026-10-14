@@ -179,10 +179,14 @@ void NativeCapture() {
   sf4e::input::ControllerOpensMenu(MenuContext::MainMenu)&&!sf4e::input::ControllerOpensMenu(MenuContext::OfflineTraining),"Start opened Ember over an export");
  // Over a Practice match this PC fights, Start opens Ember and the pad drives it;
  // the fight keeps the menu away from every other context.
- Check(ControllerMenuAvailable(MenuContext::PracticeMatch)&&sf4e::input::ControllerOpensMenu(MenuContext::PracticeMatch)&&
-  sf4e::input::MenuShownIn(MenuContext::PracticeMatch)&&!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Start could not open Ember over a Practice match");
- for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,MenuContext::PracticeMatch}){
-  Check(sf4e::input::FightKeepsMenuAway(true,context)==(context!=MenuContext::PracticeMatch)&&!sf4e::input::FightKeepsMenuAway(false,context),
+ // So does a game this PC only watches, where Stop watching leaves it.
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch})
+  Check(ControllerMenuAvailable(context)&&sf4e::input::ControllerOpensMenu(context)&&sf4e::input::MenuShownIn(context)&&
+   sf4e::input::MenuOverFight(context),"Start could not open Ember over a fight it is shown over");
+ Check(!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Ember's menu was shown over offline Training's controls");
+ for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,
+  MenuContext::PracticeMatch,MenuContext::WatchedMatch}){
+  Check(sf4e::input::FightKeepsMenuAway(true,context)==!sf4e::input::MenuOverFight(context)&&!sf4e::input::FightKeepsMenuAway(false,context),
    "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
  }
  sf4e::input::MenuInputCapture capture;
@@ -211,10 +215,10 @@ void NativeCapture() {
  Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
 }
 // The menu reads the pad from the runtime's published snapshot, published as
-// netplay::PublishCadence says. Over a Practice fight the pad drives Ember's
-// menu, so every tick is published: a Select or a Back pressed and released
-// between two otherwise scheduled publications reaches the menu, once each,
-// for no longer than it was held. A fight without menu navigation stays
+// netplay::PublishCadence says. Over a Practice fight or a watched game the
+// pad drives Ember's menu, so every tick is published: a Select or a Back
+// pressed and released between two otherwise scheduled publications reaches
+// the menu, once each, for no longer than it was held. A fight without menu navigation stays
 // throttled, its fingerprint unchanged.
 void PracticeFightPresses(){
  using sf4e::input::MenuContext;
@@ -222,7 +226,7 @@ void PracticeFightPresses(){
  // tick and none falls on a backstop tick (0, 6, 12).
  const std::uint32_t ticks[]={0,0,Button::Confirm,0,Button::Back,0,0,0,Button::Confirm,0,Button::Back,0,0};
  constexpr unsigned count=sizeof(ticks)/sizeof(ticks[0]);
- for(const auto context:{MenuContext::PracticeMatch,MenuContext::Unavailable}){
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::Unavailable}){
   const bool navigable=sf4e::input::ControllerMenuAvailable(context);
   sf4e::netplay::PublishCadence cadence;ControllerNavigation nav;
   ControllerSample published;published.deviceType=sf4e::input::PadXInput;published.deviceIndex=0;published.connected=true;
@@ -236,7 +240,7 @@ void PracticeFightPresses(){
    previous=out;
   }
   if(navigable)Check(publications==count&&selects==2&&selectTicks==2&&backs==2,
-   "A press between scheduled publications was lost or held over a Practice fight");
+   "A press between scheduled publications was lost or held over a fight the menu is shown over");
   else Check(publications==3,"A fight without menu navigation was no longer throttled");
  }
 }

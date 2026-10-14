@@ -250,6 +250,25 @@ static void TestLeavingQueueEndsTheQueuedWatch() {
 	}
 }
 
+// A queued member watching the game it waits out leaves that game alone (Leave
+// this game: a generation-scoped Unwatch that keeps watching). It keeps its
+// queue place and its listing, and the next game takes it in again.
+static void TestQueuedWatcherLeavesOneGame() {
+	LiveTable live;
+	Action leave = TableAction(live.authority, live.q, 0, ActionKind::Unwatch);
+	leave.matchGeneration = live.generation;
+	leave.tableRevision = 0; // a generation-scoped action skips the table revision fence
+	leave.keepWatching = true;
+	CHECK(live.authority.Apply(live.q, leave).accepted);
+	CHECK(live.Has(live.table().queue, live.q) && live.Has(live.table().spectators, live.q));
+	CHECK(!WatchesByChoice(live.table(), live.q) && live.member(live.q).status == MemberStatus::Queued);
+	CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
+	for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
+	for (const auto member : {live.a, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
+	CHECK(live.authority.BeginMatch(0, live.a, live.b).accepted);
+	CHECK(live.Has(live.authority.MatchRoster(0), live.q) && live.Has(live.table().queue, live.q));
+}
+
 // A spectator's HUD keeps the score the watched game started with, however far
 // the room has moved on; a fighter's follows the table.
 static void TestHudScoreFollowsTheWatchedGame() {
@@ -336,6 +355,7 @@ int main() {
 	TestFighterDepartureClosesTheGame();
 	TestReadinessClearsTheDelayLock();
 	TestLeavingQueueEndsTheQueuedWatch();
+	TestQueuedWatcherLeavesOneGame();
 	TestHudScoreFollowsTheWatchedGame();
 
 	if (failures) return 1;

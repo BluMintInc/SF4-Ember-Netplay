@@ -86,7 +86,7 @@ bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
-// Start at the main menu or over a Practice match (input::ControllerOpensMenu).
+// Start at the main menu or over a fight (input::ControllerOpensMenu).
 // The request holds the pads at once, until the frame that takes it has
 // shown the menu (MenuPads), so the press never reaches the native menu or
 // the fight. Behind another window it counts only where a pad update has
@@ -275,6 +275,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
+    view.watchedMatch = snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
@@ -436,8 +437,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto& status = frame->netplay;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     // A replay being exported can be followed or cancelled from Ember's menu,
-    // so the menu stays available over the battle log while it runs, and a
-    // Practice match's fighter ends the game from it (input::MenuContext).
+    // so the menu stays available over the battle log while it runs; a
+    // Practice match's fighter ends the game from it, and a spectator leaves
+    // the game it watches (input::MenuContext).
     const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
     presentation.Update(snapshot.menuContext, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
@@ -503,8 +505,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
-    // Start opens Ember at the main menu and over a Practice match; in
-    // Training and over an export it is the game's pause.
+    // Start opens Ember at the main menu and over a fight (a Practice match
+    // or a watched game); in Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});

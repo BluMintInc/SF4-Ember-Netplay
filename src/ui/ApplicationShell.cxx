@@ -138,8 +138,9 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  // Join, with a pending status, instead of seeing a bare placeholder list.
  if(v.session.room==RoomState::Joined&&previousRoomState_!=RoomState::Joined&&nav.Screen().compare(0,4,"room")!=0){nav.Home();nav.Push("room");}
  previousRoomState_=v.session.room;
- // Opened over a Practice match this PC fights: the board, at End practice.
- if(hidden_&&v.practiceFight){nav.Home();nav.Push("room");nav.Prefer("end-practice");}
+ // Opened over a fight: the board, at End practice over a Practice match this
+ // PC fights, at Stop watching over a game it only watches.
+ if(hidden_&&(v.practiceFight||v.watchedMatch)){nav.Home();nav.Push("room");nav.Prefer(v.practiceFight?"end-practice":"stop-watching");}
  hidden_=false;
   if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;

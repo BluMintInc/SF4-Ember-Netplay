@@ -359,14 +359,17 @@ void TickCreatedRules(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
 // How a cancelled game's GGPO session ends: aborted if one is live, with a
-// reason the player reads (empty says nothing), or retired quietly under a
-// diagnostics label.
+// reason the player reads (empty says nothing); left by the player, aborted
+// the same way after the room was told, so it is no failure of this PC's; or
+// retired quietly under a diagnostics label.
 struct GgpoEnd {
+    enum class How { Abort, Leave, Retire };
     const char* text;
     NoticeSeverity severity;
-    bool retire;
-    static GgpoEnd Abort(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) { return {reason, severity, false}; }
-    static GgpoEnd Retire(const char* label) { return {label, NoticeSeverity::Info, true}; }
+    How how;
+    static GgpoEnd Abort(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) { return {reason, severity, How::Abort}; }
+    static GgpoEnd Leave(const char* reason) { return {reason, NoticeSeverity::Info, How::Leave}; }
+    static GgpoEnd Retire(const char* label) { return {label, NoticeSeverity::Info, How::Retire}; }
 };
 // The one way this PC gives up its part in the current game. Nothing its
 // entry armed for the battle request survives (battle::NextRequest), the
@@ -375,6 +378,7 @@ struct GgpoEnd {
 // recovery stay with the caller.
 void CancelLocalMatch(GgpoEnd end);
 // CancelLocalMatch, and the game is recovered from (recoveringMatch).
+void AbortLocalMatch(GgpoEnd end);
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
 // The room ended this PC's game with no result: retire it and say so.
 void EndUnscoredMatch(room::MatchResult result);

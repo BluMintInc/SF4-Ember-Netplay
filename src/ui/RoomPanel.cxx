@@ -97,9 +97,9 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     // activation can still reach an item ID. Recheck the room authority
     // boundary at dispatch so a lost or closed control stream never queues a
     // room mutation.
-    if (!RoomActionsAvailable(view) || !view.room.roomEpoch || !view.room.localMember) {
-        Refuse(RoomWaitReason(view), [](const ShellView& now) {
-            return !RoomActionsAvailable(now) || !now.room.roomEpoch || !now.room.localMember;
+    if (!RoomTakesNow(view, action.kind, action.table) || !view.room.roomEpoch || !view.room.localMember) {
+        Refuse(RoomWaitReason(view), [kind = action.kind, table = action.table](const ShellView& now) {
+            return !RoomTakesNow(now, kind, table) || !now.room.roomEpoch || !now.room.localMember;
         });
         return false;
     }
@@ -113,7 +113,13 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
-    if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch) && localSeated) return false;
+    if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch ||
+        action.kind == room::ActionKind::Unwatch) && localSeated) return false;
+    // Leaving one game but not the table is the queued spectator's exit alone.
+    if (action.keepWatching) {
+        const auto exit = ExitFromWatchedGame(view);
+        if (exit.kind != WatchedExit::LeaveGame || exit.table != static_cast<int>(action.table)) return false;
+    }
     if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
         // The same rule B and the Leave seat row read.
@@ -216,6 +222,12 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    // Over a Practice match it fights in, a fighter can end the game.
    if(mine.kind==Place::Kind::Seat&&AbandonableAt(v,s.tables[mine.table])==AbandonableGame::Practice)
     rows.push_back(ConfirmRow("end-practice",loc::T("room.end_practice"),loc::T("room.end_practice.detail"),mutableRoom));
+   // Over a game it only watches, a spectator can leave it.
+   if(const auto watched=ExitFromWatchedGame(v);watched.kind!=WatchedExit::None){
+    const bool leaveGame=watched.kind==WatchedExit::LeaveGame;
+    rows.push_back(ConfirmRow("stop-watching",loc::T(leaveGame?"room.leave_game":"room.stop_watching"),
+     loc::T(leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(watched.table))));
+   }
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
@@ -343,7 +355,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
      const bool fenced=TerminalFenced(s,kind,selectedTable_);
-     rows.push_back(Row(id,loc::T(label),fenced?TerminalPendingReason():reason,mutableRoom&&!elsewhere&&!fenced));
+     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
      queued?"room.leave_queue":"room.join_queue");
@@ -662,6 +674,15 @@ void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {
  if(exit.unready){request.kind=room::ActionKind::Unready;request.seat=exit.seatIndex;}
  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
 }
+void ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit) {
+ const auto exit=ExitFromWatchedGame(v);if(exit.kind==WatchedExit::None)return;
+ selectedTable_=exit.table;
+ room::Action request;request.table=static_cast<std::uint8_t>(exit.table);request.kind=room::ActionKind::Unwatch;
+ request.keepWatching=exit.kind==WatchedExit::LeaveGame;
+ // The player's own leave needs no notice that it ended their lock-in.
+ if(SendRoom(std::move(request),v,submit))lockInReleasedUntil_=ImGui::GetTime()+5;
+ else if(error_.empty())error_=loc::T("room.action_rejected");
+}
 void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
  for(std::size_t i=0;i<liveGames_.size();++i){
   auto& game=liveGames_[i];const auto& table=v.room.tables[i];
@@ -749,6 +770,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="options"){OpenTableOptions(v,OptionsTable(v,selectedTable_));return;}
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
+ if(a.id=="stop-watching"){LeaveWatchedGame(v,submit);return;}
  if(a.id=="leave-place"){
   const auto exit=ExitFromPlace(v);if(exit.table<0)return;
   selectedTable_=exit.table;

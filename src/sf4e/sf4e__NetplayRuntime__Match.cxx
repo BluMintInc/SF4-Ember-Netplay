@@ -121,6 +121,7 @@ static void ObserveDeferredEntry() {
 	// a stream it no longer serves. The room still lists it for the next game.
 	spdlog::info("Match: spectator sits out generation {} (not at the main menu within {} ms)", generation, SpectatorPolicy::SyncDeadlineMs);
 	runtime->match->End();
+	PushAlert(loc::T("runtime.spectator_sat_out"), NoticeSeverity::Info);
 }
 }
 
@@ -266,14 +267,20 @@ void CancelLocalMatch(GgpoEnd end) {
 	// or any later one, nothing of the match.
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	CancelDeferredGgpoClose();
-	if (end.retire) Game::Battle::System::RetireGgpoSession(end.text);
-	else if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(end.text, end.severity);
+	using fSystem = Game::Battle::System;
+	if (end.how == GgpoEnd::How::Retire) fSystem::RetireGgpoSession(end.text);
+	else if (fSystem::ggpo) fSystem::AbortGgpoMatch(end.text, end.severity,
+		end.how == GgpoEnd::How::Leave ? fSystem::AbortCause::Left : fSystem::AbortCause::Failure);
 	if (runtime->match) runtime->match->Abort();
 }
 
-void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
-	CancelLocalMatch(GgpoEnd::Abort(reason, severity));
+void AbortLocalMatch(GgpoEnd end) {
+	CancelLocalMatch(end);
 	runtime->recoveringMatch = true;
+}
+
+void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+	AbortLocalMatch(GgpoEnd::Abort(reason, severity));
 }
 
 // The room ended the game this PC is in with no result (Abort or Cancel). The

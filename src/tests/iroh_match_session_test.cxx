@@ -65,6 +65,10 @@ public:
 		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Closed;
 	}
 	void Leave(bool) override { ++leaveCalls; }
+	// The game links of `generation` are up.
+	void LinkUp(std::uint64_t generation) {
+		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Ready;
+	}
 	// The room's control is coordinated, so a leave waits for the session to retire.
 	void Coordinate() { coordination_.active = true; }
 private:
@@ -682,6 +686,80 @@ void TestUnscoredEndNotice() {
 	std::cout << "TestUnscoredEndNotice passed\n";
 }
 
+// A spectator leaves the game it watches (Stop watching): its Unwatch goes out
+// at once while the stream is live, and the session is retired as the
+// player's own leave, a passing note. That is no stream failure, so no lock
+// release is armed: its unlock would race the Unwatch, which ends the lock-in
+// itself, and be refused once the room shows the member gone. Nothing is kept
+// for a retry either.
+void TestSpectatorLeavesWatchedGame() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	using fSystem = sf4e::Game::Battle::System;
+	WatchedGame game(false);
+	auto* runtime = game.r.runtime;
+	facade::ClearMatchNotice();
+	StartGgpoSession();
+	// The battle took the stream (what entering the match records).
+	runtime->matchEntered = true;
+	runtime->enteredGeneration = game.generation;
+	const auto& view = game.authority.SnapshotFor(game.member);
+	facade::RuntimeCommand leave;
+	leave.command = {sf4e::netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
+	leave.roomAction.kind = room::ActionKind::Unwatch;
+	leave.roomAction.table = 0;
+	leave.roomAction.roomEpoch = view.roomEpoch;
+	leave.roomAction.matchGeneration = game.generation;
+	const auto sentBefore = game.r.transport->sent.size();
+	CHECK(facade::SubmitRuntimeCommand(std::move(leave)));
+	facade::internal::DrainCommands(true);
+	CHECK(!fSystem::ggpo && runtime->recoveringMatch);
+	const auto status = facade::GetStatus();
+	CHECK(std::string(status.lastError) == sf4e::loc::T("runtime.leaving_spectator") && status.lastErrorSeverity == sf4e::NoticeSeverity::Info);
+	facade::TickRuntime();
+	CHECK(!runtime->spectatorLockRelease.Pending() && !runtime->pendingAbort && runtime->spectatorStreamFailedGeneration == 0);
+	int unwatches = 0;
+	for (std::size_t i = sentBefore; i < game.r.transport->sent.size(); ++i) {
+		const auto& message = game.r.transport->sent[i];
+		if (message.value("type", json()) != json(protocol::MT_ROOM_ACTION)) continue;
+		const auto action = message.at("action").get<room::Action>();
+		if (action.kind == room::ActionKind::Unwatch) {
+			++unwatches;
+			CHECK(action.matchGeneration == game.generation && !action.keepWatching);
+		}
+	}
+	CHECK(unwatches == 1);
+	facade::ClearMatchNotice();
+	std::cout << "TestSpectatorLeavesWatchedGame passed\n";
+}
+
+// A spectator away from the main menu when its game starts sits it out once
+// P1 stops waiting, and is told it watches the next one: a passing note.
+void TestSpectatorSitOutNotice() {
+	namespace facade = sf4e::NetplayFacade;
+	WatchedGame game(false);
+	auto* runtime = game.r.runtime;
+	// A match the game can take, so its entry only waits for the main menu.
+	auto& match = game.r.Client()._matchData;
+	match.stageID = 0;
+	for (auto& chara : match.chara) { chara.charaID = 0; chara.ultraCombo = 0; chara.unc_edition = 14; }
+	game.r.room->LinkUp(game.generation);
+	game.Tick();
+	game.r.Deliver(json{{"type", "game_start"}, {"generation", game.generation}});
+	game.Tick();
+	CHECK(game.r.Match().GetPhase() == Phase::Started && !runtime->matchEntered);
+	// The entry has waited for the main menu since before P1's deadline.
+	runtime->entryDeferredGeneration = game.generation;
+	runtime->entryDeferredSinceMs = GetTickCount64() - sf4e::SpectatorPolicy::SyncDeadlineMs;
+	facade::ClearMatchNotice();
+	facade::internal::TickMatch();
+	const auto status = facade::GetStatus();
+	CHECK(game.r.Match().GetPhase() != Phase::Started);
+	CHECK(std::string(status.lastError) == sf4e::loc::T("runtime.spectator_sat_out") && status.lastErrorSeverity == sf4e::NoticeSeverity::Info);
+	facade::ClearMatchNotice();
+	std::cout << "TestSpectatorSitOutNotice passed\n";
+}
+
 // What an entered room match arms for its battle (its seed and Training rules)
 // reaches no later battle when the entry ends before the game prepares one:
 // the netplay session shut down, the game left, or the entry reset.
@@ -758,6 +836,8 @@ int main() {
 		for (const bool staged : {false, true}) TestFailedSetupThroughRuntime(queued, staged, false);
 	TestFailedSetupThroughRuntime(false, false, true);
 	TestUnscoredEndNotice();
+	TestSpectatorLeavesWatchedGame();
+	TestSpectatorSitOutNotice();
 	TestEnteredBattleRequestCancelled();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;

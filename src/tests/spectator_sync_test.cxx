@@ -284,6 +284,23 @@ static void StaleEntryIsReleased() {
 	std::cout << "StaleEntryIsReleased passed\n";
 }
 
+// A parked room action goes again at the main menu with no match in hand. A
+// spectator in a live game sends its own leave and its chat at once; anything
+// else, and everything a fighter parked, waits for the menu.
+static void ParkedActionRetryGate() {
+	using room::ActionKind;
+	for (const auto kind : {ActionKind::Unwatch, ActionKind::Unqueue, ActionKind::Chat}) {
+		CHECK(netplay::ParkedActionRetryable(kind, true, false));
+		CHECK(!netplay::ParkedActionRetryable(kind, false, false));
+		CHECK(netplay::ParkedActionRetryable(kind, false, true));
+	}
+	for (const auto kind : {ActionKind::Queue, ActionKind::Watch, ActionKind::LockSpectating, ActionKind::Kick}) {
+		CHECK(!netplay::ParkedActionRetryable(kind, true, false));
+		CHECK(netplay::ParkedActionRetryable(kind, false, true));
+	}
+	std::cout << "ParkedActionRetryGate passed\n";
+}
+
 int main() {
 	CatchUp();
 	BacklogWindow();
@@ -293,6 +310,7 @@ int main() {
 	SessionlessCloseRules();
 	SpectatorLockReleaseLifecycle();
 	StaleEntryIsReleased();
+	ParkedActionRetryGate();
 	std::cout << "Spectator sync tests passed\n";
 	return 0;
 }

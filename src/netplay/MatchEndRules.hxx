@@ -177,6 +177,17 @@ inline bool SpectatorFailureOwesLockRelease(bool spectator, std::uint64_t admitt
 	return spectator && admittedGeneration != 0 && !generationFinished;
 }
 
+// Whether a room action parked for its gate is sent again now, once the room
+// takes it (healthy control, no match recovery). Most wait for the main menu
+// with no match in hand. A spectator in a live game sends two kinds at once:
+// its own leave (Unwatch, Unqueue), which must reach P1 before its stream
+// retires, and chat, which the room takes during a game.
+inline bool ParkedActionRetryable(room::ActionKind kind, bool spectatorInGame, bool atMenuIdle) {
+	const bool goesMidGame = kind == room::ActionKind::Unwatch || kind == room::ActionKind::Unqueue ||
+		kind == room::ActionKind::Chat;
+	return atMenuIdle || (spectatorInGame && goesMidGame);
+}
+
 // A grant for a newer generation while the runtime still holds the entry of an
 // older one whose battle is gone. The older entry can never end by itself, and
 // left in place it makes the controller refuse the new grant.

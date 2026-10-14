@@ -2272,11 +2272,8 @@ msgstr "Connexion instable. Jeu sur prédiction."
 msgid "runtime.connection_restored"
 msgstr "Connexion rétablie."
 
-msgid "runtime.spectator_disconnected"
-msgstr "Un spectateur s'est déconnecté."
-
 msgid "runtime.spectator_stream_lost"
-msgstr "Flux spectateur perdu. Choisissez Regarder pour suivre le prochain combat."
+msgstr "The spectator stream was dropped. You'll watch the next game at this table."
 
 msgid "runtime.match_connection_lost"
 msgstr "Connexion du combat perdue."
@@ -2286,6 +2283,9 @@ msgstr "Adversaire déconnecté. Le combat est terminé."
 
 msgid "runtime.leaving_spectator"
 msgstr "Sortie du mode spectateur."
+
+msgid "runtime.spectator_sat_out"
+msgstr "The game started while you were away from the main menu. You'll watch the next one."
 
 msgid "runtime.returning_room"
 msgstr "Retour au salon."
@@ -2487,6 +2487,9 @@ msgstr " Votre place est libérée."
 
 msgid "room.leave.queue"
 msgstr " Vous perdez votre place dans la file."
+
+msgid "room.leave.watching"
+msgstr " Your spectator view ends."
 
 msgid "room.leave.host"
 msgstr " Un autre membre devient hôte."
@@ -2879,11 +2882,26 @@ msgstr "Termine ce match d'entraînement tout de suite pour les deux combattants
 msgid "room.leave_queue"
 msgstr "Quitter la file"
 
+msgid "room.leave_queue.watching"
+msgstr " You keep watching this game until it ends."
+
 msgid "room.join_queue"
 msgstr "Entrer en file"
 
 msgid "room.stop_watching"
 msgstr "Arrêter de regarder"
+
+msgid "room.stop_watching.detail"
+msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+
+msgid "room.leave_game"
+msgstr "Leave this game"
+
+msgid "room.leave_game.detail"
+msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+
+msgid "room.watching_ends"
+msgstr " Your spectator view ends; the fighters keep playing."
 
 msgid "room.watch_next"
 msgstr "Voir le prochain"

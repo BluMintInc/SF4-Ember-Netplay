@@ -67,6 +67,7 @@ std::string LeaveRoomDetail(const ShellView& v) {
             detail += loc::T("room.leave.active");
         else detail += loc::T("room.leave.seat");
     } else if (place.kind == room::Place::Kind::Queue) detail += loc::T("room.leave.queue");
+    if (v.watchedMatch) detail += loc::T("room.leave.watching");
     if (local && local->host && v.room.members.size() > 1) detail += loc::T("room.leave.host");
     return detail;
 }
@@ -81,8 +82,8 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     std::vector<MenuChoice> choices;
     for (const char* id : {left, right}) {
         const auto* option = FindSeatOption(id);
-        MenuChoice choice{id, loc::T(option->label), loc::T(option->detail)};
-        if (!RoomActionsAvailable(v)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
+        MenuChoice choice{id, loc::T(option->label), loc::T(option->detail) + WatchingNote(v, option->kind)};
+        if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v.room, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
         choices.push_back(std::move(choice));
     }
@@ -117,6 +118,29 @@ AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t) {
     if (place.kind != room::Place::Kind::Seat || place.table != static_cast<int>(t.id)) return AbandonableGame::None;
     if (t.phase == room::TablePhase::Paused) return AbandonableGame::Unresolved;
     return t.phase == room::TablePhase::Playing && v.practiceFight ? AbandonableGame::Practice : AbandonableGame::None;
+}
+WatchedExit ExitFromWatchedGame(const ShellView& v) {
+    const auto* local = room::FindMember(v.room, v.room.localMember);
+    if (!v.watchedMatch || !local || local->seat >= 0 || local->table < 0 ||
+        local->table >= static_cast<int>(v.room.tables.size())) return {};
+    if (v.room.tournament.Active() && local->table == room::TournamentTable) return {};
+    const auto& t = v.room.tables[local->table];
+    const auto listed = [&](const std::vector<room::MemberId>& list) {
+        return std::find(list.begin(), list.end(), local->id) != list.end();
+    };
+    if ((t.phase != room::TablePhase::Playing && t.phase != room::TablePhase::Paused) || !listed(t.spectators)) return {};
+    return {listed(t.queue) ? WatchedExit::LeaveGame : WatchedExit::Unwatch, local->table};
+}
+bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table) {
+    if (RoomActionsAvailable(v)) return true;
+    const auto exit = ExitFromWatchedGame(v);
+    return RoomCheckpointPending(v) && kind == room::ActionKind::Unwatch && exit.kind != WatchedExit::None &&
+        table == static_cast<std::size_t>(exit.table);
+}
+std::string WatchingNote(const ShellView& v, room::ActionKind kind) {
+    if (!v.watchedMatch) return {};
+    if (kind == room::ActionKind::Queue || kind == room::ActionKind::Watch) return loc::T("room.watching_ends");
+    return kind == room::ActionKind::Unqueue ? loc::T("room.leave_queue.watching") : "";
 }
 bool LeaveBlocked(const ShellView& v) {
     const auto exit = ExitFromPlace(v);

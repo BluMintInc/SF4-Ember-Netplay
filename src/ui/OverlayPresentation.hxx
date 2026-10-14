@@ -16,7 +16,8 @@ inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bo
 class OverlayPresentation {
 public:
     // context: where the game is (input::MenuContext). The menu is shown at
-    // the main menu, over an export and over a Practice match this PC fights.
+    // the main menu, over an export, over a Practice match this PC fights and
+    // over a game it only watches.
     void Update(input::MenuContext context, netplay::MatchState match, bool offline, bool focused) {
         reopened_ = false;
         const bool atMenu = input::MenuShownIn(context);
@@ -28,8 +29,8 @@ public:
         // transitions. Hiding the shell on each drop re-armed every input gate
         // and strobed the room controls, so availability falls only after a
         // sustained absence. A fight or Play Offline still hides immediately,
-        // and so does a Practice match's end, once the fight is no longer one
-        // the menu is shown over.
+        // and so does the end of a fight the menu is shown over (a Practice
+        // match, a watched game), once it is no longer one.
         awayFrames_ = atMenu ? 0 : awayFrames_ + 1;
         const bool wasAvailable = available_;
         available_ = !fighting && (atMenu || (available_ && awayFrames_ < AwayFrames));
@@ -71,8 +72,9 @@ private:
 // The menu may hold the pads only where the presentation is available: never
 // while a match is prepared or played (but for a Practice match this PC
 // fights, whose fighter gives the game neutral input while the menu is
-// open), nor after it until the game is back at the main menu or over an
-// export, and elsewhere only for AwayFrames,
+// open, and a game it only watches, which takes no input from it), nor after
+// it until the game is back at the main menu or over an export, and
+// elsewhere only for AwayFrames,
 // which ride out the native menu's brief drops. So what the drawing thread
 // last published never holds the pads once the menu has gone, even with no
 // frame drawn to say it hid.

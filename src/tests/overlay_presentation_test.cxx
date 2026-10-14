@@ -92,28 +92,28 @@ int main() {
     OverlayPresentation late;
     late.Update(MenuContext::MainMenu, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
     late.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
-    // A Practice match this PC fights is a place for the menu: once its fight
-    // runs, Start or F10 opens it there. Any other fight, and the practice
-    // fight's own end, still hide it at once; the game's end brings the board
-    // back as after any game.
-    {
-        OverlayPresentation practice;
-        practice.Update(MenuContext::MainMenu, MatchState::None, false, true);
-        practice.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
-        CHECK(!practice.Available() && !practice.Visible());
-        practice.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
-        practice.Open(); CHECK(!practice.Available() && !practice.Visible());
-        practice.Update(MenuContext::PracticeMatch, MatchState::Playing, false, true);
-        CHECK(practice.Available() && !practice.Visible());
-        practice.Open(); CHECK(practice.Visible());
-        practice.Toggle(); CHECK(!practice.Visible());
-        practice.Toggle(); CHECK(practice.Visible());
-        practice.Update(MenuContext::PracticeMatch, MatchState::Playing, false, false); CHECK(practice.Visible());
-        practice.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
-        CHECK(!practice.Visible() && !practice.Available());
-        practice.Open(); CHECK(!practice.Visible());
-        practice.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
-        CHECK(practice.Visible() && practice.Reopened());
+    // A Practice match this PC fights, and a game it only watches, are places
+    // for the menu: once the fight runs, Start or F10 opens it there. Any other
+    // fight, and that fight's own end (a spectator's leave retires its stream),
+    // still hide it at once; the game's end brings the board back as after any game.
+    for (const auto context : {MenuContext::PracticeMatch, MenuContext::WatchedMatch}) {
+        OverlayPresentation over;
+        over.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        over.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
+        CHECK(!over.Available() && !over.Visible());
+        over.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        over.Open(); CHECK(!over.Available() && !over.Visible());
+        over.Update(context, MatchState::Playing, false, true);
+        CHECK(over.Available() && !over.Visible());
+        over.Open(); CHECK(over.Visible());
+        over.Toggle(); CHECK(!over.Visible());
+        over.Toggle(); CHECK(over.Visible());
+        over.Update(context, MatchState::Playing, false, false); CHECK(over.Visible());
+        over.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        CHECK(!over.Visible() && !over.Available());
+        over.Open(); CHECK(!over.Visible());
+        over.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
+        CHECK(over.Visible() && over.Reopened());
     }
     // The log says why the shell showed or hid.
     {
@@ -190,17 +190,20 @@ int main() {
         // prepared; Start is the game's pause there, so only a shown menu takes them.
         pads.Place(MenuContext::ReplayExport, true); CHECK(!pads.Holds());
         pads.Place(MenuContext::ReplayExport, false); CHECK(pads.Holds() && !pads.StartOpens());
-        // Over a Practice match this PC fights, Start opens the menu and its
-        // request holds the pads at once, so neither the press nor anything
-        // after it reaches the fight while the menu is up; the fighter gives
-        // the game neutral input. The fight's end gives the pads back at once.
-        MenuPads practice; practice.Place(MenuContext::PracticeMatch, true);
-        CHECK(!practice.Holds() && practice.Takes() && practice.StartOpens());
-        practice.Request(MenuPads::Kind::Controls); CHECK(practice.Holds());
-        practice.Publish(true, practice.Take()); CHECK(practice.Holds());
-        practice.Place(MenuContext::PracticeMatch, true); CHECK(practice.Holds());
-        practice.Place(MenuContext::Unavailable, true); CHECK(!practice.Holds() && !practice.Takes() && !practice.StartOpens());
-        practice.Place(MenuContext::PracticeMatch, true); practice.Publish(false, practice.Take()); CHECK(!practice.Holds());
+        // Over a Practice match this PC fights, and over a game it only
+        // watches, Start opens the menu and its request holds the pads at
+        // once, so neither the press nor anything after it reaches the fight
+        // while the menu is up; the fighter gives the game neutral input. The
+        // fight's end gives the pads back at once.
+        for (const auto context : {MenuContext::PracticeMatch, MenuContext::WatchedMatch}) {
+            MenuPads over; over.Place(context, true);
+            CHECK(!over.Holds() && over.Takes() && over.StartOpens());
+            over.Request(MenuPads::Kind::Controls); CHECK(over.Holds());
+            over.Publish(true, over.Take()); CHECK(over.Holds());
+            over.Place(context, true); CHECK(over.Holds());
+            over.Place(MenuContext::Unavailable, true); CHECK(!over.Holds() && !over.Takes() && !over.StartOpens());
+            over.Place(context, true); over.Publish(false, over.Take()); CHECK(!over.Holds());
+        }
         // A display reset drops the opens waiting and what was shown, until a frame says again.
         MenuPads reset; reset.Place(MenuContext::MainMenu, false);
         reset.Request(MenuPads::Kind::Play); reset.Publish(true, MenuPads::Taken{});

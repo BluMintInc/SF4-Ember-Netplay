@@ -2272,11 +2272,8 @@ msgstr "接続が不安定です。予測入力で対戦を続けています。
 msgid "runtime.connection_restored"
 msgstr "接続が復旧しました。"
 
-msgid "runtime.spectator_disconnected"
-msgstr "観戦者の接続が切れました。"
-
 msgid "runtime.spectator_stream_lost"
-msgstr "観戦映像の通信が切れました。「観戦」で次の対戦に参加してください。"
+msgstr "The spectator stream was dropped. You'll watch the next game at this table."
 
 msgid "runtime.match_connection_lost"
 msgstr "対戦の接続が切れました。"
@@ -2286,6 +2283,9 @@ msgstr "対戦相手の接続が切れました。対戦は終了です。"
 
 msgid "runtime.leaving_spectator"
 msgstr "観戦を終了しています。"
+
+msgid "runtime.spectator_sat_out"
+msgstr "The game started while you were away from the main menu. You'll watch the next one."
 
 msgid "runtime.returning_room"
 msgstr "ルームに戻っています。"
@@ -2487,6 +2487,9 @@ msgstr " 席が空きます。"
 
 msgid "room.leave.queue"
 msgstr " 順番待ちから外れます。"
+
+msgid "room.leave.watching"
+msgstr " Your spectator view ends."
 
 msgid "room.leave.host"
 msgstr " 別のメンバーがホストになります。"
@@ -2879,11 +2882,26 @@ msgstr "この練習対戦を両者とも今すぐ終了します。結果は記
 msgid "room.leave_queue"
 msgstr "順番待ちをやめる"
 
+msgid "room.leave_queue.watching"
+msgstr " You keep watching this game until it ends."
+
 msgid "room.join_queue"
 msgstr "順番待ちに入る"
 
 msgid "room.stop_watching"
 msgstr "観戦をやめる"
+
+msgid "room.stop_watching.detail"
+msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+
+msgid "room.leave_game"
+msgstr "Leave this game"
+
+msgid "room.leave_game.detail"
+msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+
+msgid "room.watching_ends"
+msgstr " Your spectator view ends; the fighters keep playing."
 
 msgid "room.watch_next"
 msgstr "次の対戦を観戦"

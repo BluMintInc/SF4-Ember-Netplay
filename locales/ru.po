@@ -2273,11 +2273,8 @@ msgstr "Связь нестабильна. Игра идёт с предсказ
 msgid "runtime.connection_restored"
 msgstr "Связь восстановлена."
 
-msgid "runtime.spectator_disconnected"
-msgstr "Зритель отключился."
-
 msgid "runtime.spectator_stream_lost"
-msgstr "Трансляция для зрителя прервалась. Нажмите «Смотреть», чтобы войти в следующий матч."
+msgstr "The spectator stream was dropped. You'll watch the next game at this table."
 
 msgid "runtime.match_connection_lost"
 msgstr "Связь в матче потеряна."
@@ -2287,6 +2284,9 @@ msgstr "Соперник отключился. Матч окончен."
 
 msgid "runtime.leaving_spectator"
 msgstr "Выход из режима зрителя."
+
+msgid "runtime.spectator_sat_out"
+msgstr "The game started while you were away from the main menu. You'll watch the next one."
 
 msgid "runtime.returning_room"
 msgstr "Возвращение в лобби."
@@ -2488,6 +2488,9 @@ msgstr " Ваше место освободится."
 
 msgid "room.leave.queue"
 msgstr " Вы потеряете место в очереди."
+
+msgid "room.leave.watching"
+msgstr " Your spectator view ends."
 
 msgid "room.leave.host"
 msgstr " Другой участник станет ведущим."
@@ -2880,11 +2883,26 @@ msgstr "Сразу завершает этот тренировочный мат
 msgid "room.leave_queue"
 msgstr "Выйти из очереди"
 
+msgid "room.leave_queue.watching"
+msgstr " You keep watching this game until it ends."
+
 msgid "room.join_queue"
 msgstr "В очередь"
 
 msgid "room.stop_watching"
 msgstr "Не смотреть"
+
+msgid "room.stop_watching.detail"
+msgstr "Stops watching this table and returns you to the room. The fighters keep playing."
+
+msgid "room.leave_game"
+msgstr "Leave this game"
+
+msgid "room.leave_game.detail"
+msgstr "Stops watching this game and returns you to the room. You keep your place in the queue, and the fighters keep playing."
+
+msgid "room.watching_ends"
+msgstr " Your spectator view ends; the fighters keep playing."
 
 msgid "room.watch_next"
 msgstr "Смотреть новый бой"

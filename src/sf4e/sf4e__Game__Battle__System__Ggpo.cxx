@@ -288,7 +288,7 @@ void LeaveOrphanedNetplayBattle(rSystem* system) {
     (system->*rSystem::publicMethods.BattleUpdate)();
 }
 
-void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity) {
+void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity, AbortCause cause) {
     if (s_abortLatch.Request(reason)) {
         // Inside a GGPO callback: mark the session fatal so the remaining
         // callbacks of this burst do no engine work, remember the reason, and
@@ -304,9 +304,10 @@ void fSystem::AbortGgpoMatch(const char* reason, sf4e::NoticeSeverity severity) 
     }
     LogSaveSlotOccupancy("abort_entry");
     // A spectator's session retired before the room knows the match's end is its
-    // own stream failure. The runtime learns why when the battle closes, and
-    // leaves the game without its lock-in instead of ending the view silently.
-    if (ggpo && localPlayerHandle == GGPO_INVALID_HANDLE && !MatchResultKnown()) {
+    // own stream failure, unless the player left it. The runtime learns why when
+    // the battle closes, and leaves the game without its lock-in instead of
+    // ending the view silently.
+    if (cause == AbortCause::Failure && ggpo && localPlayerHandle == GGPO_INVALID_HANDLE && !MatchResultKnown()) {
         sf4e::NetplayFacade::NotifyRuntimeSpectatorStreamFailed();
     }
     simGate.OnFatal();
@@ -892,12 +893,11 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         }
         // The fork raises this for spectator queues too. A spectator
         // dropping must not end the two fighters' game; GGPO has already
-        // stopped forwarding to that spectator.
+        // stopped forwarding to that spectator. The fighters are not told:
+        // the HUD's watcher count already drops.
         if (IsSpectatorHandle(info->u.disconnected.player)) {
             s_spectatorPolicy.OnDisconnected(info->u.disconnected.player);
             spdlog::info("GGPO: spectator handle {} disconnected; fight continues", info->u.disconnected.player);
-            if (!sf4e::NetplayFacade::DrainingSpectators())
-                sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.spectator_disconnected"), sf4e::NoticeSeverity::Info);
             break;
         }
         // The fight already ended; the opponent closing its own session is expected.

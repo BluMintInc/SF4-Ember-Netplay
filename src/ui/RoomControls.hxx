@@ -63,6 +63,31 @@ bool LeaveBlocked(const ShellView& v);
 // its own fighter. The rows that offer it and dispatch read this one answer.
 enum class AbandonableGame { None, Unresolved, Practice };
 AbandonableGame AbandonableAt(const ShellView& v, const room::Table& t);
+// How a spectator leaves the game it watches, from Ember over that game. A
+// watcher by choice stops watching the table (Unwatch). A queued member, whom
+// the room lists as a spectator of the game it waits out, leaves this game
+// only and keeps its queue place (LeaveGame: an Unwatch that keeps watching).
+// None away from a watched game, for a fighter, and at a tournament's table,
+// where the room takes no seating change. The row that offers it and dispatch
+// read this one answer.
+struct WatchedExit {
+    enum Kind { None, Unwatch, LeaveGame } kind = None;
+    int table = -1;
+};
+WatchedExit ExitFromWatchedGame(const ShellView& v);
+// Whether the room takes a press of `kind` at `table` now. Everything waits
+// for a writable authority but the exit from the watched game: the runtime
+// sends that straight to the live link, and the authority scopes it by the
+// game's generation rather than the table's revision, so a room still
+// catching up on its checkpoint takes it too. SendRoom, the board's Stop
+// watching row and the seat chooser read it; the table page keeps its own
+// wait wording for the whole page.
+bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table);
+// What a press of `kind` means for the game this PC watches, as a sentence
+// added to its row: Queue and Watch take the game back to the room first,
+// which ends the view, and leaving the queue keeps the view until the game
+// ends. Empty away from a watched game.
+std::string WatchingNote(const ShellView& v, room::ActionKind kind);
 // The sentences a confirmed departure states, one per thing it gives up.
 std::string LeavingCostText(const room::LeavingCost& cost, const room::Table& t);
 // The Ready control, described once for the board (card strip and legend),

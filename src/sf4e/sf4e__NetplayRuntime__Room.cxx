@@ -241,8 +241,10 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 					runtime->error = loc::T("runtime.spectator_action_retrying");
 					return Defer(runtime->roomActionIntent, command);
 				}
-				// The player chose to leave: a passing note, not an error.
-				if (action == room::ActionKind::Unwatch) AbortLocalMatch(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
+				// The player chose to leave: a passing note, not an error, and no
+				// stream failure, whose lock release would race the Unwatch that
+				// already ends the lock-in.
+				if (action == room::ActionKind::Unwatch) AbortLocalMatch(GgpoEnd::Leave(loc::T("runtime.leaving_spectator")));
 				return DispatchOutcome::Dispatched;
 			}
 			if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) return DispatchOutcome::Dropped;
@@ -827,16 +829,15 @@ void ResolvePendingIntents(bool helperReady) {
 	const bool healthyRoomControl = controlState.control == netplay::Health::Healthy &&
         (!controlState.coordinated || controlState.authorityWritable);
 	const bool matchIdle = runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle;
-	if (const auto* parked = runtime->roomActionIntent.Parked()) {
-		// A spectator leaves while its stream still runs: Unwatch must reach
-		// P1 before local GGPO retirement. Everything else waits for the menu.
-		const bool spectatorExit = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo &&
-			(parked->roomAction.kind == room::ActionKind::Unqueue || parked->roomAction.kind == room::ActionKind::Unwatch);
-		if (healthyRoomControl && !runtime->recoveringMatch && (spectatorExit || (AtMainMenu() && matchIdle)))
-			Retry(runtime->roomActionIntent, helperReady);
+	// A spectator's own leave and its chat go while its stream runs; everything
+	// else waits for the menu (ParkedActionRetryable).
+	const bool spectatorInGame = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
+	const bool atMenuIdle = AtMainMenu() && matchIdle;
+	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent}) {
+		const auto* parked = intent->Parked();
+		if (parked && healthyRoomControl && !runtime->recoveringMatch &&
+			netplay::ParkedActionRetryable(parked->roomAction.kind, spectatorInGame, atMenuIdle)) Retry(*intent, helperReady);
 	}
-	if (runtime->chatIntent.Parked() && healthyRoomControl && !runtime->recoveringMatch && AtMainMenu() && matchIdle)
-		Retry(runtime->chatIntent, helperReady);
 	// A sent Ready keeps its budget; the pump clears it on commit or failure.
 	if (runtime->readyIntent.Parked() && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate &&
 		!Game::Battle::System::ggpo && matchIdle)

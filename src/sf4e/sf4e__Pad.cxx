@@ -97,10 +97,10 @@ void fSystem::UpdateInputs() {
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
     constexpr unsigned PhysicalStart=sf4e::input::NativeStart;
     const bool focused=focus.focused;
-    // Start opens Ember at the main menu, and over a Practice match this PC
-    // fights in, with the window in front or behind: the pads are polled
-    // there for it. The request holds the pads at once, so the press is
-    // cleared below before the game or the fight reads it.
+    // Start opens Ember at the main menu, over a Practice match this PC
+    // fights in and over a game it only watches, with the window in front or
+    // behind: the pads are polled there for it. The request holds the pads at
+    // once, so the press is cleared below before the game or the fight reads it.
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
     if(!connected||!sf4e::input::ControllerOpensMenu(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||

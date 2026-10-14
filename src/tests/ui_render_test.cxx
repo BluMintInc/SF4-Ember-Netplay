@@ -868,6 +868,11 @@ int main(int argc, char** argv) {
             view.room.tables[0].p1=5;view.room.tables[0].spectators={1};
             view.room.members[0].seat=-1;view.room.members[0].spectatorLocked=true;
             draw("table-spectator-locked");
+            // Ember over the game it watches: Stop watching on the board.
+            {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;
+             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
+             view.watchedMatch=true;page("room");draw("room-watched-match");page("room-table");
+             view.watchedMatch=false;view.session.match=match;view.room.tables[0].phase=phase;}
             // The start held for this locked-in spectator: the card and the
             // lock-in row say the game waits for them.
             {

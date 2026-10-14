@@ -406,5 +406,16 @@ void ChatJourneys(){
   "A burst that settled back where it was logged was never reported");
  h.shell.SetChatLog({});
  h.view.session.coordinated=false;
+ // A spectator chats during the game it watches, from Ember open over it: the
+ // room takes Chat during a game.
+ sequence=0;JoinChatRoom(h,31);
+ auto& watched=h.view.room.tables[0];watched.p1=2;watched.p2=3;watched.phase=room::TablePhase::Playing;watched.spectators={1};
+ h.view.room.members[0].table=0;h.view.session.match=netplay::MatchState::Playing;h.view.watchedMatch=true;
+ h.Screen("room-chat");h.Frame(0,3);
+ io.AddInputCharactersUTF8("Nice read");h.Frame(0,2);
+ sent=h.actions.size();key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Nice read",
+  "A spectator's message during the game it watches was not sent");
+ h.view.watchedMatch=false;h.view.session.match=netplay::MatchState::None;
  SetMenuEntriesProbe({});
 }

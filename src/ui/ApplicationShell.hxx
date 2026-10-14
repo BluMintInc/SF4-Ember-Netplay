@@ -140,6 +140,9 @@ struct ShellView {
     // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
     // Ember's menu is open over the fight, and End practice ends the game.
     bool practiceFight = false;
+    // This PC only watches a room game now (input::MenuContext::WatchedMatch):
+    // Ember's menu is open over it, and Stop watching leaves it.
+    bool watchedMatch = false;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -368,6 +371,8 @@ private:
     void ToggleReady(const ShellView& view, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
+    // Leaves the game this PC watches (Stop watching), once confirmed.
+    void LeaveWatchedGame(const ShellView& view, const Submit& submit);
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
