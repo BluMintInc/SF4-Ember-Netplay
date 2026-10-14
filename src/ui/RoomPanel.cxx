@@ -686,11 +686,6 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
  ShellAction request;request.command.generation=v.session.generation;request.leaveWatchedGame=v.watchedGame;
  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
  error_.clear();
- // The Unwatch that leaves the table ends a lock-in too, which is the player's
- // own doing and needs no notice.
- const auto* local=Member(v.room,v.room.localMember);
- if(leave==netplay::WatchedLeave::Unwatch&&local->spectatorLocked)
-  ownLockRelease_=OwnLockRelease{v.room.roomEpoch,local->id,v.watchedGame.table,v.watchedGame.generation,true};
  return true;
 }
 void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
@@ -699,36 +694,6 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   if(table.phase!=room::TablePhase::Playing)game.since=-1;
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
-}
-bool ApplicationShell::OwnLockRelease::Explains(const room::Snapshot& room,int lockedTable,bool watching) const {
- return roomEpoch==room.roomEpoch&&member==room.localMember&&table==lockedTable&&watching!=leavesTable;
-}
-bool ApplicationShell::OwnLockRelease::Lapsed(const room::Snapshot& room) const {
- if(roomEpoch!=room.roomEpoch||member!=room.localMember||table<0||table>=static_cast<int>(room.tables.size()))return true;
- const auto& t=room.tables[table];
- return leavesTable?netplay::GenerationEnded(t,generation):t.matchGeneration!=generation;
-}
-void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
- const auto* local=Member(v.room,v.room.localMember);
- int lockedAt=-1;
- if(local&&local->spectatorLocked)
-  for(const auto& t:v.room.tables)if(room::WatchesByChoice(t,local->id)){lockedAt=t.id;break;}
- const bool ended=lockedInTable_>=0&&lockedAt<0&&local&&v.room.roomEpoch==lockInEpoch_;
- // Still watching that table: the room ended it because the view dropped.
- const bool watching=ended&&room::WatchesByChoice(v.room.tables[lockedInTable_],local->id);
- // The lock-in's end spends the player's own release, whether or not it was
- // that release; a release that can no longer happen goes too.
- const bool own=ended&&ownLockRelease_&&ownLockRelease_->Explains(v.room,lockedInTable_,watching);
- if(lockedAt<0||(ownLockRelease_&&ownLockRelease_->Lapsed(v.room)))ownLockRelease_.reset();
- if(ended&&!own){
-  const bool playing=room::PlaceOf(v.room,local->id).kind!=room::Place::Kind::None;
-  bool elsewhere=false;
-  for(const auto& t:v.room.tables)elsewhere=elsewhere||room::WatchesByChoice(t,local->id);
-  notice_=loc::T(watching?"room.lock_in_ended.dropped":playing?"room.lock_in_ended.playing":
-   elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped");
-  noticeTone_=Tone::Pending;noticeUntil_=now+8;
- }
- lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {
  return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
@@ -870,7 +835,6 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="lock-spectating"){
    const auto* local=Member(v.room,v.room.localMember);
    request.kind=ActionKind::LockSpectating;request.locked=!(local&&local->spectatorLocked);
-   // The player's own release needs no notice of why it ended.
   }
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}
@@ -892,13 +856,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}
  else return;
- const auto lockRelease=request.kind==ActionKind::LockSpectating&&!request.locked?
-  std::optional<OwnLockRelease>(OwnLockRelease{v.room.roomEpoch,v.room.localMember,selectedTable_,v.room.tables[selectedTable_].matchGeneration,false}):std::nullopt;
  if(SendRoom(std::move(request),v,submit)){
   if(a.id=="apply-rules")rulesDirty_=false;
-  // The player's own release needs no notice of why it ended, and a new
-  // lock-in replaces a release still on its way.
-  if(a.id=="lock-spectating")ownLockRelease_=lockRelease;
  }else if(error_.empty())error_=loc::T("room.action_rejected");
 }
 } }

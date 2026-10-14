@@ -182,67 +182,50 @@ void FighterHasNoWatchedExit() {
     std::cout << "FighterHasNoWatchedExit passed\n";
 }
 
-// The player's own leave of a locked-in watch is not reported as the room
-// ending the lock-in, however long the room takes to show it; the room ending
-// it otherwise still is. A leave the room can no longer take (the game ended
-// first) explains nothing that happens to the lock-in later.
-void LockedInLeaveIsNotReported() {
-    enum class Then { RoomTakesIt, ViewDrops, GameEndsFirst };
-    const auto notice = [](bool leftByPlayer, Then then) {
-        WatchedBoard board;
-        board.Local().spectatorLocked = true;
-        board.OpenOverGame();
-        if (leftByPlayer) {
-            board.Confirm();
-            Check(board.LeftOnce(), "A locked-in watcher's Stop watching submitted no leave");
-        }
-        // The stream retires at once; the room's answer is slow to show.
-        board.view.watchedGame = {};
-        for (int i = 0; i < 7; ++i) board.Frame(0, 1.f);
-        board.status.clear();
-        if (then == Then::GameEndsFirst) {
-            board.Table().phase = room::TablePhase::Waiting; ++board.Table().revision; ++board.view.room.revision;
-            board.Frame();
-        }
-        if (then != Then::ViewDrops) board.LeftTable();
-        else { board.Local().spectatorLocked = false; ++board.view.room.revision; }
-        for (int i = 0; i < 5; ++i) board.Frame();
-        return board.status;
-    };
-    Check(notice(false, Then::RoomTakesIt) == loc::T("room.lock_in_ended.stopped"), "The room ending a lock-in by itself was not reported");
-    const auto own = notice(true, Then::RoomTakesIt);
+// Why a lock-in ended comes from the runtime, which knows from the room's
+// answers which ends were the player's own (netplay::LockInWatch). The shell
+// tells each published end once and never guesses: a locked-in watcher's own
+// Stop watching or Release, however late the room shows it, adds no notice.
+void LockInEndIsToldOnce() {
+    using netplay::LockInEnd;
+    WatchedBoard board;
+    board.Local().spectatorLocked = true;
+    board.OpenOverGame();
+    board.Confirm();
+    Check(board.LeftOnce(), "A locked-in watcher's Stop watching submitted no leave");
+    board.view.watchedGame = {};
+    for (int i = 0; i < 7; ++i) board.Frame(0, 1.f);
+    board.status.clear();
+    board.LeftTable();
+    for (int i = 0; i < 5; ++i) board.Frame();
     for (const char* id : {"room.lock_in_ended.stopped", "room.lock_in_ended.moved", "room.lock_in_ended.playing", "room.lock_in_ended.dropped"})
-        Check(own != loc::T(id), "The player's own Stop watching, shown late, was reported as a released lock-in");
-    Check(notice(true, Then::ViewDrops) == loc::T("room.lock_in_ended.dropped"),
-        "A lock-in the view's drop ended was taken for the player's Stop watching");
-    Check(notice(true, Then::GameEndsFirst) == loc::T("room.lock_in_ended.stopped"),
-        "A Stop watching the room could no longer take hid a later end of the lock-in");
-    std::cout << "LockedInLeaveIsNotReported passed\n";
-}
-
-// Release lock-in from Table options is the player's own too, however late
-// the room shows it. A release the room never took, with the lock-in still
-// held once the table's next game has begun, explains nothing later.
-void ReleaseIsNotReported() {
-    const auto notice = [](bool nextGameFirst) {
-        WatchedBoard board;
-        board.Local().spectatorLocked = true;
-        board.OpenOverGame();
-        board.shell.Navigation().Push("room-table"); board.Frame();
-        board.shell.Navigation().Focus("lock-spectating", board.rows);
-        board.Press(MenuInput::Select);
-        Check(!board.actions.empty() && board.actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
-            !board.actions.back().roomAction.locked, "Release lock-in was not sent");
-        for (int i = 0; i < 7; ++i) board.Frame(0, 1.f);
-        board.status.clear();
-        if (nextGameFirst) { ++board.Table().matchGeneration; ++board.Table().revision; ++board.view.room.revision; board.Frame(); }
-        board.Local().spectatorLocked = false; ++board.view.room.revision;
-        for (int i = 0; i < 5; ++i) board.Frame();
-        return board.status;
-    };
-    Check(notice(false) != loc::T("room.lock_in_ended.dropped"), "The player's own release, shown late, was announced as the room's");
-    Check(notice(true) == loc::T("room.lock_in_ended.dropped"), "A release the room never took hid a later end of the lock-in");
-    std::cout << "ReleaseIsNotReported passed\n";
+        Check(board.status != loc::T(id), "The player's own Stop watching, shown late, was reported as a released lock-in");
+    WatchedBoard release;
+    release.Local().spectatorLocked = true;
+    release.OpenOverGame();
+    release.shell.Navigation().Push("room-table"); release.Frame();
+    release.shell.Navigation().Focus("lock-spectating", release.rows);
+    release.Press(MenuInput::Select);
+    Check(!release.actions.empty() && release.actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
+        !release.actions.back().roomAction.locked, "Release lock-in was not sent");
+    for (int i = 0; i < 7; ++i) release.Frame(0, 1.f);
+    release.status.clear();
+    release.Local().spectatorLocked = false; ++release.view.room.revision;
+    for (int i = 0; i < 5; ++i) release.Frame();
+    Check(release.status != loc::T("room.lock_in_ended.dropped"), "The player's own release, shown late, was announced as the room's");
+    const std::pair<LockInEnd, const char*> told[] = {{LockInEnd::Dropped, "room.lock_in_ended.dropped"},
+        {LockInEnd::Stopped, "room.lock_in_ended.stopped"}, {LockInEnd::Moved, "room.lock_in_ended.moved"},
+        {LockInEnd::Playing, "room.lock_in_ended.playing"}};
+    for (const auto& end : told) {
+        release.status.clear();
+        release.view.lockInEnded = {release.view.lockInEnded.sequence + 1, end.first};
+        release.Frame();
+        Check(release.status == loc::T(end.second), "A lock-in the room ended was not told why");
+        release.status.clear();
+        release.Frame(0, 9.f); release.Frame();
+        Check(release.status != loc::T(end.second), "A lock-in end was told twice");
+    }
+    std::cout << "LockInEndIsToldOnce passed\n";
 }
 
 // A room still catching up on its checkpoint takes the leave; a room whose
@@ -310,8 +293,7 @@ int main() try {
     DispatchReadsTheRuleWhenAnswered();
     TableUnwatchIsTheSameLeave();
     FighterHasNoWatchedExit();
-    LockedInLeaveIsNotReported();
-    ReleaseIsNotReported();
+    LockInEndIsToldOnce();
     CatchingUpRoomTakesTheLeave();
     FinishedGameEndsOnlyTheView();
     std::cout << "Watched match exit tests passed\n";

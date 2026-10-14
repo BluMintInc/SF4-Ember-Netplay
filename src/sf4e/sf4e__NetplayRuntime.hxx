@@ -160,6 +160,9 @@ struct Runtime {
 	// stays pending, resent as needed, until the room confirms it, the player
 	// locks in again, or it expires, whatever the room commits meanwhile.
 	netplay::SpectatorLockRelease spectatorLockRelease;
+	// The local member's lock-in and the player's own ends of it in flight,
+	// published as the reason one ended (RuntimeSnapshot::lockInEnded).
+	netplay::LockInWatch lockInWatch;
 	// When the current grant's entry first waited for the main menu.
 	std::uint64_t entryDeferredGeneration = 0;
 	ULONGLONG entryDeferredSinceMs = 0;

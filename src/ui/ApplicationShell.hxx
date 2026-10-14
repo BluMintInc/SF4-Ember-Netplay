@@ -145,6 +145,9 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
+    // Why the room last ended this member's lock-in (RuntimeSnapshot::lockInEnded),
+    // shown once per sequence. A Release or Stop watching the room accepted is never in it.
+    netplay::LockInEnded lockInEnded;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -384,29 +387,8 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
-    // A lock-in the room cleared other than by the player's Release (they
-    // stopped watching, moved, or their spectator view dropped) gets a notice
-    // saying why.
-    void TrackLockIn(const ShellView& view, double now);
-    int lockedInTable_=-1;
-    std::uint64_t lockInEpoch_=0;
-    // The player's own end of their lock-in at `table`, until the room shows
-    // it or can no longer take it. Stop watching leaves the table, and its
-    // Unwatch is refused once the watched game (`generation`) has ended.
-    // Release keeps the watch, and is about the lock-in on the game the table
-    // was at when pressed (`generation`): it goes within its parked budget,
-    // so a lock-in still held once the next game has begun outlived it.
-    struct OwnLockRelease {
-        std::uint64_t roomEpoch=0;
-        room::MemberId member=0;
-        int table=-1;
-        std::uint64_t generation=0;
-        bool leavesTable=false;
-        // Whether the lock-in `room` no longer shows at lockedTable ended by this press.
-        bool Explains(const room::Snapshot& room,int lockedTable,bool watching) const;
-        bool Lapsed(const room::Snapshot& room) const;
-    };
-    std::optional<OwnLockRelease> ownLockRelease_;
+    // The last lock-in end shown (ShellView::lockInEnded).
+    std::uint64_t lockInEndedSeen_=0;
     bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);

@@ -177,6 +177,97 @@ inline bool SpectatorFailureOwesLockRelease(bool spectator, std::uint64_t admitt
 	return spectator && admittedGeneration != 0 && !generationFinished;
 }
 
+// Why the local member's lock-in ended, as the player is told it
+// (room.lock_in_ended.*): they stopped watching, watch another table, took a
+// seat or a queue place, or the room released it because their view dropped.
+enum class LockInEnd : std::uint8_t { Stopped, Moved, Playing, Dropped };
+// The newest end to tell; the sequence counts them, so each is told once.
+struct LockInEnded {
+	std::uint64_t sequence = 0;
+	LockInEnd reason = LockInEnd::Stopped;
+};
+
+// Follows the local member's lock-in from one room projection to the next and
+// says why it ended, unless the player ended it: Release lock-in, or the
+// Unwatch of Stop watching. Those are known by the authority's answer to the
+// action, never by timing. The runtime records the action when it is sent
+// (Sent) and passes the reply (Answered). Accepted, it explains the end that
+// follows. Refused, or unanswered after AnswerMs, it explains nothing, so a
+// later end, such as a stream failure's release, is told. The authority answers
+// the member before it broadcasts, so an end normally shows with its answer;
+// one that shows first waits for it. Only the newest own end is kept.
+class LockInWatch {
+public:
+	static constexpr std::uint64_t AnswerMs = 30000;
+	// An own end of the lock-in this room shows, sent under actionId. An Unwatch
+	// that leaves the table explains an end off the table, a release one on it.
+	void Sent(const room::Snapshot& room, bool leavesTable, std::uint64_t actionId, std::uint64_t nowMs) {
+		const int table = LockedTable(room);
+		if (table >= 0) own_ = Own{true, false, leavesTable, table, actionId, room.roomEpoch, room.localMember, nowMs};
+	}
+	void Answered(std::uint64_t actionId, bool accepted) {
+		if (!own_.sent || own_.actionId != actionId) return;
+		if (accepted) own_.accepted = true;
+		else own_ = {};
+	}
+	// Reads the projection the runtime holds once the replies are taken.
+	void Observe(const room::Snapshot& room, std::uint64_t nowMs) {
+		if (own_.sent && (own_.roomEpoch != room.roomEpoch || own_.member != room.localMember)) { own_ = {}; holding_ = false; }
+		if (own_.sent && !own_.accepted && nowMs - own_.sentAtMs >= AnswerMs) own_ = {};
+		const int locked = LockedTable(room);
+		const auto* local = room::FindMember(room, room.localMember);
+		if (locked_ >= 0 && locked < 0 && local && room.roomEpoch == epoch_) {
+			const bool watching = room::WatchesByChoice(room.tables[locked_], local->id);
+			const auto reason = Reason(room, *local, watching);
+			if (!own_.sent || own_.table != locked_ || own_.leavesTable == watching) Tell(reason);
+			else if (own_.accepted) own_ = {};
+			else { held_ = reason; holding_ = true; }
+		}
+		// An end shown before its answer is the player's once accepted, and told otherwise.
+		if (holding_ && (!own_.sent || own_.accepted)) {
+			if (!own_.sent) Tell(held_);
+			holding_ = false; own_ = {};
+		}
+		// An accepted end with no lock-in left to explain explains nothing later.
+		if (own_.accepted && locked < 0) own_ = {};
+		locked_ = locked; epoch_ = room.roomEpoch;
+	}
+	// A room left: its actions and lock-in are gone. The sequence stays, so the
+	// next room's first end is still new to the shell.
+	void Reset() { own_ = {}; holding_ = false; locked_ = -1; epoch_ = 0; }
+	const LockInEnded& Ended() const { return ended_; }
+private:
+	// The newest own end sent and not yet refused, forgotten, or spent.
+	struct Own {
+		bool sent = false, accepted = false, leavesTable = false;
+		int table = -1;
+		std::uint64_t actionId = 0, roomEpoch = 0;
+		room::MemberId member = 0;
+		std::uint64_t sentAtMs = 0;
+	};
+	static int LockedTable(const room::Snapshot& room) {
+		const auto* local = room::FindMember(room, room.localMember);
+		if (local && local->spectatorLocked)
+			for (const auto& table : room.tables) if (room::WatchesByChoice(table, local->id)) return table.id;
+		return -1;
+	}
+	static LockInEnd Reason(const room::Snapshot& room, const room::Member& local, bool watching) {
+		if (watching) return LockInEnd::Dropped;
+		if (room::PlaceOf(room, local.id).kind != room::Place::Kind::None) return LockInEnd::Playing;
+		const bool elsewhere = std::any_of(room.tables.begin(), room.tables.end(),
+			[&](const room::Table& table) { return room::WatchesByChoice(table, local.id); });
+		return elsewhere ? LockInEnd::Moved : LockInEnd::Stopped;
+	}
+	void Tell(LockInEnd reason) { ended_.sequence++; ended_.reason = reason; }
+	Own own_;
+	// An end shown while its own action awaited the answer.
+	bool holding_ = false;
+	LockInEnd held_ = LockInEnd::Stopped;
+	int locked_ = -1;
+	std::uint64_t epoch_ = 0;
+	LockInEnded ended_;
+};
+
 // The game a spectator's live stream shows: the table it was admitted at and
 // the generation it was admitted to. It belongs to the local match, not to the
 // table, which the room moves on (back to Waiting, a queued member rotated

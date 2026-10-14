@@ -356,7 +356,12 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	auto outcome = DispatchOutcome::Dispatched;
 	switch (decision.effect) {
 	case netplay::Effect::SendRoomAction: {
-		const auto sent = UserApp::netplay->client.SendRoomAction(command.roomAction);
+		std::uint64_t actionId = 0;
+		auto& client = UserApp::netplay->client;
+		const auto sent = client.SendRoomAction(command.roomAction, &actionId);
+		// Release lock-in is the player's own end of it, once the room accepts it.
+		if (sent == session::SendResult::Queued && command.roomAction.kind == room::ActionKind::LockSpectating && !command.roomAction.locked)
+			runtime->lockInWatch.Sent(client.GetRoomSnapshot(), false, actionId, GetTickCount64());
 		// A full queue or a control reconnect is transient: keep the intent
 		// under its budget rather than making the player press again.
 		if (sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull)
@@ -756,6 +761,7 @@ void DrainActionReplies() {
             if(reply.actionId==runtime->leaveActionId && reply.accepted) runtime->leaveAcknowledged=true;
 			// Only the authority's acceptance ends a spectator's lock release.
 			if (reply.accepted) runtime->spectatorLockRelease.Acknowledged(reply.actionId);
+			runtime->lockInWatch.Answered(reply.actionId, reply.accepted);
 			// A refused Ready fails now, with the room's reason, instead of
 			// sitting as "Readying up..." until the intent timeout blames the
 			// previous match.
@@ -778,6 +784,8 @@ void DrainActionReplies() {
 				runtime->matchFinishedAction.reset();
 			}
         }
+		// After the replies, so an end the player's accepted action explains is not told.
+		runtime->lockInWatch.Observe(UserApp::netplay->client.GetRoomSnapshot(), GetTickCount64());
     }
 }
 

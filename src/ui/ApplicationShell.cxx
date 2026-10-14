@@ -663,7 +663,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  UpdateRoomTransitions(v,now);
  TrackLiveGames(v,now);
- TrackLockIn(v,now);
+ // Why the room ended this member's lock-in, told once (netplay::LockInWatch).
+ // Sequence 0 is a runtime that has told nothing.
+ if(v.lockInEnded.sequence!=lockInEndedSeen_){
+  static constexpr const char* lockInEndedKeys[]={"room.lock_in_ended.stopped","room.lock_in_ended.moved","room.lock_in_ended.playing","room.lock_in_ended.dropped"};
+  lockInEndedSeen_=v.lockInEnded.sequence;
+  if(lockInEndedSeen_){notice_=loc::T(lockInEndedKeys[static_cast<int>(v.lockInEnded.reason)]);noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+ }
  UpdateChat(v,submit);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);

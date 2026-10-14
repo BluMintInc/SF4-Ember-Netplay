@@ -825,13 +825,11 @@ int main() try {
         shell.Navigation().Push("room-table"); frame();
         Check(menuStatus == Tf("room.hold.waiting_you", 4), "The status line did not say the start waits for this spectator");
         Check(row("lock-spectating").detail.find(Tf("room.hold.waiting_you", 4)) == std::string::npos, "The lock-in row repeated the status line");
-        // Released by the player: no notice. Cleared by the room: a notice says why.
-        // Cleared by the room, the lock-in gets a notice saying why; released
-        // by the player, none.
-        view.room.members[0].spectatorLocked = false; ++view.room.revision; frame();
+        // Cleared by the room, the lock-in gets the runtime's reason (netplay::LockInWatch); released by the player, none.
+        view.room.members[0].spectatorLocked = false; view.lockInEnded = {1, netplay::LockInEnd::Dropped}; ++view.room.revision; frame();
         Check(menuStatus == T("room.lock_in_ended.dropped"), "A lock-in the stream failure ended was not explained");
         view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
-        view.room.members[0].spectatorLocked = false; held.spectators = {3}; ++view.room.revision; frame();
+        view.room.members[0].spectatorLocked = false; held.spectators = {3}; view.lockInEnded = {2, netplay::LockInEnd::Stopped}; ++view.room.revision; frame();
         Check(menuStatus == T("room.lock_in_ended.stopped"), "A lock-in that ended with watching was not explained");
         Check(!shell.NoticeOpen(), "A lock-in that ended opened a modal");
         view.room.members[0].spectatorLocked = true; held.spectators = {1, 3}; ++view.room.revision; frame(); frame();

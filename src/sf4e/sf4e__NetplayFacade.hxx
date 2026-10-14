@@ -153,6 +153,8 @@ namespace sf4e {
             // The game this PC only watches now (MenuContext::WatchedMatch), by
             // its own match rather than the table, which moves on first.
             netplay::WatchedGame watchedGame;
+            // Why the room last ended this member's lock-in (netplay::LockInWatch).
+            netplay::LockInEnded lockInEnded;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;

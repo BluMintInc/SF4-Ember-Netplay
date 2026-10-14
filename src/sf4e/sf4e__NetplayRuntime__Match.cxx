@@ -339,10 +339,13 @@ netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& asked) {
 	unwatch.tableRevision = room.tables[game.table].revision;
 	// Sent before the stream retires, so P1 receives game_peer_end while the
 	// generation is still current.
-	if (client.SendRoomAction(unwatch) != session::SendResult::Queued) {
+	std::uint64_t actionId = 0;
+	if (client.SendRoomAction(unwatch, &actionId) != session::SendResult::Queued) {
 		runtime->error = loc::T("runtime.spectator_action_retrying");
 		return netplay::DispatchOutcome::Deferred;
 	}
+	// Ending a lock-in too, the player's own doing once the room accepts it.
+	runtime->lockInWatch.Sent(room, !unwatch.keepWatching, actionId, GetTickCount64());
 	// The player chose to leave: a passing note, not an error, and no stream
 	// failure, whose lock release would race the Unwatch that already ends the
 	// lock-in.
