@@ -1919,6 +1919,18 @@ msgstr "{0} s"
 msgid "training.meter.history.detail"
 msgstr "How long the meter keeps what happened. While the meter is held, the mouse wheel over the bars steps back through it a page at a time, so a longer history reaches the start of a long combo."
 
+msgid "training.meter.after_pause"
+msgstr "After a pause"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Start over"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Continue"
+
+msgid "training.meter.after_pause.detail"
+msgstr "What the meter does when something moves again after both fighters were quiet. Start over clears the bars for the new exchange, as Street Fighter 6 does. Continue goes on after the last exchange, so the history scrolls back through several."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recovery on HUD"
 

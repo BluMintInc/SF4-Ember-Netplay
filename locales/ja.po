@@ -1919,6 +1919,18 @@ msgstr "{0}秒"
 msgid "training.meter.history.detail"
 msgstr "メーターが記録を保持する長さ。停止中はバーの上でマウスホイールを回すと1ページずつ戻れます。長くすると長いコンボの最初まで戻れます。"
 
+msgid "training.meter.after_pause"
+msgstr "停止後"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "最初から"
+
+msgid "training.meter.after_pause.continue"
+msgstr "続ける"
+
+msgid "training.meter.after_pause.detail"
+msgstr "両者が止まった後に再び動いたときのメーターの動作。「最初から」はストリートファイター6と同じく新しい攻防のためにバーを消去します。「続ける」は前の攻防の後に続け、履歴で複数の攻防を遡れます。"
+
 msgid "training.meter.hud_recovery"
 msgstr "HUDに硬直を表示"
 

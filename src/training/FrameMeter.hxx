@@ -171,6 +171,8 @@ constexpr int HudSizes = 3;
 struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
     // The frames the meter keeps, one of MeterHistoryChoices.
     int history = 1200;
+    // After a pause the next exchange goes on after the last instead of starting over.
+    bool continuous = false;
     // Where the meter's bottom edge sits, in percent of the screen's height
     // from the top (MeterPositions; 82 is just above the super meters).
     int position = 82; };
@@ -337,6 +339,9 @@ inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
+    // Whether an exchange after a held meter goes on after what the bars hold
+    // (the classic way) instead of starting on clear bars, as SF6's does.
+    void SetContinuous(bool continuous) { continuous_ = continuous; }
     // The frames kept from now on; a shorter length drops the oldest at once.
     void SetHistory(std::size_t frames) {
         history_ = (std::max)(MeterShown, frames);
@@ -481,8 +486,14 @@ public:
                 other == MeterKind::Down || other == MeterKind::Sequence);
             if (reaction && attacking && !aside_.empty()) {
                 Append(aside_, asideLength_, latest);
-                view_.frames.swap(aside_); view_.length = asideLength_;
-            } else { view_.frames.clear(); view_.length = 0; Append(view_.frames, view_.length, latest); }
+                // Continuing, the bars keep what they had and take on the
+                // frames kept aside since they were held.
+                if (continuous_) for (std::size_t at = asideKept_; at < aside_.size(); ++at) Append(view_.frames, view_.length, aside_[at]);
+                else { view_.frames.swap(aside_); view_.length = asideLength_; }
+            } else {
+                if (!continuous_) { view_.frames.clear(); view_.length = 0; }
+                Append(view_.frames, view_.length, latest);
+            }
             aside_.clear(); view_.frozen = false;
             return;
         }
@@ -497,7 +508,10 @@ public:
             if (!aside_.empty()) for (auto& cell : aside_.front().cells) cell.newAction = cell.split = false;
         }
         // The quiet frames after the last active one leave the bars.
-        for (unsigned quiet = 0; quiet < idleFrames_ && view_.frames.size() > 1; ++quiet) { view_.frames.pop_back(); --view_.length; }
+        unsigned quiet = 0;
+        for (; quiet < idleFrames_ && view_.frames.size() > 1; ++quiet) { view_.frames.pop_back(); --view_.length; }
+        // What the bars still hold of the frames kept aside; the rest are added when continuing.
+        asideKept_ = aside_.size() - (std::min)(aside_.size(), static_cast<std::size_t>(quiet));
     }
 private:
     void Append(std::deque<MeterFrame>& bars, std::size_t& length, MeterFrame added) const {
@@ -625,7 +639,8 @@ private:
     // contact, and that exchange's frames so far (Observe).
     std::deque<MeterFrame> aside_;
     std::size_t asideLength_ = 0;
-    std::size_t history_ = MeterHistory;
+    std::size_t history_ = MeterHistory, asideKept_ = 0;
+    bool continuous_ = false;
     // When the armed exchange began, on the clock of accepted observations.
     std::int64_t exchangeAt_ = 0;
     // On the clock of accepted observations; -1 none.

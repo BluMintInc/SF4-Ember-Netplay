@@ -1919,6 +1919,18 @@ msgstr "{0} s"
 msgid "training.meter.history.detail"
 msgstr "Combien de temps le compteur garde ce qui s'est passé. Quand il est figé, la molette au-dessus des barres recule page par page ; un historique plus long remonte au début d'un long combo."
 
+msgid "training.meter.after_pause"
+msgstr "Après une pause"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Recommencer"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Continuer"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Ce que fait le compteur quand quelque chose bouge à nouveau après que les deux combattants sont restés immobiles. Recommencer vide les barres pour le nouvel échange, comme Street Fighter 6. Continuer reprend après le précédent, pour remonter l'historique sur plusieurs."
+
 msgid "training.meter.hud_recovery"
 msgstr "Récupération sur le HUD"
 

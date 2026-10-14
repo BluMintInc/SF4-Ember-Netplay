@@ -141,8 +141,11 @@ int main() {
     }
     // The meter sits above the super meters unless an offered place is saved.
     CHECK(ReadMeterOptions(json::parse(R"({"position":50})")).position == 82 && ReadMeterOptions(json::parse(R"({"position":"40"})")).position == 82);
-    for (const int choice : MeterPositions) {
-        MeterOptions saved; saved.position = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).position == choice);
+    for (const int choice : MeterPositions) { MeterOptions saved; saved.position = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).position == choice); }
+    // The meter starts over after a pause unless "continue" is saved.
+    CHECK(!ReadMeterOptions(json::object()).continuous && !ReadMeterOptions(json::parse(R"({"after_pause":true})")).continuous);
+    {
+        MeterOptions going; going.continuous = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(going).dump())).continuous);
     }
     // Every part of the HUD shows unless it is saved as a literal false, and
     // a round trip keeps each one apart from the others.

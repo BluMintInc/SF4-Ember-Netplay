@@ -1919,6 +1919,18 @@ msgstr "{0} s"
 msgid "training.meter.history.detail"
 msgstr "Hoe lang de meter bijhoudt wat er gebeurde. Terwijl de meter vastgehouden wordt, bladert het muiswiel boven de balken er pagina per pagina door terug, dus een langere geschiedenis reikt tot het begin van een lange combo."
 
+msgid "training.meter.after_pause"
+msgstr "Na een pauze"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Opnieuw beginnen"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Doorgaan"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Wat de meter doet als er weer iets beweegt nadat beide vechters stil stonden. Opnieuw beginnen maakt de balken leeg voor de nieuwe uitwisseling, zoals Street Fighter 6. Doorgaan gaat verder na de vorige, zodat de geschiedenis door meerdere terugbladert."
+
 msgid "training.meter.hud_recovery"
 msgstr "Herstel op de HUD"
 

@@ -1919,6 +1919,18 @@ msgstr "{0} 秒"
 msgid "training.meter.history.detail"
 msgstr "计量表保留记录的时长。暂停时在条形上滚动鼠标滚轮可逐页回看；更长的历史可回看到长连段的开头。"
 
+msgid "training.meter.after_pause"
+msgstr "暂停后"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "重新开始"
+
+msgid "training.meter.after_pause.continue"
+msgstr "继续"
+
+msgid "training.meter.after_pause.detail"
+msgstr "双方静止后再次行动时计量表的处理方式。重新开始会像街头霸王6一样为新的攻防清空条形。继续会接在上一次之后，可在历史中回看多次攻防。"
+
 msgid "training.meter.hud_recovery"
 msgstr "在 HUD 显示硬直"
 

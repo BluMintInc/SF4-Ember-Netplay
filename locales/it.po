@@ -1919,6 +1919,18 @@ msgstr "{0} s"
 msgid "training.meter.history.detail"
 msgstr "Per quanto tempo il misuratore conserva ciò che è successo. Con il misuratore bloccato, la rotella sopra le barre torna indietro di una pagina alla volta; una cronologia più lunga arriva all'inizio di una combo lunga."
 
+msgid "training.meter.after_pause"
+msgstr "Dopo una pausa"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Ricomincia"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Continua"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Cosa fa il misuratore quando qualcosa si muove di nuovo dopo che entrambi i lottatori sono rimasti fermi. Ricomincia svuota le barre per il nuovo scambio, come Street Fighter 6. Continua prosegue dopo il precedente, così la cronologia ne ripercorre diversi."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recupero nell'HUD"
 

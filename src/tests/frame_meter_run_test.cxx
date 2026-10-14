@@ -75,6 +75,16 @@ int main() {
                 fill.Cell((length - 1) % 60) == static_cast<int>(MeterHistory) - 1,
                 "The newest frame left its cell once the oldest were dropped");
         }
+        // After a pause the next exchange starts on clear bars, or, continuing,
+        // goes on after the last one, the quiet frames between left out.
+        for (const bool continuous : {false, true}) {
+            Fight pause; pause.meter.SetContinuous(continuous);
+            pause.Play(Attack, 10); pause.Play(Quiet, Quiets);
+            Require(pause.View().frozen && pause.View().length == 10, "The bars did not hold after an exchange");
+            pause.Play(Attack, 5);
+            Require(!pause.View().frozen && pause.View().length == (continuous ? 15u : 5u) && pause.View().frames.size() == pause.View().length,
+                continuous ? "Continuing started the next exchange over" : "The next exchange did not start on clear bars");
+        }
         // A shorter history keeps only the newest frames, at once and from then on.
         {
             Fight kept; kept.Play(Attack, 600);

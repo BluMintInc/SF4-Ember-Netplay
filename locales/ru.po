@@ -1920,6 +1920,18 @@ msgstr "{0} с"
 msgid "training.meter.history.detail"
 msgstr "Сколько счётчик хранит произошедшее. Пока он остановлен, колесо мыши над полосами листает назад по странице; более длинная история достаёт до начала длинного комбо."
 
+msgid "training.meter.after_pause"
+msgstr "После паузы"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Начать заново"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Продолжить"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Что делает счётчик, когда что-то снова движется после того, как оба бойца стояли. Начать заново очищает полосы для нового размена, как в Street Fighter 6. Продолжить идёт после предыдущего, и история листается через несколько."
+
 msgid "training.meter.hud_recovery"
 msgstr "Восстановление на HUD"
 

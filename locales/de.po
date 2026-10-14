@@ -1919,6 +1919,18 @@ msgstr "{0} s"
 msgid "training.meter.history.detail"
 msgstr "Wie lange die Anzeige das Geschehene behält. Während sie angehalten ist, blättert das Mausrad über den Balken seitenweise zurück; ein längerer Verlauf reicht bis zum Beginn einer langen Kombo."
 
+msgid "training.meter.after_pause"
+msgstr "Nach einer Pause"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Neu beginnen"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Fortsetzen"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Was die Anzeige tut, wenn sich nach einer Ruhephase beider Kämpfer wieder etwas bewegt. Neu beginnen leert die Balken für den neuen Schlagabtausch wie in Street Fighter 6. Fortsetzen macht nach dem letzten weiter, sodass der Verlauf mehrere zurückreicht."
+
 msgid "training.meter.hud_recovery"
 msgstr "Erholung im HUD"
 

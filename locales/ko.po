@@ -1919,6 +1919,18 @@ msgstr "{0}초"
 msgid "training.meter.history.detail"
 msgstr "미터가 기록을 보관하는 시간. 멈춘 동안 막대 위에서 마우스 휠로 한 페이지씩 되돌아갈 수 있으며, 길게 하면 긴 콤보의 시작까지 볼 수 있습니다."
 
+msgid "training.meter.after_pause"
+msgstr "멈춘 뒤"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "새로 시작"
+
+msgid "training.meter.after_pause.continue"
+msgstr "이어서"
+
+msgid "training.meter.after_pause.detail"
+msgstr "두 파이터가 멈춘 뒤 다시 움직일 때 미터의 동작. 새로 시작은 스트리트 파이터 6처럼 새 교전을 위해 막대를 비웁니다. 이어서는 이전 교전 뒤에 이어 기록으로 여러 교전을 되돌아볼 수 있습니다."
+
 msgid "training.meter.hud_recovery"
 msgstr "HUD에 경직 표시"
 

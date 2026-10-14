@@ -45,8 +45,9 @@ static_assert((ReservedInputBits & FightButtons) == 0, "reserved bits overlap th
 unsigned ClearReservedInputBits(unsigned raw);
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
-// How many frames the meter keeps (MeterOptions::history). Any thread.
-void SetMeterHistory(int frames);
+// How many frames the meter keeps, and whether an exchange after a pause goes
+// on after the last (MeterOptions::history, continuous). Any thread.
+void SetMeterHistory(int frames, bool continuous);
 void CloseBattle();
 void StopCapture();
 // The override exists only during one native offline training update.

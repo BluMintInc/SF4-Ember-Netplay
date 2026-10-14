@@ -71,6 +71,7 @@ int scriptFighter[2] = {-1, -1};
 std::atomic<bool> watching{false};
 // The frames the meter keeps, as the Frame data page chose (SetMeterHistory).
 std::atomic<int> meterHistory{static_cast<int>(MeterHistory)};
+std::atomic<bool> meterContinuous{false};
 bool matchShown = false;
 ConfirmedSamples confirmed;
 // A Practice room's match. It has no shared checkpoint: the
@@ -476,7 +477,7 @@ void AfterUpdate(Native* system) {
         // Recorded for the facing the input was prepared with, then the new positions.
         if (commitInput) session.Commit(output);
         FollowPositions(system);
-        meter.SetHistory(static_cast<std::size_t>(meterHistory.load()));
+        meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
         // The dummy is free again: it may reply, and it may change its stance.
         // Its stun is timed, so the reply's motion can go in before the free
@@ -523,7 +524,7 @@ unsigned ClearReservedInputBits(unsigned raw) {
     return matchPractice ? raw & ~ReservedInputBits : raw;
 }
 void WatchMatches(bool enabled) { watching = enabled; }
-void SetMeterHistory(int frames) { meterHistory = frames; }
+void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.

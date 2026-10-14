@@ -1716,6 +1716,18 @@ msgstr "{0} s"
 msgid "training.meter.history.detail"
 msgstr "Cuánto tiempo guarda el medidor lo ocurrido. Con el medidor fijado, la rueda del mouse sobre las barras retrocede página por página; un historial más largo llega al inicio de un combo largo."
 
+msgid "training.meter.after_pause"
+msgstr "Después de una pausa"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Empezar de nuevo"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Continuar"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Qué hace el medidor cuando algo se mueve otra vez después de que ambos luchadores quedaron quietos. Empezar de nuevo vacía las barras para el nuevo intercambio, como Street Fighter 6. Continuar sigue después del anterior, para recorrer varios en el historial."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recuperación en el HUD"
 
