@@ -2906,6 +2906,9 @@ msgstr "Stoppen met kijken"
 msgid "room.stop_watching.detail"
 msgstr "Stopt met kijken naar deze tafel en brengt je terug naar de kamer. De spelers blijven spelen."
 
+msgid "room.stop_watching.finished"
+msgstr "De kamer heeft deze partij al afgerond. Stopt met kijken naar de rest en brengt je terug naar de kamer."
+
 msgid "room.leave_game"
 msgstr "Deze partij verlaten"
 

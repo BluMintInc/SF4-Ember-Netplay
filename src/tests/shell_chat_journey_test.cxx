@@ -410,12 +410,12 @@ void ChatJourneys(){
  // room takes Chat during a game.
  sequence=0;JoinChatRoom(h,31);
  auto& watched=h.view.room.tables[0];watched.p1=2;watched.p2=3;watched.phase=room::TablePhase::Playing;watched.spectators={1};
- h.view.room.members[0].table=0;h.view.session.match=netplay::MatchState::Playing;h.view.watchedMatch=true;
+ watched.matchGeneration=4;h.view.room.members[0].table=0;h.view.session.match=netplay::MatchState::Playing;h.view.watchedGame={0,4};
  h.Screen("room-chat");h.Frame(0,3);
  io.AddInputCharactersUTF8("Nice read");h.Frame(0,2);
  sent=h.actions.size();key(ImGuiKey_Enter);
  Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Nice read",
   "A spectator's message during the game it watches was not sent");
- h.view.watchedMatch=false;h.view.session.match=netplay::MatchState::None;
+ h.view.watchedGame={};h.view.session.match=netplay::MatchState::None;
  SetMenuEntriesProbe({});
 }

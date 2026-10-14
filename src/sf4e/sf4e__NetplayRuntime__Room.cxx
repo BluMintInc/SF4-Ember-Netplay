@@ -234,6 +234,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			const bool immediateSpectatorAction = localSpectator &&
 				(action == room::ActionKind::Unqueue || action == room::ActionKind::Unwatch);
 			if (immediateSpectatorAction) {
+				if (EndWatchedViewOnly(command.roomAction)) return DispatchOutcome::Dispatched;
 				// Removing a queued spectator preserves the current spectator
 				// stream. Unwatch is sent before local GGPO retirement so P1
 				// receives game_peer_end while the generation is still current.
@@ -826,17 +827,17 @@ void ResolvePendingIntents(bool helperReady) {
 		runtime->error = loc::T("runtime.previous_match_close_timeout");
 	}
 	const auto& controlState = runtime->controller.GetSnapshot();
-	const bool healthyRoomControl = controlState.control == netplay::Health::Healthy &&
-        (!controlState.coordinated || controlState.authorityWritable);
 	const bool matchIdle = runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle;
-	// A spectator's own leave and its chat go while its stream runs; everything
-	// else waits for the menu (ParkedActionRetryable).
-	const bool spectatorInGame = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
-	const bool atMenuIdle = AtMainMenu() && matchIdle;
+	netplay::RetryGate gate;
+	gate.controlHealthy = controlState.control == netplay::Health::Healthy;
+	gate.authorityWritable = !controlState.coordinated || controlState.authorityWritable;
+	gate.recoveringMatch = runtime->recoveringMatch;
+	gate.spectatorInGame = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
+	gate.atMenuIdle = AtMainMenu() && matchIdle;
+	const bool healthyRoomControl = gate.controlHealthy && gate.authorityWritable;
 	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent}) {
 		const auto* parked = intent->Parked();
-		if (parked && healthyRoomControl && !runtime->recoveringMatch &&
-			netplay::ParkedActionRetryable(parked->roomAction.kind, spectatorInGame, atMenuIdle)) Retry(*intent, helperReady);
+		if (parked && netplay::ParkedActionRetryable(parked->roomAction, gate)) Retry(*intent, helperReady);
 	}
 	// A sent Ready keeps its budget; the pump clears it on commit or failure.
 	if (runtime->readyIntent.Parked() && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate &&

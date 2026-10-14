@@ -286,18 +286,39 @@ static void StaleEntryIsReleased() {
 
 // A parked room action goes again at the main menu with no match in hand. A
 // spectator in a live game sends its own leave and its chat at once; anything
-// else, and everything a fighter parked, waits for the menu.
+// else, and everything a fighter parked, waits for the menu. All of them wait
+// for a writable authority but the spectator's generation-scoped Unwatch, as
+// on its first send, and nothing goes over a lost control or a recovery.
 static void ParkedActionRetryGate() {
 	using room::ActionKind;
+	const auto action = [](ActionKind kind, std::uint64_t generation = 0) {
+		room::Action value; value.kind = kind; value.matchGeneration = generation; return value;
+	};
+	netplay::RetryGate menu; menu.controlHealthy = menu.authorityWritable = menu.atMenuIdle = true;
+	netplay::RetryGate watching; watching.controlHealthy = watching.authorityWritable = watching.spectatorInGame = true;
+	netplay::RetryGate fighting; fighting.controlHealthy = fighting.authorityWritable = true;
 	for (const auto kind : {ActionKind::Unwatch, ActionKind::Unqueue, ActionKind::Chat}) {
-		CHECK(netplay::ParkedActionRetryable(kind, true, false));
-		CHECK(!netplay::ParkedActionRetryable(kind, false, false));
-		CHECK(netplay::ParkedActionRetryable(kind, false, true));
+		CHECK(netplay::ParkedActionRetryable(action(kind), watching));
+		CHECK(!netplay::ParkedActionRetryable(action(kind), fighting));
+		CHECK(netplay::ParkedActionRetryable(action(kind), menu));
 	}
 	for (const auto kind : {ActionKind::Queue, ActionKind::Watch, ActionKind::LockSpectating, ActionKind::Kick}) {
-		CHECK(!netplay::ParkedActionRetryable(kind, true, false));
-		CHECK(netplay::ParkedActionRetryable(kind, false, true));
+		CHECK(!netplay::ParkedActionRetryable(action(kind), watching));
+		CHECK(netplay::ParkedActionRetryable(action(kind), menu));
 	}
+	// A room catching up on its checkpoint: healthy control, authority not writable.
+	auto catchingUp = watching; catchingUp.authorityWritable = false;
+	CHECK(netplay::ParkedActionRetryable(action(ActionKind::Unwatch, 9), catchingUp));
+	for (const auto kind : {ActionKind::Unwatch, ActionKind::Unqueue, ActionKind::Chat, ActionKind::Queue})
+		CHECK(!netplay::ParkedActionRetryable(action(kind), catchingUp));
+	auto menuCatchingUp = menu; menuCatchingUp.authorityWritable = false;
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Unwatch, 9), menuCatchingUp));
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Chat), menuCatchingUp));
+	auto lost = catchingUp; lost.controlHealthy = false;
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Unwatch, 9), lost));
+	auto recovering = watching; recovering.recoveringMatch = true;
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Unwatch, 9), recovering));
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Chat), recovering));
 	std::cout << "ParkedActionRetryGate passed\n";
 }
 

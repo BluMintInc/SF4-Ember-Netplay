@@ -58,12 +58,6 @@ namespace sf4e {
 			st.inMatch = fSystem::ggpo != nullptr;
 			st.inputDelay = fUserApp::netplay->delay;
 			for (int side = 0; side < 2; ++side) st.matchSides[side] = fUserApp::netplay->matchSides[side];
-			if (fSystem::ggpo) {
-				st.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
-				st.appliedDelay = fSystem::matchTelemetry.appliedDelay;
-				st.spectator = fSystem::matchTelemetry.spectator;
-				st.spectatorBacklog = fSystem::matchTelemetry.backlog;
-			}
 			// Spectators carry their table too, so everyone watching sees the same count.
 			const auto& room = fUserApp::netplay->client.GetRoomSnapshot();
 			std::uint32_t liveScore[2] = { 0, 0 };
@@ -77,12 +71,6 @@ namespace sf4e {
 					st.spectators = static_cast<int>(table.spectators.size());
 					const bool decided = table.lastSet.generation != 0 && table.lastSet.generation == table.matchGeneration;
 					for (int side = 0; side < 2; ++side) liveScore[side] = decided ? table.lastSet.score[side] : table.score[side];
-					// A spectator applies no delay of its own: it is shown the one the
-					// room has its fighters play at.
-					if (st.spectator) {
-						st.appliedDelay = room::MatchDelay(table);
-						st.ownDelays = room.delayPolicy == room::DelayPolicy::Own;
-					}
 				}
 			const auto place = room::PlaceOf(room, room.localMember);
 			if (place.kind == room::Place::Kind::Queue) {
@@ -98,6 +86,14 @@ namespace sf4e {
 					strncpy_s(st.opponentName, m.name.c_str(), _TRUNCATE);
 					break;
 				}
+			}
+
+			if (fSystem::ggpo) {
+				st.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
+				st.appliedDelay = fSystem::matchTelemetry.appliedDelay;
+				st.ownDelays = fSystem::matchTelemetry.ownDelays;
+				st.spectator = fSystem::matchTelemetry.spectator;
+				st.spectatorBacklog = fSystem::matchTelemetry.backlog;
 			}
 		}
 		return st;

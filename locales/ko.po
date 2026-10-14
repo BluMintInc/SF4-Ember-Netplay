@@ -2906,6 +2906,9 @@ msgstr "관전 중지"
 msgid "room.stop_watching.detail"
 msgstr "이 테이블의 관전을 중지하고 방으로 돌아갑니다. 대전은 계속됩니다."
 
+msgid "room.stop_watching.finished"
+msgstr "방에서는 이 대전이 이미 끝났습니다. 남은 관전을 중지하고 방으로 돌아갑니다."
+
 msgid "room.leave_game"
 msgstr "이 대전 나가기"
 

@@ -2906,6 +2906,9 @@ msgstr "Přestat sledovat"
 msgid "room.stop_watching.detail"
 msgstr "Přestane sledovat tento stůl a vrátí vás do místnosti. Hráči hrají dál."
 
+msgid "room.stop_watching.finished"
+msgstr "Místnost už tento zápas ukončila. Přestane sledovat jeho zbytek a vrátí vás do místnosti."
+
 msgid "room.leave_game"
 msgstr "Opustit tento zápas"
 

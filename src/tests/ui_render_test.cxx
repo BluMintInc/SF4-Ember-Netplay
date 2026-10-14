@@ -870,10 +870,10 @@ int main(int argc, char** argv) {
             view.room.members[0].seat=-1;view.room.members[0].spectatorLocked=true;
             draw("table-spectator-locked");
             // Ember over the game it watches: Stop watching on the board.
-            {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;
+            {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;const auto generation=view.room.tables[0].matchGeneration;
              view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
-             view.watchedMatch=true;page("room");draw("room-watched-match");page("room-table");
-             view.watchedMatch=false;view.session.match=match;view.room.tables[0].phase=phase;}
+             view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");page("room-table");
+             view.watchedGame={};view.session.match=match;view.room.tables[0].phase=phase;view.room.tables[0].matchGeneration=generation;}
             // The start held for this locked-in spectator: the card and the
             // lock-in row say the game waits for them.
             {

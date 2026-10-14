@@ -210,6 +210,11 @@ static bool StartRuntimeGgpo() {
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         char loopback[] = "127.0.0.1";
         fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0]);
+        // The HUD keeps this game's delay, as its grant carries it, until the
+        // stream ends, as it keeps the starting score.
+        const auto& seats = netplay->client._matchData.inputDelay;
+        const auto delay = sf4e::room::WatchedGameDelay(room.delayPolicy, seats[0], seats[1]);
+        fSystem::matchTelemetry.GrantedDelay(delay.frames, delay.own);
     } else {
         GGPOPlayer players[sf4e::room::MaxMatchParticipants] = {};
         const auto slots = endpoints.localSlot == 0 ? endpoints.participantCount : 2;

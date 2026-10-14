@@ -275,7 +275,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
-    view.watchedMatch = snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch;
+    view.watchedGame = snapshot.watchedGame;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;

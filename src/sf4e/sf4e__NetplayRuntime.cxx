@@ -30,6 +30,7 @@ void ResetMatchEntry() {
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
+	runtime->enteredTable = -1;
 	runtime->sessionlessCloseGeneration = 0;
 	runtime->spectatorStreamFailedGeneration = 0;
 	runtime->entryDeferredGeneration = 0;
@@ -41,6 +42,13 @@ void ResetMatchEntry() {
 // check rather than the negation of this.
 bool LocalIsSpectator() {
 	return runtime && runtime->match && runtime->match->LocalSlot() >= 2;
+}
+
+// The entry stays for as long as GGPO does: the session cannot take another
+// grant until GGPO has let go of its socket.
+netplay::WatchedGame WatchedGameNow() {
+	if (!Game::Battle::System::ggpo || !LocalIsSpectator() || !runtime->matchEntered) return {};
+	return {runtime->enteredTable, runtime->enteredGeneration};
 }
 
 bool AtMainMenu() {

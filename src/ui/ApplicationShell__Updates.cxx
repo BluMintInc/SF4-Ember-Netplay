@@ -28,7 +28,7 @@ void ApplicationShell::UpdateLaunchCheck(const ShellView& v,double now,const Sub
  UpdatePrompt::Place place;
  place.home=home;
  // canEditPreferences is the runtime's own test for a game that may be left (UpdateNow needs it).
- place.free=v.canEditPreferences&&v.session.room==RoomState::Idle&&v.session.match==MatchState::None&&!v.practiceFight&&!v.watchedMatch&&
+ place.free=v.canEditPreferences&&v.session.room==RoomState::Idle&&v.session.match==MatchState::None&&!v.practiceFight&&!v.watchedGame.Active()&&
   v.inputCapture==input::Capture::Idle;
  place.uncovered=!nav.Editing()&&!nav.Reading()&&!nav.Confirming()&&!nav.Choosing()&&!menu_.NoticeOpen();
  place.settingsNoticeDone=gameSettingsChecked_||!v.showGameSettingsCard;

@@ -2906,6 +2906,9 @@ msgstr "Przestań oglądać"
 msgid "room.stop_watching.detail"
 msgstr "Przestaje oglądać ten stół i wraca do pokoju. Gracze grają dalej."
 
+msgid "room.stop_watching.finished"
+msgstr "Pokój już zakończył tę walkę. Przestaje oglądać jej resztę i wraca do pokoju."
+
 msgid "room.leave_game"
 msgstr "Opuść tę walkę"
 

@@ -31,7 +31,7 @@ constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1); }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
-// Ember over a game the player watches (ShellView::watchedMatch) lets the game
+// Ember over a game the player watches (ShellView::watchedGame) lets the game
 // show through: the shell's window and the room board's and Chat's panels are
 // lighter, and the menu art is left out. Their text keeps its own backing.
 constexpr float WatchedMatchWindowAlpha = .72f;

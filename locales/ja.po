@@ -2906,6 +2906,9 @@ msgstr "観戦をやめる"
 msgid "room.stop_watching.detail"
 msgstr "この対戦席の観戦をやめてルームに戻ります。対戦は続きます。"
 
+msgid "room.stop_watching.finished"
+msgstr "この対戦はルームではすでに終了しています。残りの観戦をやめてルームに戻ります。"
+
 msgid "room.leave_game"
 msgstr "この対戦から退出"
 

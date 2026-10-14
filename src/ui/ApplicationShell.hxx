@@ -6,6 +6,7 @@
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
 #include "../netplay/SessionController.hxx"
+#include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
@@ -140,9 +141,10 @@ struct ShellView {
     // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
     // Ember's menu is open over the fight, and End practice ends the game.
     bool practiceFight = false;
-    // This PC only watches a room game now (input::MenuContext::WatchedMatch):
-    // Ember's menu is open over it, and Stop watching leaves it.
-    bool watchedMatch = false;
+    // The room game this PC only watches now (RuntimeSnapshot::watchedGame,
+    // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
+    // watching leaves it. Empty when nothing is watched.
+    netplay::WatchedGame watchedGame;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -550,7 +552,10 @@ private:
     std::set<room::MemberId> muted_;
     std::uint64_t mutedEpoch_ = 0;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
+    // A press checked against the room's guards, then posted.
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
+    // Stamps an action with the room's revisions and hands it to the runtime.
+    bool PostRoom(room::Action action, const ShellView& view, const Submit& submit);
     bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
 };
 

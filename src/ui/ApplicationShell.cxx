@@ -140,7 +140,7 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  previousRoomState_=v.session.room;
  // Opened over a fight: the board, at End practice over a Practice match this
  // PC fights, at Stop watching over a game it only watches.
- if(hidden_&&(v.practiceFight||v.watchedMatch)){nav.Home();nav.Push("room");nav.Prefer(v.practiceFight?"end-practice":"stop-watching");}
+ if(hidden_&&(v.practiceFight||v.watchedGame.Active())){nav.Home();nav.Push("room");nav.Prefer(v.practiceFight?"end-practice":"stop-watching");}
  hidden_=false;
   if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;
@@ -735,10 +735,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // After every other source of a notice this frame, so the question never takes a place they are about to.
  UpdateLaunchCheck(v,now,submit);
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
- if(v.watchedMatch)ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
+ if(v.watchedGame.Active())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
- menu_.backInert=false;menu_.backdrop=!v.watchedMatch;
+ menu_.backInert=false;menu_.backdrop=!v.watchedGame.Active();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.

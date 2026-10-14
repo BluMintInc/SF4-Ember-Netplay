@@ -146,8 +146,10 @@ struct Runtime {
 	std::shared_ptr<session::IrohRoom> room;
 	std::unique_ptr<session::IrohMatchSession> match;
 	bool matchEntered = false;
-	// The generation whose battle the runtime entered, while matchEntered.
+	// The generation whose battle the runtime entered, while matchEntered, and
+	// the table this member was at when it entered (the game WatchedGameNow names).
 	std::uint64_t enteredGeneration = 0;
+	int enteredTable = -1;
 	// Set when a netplay battle closes with its GGPO session already retired:
 	// the generation that was entered. TickMatch decides what it means.
 	std::uint64_t sessionlessCloseGeneration = 0;
@@ -320,6 +322,9 @@ extern Runtime* runtime;
 // State shared by every phase (sf4e__NetplayRuntime.cxx).
 void ResetMatchEntry();
 bool LocalIsSpectator();
+// The game this PC only watches now: the entered generation and table while a
+// spectator's stream is live, else empty.
+netplay::WatchedGame WatchedGameNow();
 bool AtMainMenu();
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
@@ -383,6 +388,10 @@ void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverit
 // The room ended this PC's game with no result: retire it and say so.
 void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
+// The player's leave (an Unwatch) of the game this PC watches, once the room
+// needs nothing for it: only the rest of the stream ends. True when that was
+// the whole of the leave, false when the room is still owed it.
+bool EndWatchedViewOnly(const room::Action& leave);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();
 // Game thread: the announcer's challenger call at a percent of the game's voice volume.

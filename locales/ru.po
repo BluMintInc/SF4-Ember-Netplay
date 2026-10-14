@@ -2907,6 +2907,9 @@ msgstr "Не смотреть"
 msgid "room.stop_watching.detail"
 msgstr "Прекращает просмотр этого стола и возвращает в лобби. Бойцы продолжают играть."
 
+msgid "room.stop_watching.finished"
+msgstr "Лобби уже завершило этот бой. Прекращает просмотр оставшейся части и возвращает в лобби."
+
 msgid "room.leave_game"
 msgstr "Покинуть этот бой"
 

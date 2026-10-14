@@ -2906,6 +2906,9 @@ msgstr "Dejar de ver"
 msgid "room.stop_watching.detail"
 msgstr "Deja de ver esta mesa y te devuelve a la sala. Los jugadores siguen jugando."
 
+msgid "room.stop_watching.finished"
+msgstr "La sala ya ha terminado esta partida. Deja de ver lo que queda y te devuelve a la sala."
+
 msgid "room.leave_game"
 msgstr "Salir de esta partida"
 

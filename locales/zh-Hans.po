@@ -2906,6 +2906,9 @@ msgstr "停止观战"
 msgid "room.stop_watching.detail"
 msgstr "停止观战此对战席并返回房间。双方继续对战。"
 
+msgid "room.stop_watching.finished"
+msgstr "房间已结束此场对战。停止观看剩余部分并返回房间。"
+
 msgid "room.leave_game"
 msgstr "离开这场对战"
 

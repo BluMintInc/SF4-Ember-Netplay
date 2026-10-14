@@ -275,9 +275,9 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
     // A Practice match is this PC's to end only while it fights in it, under rollback.
     const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
     // A spectator leaves the game it watches only while its stream is live:
-    // the same test the room action's dispatch makes, so the menu's Stop
-    // watching and the leave it sends agree.
-    const bool watchedMatch = Game::Battle::System::ggpo && LocalIsSpectator();
+    // the game the snapshot names and the room action's dispatch reads, so
+    // the menu's Stop watching and the leave it sends agree.
+    const bool watchedMatch = WatchedGameNow().Active();
     return atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
         replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
@@ -447,6 +447,7 @@ PostPublishState Publish() {
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
+    snapshot.watchedGame = WatchedGameNow();
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     snapshot.installedContent = custom::Installed();

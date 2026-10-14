@@ -1,5 +1,6 @@
 #include "room_authority_support.hxx"
 #include "../netplay/ParkedIntent.hxx"
+#include "../common/MatchTelemetry.hxx"
 
 static void TestQueueWatchAndReplay() {
 	RoomAuthority authority("Roster", 8, 1);
@@ -311,6 +312,45 @@ static void TestHudScoreFollowsTheWatchedGame() {
 	CHECK(!sf4e::HudScore(false, true, start, false, none, shown));
 }
 
+// A spectator's HUD keeps the delay its game was granted with, taken as the
+// stream starts. The room ends that game and its fighters ready the next at
+// other delays while the stream still plays: the table's delays change, the
+// HUD's do not. An Own room's game says Own throughout.
+static void TestHudDelayFollowsTheWatchedGame() {
+	for (const auto policy : {DelayPolicy::Shared, DelayPolicy::Own}) {
+		RoomAuthority authority("Delays", 8, 7, Rules(), false, policy);
+		Join(authority, 0, true);
+		const auto a = Join(authority, 1), b = Join(authority, 2), w = Join(authority, 3);
+		const auto ready = [&](MemberId member, std::uint8_t delay) {
+			auto action = TableAction(authority, member, 0, ActionKind::Ready);
+			action.inputDelay = delay;
+			CHECK(authority.Apply(member, action).accepted);
+		};
+		for (const auto member : {a, b}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+		CHECK(authority.Apply(w, TableAction(authority, w, 0, ActionKind::Watch)).accepted);
+		ready(a, 3); ready(b, 5);
+		CHECK(authority.BeginMatch(0, a, b).accepted);
+		// What the grant's seats carry, as the host projects them (SeatMatchDelay).
+		const auto& room = authority.SnapshotView();
+		const auto& table = room.tables[0];
+		const auto granted = WatchedGameDelay(room.delayPolicy, SeatMatchDelay(room, table, 0), SeatMatchDelay(room, table, 1));
+		sf4e::MatchTelemetry telemetry;
+		telemetry.Reset(true);
+		telemetry.GrantedDelay(granted.frames, granted.own);
+		CHECK(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
+		const auto generation = table.matchGeneration;
+		CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+		for (const auto member : {a, b}) {
+			auto ack = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+			ack.matchGeneration = generation;
+			CHECK(authority.Apply(member, ack).accepted);
+		}
+		ready(a, 1); ready(b, 2);
+		CHECK(MatchDelay(table) == 2);
+		CHECK(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
+	}
+}
+
 // A Ready belongs to its seat. Once the committed room gives the client no
 // seat, a sent or parked press ends instead of running out its budget.
 static void TestLeavingTheSeatEndsItsReady() {
@@ -368,6 +408,7 @@ int main() {
 	TestLeavingQueueEndsTheQueuedWatch();
 	TestQueuedWatcherLeavesOneGame();
 	TestHudScoreFollowsTheWatchedGame();
+	TestHudDelayFollowsTheWatchedGame();
 	TestQueuePlaceCountsFromNext();
 
 	if (failures) return 1;

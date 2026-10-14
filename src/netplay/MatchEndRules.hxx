@@ -177,15 +177,66 @@ inline bool SpectatorFailureOwesLockRelease(bool spectator, std::uint64_t admitt
 	return spectator && admittedGeneration != 0 && !generationFinished;
 }
 
-// Whether a room action parked for its gate is sent again now, once the room
-// takes it (healthy control, no match recovery). Most wait for the main menu
-// with no match in hand. A spectator in a live game sends two kinds at once:
-// its own leave (Unwatch, Unqueue), which must reach P1 before its stream
-// retires, and chat, which the room takes during a game.
-inline bool ParkedActionRetryable(room::ActionKind kind, bool spectatorInGame, bool atMenuIdle) {
-	const bool goesMidGame = kind == room::ActionKind::Unwatch || kind == room::ActionKind::Unqueue ||
-		kind == room::ActionKind::Chat;
-	return atMenuIdle || (spectatorInGame && goesMidGame);
+// The game a spectator's live stream shows: the table it was admitted at and
+// the generation it was admitted to. It belongs to the local match, not to the
+// table, which the room moves on (back to Waiting, a queued member rotated
+// into a seat, the next generation) while the delayed stream still plays.
+// Empty while this PC watches nothing.
+struct WatchedGame {
+	int table = -1;
+	std::uint64_t generation = 0;
+	bool Active() const { return generation != 0 && table >= 0 && table < static_cast<int>(room::TableCount); }
+};
+
+// What leaving the watched game asks of the room. While the room still plays
+// that game with the member among its spectators, a generation-scoped Unwatch
+// for it: a queued member leaves that game alone and keeps its place
+// (LeaveGame, an Unwatch that keeps watching), anyone else leaves the table
+// (Unwatch). Once the room has finished the game, or no longer lists the
+// member there, the room needs nothing, and only the rest of the local stream
+// ends (EndView). None while nothing is watched, and for a fighter of the
+// table's live game, whatever its own match says.
+enum class WatchedLeave { None, EndView, Unwatch, LeaveGame };
+inline WatchedLeave LeaveOfWatchedGame(const room::Snapshot& room, const WatchedGame& game) {
+	if (!game.Active()) return WatchedLeave::None;
+	const auto& table = room.tables[game.table];
+	const auto* member = room::FindMember(room, room.localMember);
+	const auto listed = [&](const std::vector<room::MemberId>& list) {
+		return std::find(list.begin(), list.end(), member->id) != list.end();
+	};
+	const bool tableLive = table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Paused;
+	if (member && member->table == game.table && member->seat >= 0 && tableLive) return WatchedLeave::None;
+	if (GenerationEnded(table, game.generation) || !member || member->seat >= 0 || member->table != game.table ||
+		!listed(table.spectators)) return WatchedLeave::EndView;
+	return listed(table.queue) ? WatchedLeave::LeaveGame : WatchedLeave::Unwatch;
+}
+
+// Where the room stands when a parked room action may go again.
+struct RetryGate {
+	bool controlHealthy = false;
+	// The authority takes mutations now (or the room is not coordinated).
+	bool authorityWritable = false;
+	bool recoveringMatch = false;
+	// This PC watches a game whose stream is live.
+	bool spectatorInGame = false;
+	// At the main menu with no match in hand.
+	bool atMenuIdle = false;
+};
+// Whether a room action parked for its gate is sent again now. Nothing goes
+// over an unhealthy control or during a match recovery, and most actions also
+// wait for a writable authority and the main menu with no match in hand. A
+// spectator in a live game sends its own leave (Unwatch, Unqueue), which must
+// reach P1 before its stream retires, and chat, which the room takes during a
+// game. Its generation-scoped Unwatch, the exit from the game it watches, does
+// not wait for the authority either, just as its first send did not: the
+// authority scopes it by the game's generation, not by the table revision a
+// checkpoint catch-up is still settling.
+inline bool ParkedActionRetryable(const room::Action& action, const RetryGate& gate) {
+	if (!gate.controlHealthy || gate.recoveringMatch) return false;
+	if (gate.spectatorInGame && action.kind == room::ActionKind::Unwatch && action.matchGeneration) return true;
+	const bool goesMidGame = action.kind == room::ActionKind::Unwatch || action.kind == room::ActionKind::Unqueue ||
+		action.kind == room::ActionKind::Chat;
+	return gate.authorityWritable && (gate.atMenuIdle || (gate.spectatorInGame && goesMidGame));
 }
 
 // A grant for a newer generation while the runtime still holds the entry of an

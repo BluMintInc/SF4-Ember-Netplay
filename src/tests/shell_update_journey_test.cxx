@@ -136,9 +136,9 @@ void UpdateLaunchJourneys() {
   Check(!h.shell.NoticeOpen(), "The question came up away from the main menu (Training)");
   h.view.practiceFight = true; h.view.atMainMenu = true; h.view.canEditPreferences = true; h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came up over a Practice match");
-  h.view.practiceFight = false; h.view.watchedMatch = true; h.Frame(0, 30);
+  h.view.practiceFight = false; h.view.watchedGame = {0, 1}; h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came up over a watched game");
-  h.view.watchedMatch = false; h.view.inputCapture = input::Capture::Press; h.Frame(0, 30);
+  h.view.watchedGame = {}; h.view.inputCapture = input::Capture::Press; h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came up while a button was being assigned");
   h.view.inputCapture = input::Capture::Idle; h.Screen("settings"); h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came up on a screen that is not Home");

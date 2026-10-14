@@ -18,6 +18,7 @@
 #include "../common/MatchSide.hxx"
 #include "../platform/HelperProcess.hxx"
 #include "../netplay/SessionController.hxx"
+#include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
@@ -64,10 +65,11 @@ namespace sf4e {
         int spectators = 0;
         // A spectator's frames behind its host stream, -1 before it runs.
         int spectatorBacklog = -1;
-        // From the room snapshot, for a spectator: its table's games are played at
-        // each fighter's own delay (an Own room), not at appliedDelay; and the local
-        // member's place in that table's queue, from 1, of queueLength (0 when not queued).
+        // A spectator's game is played at each fighter's own delay (an Own room),
+        // not at appliedDelay; both are fixed when its stream starts.
         bool ownDelays = false;
+        // From the room snapshot: the local member's place in its table's queue,
+        // from 1, of queueLength (0 when not queued).
         int queuePosition = 0, queueLength = 0;
         // Live GGPO link state for the match HUD.
         bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
@@ -145,6 +147,9 @@ namespace sf4e {
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
+            // The game this PC only watches now (MenuContext::WatchedMatch), by
+            // its own match rather than the table, which moves on first.
+            netplay::WatchedGame watchedGame;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;

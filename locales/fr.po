@@ -2906,6 +2906,9 @@ msgstr "Arrêter de regarder"
 msgid "room.stop_watching.detail"
 msgstr "Arrête de regarder cette table et vous ramène au salon. Les combattants continuent de jouer."
 
+msgid "room.stop_watching.finished"
+msgstr "Le salon a déjà terminé ce combat. Arrête de regarder la suite et vous ramène au salon."
+
 msgid "room.leave_game"
 msgstr "Quitter ce combat"
 

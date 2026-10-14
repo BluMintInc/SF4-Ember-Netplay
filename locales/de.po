@@ -2906,6 +2906,9 @@ msgstr "Zuschauen beenden"
 msgid "room.stop_watching.detail"
 msgstr "Beendet das Zuschauen an diesem Tisch und bringt Sie zurück in den Raum. Die Spieler spielen weiter."
 
+msgid "room.stop_watching.finished"
+msgstr "Der Raum hat dieses Spiel bereits beendet. Beendet das Zuschauen beim Rest und bringt Sie zurück in den Raum."
+
 msgid "room.leave_game"
 msgstr "Dieses Spiel verlassen"
 

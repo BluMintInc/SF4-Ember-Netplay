@@ -577,13 +577,16 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 
 // A room, as this PC's runtime watches its table 0, and the game it is in.
 // enter false: the game is begun and granted, but this PC's setup of it
-// fails (its port cannot be reserved) at the next TickMatch.
+// fails (its port cannot be reserved) at the next TickMatch. queued: this PC
+// waits in the table's queue rather than watching by choice, and each game is
+// a whole set, so the end of one rotates the queue.
 struct WatchedGame {
 	sf4e::room::RoomAuthority authority;
 	sf4e::room::MemberId p1 = 0, p2 = 0, member = 0;
 	std::uint64_t generation = 0;
 	RuntimeRoom r;
-	explicit WatchedGame(bool practice, bool enter = true) : authority("Watched", 16, 96, sf4e::room::Rules(), practice) {
+	explicit WatchedGame(bool practice, bool enter = true, bool queued = false) :
+		authority("Watched", 16, 96, TableRules(queued), practice) {
 		namespace room = sf4e::room;
 		const auto join = [&](int index, bool host) {
 			const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
@@ -593,7 +596,7 @@ struct WatchedGame {
 		join(0, true);
 		p1 = join(1, false); p2 = join(2, false); member = join(3, false);
 		for (const auto fighter : {p1, p2}) CHECK(Act(fighter, room::ActionKind::Queue));
-		CHECK(Act(member, room::ActionKind::Watch));
+		CHECK(Act(member, queued ? room::ActionKind::Queue : room::ActionKind::Watch));
 		for (const auto fighter : {p1, p2}) CHECK(Act(fighter, room::ActionKind::Ready));
 		CHECK(authority.BeginMatch(0, p1, p2).accepted);
 		generation = authority.SnapshotView().tables[0].matchGeneration;
@@ -605,6 +608,11 @@ struct WatchedGame {
 		r.Deliver(Fixture::Connect(generation));
 		Tick(); Tick();
 		CHECK(r.Match().Generation() == generation);
+	}
+	static sf4e::room::Rules TableRules(bool queued) {
+		sf4e::room::Rules rules;
+		if (queued) rules.format = sf4e::room::SetFormat::Ft1;
+		return rules;
 	}
 	bool Act(sf4e::room::MemberId who, sf4e::room::ActionKind kind) {
 		const auto& view = authority.SnapshotView();
@@ -641,6 +649,49 @@ static void StartGgpoSession() {
 	callbacks.log_game_state = GgpoLog; callbacks.free_buffer = GgpoFree; callbacks.advance_frame = GgpoAdvance; callbacks.on_event = GgpoEvent;
 	char host[] = "127.0.0.1";
 	CHECK(ggpo_start_spectating(&sf4e::Game::Battle::System::ggpo, &callbacks, "unscored-end", 2, 2, 0, host, 9) == GGPO_OK);
+}
+
+// The game's battle took its stream: what entering the match records, with a
+// live GGPO session for a leave to retire.
+static void StreamWatchedGame(WatchedGame& game) {
+	StartGgpoSession();
+	auto* runtime = game.r.runtime;
+	runtime->matchEntered = true;
+	runtime->enteredGeneration = game.generation;
+	runtime->enteredTable = 0;
+	const auto watched = sf4e::NetplayFacade::internal::WatchedGameNow();
+	CHECK(watched.Active() && watched.table == 0 && watched.generation == game.generation);
+}
+
+// Stop watching as the shell submits it: an Unwatch scoped to the watched game.
+static void SubmitStopWatching(WatchedGame& game) {
+	const auto view = game.authority.SnapshotFor(game.member);
+	sf4e::NetplayFacade::RuntimeCommand leave;
+	leave.command = {sf4e::netplay::CommandKind::RoomAction, game.r.runtime->controller.GetSnapshot().generation, {}};
+	leave.roomAction.kind = sf4e::room::ActionKind::Unwatch;
+	leave.roomAction.table = 0;
+	leave.roomAction.roomEpoch = view.roomEpoch;
+	leave.roomAction.matchGeneration = game.generation;
+	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(leave)));
+}
+
+// The room actions of `kind` this PC sent from its `from`th message on.
+static std::vector<sf4e::room::Action> SentActions(const WatchedGame& game, sf4e::room::ActionKind kind, std::size_t from) {
+	std::vector<sf4e::room::Action> sent;
+	const auto& messages = game.r.transport->sent;
+	for (std::size_t i = from; i < messages.size(); ++i) {
+		if (messages[i].value("type", json()) != json(protocol::MT_ROOM_ACTION)) continue;
+		const auto action = messages[i].at("action").get<sf4e::room::Action>();
+		if (action.kind == kind) sent.push_back(action);
+	}
+	return sent;
+}
+
+// The player's own leave of the stream: a passing note, not an error.
+static void CheckLeftTheStream() {
+	const auto status = sf4e::NetplayFacade::GetStatus();
+	CHECK(!sf4e::Game::Battle::System::ggpo);
+	CHECK(std::string(status.lastError) == sf4e::loc::T("runtime.leaving_spectator") && status.lastErrorSeverity == sf4e::NoticeSeverity::Info);
 }
 
 // A game the room ends with no result tells this PC so, from the room's
@@ -686,51 +737,134 @@ void TestUnscoredEndNotice() {
 	std::cout << "TestUnscoredEndNotice passed\n";
 }
 
-// A spectator leaves the game it watches (Stop watching): its Unwatch goes out
-// at once while the stream is live, and the session is retired as the
-// player's own leave, a passing note. That is no stream failure, so no lock
-// release is armed: its unlock would race the Unwatch, which ends the lock-in
-// itself, and be refused once the room shows the member gone. Nothing is kept
-// for a retry either.
+// A locked-in spectator leaves the game it watches (Stop watching): its
+// Unwatch goes out at once while the stream is live, and the session is
+// retired as the player's own leave, a passing note. That is no stream
+// failure, so no lock release is armed and no abort is reported. The room
+// lists the member locked in until it applies the Unwatch, and a release sent
+// meanwhile would be refused there. The next tick, with the room still joined
+// and that projection still in hand, sends neither.
 void TestSpectatorLeavesWatchedGame() {
 	namespace room = sf4e::room;
 	namespace facade = sf4e::NetplayFacade;
 	using fSystem = sf4e::Game::Battle::System;
 	WatchedGame game(false);
 	auto* runtime = game.r.runtime;
-	facade::ClearMatchNotice();
-	StartGgpoSession();
-	// The battle took the stream (what entering the match records).
-	runtime->matchEntered = true;
-	runtime->enteredGeneration = game.generation;
-	const auto& view = game.authority.SnapshotFor(game.member);
-	facade::RuntimeCommand leave;
-	leave.command = {sf4e::netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
-	leave.roomAction.kind = room::ActionKind::Unwatch;
-	leave.roomAction.table = 0;
-	leave.roomAction.roomEpoch = view.roomEpoch;
-	leave.roomAction.matchGeneration = game.generation;
-	const auto sentBefore = game.r.transport->sent.size();
-	CHECK(facade::SubmitRuntimeCommand(std::move(leave)));
-	facade::internal::DrainCommands(true);
-	CHECK(!fSystem::ggpo && runtime->recoveringMatch);
-	const auto status = facade::GetStatus();
-	CHECK(std::string(status.lastError) == sf4e::loc::T("runtime.leaving_spectator") && status.lastErrorSeverity == sf4e::NoticeSeverity::Info);
-	facade::TickRuntime();
-	CHECK(!runtime->spectatorLockRelease.Pending() && !runtime->pendingAbort && runtime->spectatorStreamFailedGeneration == 0);
-	int unwatches = 0;
-	for (std::size_t i = sentBefore; i < game.r.transport->sent.size(); ++i) {
-		const auto& message = game.r.transport->sent[i];
-		if (message.value("type", json()) != json(protocol::MT_ROOM_ACTION)) continue;
-		const auto action = message.at("action").get<room::Action>();
-		if (action.kind == room::ActionKind::Unwatch) {
-			++unwatches;
-			CHECK(action.matchGeneration == game.generation && !action.keepWatching);
-		}
+	{
+		const auto& view = game.authority.SnapshotView();
+		room::Action lock;
+		lock.kind = room::ActionKind::LockSpectating; lock.locked = true; lock.table = 0;
+		lock.roomEpoch = view.roomEpoch; lock.revision = view.revision; lock.tableRevision = view.tables[0].revision;
+		lock.actionId = game.member * 1000 + view.revision + 1;
+		CHECK(game.authority.Apply(game.member, lock).accepted);
 	}
-	CHECK(unwatches == 1);
+	// The projection the leave is made from, kept to the end: listed, locked in.
+	game.r.Snapshot(game.authority.SnapshotFor(game.member));
+	const auto lockedIn = [&] {
+		const auto& snapshot = game.r.Client().GetRoomSnapshot();
+		const auto* local = room::FindMember(snapshot, snapshot.localMember);
+		const auto& watchers = snapshot.tables[0].spectators;
+		return local && local->spectatorLocked && std::find(watchers.begin(), watchers.end(), local->id) != watchers.end();
+	};
+	CHECK(lockedIn());
+	StreamWatchedGame(game);
+	facade::ClearMatchNotice();
+	const auto sentBefore = game.r.transport->sent.size();
+	const auto releaseClear = [&] {
+		return !runtime->spectatorLockRelease.Pending() && !runtime->pendingAbort && runtime->spectatorStreamFailedGeneration == 0;
+	};
+	SubmitStopWatching(game);
+	facade::internal::DrainCommands(true);
+	CheckLeftTheStream();
+	CHECK(runtime->recoveringMatch && releaseClear());
+	facade::TickRuntime();
+	CHECK(releaseClear());
+	CHECK(runtime->attached && runtime->controller.GetSnapshot().room == sf4e::netplay::RoomState::Joined);
+	CHECK(lockedIn());
+	const auto unwatches = SentActions(game, room::ActionKind::Unwatch, sentBefore);
+	CHECK(unwatches.size() == 1 && unwatches[0].matchGeneration == game.generation && !unwatches[0].keepWatching);
+	CHECK(SentActions(game, room::ActionKind::LockSpectating, sentBefore).empty());
+	CHECK(SentActions(game, room::ActionKind::AbortMatch, sentBefore).empty());
 	facade::ClearMatchNotice();
 	std::cout << "TestSpectatorLeavesWatchedGame passed\n";
+}
+
+// Stop watching parks when its first send finds the control link unable to
+// take it, and goes once the link can, while the room is still catching up on
+// its checkpoint (healthy control, authority not yet writable), just as its
+// first send would have: one Unwatch for the watched game, then the player's
+// own leave of the stream.
+void TestParkedStopWatchingCatchesUp() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	using fSystem = sf4e::Game::Battle::System;
+	WatchedGame game(false);
+	auto* runtime = game.r.runtime;
+	StreamWatchedGame(game);
+	// Connected, but the checkpoint has not applied for longer than the grace.
+	auto& controller = runtime->controller;
+	CHECK(controller.ObserveCoordination(1, 1, true, 1000, false));
+	CHECK(controller.ObserveCoordination(1, 1, true, 5000, false));
+	const auto state = controller.GetSnapshot();
+	CHECK(state.control == sf4e::netplay::Health::Healthy && state.coordinated && !state.authorityWritable);
+	facade::ClearMatchNotice();
+	const auto sentBefore = game.r.transport->sent.size();
+	game.r.transport->writable = false;
+	SubmitStopWatching(game);
+	facade::internal::DrainCommands(true);
+	CHECK(fSystem::ggpo && runtime->roomActionIntent.Parked());
+	CHECK(SentActions(game, room::ActionKind::Unwatch, sentBefore).empty());
+	game.r.transport->writable = true;
+	facade::internal::ResolvePendingIntents(true);
+	CheckLeftTheStream();
+	CHECK(runtime->recoveringMatch && !runtime->roomActionIntent.Parked());
+	facade::internal::ResolvePendingIntents(true);
+	const auto sent = SentActions(game, room::ActionKind::Unwatch, sentBefore);
+	CHECK(sent.size() == 1 && sent[0].matchGeneration == game.generation && !sent[0].keepWatching);
+	facade::ClearMatchNotice();
+	std::cout << "TestParkedStopWatchingCatchesUp passed\n";
+}
+
+// The room has finished the game this PC still watches: the table is back in
+// Waiting, a queued watcher was rotated into a seat, or the table plays its
+// next game. Stop watching then owes the room nothing: no Unwatch goes, for
+// that game or the next, nothing is owed for a stream failure, and only the
+// rest of the stream ends, as the player's own leave.
+void TestFinishedWatchEndsOnlyTheView() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	enum class After { Waiting, RotatedIntoSeat, NextGame };
+	for (const auto after : {After::Waiting, After::RotatedIntoSeat, After::NextGame}) {
+		WatchedGame game(false, true, after == After::RotatedIntoSeat);
+		auto* runtime = game.r.runtime;
+		StreamWatchedGame(game);
+		game.End(room::MatchResult::P1Win);
+		const auto& view = game.authority.SnapshotView();
+		if (after == After::RotatedIntoSeat)
+			CHECK(room::PlaceOf(view, game.member).kind == room::Place::Kind::Seat);
+		if (after == After::NextGame) {
+			for (const auto fighter : {game.p1, game.p2}) {
+				room::Action ack;
+				ack.kind = room::ActionKind::AcknowledgeTerminal; ack.table = 0; ack.matchGeneration = game.generation;
+				ack.roomEpoch = view.roomEpoch; ack.revision = view.revision; ack.tableRevision = view.tables[0].revision;
+				ack.actionId = fighter * 1000 + view.revision + 1;
+				CHECK(game.authority.Apply(fighter, ack).accepted);
+			}
+			for (const auto fighter : {game.p1, game.p2}) CHECK(game.Act(fighter, room::ActionKind::Ready));
+			CHECK(game.authority.BeginMatch(0, game.p1, game.p2).accepted);
+			CHECK(view.tables[0].phase == room::TablePhase::Playing && view.tables[0].matchGeneration > game.generation);
+		} else CHECK(view.tables[0].phase != room::TablePhase::Playing);
+		game.r.Snapshot(game.authority.SnapshotFor(game.member));
+		facade::ClearMatchNotice();
+		const auto sentBefore = game.r.transport->sent.size();
+		SubmitStopWatching(game);
+		facade::internal::DrainCommands(true);
+		CheckLeftTheStream();
+		CHECK(SentActions(game, room::ActionKind::Unwatch, sentBefore).empty());
+		CHECK(!runtime->spectatorLockRelease.Pending() && !runtime->pendingAbort);
+		facade::ClearMatchNotice();
+	}
+	std::cout << "TestFinishedWatchEndsOnlyTheView passed\n";
 }
 
 // A spectator away from the main menu when its game starts sits it out once
@@ -837,6 +971,8 @@ int main() {
 	TestFailedSetupThroughRuntime(false, false, true);
 	TestUnscoredEndNotice();
 	TestSpectatorLeavesWatchedGame();
+	TestParkedStopWatchingCatchesUp();
+	TestFinishedWatchEndsOnlyTheView();
 	TestSpectatorSitOutNotice();
 	TestEnteredBattleRequestCancelled();
 	std::cout << "Iroh match session tests passed\n";

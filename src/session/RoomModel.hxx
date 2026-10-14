@@ -452,6 +452,15 @@ inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {
 inline std::uint8_t SeatMatchDelay(const Snapshot& room, const Table& table, int seat) {
 	return room.delayPolicy == DelayPolicy::Own ? table.inputDelay[seat == 0 ? 0 : 1] : MatchDelay(table);
 }
+// The delay a spectator's HUD shows for the game it watches, from the seat
+// delays that game's grant carries (SeatMatchDelay): the Shared one, or Own
+// when each fighter plays at their own. Taken as the stream starts and kept
+// for all of it, since the table's delays belong to the next game as soon as
+// its fighters ready again.
+struct GameDelay { int frames = -1; bool own = false; };
+inline GameDelay WatchedGameDelay(DelayPolicy policy, std::uint8_t first, std::uint8_t second) {
+	return {MatchDelay(first, second), policy == DelayPolicy::Own};
+}
 
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	const auto found = std::find_if(snapshot.members.begin(), snapshot.members.end(),

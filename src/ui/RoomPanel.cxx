@@ -115,29 +115,32 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
     if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch ||
         action.kind == room::ActionKind::Unwatch) && localSeated) return false;
-    // Leaving one game but not the table is the queued spectator's exit alone.
-    if (action.keepWatching) {
-        const auto exit = ExitFromWatchedGame(view);
-        if (exit.kind != WatchedExit::LeaveGame || exit.table != static_cast<int>(action.table)) return false;
-    }
+    // Leaving one game but not the table is the queued spectator's exit alone,
+    // from the game it watches.
+    if (action.keepWatching && (ExitFromWatchedGame(view) != netplay::WatchedLeave::LeaveGame ||
+        static_cast<int>(action.table) != view.watchedGame.table || action.matchGeneration != view.watchedGame.generation)) return false;
     if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
         // The same rule B and the Leave seat row read.
         const auto hold = room::LeavingSeatHold(table, mine.seat, GameLive(view), PostMatch(view));
         if (hold != room::SeatHold::None) { Refuse(loc::T(LeaveBlockerKey(hold)), LeaveBlocked); return false; }
     }
+    return PostRoom(std::move(action), view, submit);
+}
+bool ApplicationShell::PostRoom(room::Action action, const ShellView& view, const Submit& submit) {
     action.protocolVersion = room::ProtocolVersion;
     action.roomEpoch = view.room.roomEpoch;
     action.revision = view.room.revision;
     if (action.table < view.room.tables.size()) {
-        action.tableRevision = view.room.tables[action.table].revision;
+        const auto& table = view.room.tables[action.table];
+        action.tableRevision = table.revision;
 		const bool generationScoped = action.kind == room::ActionKind::RecordResult ||
 			action.kind == room::ActionKind::MatchFinished || action.kind == room::ActionKind::CancelResult ||
 			action.kind == room::ActionKind::AbortMatch ||
 			(action.kind == room::ActionKind::Unwatch &&
 				(table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Paused));
 		if (!action.matchGeneration && generationScoped)
-			action.matchGeneration = view.room.tables[action.table].matchGeneration;
+			action.matchGeneration = table.matchGeneration;
     }
     action.actionId = nextActionId_++;
     ShellAction request;
@@ -222,11 +225,13 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    // Over a Practice match it fights in, a fighter can end the game.
    if(mine.kind==Place::Kind::Seat&&AbandonableAt(v,s.tables[mine.table])==AbandonableGame::Practice)
     rows.push_back(ConfirmRow("end-practice",loc::T("room.end_practice"),loc::T("room.end_practice.detail"),mutableRoom));
-   // Over a game it only watches, a spectator can leave it.
-   if(const auto watched=ExitFromWatchedGame(v);watched.kind!=WatchedExit::None){
-    const bool leaveGame=watched.kind==WatchedExit::LeaveGame;
+   // Over a game it only watches, a spectator can leave it; once the room has
+   // finished that game, the rest of its stream, which asks nothing of the room.
+   if(const auto leave=ExitFromWatchedGame(v);leave!=netplay::WatchedLeave::None){
+    const bool leaveGame=leave==netplay::WatchedLeave::LeaveGame,viewOnly=leave==netplay::WatchedLeave::EndView;
     rows.push_back(ConfirmRow("stop-watching",loc::T(leaveGame?"room.leave_game":"room.stop_watching"),
-     loc::T(leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(watched.table))));
+     loc::T(viewOnly?"room.stop_watching.finished":leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),
+     viewOnly||RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(v.watchedGame.table))));
    }
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
@@ -555,7 +560,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  std::vector<const MenuEntry*> toolbar;
  for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
- ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.watchedMatch));
+ ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.watchedGame.Active()));
  if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
   // room's actions share the right, and the focused row's explanation runs
@@ -675,10 +680,14 @@ void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {
  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
 }
 void ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit) {
- const auto exit=ExitFromWatchedGame(v);if(exit.kind==WatchedExit::None)return;
- selectedTable_=exit.table;
- room::Action request;request.table=static_cast<std::uint8_t>(exit.table);request.kind=room::ActionKind::Unwatch;
- request.keepWatching=exit.kind==WatchedExit::LeaveGame;
+ const auto leave=ExitFromWatchedGame(v);if(leave==netplay::WatchedLeave::None)return;
+ selectedTable_=v.watchedGame.table;
+ // Scoped to the watched game, never to whatever the table plays by now.
+ room::Action request;request.table=static_cast<std::uint8_t>(v.watchedGame.table);request.kind=room::ActionKind::Unwatch;
+ request.matchGeneration=v.watchedGame.generation;request.keepWatching=leave==netplay::WatchedLeave::LeaveGame;
+ // A finished game's leave goes no further than the runtime, which only ends
+ // the rest of the stream (EndWatchedViewOnly), so the room's guards do not apply.
+ if(leave==netplay::WatchedLeave::EndView){PostRoom(std::move(request),v,submit);return;}
  // The player's own leave needs no notice that it ended their lock-in.
  if(SendRoom(std::move(request),v,submit))lockInReleasedUntil_=ImGui::GetTime()+5;
  else if(error_.empty())error_=loc::T("room.action_rejected");

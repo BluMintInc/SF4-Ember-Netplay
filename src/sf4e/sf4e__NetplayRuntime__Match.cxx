@@ -307,6 +307,24 @@ void RetireFinishedMatch(const char* label) {
 	runtime->match->End();
 }
 
+// Leaving the watched game owes the room nothing once it has finished that
+// game (its end event can come before the snapshot shows it) or no longer
+// lists this member there. The rest of the stream then ends the way the
+// spectator drain ends it (PollSpectatorExit), as the player's own choice.
+bool EndWatchedViewOnly(const room::Action& leave) {
+	const auto game = WatchedGameNow();
+	if (leave.kind != room::ActionKind::Unwatch || !game.Active() || leave.matchGeneration != game.generation ||
+		!UserApp::netplay) return false;
+	if (runtime->committedEndGeneration != game.generation &&
+		netplay::LeaveOfWatchedGame(UserApp::netplay->client.GetRoomSnapshot(), game) != netplay::WatchedLeave::EndView)
+		return false;
+	spdlog::info("Room: closing the spectator view of generation {} table={}; the room needs no leave", game.generation, game.table);
+	RetireFinishedMatch("spectator_left");
+	// Retiring the session clears a transient notice, so this comes after it.
+	PushAlert(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
+	return true;
+}
+
 void RetryPendingAbort() {
 	if (runtime->pendingAbort && runtime->attached && UserApp::netplay) {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
@@ -523,7 +541,12 @@ void TickMatch() {
 				Apply(netplay::EventKind::GameplayReady);
 				const auto entry = UserApp::EnterAuthorizedMatch();
 				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
-				if (runtime->matchEntered) runtime->enteredGeneration = runtime->match->Generation();
+				if (runtime->matchEntered) {
+					runtime->enteredGeneration = runtime->match->Generation();
+					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+					const auto* local = room::FindMember(room, room.localMember);
+					runtime->enteredTable = local ? local->table : -1;
+				}
 				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
 				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}

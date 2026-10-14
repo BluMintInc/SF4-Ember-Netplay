@@ -277,4 +277,9 @@ Training rooms are ordinary VS battles with rounds=99 / huge time limit.
 
 A spectator's own leave (Stop watching, Leave this game) ends its view as
 `GgpoEnd::Leave`. It is not recorded as a stream failure and arms no lock
-release; the `Unwatch` it sent has already ended the lock-in.
+release; the `Unwatch` it sent has already ended the lock-in. The leave names
+the watched game by the table and generation the runtime entered
+(`WatchedGameNow`), never by the table's current generation. Once the room has
+finished that game (`netplay::LeaveOfWatchedGame` says `EndView`, or its end
+event is in), nothing is sent and the rest of the stream is retired the way
+the spectator drain retires it (`EndWatchedViewOnly`, `RetireFinishedMatch`).
