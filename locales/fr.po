@@ -1910,6 +1910,15 @@ msgstr "Frames affichées"
 msgid "training.meter.frames_shown.detail"
 msgstr "Combien de frames les barres montrent sur la même largeur. Moins de frames les rend plus larges et faciles à compter. Un échange plus long reprend depuis le bord gauche. Jauge figée, la molette sur les barres recule d'une page à la fois."
 
+msgid "training.meter.history"
+msgstr "Historique du compteur"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Combien de temps le compteur garde ce qui s'est passé. Quand il est figé, la molette au-dessus des barres recule page par page ; un historique plus long remonte au début d'un long combo."
+
 msgid "training.meter.hud_recovery"
 msgstr "Récupération sur le HUD"
 

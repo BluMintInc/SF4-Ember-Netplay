@@ -44,6 +44,8 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     options.recovery = meter.value("hud_recovery", nlohmann::json(false)) == true;
     const auto shown = meter.value("frames_shown", nlohmann::json());
     for (const int choice : MeterShownChoices) if (shown.is_number_integer() && shown == choice) options.shown = choice;
+    const auto history = meter.value("history_frames", nlohmann::json());
+    for (const int choice : MeterHistoryChoices) if (history.is_number_integer() && history == choice) options.history = choice;
     const auto position = meter.value("position", nlohmann::json());
     for (const int choice : MeterPositions) if (position.is_number_integer() && position == choice) options.position = choice;
     for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
@@ -52,7 +54,8 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     return options;
 }
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
-    nlohmann::json meter{{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"position", options.position}};
+    nlohmann::json meter{{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history},
+        {"position", options.position}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     return meter;
 }

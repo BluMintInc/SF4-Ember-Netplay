@@ -1707,6 +1707,15 @@ msgstr "Quadros mostrados"
 msgid "training.meter.frames_shown.detail"
 msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar. Uma troca mais longa continua a partir da borda esquerda. Com o medidor parado, a roda do mouse sobre as barras volta uma página por vez."
 
+msgid "training.meter.history"
+msgstr "Histórico do medidor"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Por quanto tempo o medidor guarda o que aconteceu. Com o medidor congelado, a roda do mouse sobre as barras volta uma página por vez; um histórico maior alcança o início de um combo longo."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recuperação no HUD"
 

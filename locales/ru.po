@@ -1911,6 +1911,15 @@ msgstr "Кадров на шкале"
 msgid "training.meter.frames_shown.detail"
 msgstr "Сколько кадров шкала показывает на той же ширине. Чем меньше, тем шире кадр и легче считать. Более длинный размен продолжается с левого края. Когда шкала остановлена, колесо мыши над ней листает назад по странице."
 
+msgid "training.meter.history"
+msgstr "История счётчика"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} с"
+
+msgid "training.meter.history.detail"
+msgstr "Сколько счётчик хранит произошедшее. Пока он остановлен, колесо мыши над полосами листает назад по странице; более длинная история достаёт до начала длинного комбо."
+
 msgid "training.meter.hud_recovery"
 msgstr "Восстановление на HUD"
 

@@ -1910,6 +1910,15 @@ msgstr "显示帧数"
 msgid "training.meter.frames_shown.detail"
 msgstr "计量条在同样宽度内显示的帧数。越少则每帧越宽、越好数。更长的攻防会从左端接着显示。计量条停住时，在条上滚动鼠标滚轮可逐页向前回看。"
 
+msgid "training.meter.history"
+msgstr "计量表历史"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} 秒"
+
+msgid "training.meter.history.detail"
+msgstr "计量表保留记录的时长。暂停时在条形上滚动鼠标滚轮可逐页回看；更长的历史可回看到长连段的开头。"
+
 msgid "training.meter.hud_recovery"
 msgstr "在 HUD 显示硬直"
 

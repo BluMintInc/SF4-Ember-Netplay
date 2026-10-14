@@ -1910,6 +1910,15 @@ msgstr "Gezeigte Frames"
 msgid "training.meter.frames_shown.detail"
 msgstr "Wie viele Frames die Balken auf gleicher Breite zeigen. Weniger machen jeden Frame breiter und leichter zu zählen. Ein längerer Schlagabtausch geht am linken Rand weiter. Ist das Meter angehalten, blättert das Mausrad über den Balken seitenweise zurück."
 
+msgid "training.meter.history"
+msgstr "Meter-Verlauf"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Wie lange die Anzeige das Geschehene behält. Während sie angehalten ist, blättert das Mausrad über den Balken seitenweise zurück; ein längerer Verlauf reicht bis zum Beginn einer langen Kombo."
+
 msgid "training.meter.hud_recovery"
 msgstr "Erholung im HUD"
 

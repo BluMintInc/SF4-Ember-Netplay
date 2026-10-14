@@ -1910,6 +1910,15 @@ msgstr "Zobrazené snímky"
 msgid "training.meter.frames_shown.detail"
 msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají. Delší výměna pokračuje znovu od levého okraje. Když je měřič zastavený, kolečko myši nad pruhy listuje zpět po stránkách."
 
+msgid "training.meter.history"
+msgstr "Historie měřiče"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Jak dlouho měřič uchovává, co se stalo. Když je zastavený, kolečko myši nad pruhy se vrací po stránkách; delší historie sahá na začátek dlouhého komba."
+
 msgid "training.meter.hud_recovery"
 msgstr "Zotavení na HUD"
 

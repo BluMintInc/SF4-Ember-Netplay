@@ -1910,6 +1910,15 @@ msgstr "Getoonde frames"
 msgid "training.meter.frames_shown.detail"
 msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen. Een langere uitwisseling gaat verder vanaf de linkerrand. Als de meter stilstaat, bladert het muiswiel boven de balken per pagina terug."
 
+msgid "training.meter.history"
+msgstr "Meter-geschiedenis"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Hoe lang de meter bijhoudt wat er gebeurde. Terwijl de meter vastgehouden wordt, bladert het muiswiel boven de balken er pagina per pagina door terug, dus een langere geschiedenis reikt tot het begin van een lange combo."
+
 msgid "training.meter.hud_recovery"
 msgstr "Herstel op de HUD"
 

@@ -1910,6 +1910,15 @@ msgstr "Pokazane klatki"
 msgid "training.meter.frames_shown.detail"
 msgstr "Ile klatek pokazują paski na tej samej szerokości. Mniej to szersze klatki, łatwiejsze do policzenia. Dłuższa wymiana biegnie dalej od lewej krawędzi. Gdy miernik jest zatrzymany, kółko myszy nad paskami cofa o jedną stronę."
 
+msgid "training.meter.history"
+msgstr "Historia wskaźnika"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Jak długo wskaźnik pamięta, co się stało. Gdy jest zatrzymany, kółko myszy nad paskami cofa się stronę po stronie; dłuższa historia sięga początku długiego combo."
+
 msgid "training.meter.hud_recovery"
 msgstr "Powrót na HUD"
 

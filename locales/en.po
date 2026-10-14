@@ -1910,6 +1910,15 @@ msgstr "Frames shown"
 msgid "training.meter.frames_shown.detail"
 msgstr "How many frames the bars show across the same width. Fewer make each frame wider and easier to count. An exchange longer than that goes on from the left edge. While the meter is held, the mouse wheel over the bars steps back a page at a time."
 
+msgid "training.meter.history"
+msgstr "Meter history"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "How long the meter keeps what happened. While the meter is held, the mouse wheel over the bars steps back through it a page at a time, so a longer history reaches the start of a long combo."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recovery on HUD"
 

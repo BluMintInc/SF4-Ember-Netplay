@@ -467,7 +467,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail")));
  }else if(screen=="meter-settings"){
   LoadPractice();
-  rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail"))};
+  rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail")),
+        Value("meter-history",loc::T("training.meter.history"),loc::Tf("training.meter.history_seconds",lab.meter.history/60),loc::T("training.meter.history.detail"))};
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
   rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
@@ -511,6 +512,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
  if(a.kind==MenuAction::Activate&&a.id=="meter-settings"){nav.Push(a.id);return;}
+ if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-position"){Step(lab.meter.position,{std::begin(MeterPositions),std::end(MeterPositions)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust)for(const auto& part:HudParts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return;}

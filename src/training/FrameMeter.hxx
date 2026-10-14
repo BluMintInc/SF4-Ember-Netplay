@@ -169,6 +169,8 @@ constexpr int MeterShownChoices[] = {60, 90, 120};
 // size: the HUD's, small, standard or large (0 to HudSizes - 1).
 constexpr int HudSizes = 3;
 struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
+    // The frames the meter keeps, one of MeterHistoryChoices.
+    int history = 1200;
     // Where the meter's bottom edge sits, in percent of the screen's height
     // from the top (MeterPositions; 82 is just above the super meters).
     int position = 82; };
@@ -220,9 +222,12 @@ inline const CancelChain* ChainOf(const FrameAdvantage& reading, int side) {
 // counts it, so the move's total is startup - 1 + active + recovery. seen:
 // an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
-// The bars show up to MeterShown frames. The meter keeps two bars' worth, so
-// a held meter can step back a whole page at any width.
-constexpr std::size_t MeterShown = 120, MeterHistory = 2 * MeterShown;
+// The bars show up to MeterShown frames. The meter keeps MeterHistory frames
+// unless the player chose another length on the Frame data page (4, 10, 20 or
+// 60 seconds), so a held meter can step back through a whole combo or
+// exchange, a page a notch.
+constexpr std::size_t MeterShown = 120, MeterHistory = 10 * MeterShown;
+constexpr int MeterHistoryChoices[] = {240, 600, 1200, 3600};
 // Both fighters quiet this many frames end an exchange and hold the bars.
 constexpr unsigned MeterIdleFrames = 4;
 // The bars fill from the left, as SF6's meter does: the frame at position pos
@@ -332,6 +337,11 @@ inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
+    // The frames kept from now on; a shorter length drops the oldest at once.
+    void SetHistory(std::size_t frames) {
+        history_ = (std::max)(MeterShown, frames);
+        while (view_.frames.size() > history_) view_.frames.pop_front();
+    }
     void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
@@ -490,11 +500,11 @@ public:
         for (unsigned quiet = 0; quiet < idleFrames_ && view_.frames.size() > 1; ++quiet) { view_.frames.pop_back(); --view_.length; }
     }
 private:
-    static void Append(std::deque<MeterFrame>& bars, std::size_t& length, MeterFrame added) {
+    void Append(std::deque<MeterFrame>& bars, std::size_t& length, MeterFrame added) const {
         // The first cell of the bars has nothing before it to part from.
         if (bars.empty()) for (auto& cell : added.cells) cell.newAction = cell.split = false;
         bars.push_back(added); ++length;
-        if (bars.size() > MeterHistory) bars.pop_front();
+        while (bars.size() > history_) bars.pop_front();
     }
     // Whether a fighter was hit, blocked or thrown this frame.
     bool ObserveAdvantage(std::int64_t frame, const std::array<FighterSample, 2>& fighters) {
@@ -615,6 +625,7 @@ private:
     // contact, and that exchange's frames so far (Observe).
     std::deque<MeterFrame> aside_;
     std::size_t asideLength_ = 0;
+    std::size_t history_ = MeterHistory;
     // When the armed exchange began, on the clock of accepted observations.
     std::int64_t exchangeAt_ = 0;
     // On the clock of accepted observations; -1 none.

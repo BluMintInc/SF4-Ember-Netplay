@@ -546,6 +546,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     namespace meter = sf4e::match_frame_meter;
     sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch),
         snapshot.room.serverOwned, snapshot.replays.meterShown));
+    // How far back a held meter reaches, as the Meter settings page chose.
+    sf4e::training::SetMeterHistory(sf4e::ui::TrainingMeterOptions().history);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();

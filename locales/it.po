@@ -1910,6 +1910,15 @@ msgstr "Frame mostrati"
 msgid "training.meter.frames_shown.detail"
 msgstr "Quanti frame mostrano le barre nella stessa larghezza. Meno frame sono più larghi e facili da contare. Uno scambio più lungo riprende dal bordo sinistro. A misuratore fermo, la rotellina sopra le barre torna indietro di una pagina alla volta."
 
+msgid "training.meter.history"
+msgstr "Cronologia del misuratore"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Per quanto tempo il misuratore conserva ciò che è successo. Con il misuratore bloccato, la rotella sopra le barre torna indietro di una pagina alla volta; una cronologia più lunga arriva all'inizio di una combo lunga."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recupero nell'HUD"
 

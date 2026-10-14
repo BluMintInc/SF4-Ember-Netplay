@@ -69,9 +69,19 @@ int main() {
             Require(fill.View().length == 130 && fill.Cell(0) == 120 && fill.Cell(9) == 129 && fill.Cell(10) == -1, "The bars did not go on from their left edge");
             for (const std::size_t window : {90u, 120u})
                 Require(fill.Cell(129 % window, window) == 129 && fill.Cell(129 % window + 1, window) == -1, "Another width did not page the same frames");
-            fill.Play(Attack, 200);
-            Require(fill.View().frames.size() == MeterHistory && fill.View().length == 330 && fill.Cell(329 % 60) == static_cast<int>(MeterHistory) - 1,
+            const int length = static_cast<int>(MeterHistory) + 200;
+            fill.Play(Attack, length - 130);
+            Require(fill.View().frames.size() == MeterHistory && fill.View().length == static_cast<std::size_t>(length) &&
+                fill.Cell((length - 1) % 60) == static_cast<int>(MeterHistory) - 1,
                 "The newest frame left its cell once the oldest were dropped");
+        }
+        // A shorter history keeps only the newest frames, at once and from then on.
+        {
+            Fight kept; kept.Play(Attack, 600);
+            kept.meter.SetHistory(240);
+            Require(kept.View().frames.size() == 240 && kept.View().length == 600, "A shorter history kept the oldest frames");
+            kept.Play(Attack, 10);
+            Require(kept.View().frames.size() == 240 && kept.View().length == 610, "The history grew past its length");
         }
         // Stop promptly: four quiet frames after a whiff hold the bars on its last active frame.
         {
