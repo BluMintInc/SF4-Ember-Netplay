@@ -1940,6 +1940,18 @@ msgstr "HUD size"
 msgid "training.meter.hud_size.detail"
 msgstr "Sets the size of the training HUD's text and bars. Interface size makes it larger too."
 
+msgid "training.meter.settings"
+msgstr "Meter settings"
+
+msgid "training.meter.settings.detail"
+msgstr "Where the meter sits, how far back it keeps, and what it does after a pause."
+
+msgid "training.meter.position"
+msgstr "Meter position"
+
+msgid "training.meter.position.detail"
+msgstr "How far down the screen the meter sits, measured to its bottom edge. 82% keeps it just above the super meters; lower numbers move it up."
+
 msgid "training.recovery_frames"
 msgstr "Rec {0} f"
 

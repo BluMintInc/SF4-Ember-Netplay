@@ -80,14 +80,14 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","dummy","reply","tools"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
         if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==6&&trainingRows[0].id=="hud-size","HUD page lost its size or one of its parts");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==7&&trainingRows[0].id=="hud-size"&&trainingRows[6].id=="meter-settings","HUD page lost its size or one of its parts");
         // The reply plays the slots that are on, so its page has no slot of its own.
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
         // Each slot says whether it is on, or that it is empty, with its frames in the detail.

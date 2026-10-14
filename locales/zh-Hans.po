@@ -1940,6 +1940,18 @@ msgstr "HUD 大小"
 msgid "training.meter.hud_size.detail"
 msgstr "设置训练 HUD 文字和条的大小。界面大小也会放大它。"
 
+msgid "training.meter.settings"
+msgstr "计量表设置"
+
+msgid "training.meter.settings.detail"
+msgstr "计量表的位置、保留的历史长度以及暂停后的处理。"
+
+msgid "training.meter.position"
+msgstr "计量表位置"
+
+msgid "training.meter.position.detail"
+msgstr "计量表底边在屏幕上的位置。82% 位于超必杀槽正上方；数值越小越靠上。"
+
 msgid "training.recovery_frames"
 msgstr "硬直 {0} 帧"
 

@@ -1940,6 +1940,18 @@ msgstr "Rozmiar HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Ustawia rozmiar tekstu i pasków HUD treningu. Rozmiar interfejsu też go powiększa."
 
+msgid "training.meter.settings"
+msgstr "Ustawienia wskaźnika"
+
+msgid "training.meter.settings.detail"
+msgstr "Gdzie jest wskaźnik, jak daleko wstecz pamięta i co robi po przerwie."
+
+msgid "training.meter.position"
+msgstr "Położenie wskaźnika"
+
+msgid "training.meter.position.detail"
+msgstr "Jak nisko na ekranie jest wskaźnik, mierzone do jego dolnej krawędzi. 82% trzyma go tuż nad paskami super; mniejsze liczby przesuwają go w górę."
+
 msgid "training.recovery_frames"
 msgstr "Powr. {0} kl."
 

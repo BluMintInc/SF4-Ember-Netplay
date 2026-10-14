@@ -132,6 +132,11 @@ int main() {
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(options).dump()));
         CHECK(read.flat == options.flat && read.recovery == options.recovery && read.shown == options.shown);
     }
+    // The meter sits above the super meters unless an offered place is saved.
+    CHECK(ReadMeterOptions(json::parse(R"({"position":50})")).position == 82 && ReadMeterOptions(json::parse(R"({"position":"40"})")).position == 82);
+    for (const int choice : MeterPositions) {
+        MeterOptions saved; saved.position = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).position == choice);
+    }
     // Every part of the HUD shows unless it is saved as a literal false, and
     // a round trip keeps each one apart from the others.
     for (const auto& part : HudParts) {

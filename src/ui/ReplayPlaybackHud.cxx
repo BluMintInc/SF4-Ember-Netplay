@@ -46,7 +46,7 @@ void DrawDirection(ImDrawList* d, ImVec2 c, float r, unsigned held, ImU32 color,
 void DrawReplayStrip(const ReplayHudView& view) {
     const auto* vp = ImGui::GetMainViewport();
     const float s = HudScale(), height = ReplayStripMostHeight * s, most = ReplayStripMostWidth * s;
-    const float stripTop = vp->Pos.y + vp->Size.y * TrainingHudBottom + 4 * s;
+    const float stripTop = vp->Pos.y + vp->Size.y * TrainingMeterBottom() + 4 * s;
     if (view.unavailable) {
         // Under the strip's place (the strip may be faded out), between the
         // super meters: the frame meter sits above the strip, so the two never meet.

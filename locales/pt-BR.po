@@ -1737,6 +1737,18 @@ msgstr "Tamanho do HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Define o tamanho do texto e das barras do HUD de treino. O tamanho da interface também o aumenta."
 
+msgid "training.meter.settings"
+msgstr "Configurações do medidor"
+
+msgid "training.meter.settings.detail"
+msgstr "Onde o medidor fica, quanto guarda para trás e o que faz após uma pausa."
+
+msgid "training.meter.position"
+msgstr "Posição do medidor"
+
+msgid "training.meter.position.detail"
+msgstr "Quão abaixo na tela fica o medidor, medido pela borda inferior. 82% o mantém logo acima das barras de super; números menores o sobem."
+
 msgid "training.recovery_frames"
 msgstr "Rec. {0} q"
 

@@ -1940,6 +1940,18 @@ msgstr "HUD-grootte"
 msgid "training.meter.hud_size.detail"
 msgstr "Stelt de grootte van de tekst en balken van de trainings-HUD in. Interfacegrootte maakt hem ook groter."
 
+msgid "training.meter.settings"
+msgstr "Meterinstellingen"
+
+msgid "training.meter.settings.detail"
+msgstr "Waar de meter staat, hoe ver hij terug bewaart en wat hij doet na een pauze."
+
+msgid "training.meter.position"
+msgstr "Meterpositie"
+
+msgid "training.meter.position.detail"
+msgstr "Hoe ver naar beneden de meter staat, gemeten tot de onderrand. 82% houdt hem net boven de supermeters; lagere getallen schuiven hem omhoog."
+
 msgid "training.recovery_frames"
 msgstr "Herst. {0} f"
 

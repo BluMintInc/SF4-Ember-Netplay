@@ -1940,6 +1940,18 @@ msgstr "HUD 크기"
 msgid "training.meter.hud_size.detail"
 msgstr "트레이닝 HUD의 글자와 바 크기를 바꿉니다. 화면 크기로도 커집니다."
 
+msgid "training.meter.settings"
+msgstr "미터 설정"
+
+msgid "training.meter.settings.detail"
+msgstr "미터 위치, 보관 기록 길이, 멈춘 뒤의 동작."
+
+msgid "training.meter.position"
+msgstr "미터 위치"
+
+msgid "training.meter.position.detail"
+msgstr "미터 아래 가장자리가 화면에서 놓이는 위치. 82%면 슈퍼 게이지 바로 위이며, 숫자를 낮추면 위로 올라갑니다."
+
 msgid "training.recovery_frames"
 msgstr "경직 {0} f"
 

@@ -1941,6 +1941,18 @@ msgstr "Размер HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Задаёт размер текста и полос HUD тренировки. Размер интерфейса тоже его увеличивает."
 
+msgid "training.meter.settings"
+msgstr "Настройки счётчика"
+
+msgid "training.meter.settings.detail"
+msgstr "Где находится счётчик, сколько он хранит и что делает после паузы."
+
+msgid "training.meter.position"
+msgstr "Положение счётчика"
+
+msgid "training.meter.position.detail"
+msgstr "Насколько низко на экране находится счётчик, по его нижнему краю. 82% держит его прямо над шкалами суперприёмов; меньшие числа поднимают его."
+
 msgid "training.recovery_frames"
 msgstr "Восст.: {0} к."
 

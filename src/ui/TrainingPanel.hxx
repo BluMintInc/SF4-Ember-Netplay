@@ -81,9 +81,12 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status);
 // pointer: the pointer is over the chip, so the overlay takes
 // the mouse (only) from the game.
 struct TrainingHudInput { bool open = false, pointer = false; };
-// Bottom edge of the frame meter as a fraction of the viewport height, above
-// the game's super meters.
+// Bottom edge of the frame meter as a fraction of the viewport height: just
+// above the game's super meters, where MeterOptions::position puts it by
+// default, or where the player moved it. What sits under the meter (the keys
+// notice, the replay strip) goes with it.
 constexpr float TrainingHudBottom = .82f;
+float TrainingMeterBottom();
 // The passive HUD's size: it follows the game's window, smaller with a smaller
 // or narrower one down to the smallest text that still reads, times the HUD
 // size picked on the HUD page and the player's Interface size. Windows' DPI is

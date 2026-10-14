@@ -518,12 +518,13 @@ void DrawMatchMeter(const training::View& view) {
     if (!view.watching) return;
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
-    MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingHudBottom, TrainingMeterOptions());
+    const auto options = TrainingMeterOptions();
+    MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
 }
 void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=TrainingHudScale();
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingMeterBottom()+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
     ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(4*hudScale,3*hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
@@ -541,15 +542,19 @@ void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
     ImGui::End();
     ImGui::PopStyleVar(2);
 }
+static_assert(training::MeterOptions{}.position == static_cast<int>(TrainingHudBottom * 100 + .5f), "The meter's default place left the super meters' edge");
+float TrainingMeterBottom() { return TrainingMeterOptions().position / 100.f; }
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
     const float width = (std::min)(620 * hudScale, vp->Size.x * .75f);
     // The game's super meters and their SUPER! banners start about 17% above
-    // the bottom edge and scale with the height, so the meter sits just above them.
-    const float hudBottom = vp->Pos.y + vp->Size.y * TrainingHudBottom;
-    const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, TrainingMeterOptions());
+    // the bottom edge and scale with the height, so the meter sits just above
+    // them unless the player moved it (MeterOptions::position).
+    const auto options = TrainingMeterOptions();
+    const float hudBottom = vp->Pos.y + vp->Size.y * TrainingMeterBottom();
+    const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, options);
     return DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
 }
 } }

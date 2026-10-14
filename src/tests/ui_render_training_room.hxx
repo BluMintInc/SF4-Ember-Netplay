@@ -131,6 +131,16 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
                 Require(meter.second.y<=size.h*TrainingHudBottom+1,"The meter covers the game's super meters");
             }
         }
+        // A meter the player moved sits where they put it.
+        {
+            training::MeterOptions moved;moved.position=40;SetTrainingMeterOptions(moved);
+            std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+            SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){cards[id]={from,to};});
+            draw();
+            SetMenuCardProbe({});
+            const auto bar=cards.find("training-bar-2");
+            Require(bar!=cards.end()&&bar->second.second.y<=size.h*.40f+1&&bar->second.second.y>=size.h*.25f,"A moved meter did not sit where it was put");
+        }
         SetTrainingMeterOptions(savedOptions);SetMenuGlyphs(3,0x40000,0x20000);
         // Back to the keyboard prompts the fixture came with: a function key
         // pressed last, as the training fixture leaves them.

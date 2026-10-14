@@ -1940,6 +1940,18 @@ msgstr "Dim. HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Imposta la dimensione del testo e delle barre dell'HUD di allenamento. Anche Dim. interfaccia lo ingrandisce."
 
+msgid "training.meter.settings"
+msgstr "Impostazioni del misuratore"
+
+msgid "training.meter.settings.detail"
+msgstr "Dove si trova il misuratore, quanto conserva e cosa fa dopo una pausa."
+
+msgid "training.meter.position"
+msgstr "Posizione del misuratore"
+
+msgid "training.meter.position.detail"
+msgstr "Quanto in basso sullo schermo si trova il misuratore, misurato al suo bordo inferiore. 82% lo tiene appena sopra le barre delle super; numeri più bassi lo alzano."
+
 msgid "training.recovery_frames"
 msgstr "Rec. {0} f"
 

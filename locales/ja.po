@@ -1940,6 +1940,18 @@ msgstr "HUDのサイズ"
 msgid "training.meter.hud_size.detail"
 msgstr "トレーニングHUDの文字とバーの大きさを変えます。画面サイズでも大きくなります。"
 
+msgid "training.meter.settings"
+msgstr "メーター設定"
+
+msgid "training.meter.settings.detail"
+msgstr "メーターの位置、履歴の長さ、停止後の動作。"
+
+msgid "training.meter.position"
+msgstr "メーターの位置"
+
+msgid "training.meter.position.detail"
+msgstr "メーター下端の画面上の位置。82%でスーパーゲージのすぐ上、数値を下げるほど上に移動します。"
+
 msgid "training.recovery_frames"
 msgstr "硬直{0}F"
 

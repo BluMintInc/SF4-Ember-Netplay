@@ -463,6 +463,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
   rows.push_back(Value("hud-size",loc::T("training.meter.hud_size"),loc::T(sizes[lab.meter.size]),loc::T("training.meter.hud_size.detail")));
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
+  // The meter's own settings, Ember's beside the HUD's, on a page of their own.
+  rows.push_back(Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail")));
+ }else if(screen=="meter-settings"){
+  LoadPractice();
+  rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail"))};
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
   rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
@@ -493,7 +498,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
  // A recorded reply with no slot that can be one would do nothing; the page says so.
  else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&!v.replyable){status=loc::T("training.reply.no_recordings_on");statusTone=Tone::Pending;}
- trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"?.58f:.5f;
+ trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"||screen=="meter-settings"?.58f:.5f;
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
@@ -505,6 +510,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
+ if(a.kind==MenuAction::Activate&&a.id=="meter-settings"){nav.Push(a.id);return;}
+ if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-position"){Step(lab.meter.position,{std::begin(MeterPositions),std::end(MeterPositions)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust)for(const auto& part:HudParts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return;}
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){

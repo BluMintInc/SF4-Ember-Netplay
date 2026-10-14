@@ -168,7 +168,11 @@ constexpr int MeterShownChoices[] = {60, 90, 120};
 // chip and its hint) and status (the strip a recording or a playback adds).
 // size: the HUD's, small, standard or large (0 to HudSizes - 1).
 constexpr int HudSizes = 3;
-struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1; };
+struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
+    // Where the meter's bottom edge sits, in percent of the screen's height
+    // from the top (MeterPositions; 82 is just above the super meters).
+    int position = 82; };
+constexpr int MeterPositions[] = {12, 25, 40, 55, 70, 82, 92};
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
     switch (status) {

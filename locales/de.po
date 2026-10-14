@@ -1940,6 +1940,18 @@ msgstr "HUD-Größe"
 msgid "training.meter.hud_size.detail"
 msgstr "Legt die Größe von Text und Balken des Trainings-HUD fest. Auch die Oberflächengröße vergrößert es."
 
+msgid "training.meter.settings"
+msgstr "Anzeige-Einstellungen"
+
+msgid "training.meter.settings.detail"
+msgstr "Wo die Anzeige sitzt, wie weit sie zurückreicht und was sie nach einer Pause tut."
+
+msgid "training.meter.position"
+msgstr "Anzeigeposition"
+
+msgid "training.meter.position.detail"
+msgstr "Wie weit unten die Anzeige sitzt, gemessen bis zu ihrer Unterkante. 82 % hält sie knapp über den Super-Leisten; kleinere Werte schieben sie nach oben."
+
 msgid "training.recovery_frames"
 msgstr "Erh. {0} F"
 

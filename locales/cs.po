@@ -1940,6 +1940,18 @@ msgstr "Velikost HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Nastaví velikost textu a pruhů tréninkového HUD. Zvětší ho i Velikost rozhraní."
 
+msgid "training.meter.settings"
+msgstr "Nastavení měřiče"
+
+msgid "training.meter.settings.detail"
+msgstr "Kde měřič je, jak daleko zpět uchovává a co dělá po pauze."
+
+msgid "training.meter.position"
+msgstr "Poloha měřiče"
+
+msgid "training.meter.position.detail"
+msgstr "Jak nízko na obrazovce měřič je, měřeno k jeho spodnímu okraji. 82 % ho drží těsně nad ukazateli super; menší čísla ho posunou nahoru."
+
 msgid "training.recovery_frames"
 msgstr "Zot. {0} sn."
 
