@@ -1934,6 +1934,18 @@ msgstr "続ける"
 msgid "training.meter.after_pause.detail"
 msgstr "両者が止まった後に再び動いたときのメーターの動作。「最初から」はストリートファイター6と同じく新しい攻防のためにバーを消去します。「続ける」は前の攻防の後に続け、履歴で複数の攻防を遡れます。"
 
+msgid "training.meter.scroll"
+msgstr "メーターのスクロール"
+
+msgid "training.meter.scroll.pages"
+msgstr "ページ"
+
+msgid "training.meter.scroll.smooth"
+msgstr "なめらか"
+
+msgid "training.meter.scroll.detail"
+msgstr "バーの進み方。「ページ」は1ページ分めくって左端から始めます。「なめらか」は最新フレームを右端に保ってスライドし、停止中のメーター上のホイールは1目盛りで10フレーム戻ります。"
+
 msgid "training.meter.hud_recovery"
 msgstr "HUDに硬直を表示"
 

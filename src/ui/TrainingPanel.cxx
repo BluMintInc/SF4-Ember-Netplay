@@ -469,7 +469,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   LoadPractice();
   rows={Value("meter-position",loc::T("training.meter.position"),std::to_string(lab.meter.position)+"%",loc::T("training.meter.position.detail")),
         Value("meter-history",loc::T("training.meter.history"),loc::Tf("training.meter.history_seconds",lab.meter.history/60),loc::T("training.meter.history.detail")),
-        Value("meter-after-pause",loc::T("training.meter.after_pause"),loc::T(lab.meter.continuous?"training.meter.after_pause.continue":"training.meter.after_pause.start_over"),loc::T("training.meter.after_pause.detail"))};
+        Value("meter-after-pause",loc::T("training.meter.after_pause"),loc::T(lab.meter.continuous?"training.meter.after_pause.continue":"training.meter.after_pause.start_over"),loc::T("training.meter.after_pause.detail")),
+        Value("meter-scroll",loc::T("training.meter.scroll"),loc::T(lab.meter.smooth?"training.meter.scroll.smooth":"training.meter.scroll.pages"),loc::T("training.meter.scroll.detail"))};
   if(lab.meter.style==MeterStyle::Classic)rows.push_back(Row("meter-classic",loc::T("training.meter.classic"),loc::T("training.meter.classic.detail")));
  }else if(screen=="meter-classic"){
   LoadPractice();
@@ -522,6 +523,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
  if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic")){nav.Push(a.id);return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
+ if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-scroll"){lab.meter.smooth=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-after-pause"){lab.meter.continuous=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-position"){Step(lab.meter.position,{std::begin(MeterPositions),std::end(MeterPositions)},a.delta);SavePractice();return;}
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&a.id=="bar-height"){Step(lab.meter.barHeight,{std::begin(ClassicBarHeights),std::end(ClassicBarHeights)},a.delta);SavePractice();return;}

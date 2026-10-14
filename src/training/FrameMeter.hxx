@@ -183,11 +183,15 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     int history = 1200;
     // After a pause the next exchange goes on after the last instead of starting over.
     bool continuous = false;
+    // The bars slide a frame at a time, and a held meter steps back MeterSlideStep
+    // frames a notch, instead of a page at a time.
+    bool smooth = false;
     // Where the meter's bottom edge sits, in percent of the screen's height
     // from the top (MeterPositions; 82 is just above the super meters), and
     // the classic bars' height (ClassicBarHeights, at the HUD's scale).
     int position = 82, barHeight = 16; };
 constexpr int MeterPositions[] = {12, 25, 40, 55, 70, 82, 92};
+constexpr std::size_t MeterSlideStep = 10;
 constexpr int ClassicBarHeights[] = {12, 16, 22};
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
@@ -257,6 +261,16 @@ inline int MeterFrameIndex(std::size_t size, std::size_t length, std::size_t cel
     const auto pos = ((length - 1) / window - back) * window + cell, first = length - size;
     return pos < first || pos >= length ? -1 : static_cast<int>(pos - first);
 }
+// Smooth scrolling (MeterOptions::smooth): the bars show the window frames
+// that end back frames before the newest, the newest at their right edge once
+// they are full, and fill from the left until then. The frames' index, or -1.
+inline int MeterSlideIndex(std::size_t size, std::size_t cell, std::size_t window, std::size_t back = 0) {
+    if (back >= size) return -1;
+    const std::size_t end = size - back, start = end > window ? end - window : 0;
+    return start + cell < end ? static_cast<int>(start + cell) : -1;
+}
+// How far a smooth held meter steps back, in frames: to its oldest at the left edge.
+inline std::size_t MeterSlideLimit(std::size_t size, std::size_t window) { return size > window ? size - window : 0; }
 // How many pages a held meter can step back: to the oldest with a frame kept.
 inline std::size_t MeterBackLimit(std::size_t size, std::size_t length, std::size_t window) {
     length = (std::max)(length, size);

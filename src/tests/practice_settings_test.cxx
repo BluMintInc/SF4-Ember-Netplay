@@ -143,6 +143,9 @@ int main() {
     CHECK(ReadMeterOptions(json::parse(R"({"position":50,"bar_height":"22"})")).position == 82 && ReadMeterOptions(json::parse(R"({"bar_height":17})")).barHeight == 16);
     for (const int choice : MeterPositions) { MeterOptions saved; saved.position = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).position == choice); }
     for (const int choice : ClassicBarHeights) { MeterOptions saved; saved.barHeight = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).barHeight == choice); }
+    // The bars turn pages unless "smooth" is saved.
+    CHECK(!ReadMeterOptions(json::object()).smooth && !ReadMeterOptions(json::parse(R"({"scroll":true})")).smooth);
+    { MeterOptions sliding; sliding.smooth = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(sliding).dump())).smooth); }
     // The meter starts over after a pause unless "continue" is saved.
     CHECK(!ReadMeterOptions(json::object()).continuous && !ReadMeterOptions(json::parse(R"({"after_pause":true})")).continuous);
     { MeterOptions going; going.continuous = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(going).dump())).continuous); }

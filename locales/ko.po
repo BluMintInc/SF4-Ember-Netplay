@@ -1934,6 +1934,18 @@ msgstr "이어서"
 msgid "training.meter.after_pause.detail"
 msgstr "두 파이터가 멈춘 뒤 다시 움직일 때 미터의 동작. 새로 시작은 스트리트 파이터 6처럼 새 교전을 위해 막대를 비웁니다. 이어서는 이전 교전 뒤에 이어 기록으로 여러 교전을 되돌아볼 수 있습니다."
 
+msgid "training.meter.scroll"
+msgstr "미터 스크롤"
+
+msgid "training.meter.scroll.pages"
+msgstr "페이지"
+
+msgid "training.meter.scroll.smooth"
+msgstr "부드럽게"
+
+msgid "training.meter.scroll.detail"
+msgstr "막대가 이어지는 방식. 페이지는 한 페이지를 넘기고 왼쪽부터 다시 시작합니다. 부드럽게는 최신 프레임을 오른쪽 끝에 두고 밀어내며, 멈춘 미터 위의 휠은 한 칸에 10프레임 뒤로 갑니다."
+
 msgid "training.meter.hud_recovery"
 msgstr "HUD에 경직 표시"
 

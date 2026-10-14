@@ -50,6 +50,11 @@ int main() {
             MeterFrameIndex(240, 300, 0, 60, 3) == 0 && MeterBackLimit(240, 300, 60) == 3, "The kept frames were not paged by their positions");
         Require(MeterBackLimit(240, 250, 120) == 2 && MeterFrameIndex(240, 250, 9, 120, 2) == -1 && MeterFrameIndex(240, 250, 10, 120, 2) == 0 &&
             MeterBackLimit(0, 0, 60) == 0 && MeterBackLimit(30, 30, 60) == 0, "A held meter could step back past its frames or not to them");
+        // Sliding: the newest frame at the right edge once the bars are full,
+        // from the left until then, and back steps frames toward the oldest.
+        Require(MeterSlideIndex(3, 0, 60) == 0 && MeterSlideIndex(3, 2, 60) == 2 && MeterSlideIndex(3, 3, 60) == -1, "A short exchange did not slide in from the left");
+        Require(MeterSlideIndex(100, 59, 60) == 99 && MeterSlideIndex(100, 0, 60) == 40 && MeterSlideIndex(100, 59, 60, 10) == 89 &&
+            MeterSlideLimit(100, 60) == 40 && MeterSlideIndex(100, 0, 60, 40) == 0 && MeterSlideLimit(30, 60) == 0, "The bars did not slide a frame at a time");
         // Bars made by hand give no length: their frames are the whole exchange.
         Require(MeterFrameIndex(130, 0, 9, 60) == 129 && MeterBackLimit(130, 0, 60) == 2, "Bars made by hand were not paged from their first frame");
 

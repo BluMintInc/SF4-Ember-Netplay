@@ -1934,6 +1934,18 @@ msgstr "Continue"
 msgid "training.meter.after_pause.detail"
 msgstr "What the meter does when something moves again after both fighters were quiet. Start over clears the bars for the new exchange, as Street Fighter 6 does. Continue goes on after the last exchange, so the history scrolls back through several."
 
+msgid "training.meter.scroll"
+msgstr "Meter scrolling"
+
+msgid "training.meter.scroll.pages"
+msgstr "Pages"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Smooth"
+
+msgid "training.meter.scroll.detail"
+msgstr "How the bars move on. Pages turns a full page and starts again at the left edge. Smooth keeps the newest frame at the right edge and slides, and the mouse wheel over a held meter steps back ten frames a notch."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recovery on HUD"
 

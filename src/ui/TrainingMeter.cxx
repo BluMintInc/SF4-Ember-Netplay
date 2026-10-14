@@ -60,7 +60,14 @@ void Edged(ImDrawList* draw, float size, ImVec2 at, ImU32 colour, const char* te
 }
 // The frames a bar shows: cells across it, and how many pages before the
 // newest frame's it shows while a held meter is stepped back.
-struct BarWindow { int cells; std::size_t back; };
+// smooth: the bars slide a frame at a time (MeterSlideIndex) instead of
+// turning a page; back then counts frames, not pages.
+struct BarWindow { int cells; std::size_t back; bool smooth = false; };
+// The frame a bar cell shows, or -1.
+int CellFrame(const MeterView& meter, BarWindow window, int cell) {
+    return window.smooth ? MeterSlideIndex(meter.frames.size(), static_cast<std::size_t>(cell), static_cast<std::size_t>(window.cells), window.back) :
+        MeterFrameIndex(meter.frames.size(), meter.length, static_cast<std::size_t>(cell), static_cast<std::size_t>(window.cells), window.back);
+}
 // Counting marks, the same in both styles: a thin dark gap parts every cell
 // (left by the cells themselves), every fifth boundary is an ivory line and
 // every tenth a thicker, brighter one with a tick under the bar. slant leans
@@ -83,7 +90,7 @@ void FlatBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin, 
     const float cell = width / window.cells;
     draw->AddRectFilled(origin, ImVec2(origin.x + width, origin.y + height), IM_COL32(28, 29, 29, 100));
     for (int i = 0; i < window.cells; ++i) {
-        const int index = MeterFrameIndex(meter.frames.size(), meter.length, static_cast<std::size_t>(i), static_cast<std::size_t>(window.cells), window.back);
+        const int index = CellFrame(meter, window, i);
         if (index < 0) continue;
         const auto& shown = meter.frames[index].cells[side];
         draw->AddRectFilled(ImVec2(origin.x + i * cell, origin.y),
@@ -118,7 +125,7 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
     std::vector<Run> runs;
     int runStart = -1, runEnd = 0; MeterKind runKind = MeterKind::Neutral;
     for (int i = 0; i < window.cells; ++i) {
-        const int index = MeterFrameIndex(meter.frames.size(), meter.length, static_cast<std::size_t>(i), static_cast<std::size_t>(window.cells), window.back);
+        const int index = CellFrame(meter, window, i);
         if (index < 0) continue;
         // The model resolved each cell as it arrived (training::MeterCell);
         // the leftmost cell shown starts a run whatever came before it.
@@ -168,15 +175,17 @@ std::string Unavailable(const char* label, MeasurementUnavailable reason) {
 // The frames a held meter shows: a notch of the mouse wheel over the bars
 // (from, to) steps a page back, as far as the frames it keeps, and the newest
 // frame's page shows again once it runs.
-BarWindow HeldWindow(const MeterView& meter, int cells, ImVec2 from, ImVec2 to) {
+BarWindow HeldWindow(const MeterView& meter, int cells, ImVec2 from, ImVec2 to, bool smooth) {
     static std::size_t back = 0;
-    if (!meter.frozen) { back = 0; return {cells, 0}; }
-    const int notches = static_cast<int>(ImGui::GetIO().MouseWheel);
+    if (!meter.frozen) { back = 0; return {cells, 0, smooth}; }
+    // A notch is a page, or MeterSlideStep frames when the bars slide.
+    const int notches = static_cast<int>(ImGui::GetIO().MouseWheel) * (smooth ? static_cast<int>(MeterSlideStep) : 1);
     if (notches && ImGui::IsMouseHoveringRect(from, to, false))
         back = notches > 0 ? back + notches : back - (std::min)(back, static_cast<std::size_t>(-notches));
-    // Every frame, as Frames shown can change while the meter is held.
-    back = (std::min)(back, MeterBackLimit(meter.frames.size(), meter.length, static_cast<std::size_t>(cells)));
-    return {cells, back};
+    // Every frame, as Frames shown or the scrolling can change while the meter is held.
+    back = (std::min)(back, smooth ? MeterSlideLimit(meter.frames.size(), static_cast<std::size_t>(cells)) :
+        MeterBackLimit(meter.frames.size(), meter.length, static_cast<std::size_t>(cells)));
+    return {cells, back, smooth};
 }
 void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& options);
 void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) {
@@ -195,7 +204,7 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     // from their left edge (MeterFrameIndex).
     const ImVec2 bars(ImGui::GetCursorScreenPos().x + label, ImGui::GetCursorScreenPos().y);
     const float rows = 2 * ((std::max)(height, ImGui::GetTextLineHeight()) + ImGui::GetStyle().ItemSpacing.y);
-    const BarWindow window = HeldWindow(meter, options.shown, bars, ImVec2(bars.x + width, bars.y + rows));
+    const BarWindow window = HeldWindow(meter, options.shown, bars, ImVec2(bars.x + width, bars.y + rows), options.smooth);
     for (int side = 0; side < 2; ++side) {
         const float rowStart = ImGui::GetCursorPosX();
         if (options.numbers) {
@@ -391,8 +400,8 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
     const float cell = usable / cells;
     const ImVec2 start = ImGui::GetCursorScreenPos();
     const float lanes = options.classicInputs ? 2 * (lane + 2 * hudScale) : 0;
-    const BarWindow window = HeldWindow(meter, cells, start, ImVec2(start.x + full, start.y + 2 * height + dots + lanes));
-    const auto index = [&](int i) { return MeterFrameIndex(meter.frames.size(), meter.length, static_cast<std::size_t>(i), static_cast<std::size_t>(cells), window.back); };
+    const BarWindow window = HeldWindow(meter, cells, start, ImVec2(start.x + full, start.y + 2 * height + dots + lanes), options.smooth);
+    const auto index = [&](int i) { return CellFrame(meter, window, i); };
     float y = start.y;
     // What each fighter pressed, at the frame they did: a direction as it
     // changes, a button as it goes down. Presses too close to draw apart move

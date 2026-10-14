@@ -1934,6 +1934,18 @@ msgstr "继续"
 msgid "training.meter.after_pause.detail"
 msgstr "双方静止后再次行动时计量表的处理方式。重新开始会像街头霸王6一样为新的攻防清空条形。继续会接在上一次之后，可在历史中回看多次攻防。"
 
+msgid "training.meter.scroll"
+msgstr "计量表滚动"
+
+msgid "training.meter.scroll.pages"
+msgstr "整页"
+
+msgid "training.meter.scroll.smooth"
+msgstr "平滑"
+
+msgid "training.meter.scroll.detail"
+msgstr "条形的推进方式。整页会翻过一整页并从左端重新开始。平滑会让最新帧保持在右端并滑动，暂停时在计量表上滚动滚轮每格后退十帧。"
+
 msgid "training.meter.hud_recovery"
 msgstr "在 HUD 显示硬直"
 

@@ -1935,6 +1935,18 @@ msgstr "Продолжить"
 msgid "training.meter.after_pause.detail"
 msgstr "Что делает счётчик, когда что-то снова движется после того, как оба бойца стояли. Начать заново очищает полосы для нового размена, как в Street Fighter 6. Продолжить идёт после предыдущего, и история листается через несколько."
 
+msgid "training.meter.scroll"
+msgstr "Прокрутка счётчика"
+
+msgid "training.meter.scroll.pages"
+msgstr "Страницы"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Плавно"
+
+msgid "training.meter.scroll.detail"
+msgstr "Как полосы движутся дальше. Страницы перелистывают целую страницу и начинают слева. Плавно держит новейший кадр у правого края и сдвигает; колесо над остановленным счётчиком отматывает на десять кадров за щелчок."
+
 msgid "training.meter.hud_recovery"
 msgstr "Восстановление на HUD"
 

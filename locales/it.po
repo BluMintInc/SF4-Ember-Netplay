@@ -1934,6 +1934,18 @@ msgstr "Continua"
 msgid "training.meter.after_pause.detail"
 msgstr "Cosa fa il misuratore quando qualcosa si muove di nuovo dopo che entrambi i lottatori sono rimasti fermi. Ricomincia svuota le barre per il nuovo scambio, come Street Fighter 6. Continua prosegue dopo il precedente, così la cronologia ne ripercorre diversi."
 
+msgid "training.meter.scroll"
+msgstr "Scorrimento del misuratore"
+
+msgid "training.meter.scroll.pages"
+msgstr "Pagine"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Fluido"
+
+msgid "training.meter.scroll.detail"
+msgstr "Come avanzano le barre. Pagine gira una pagina intera e ricomincia da sinistra. Fluido tiene l'ultimo frame sul bordo destro e scorre; la rotella su un misuratore bloccato torna indietro di dieci frame per scatto."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recupero nell'HUD"
 

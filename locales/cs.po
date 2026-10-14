@@ -1934,6 +1934,18 @@ msgstr "Pokračovat"
 msgid "training.meter.after_pause.detail"
 msgstr "Co měřič udělá, když se po klidu obou bojovníků znovu něco pohne. Začít znovu vyprázdní pruhy pro novou výměnu jako Street Fighter 6. Pokračovat naváže na předchozí, takže historie sahá přes několik."
 
+msgid "training.meter.scroll"
+msgstr "Posun měřiče"
+
+msgid "training.meter.scroll.pages"
+msgstr "Stránky"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Plynulý"
+
+msgid "training.meter.scroll.detail"
+msgstr "Jak pruhy pokračují. Stránky otočí celou stránku a začnou znovu vlevo. Plynulý drží nejnovější snímek u pravého okraje a posouvá; kolečko nad zastaveným měřičem se vrací o deset snímků na krok."
+
 msgid "training.meter.hud_recovery"
 msgstr "Zotavení na HUD"
 

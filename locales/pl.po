@@ -1934,6 +1934,18 @@ msgstr "Kontynuuj"
 msgid "training.meter.after_pause.detail"
 msgstr "Co robi wskaźnik, gdy coś znów się rusza po tym, jak obaj zawodnicy stali w miejscu. Zacznij od nowa czyści paski dla nowej wymiany, jak w Street Fighter 6. Kontynuuj idzie dalej po poprzedniej, więc historia cofa się przez kilka."
 
+msgid "training.meter.scroll"
+msgstr "Przewijanie wskaźnika"
+
+msgid "training.meter.scroll.pages"
+msgstr "Strony"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Płynne"
+
+msgid "training.meter.scroll.detail"
+msgstr "Jak paski przesuwają się dalej. Strony przewraca całą stronę i zaczyna od lewej. Płynne trzyma najnowszą klatkę przy prawej krawędzi i przesuwa; kółko nad zatrzymanym wskaźnikiem cofa o dziesięć klatek na skok."
+
 msgid "training.meter.hud_recovery"
 msgstr "Powrót na HUD"
 

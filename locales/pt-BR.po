@@ -1731,6 +1731,18 @@ msgstr "Continuar"
 msgid "training.meter.after_pause.detail"
 msgstr "O que o medidor faz quando algo se move de novo depois que os dois lutadores ficaram parados. Recomeçar limpa as barras para a nova troca, como no Street Fighter 6. Continuar segue após a anterior, para o histórico voltar por várias."
 
+msgid "training.meter.scroll"
+msgstr "Rolagem do medidor"
+
+msgid "training.meter.scroll.pages"
+msgstr "Páginas"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Suave"
+
+msgid "training.meter.scroll.detail"
+msgstr "Como as barras avançam. Páginas vira uma página inteira e recomeça à esquerda. Suave mantém o quadro mais recente na borda direita e desliza; a roda sobre um medidor congelado volta dez quadros por clique."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recuperação no HUD"
 

@@ -1934,6 +1934,18 @@ msgstr "Doorgaan"
 msgid "training.meter.after_pause.detail"
 msgstr "Wat de meter doet als er weer iets beweegt nadat beide vechters stil stonden. Opnieuw beginnen maakt de balken leeg voor de nieuwe uitwisseling, zoals Street Fighter 6. Doorgaan gaat verder na de vorige, zodat de geschiedenis door meerdere terugbladert."
 
+msgid "training.meter.scroll"
+msgstr "Meter scrollen"
+
+msgid "training.meter.scroll.pages"
+msgstr "Pagina's"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Vloeiend"
+
+msgid "training.meter.scroll.detail"
+msgstr "Hoe de balken verdergaan. Pagina's slaat een hele pagina om en begint weer links. Vloeiend houdt het nieuwste frame rechts en schuift door, en het muiswiel boven een vastgehouden meter gaat tien frames per tik terug."
+
 msgid "training.meter.hud_recovery"
 msgstr "Herstel op de HUD"
 

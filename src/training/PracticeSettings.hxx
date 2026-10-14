@@ -52,6 +52,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     const auto history = meter.value("history_frames", nlohmann::json());
     for (const int choice : MeterHistoryChoices) if (history.is_number_integer() && history == choice) options.history = choice;
     options.continuous = meter.value("after_pause", nlohmann::json()) == "continue";
+    options.smooth = meter.value("scroll", nlohmann::json()) == "smooth";
     const auto position = meter.value("position", nlohmann::json()), barHeight = meter.value("bar_height", nlohmann::json());
     for (const int choice : MeterPositions) if (position.is_number_integer() && position == choice) options.position = choice;
     for (const int choice : ClassicBarHeights) if (barHeight.is_number_integer() && barHeight == choice) options.barHeight = choice;
@@ -62,7 +63,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     return options;
 }
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
-    nlohmann::json meter{{"style", options.style == MeterStyle::Classic ? "classic" : options.style == MeterStyle::Flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"},
+    nlohmann::json meter{{"style", options.style == MeterStyle::Classic ? "classic" : options.style == MeterStyle::Flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"}, {"scroll", options.smooth ? "smooth" : "pages"},
         {"position", options.position}, {"bar_height", options.barHeight}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;

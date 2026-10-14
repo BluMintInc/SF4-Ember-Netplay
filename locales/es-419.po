@@ -1731,6 +1731,18 @@ msgstr "Continuar"
 msgid "training.meter.after_pause.detail"
 msgstr "Qué hace el medidor cuando algo se mueve otra vez después de que ambos luchadores quedaron quietos. Empezar de nuevo vacía las barras para el nuevo intercambio, como Street Fighter 6. Continuar sigue después del anterior, para recorrer varios en el historial."
 
+msgid "training.meter.scroll"
+msgstr "Desplazamiento del medidor"
+
+msgid "training.meter.scroll.pages"
+msgstr "Páginas"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Suave"
+
+msgid "training.meter.scroll.detail"
+msgstr "Cómo avanzan las barras. Páginas pasa una página entera y vuelve a empezar por la izquierda. Suave mantiene el cuadro más reciente a la derecha y se desliza; la rueda sobre un medidor fijado retrocede diez cuadros por paso."
+
 msgid "training.meter.hud_recovery"
 msgstr "Recuperación en el HUD"
 
