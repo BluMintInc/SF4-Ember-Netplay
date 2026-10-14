@@ -13,7 +13,7 @@
 
 namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
-const char* selectGlyph="LP";const char* backGlyph="LK";PlayerCardView playerCard;
+const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;
 int menuDeviceType=0;
 gamepads::PromptBrand promptBrand;
 gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
@@ -147,13 +147,14 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
 }
 // The legend follows whatever last moved the menu: a player with a pad
 // assigned who types on the keyboard sees keys, and the other way round.
-const char* padSelectGlyph="LP";const char* padBackGlyph="LK";
+// The pad's glyphs are copied, so a caller's text need not outlive the call.
+std::string padSelectGlyph="LK",padBackGlyph="MK";
 bool keyboardLast=false;unsigned previousKeys=0,previousPad=0;
 void ApplyMenuGlyphs(){
     const bool pad=menuDeviceType==input::PadXInput||menuDeviceType==input::PadDirectInput;
     const bool keys=!pad||keyboardLast;
-    selectGlyph=keys?"Enter":padSelectGlyph;
-    backGlyph=keys?"Esc":padBackGlyph;
+    selectGlyph=keys?"Enter":padSelectGlyph.c_str();
+    backGlyph=keys?"Esc":padBackGlyph.c_str();
 }
 void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback,gamepads::PromptBrand brand){
     menuDeviceType=type;
@@ -161,6 +162,9 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
     padSelectGlyph=PhysicalGlyph(type,select,selectFallback);
     padBackGlyph=PhysicalGlyph(type,back,backFallback);
     ApplyMenuGlyphs();
+}
+void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
+    SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
 }
 gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
 const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
@@ -359,9 +363,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // An open dialog takes the screen's shortcuts away.
     const char* back=dialog?dialogBack.c_str():backHint.c_str();
     const float standardLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back,nullptr,listEnabled);
-    const bool hintsFit=!listEnabled||(!dialog&&(!std::strcmp(selectGlyph,"A")||KeyboardPrompts())&&!shortcutHints.empty()&&
-        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back,nullptr,listEnabled)<=standardLegend);
-    const auto& extras=hintsFit?shortcutHints:noHints;
+    // A pad button the player made Select or Back is no shortcut, so its hint goes.
+    std::vector<LegendHint> offered;
+    for(const auto& hint:shortcutHints) if(!listEnabled||KeyboardPrompts()||(std::strcmp(hint.glyph,selectGlyph)&&std::strcmp(hint.glyph,backGlyph))) offered.push_back(hint);
+    const bool hintsFit=!listEnabled||(!dialog&&(menuDeviceType==input::PadXInput||KeyboardPrompts())&&!offered.empty()&&
+        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,offered,back,nullptr,listEnabled)<=standardLegend);
+    const auto& extras=hintsFit?offered:noHints;
     const float reservedLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled);
     // The footer note goes in the bottom right corner, level with the legend's
     // last row when it fits beside it. Otherwise it takes a line of its own

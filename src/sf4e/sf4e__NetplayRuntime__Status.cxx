@@ -453,9 +453,10 @@ PostPublishState Publish() {
         sample.deviceIndex = snapshot.inputDevice.index;
         unsigned held = 0, physical = 0;
         sample.connected = snapshot.inputDevice.connected &&
-            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held,&physical,&sample.selectPhysical,&sample.backPhysical);
-        if(sample.deviceType==input::PadXInput){sample.selectPhysical=input::xinput::A;sample.backPhysical=input::xinput::B;}
-        sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical) : 0;
+            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held, &physical);
+        // Asked whether or not the read worked, so the prompts stay right.
+        sample.menu = MenuButtonsFor(sample.deviceType, sample.deviceIndex);
+        sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical,sample.menu) : 0;
     }
     snapshot.canEditSelection = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle;
 	snapshot.canOpenRoom = snapshot.controllerReady && snapshot.helperReady && snapshot.atMainMenu && !UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;

@@ -3,6 +3,7 @@
 #include "XInputMapping.hxx"
 #include "PadSetup.hxx"
 #include "ButtonLayoutTypes.hxx"
+#include "MenuButtons.hxx"
 #include <string>
 #include <vector>
 
@@ -67,6 +68,10 @@ struct PadView {
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
+    // The stored menu binding, and the buttons that confirm and go back for
+    // this pad with it (Pad::MenuButtons; A and B while it has no game slot).
+    MenuBinding menu;
+    input::MenuButtons menuButtons;
 };
 struct PadFrame {
     Pad pad;
@@ -79,6 +84,7 @@ struct PadFrame {
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
+    MenuBinding menu;
 };
 struct NativeController {
     int index;

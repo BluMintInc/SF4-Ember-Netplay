@@ -5261,6 +5261,21 @@ msgstr "Verder bewerken"
 msgid "button_layout.leave"
 msgstr "Verlaten"
 
+msgid "button_layout.menu_confirm"
+msgstr "Bevestigen in menu's"
+
+msgid "button_layout.menu_back"
+msgstr "Terug in menu's"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Selecteer en druk dan op de knop die bevestigt in de menu's van Ember. Tot je er een kiest, is het de knop waarmee de menu's van het spel bevestigen."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. Tot je er een kiest, is het de knop waarmee de menu's van het spel teruggaan."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} is al {1}. Kies een andere knop."
+
 msgid "room.delay_policy"
 msgstr "Invoervertraging in de kamer"
 

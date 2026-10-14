@@ -308,7 +308,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.discordPending=snapshot.discordPending; view.discordConfirm=snapshot.discordConfirm;
     view.discordRevision=snapshot.discordRevision;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
-    view.inputDevice = snapshot.inputDevice;
+    view.inputDevice = snapshot.inputDevice; view.menuButtons = snapshot.menuController.menu;
     view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
     view.padHint = snapshot.padHint;
     view.padHintUntil = snapshot.padHintUntil; view.padLayer = snapshot.padLayer;
@@ -503,7 +503,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
-    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical,"LP","LK",snapshot.promptBrand);
+    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.menu,snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();
     // The game's battle log was opened from the Replays screen: Ember's menu
     // gets out of the way, and comes back on that screen when the replay

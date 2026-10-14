@@ -12,10 +12,17 @@ constexpr std::array<LayoutFunction, 11> LayoutFunctions = {{
     {"red-focus", "button_layout.red_focus", 0xB0}
 }};
 std::string LayoutName(const std::optional<gamepads::ButtonLayout>& layout);
-// The row a capture belongs to: fn- and the function's id for an assign, edit-button for a pick.
+// The captures of the Menu confirm and Menu back rows, numbered after LayoutFunctions.
+constexpr unsigned MenuConfirmCapture = static_cast<unsigned>(LayoutFunctions.size()), MenuBackCapture = MenuConfirmCapture + 1;
+// The row a capture belongs to: fn- and the function's id for an assign,
+// menu-confirm or menu-back for a menu button, edit-button for a pick.
 inline std::string LayoutCaptureRow(const std::optional<unsigned>& function) {
+    if (function && *function >= MenuConfirmCapture) return *function == MenuConfirmCapture ? "menu-confirm" : "menu-back";
     return function ? std::string("fn-") + LayoutFunctions[*function].id : std::string("edit-button");
 }
+// The pad's name for a physical menu button (input::MenuButtons), or its glyph
+// when it is none of the ten layout buttons.
+std::string MenuButtonName(const gamepads::PadView& pad, std::uint32_t mask, const char* glyph);
 std::string AttackLongName(std::uint32_t mask);
 gamepads::FightNames LayoutButtonNames(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts);
 // How a capture shows on the rows: the row waiting for a press reads
@@ -30,6 +37,8 @@ void DrawButtonLayoutDetail(const gamepads::PadView& pad, gamepads::ButtonPrompt
 // the capture's timeout (left, 1 to 0) and how to cancel.
 struct CaptureCard { std::string prompt, pad; double left = 1; };
 CaptureCard LayoutCaptureCard(const gamepads::PadView& pad, const std::optional<std::uint32_t>& mask, double left);
+// The same card for the Menu confirm (back false) or Menu back row.
+CaptureCard MenuCaptureCard(const gamepads::PadView& pad, bool back, double left);
 float CaptureCardHeight(const CaptureCard& card, float width);
 void DrawCaptureCard(const CaptureCard& card);
 void DrawButtonEditorDetail(const gamepads::PadView& pad, gamepads::ButtonPrompts prompts, unsigned button);

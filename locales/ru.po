@@ -5262,6 +5262,21 @@ msgstr "Продолжить правку"
 msgid "button_layout.leave"
 msgstr "Выйти"
 
+msgid "button_layout.menu_confirm"
+msgstr "Подтверждение в меню"
+
+msgid "button_layout.menu_back"
+msgstr "Назад в меню"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Выберите, затем нажмите кнопку, которая подтверждает в меню Ember. Пока вы её не выберете, это кнопка, которой подтверждают меню игры."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Выберите, затем нажмите кнопку, которая возвращает назад в меню Ember. Пока вы её не выберете, это кнопка, которой возвращаются назад меню игры."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} уже назначена: {1}. Выберите другую кнопку."
+
 msgid "room.delay_policy"
 msgstr "Задержка ввода в лобби"
 

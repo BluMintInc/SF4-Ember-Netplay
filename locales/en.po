@@ -4913,6 +4913,21 @@ msgstr "Keep editing"
 msgid "button_layout.leave"
 msgstr "Leave"
 
+msgid "button_layout.menu_confirm"
+msgstr "Menu confirm"
+
+msgid "button_layout.menu_back"
+msgstr "Menu back"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Select, then press the button that confirms in Ember's menus. Until you choose one, it is the button the game's own menus confirm with."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Select, then press the button that goes back in Ember's menus. Until you choose one, it is the button the game's own menus go back with."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} is already {1}. Choose another button."
+
 msgid "room.delay_policy"
 msgstr "Room input delay"
 

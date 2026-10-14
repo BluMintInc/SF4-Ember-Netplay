@@ -108,6 +108,8 @@ struct ShellView {
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
+    // The gameplay controller's menu buttons and glyphs (Pad::MenuButtons).
+    input::MenuButtons menuButtons;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
     // The chosen fighter, Ultra, appearance, fighter options and stage, for
@@ -490,6 +492,7 @@ private:
     std::optional<gamepads::PadView> layoutPad_;
     bool layoutChanged_ = false, layoutAbsent_ = false;
     unsigned layoutButton_ = 0;
+    // An index into LayoutFunctions, MenuConfirmCapture or MenuBackCapture; none for a pick.
     std::optional<unsigned> layoutCaptureFunction_;
     gamepads::LayoutCapture layoutCapture_;
     bool layoutNeutral_ = false;
@@ -503,8 +506,11 @@ private:
     bool DrawButtonLayout(const ShellView& view, const Submit& submit);
     bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
     bool SavePreferences(const ShellView& view, const Submit& submit);
+    // menu replaces the pad's menu binding; none keeps it.
     bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
-        const ShellView& view, const Submit& submit, const std::string& log);
+        const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::MenuBinding>& menu = {});
+    // Binds Menu confirm (back false) or Menu back to a layout button, refusing the other's button.
+    void ChangeMenuButton(const gamepads::PadView& pad, bool back, unsigned button, const ShellView& view, const Submit& submit);
     void LayoutLog(const ShellView& view, const Submit& submit, std::string text);
     void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
     void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);

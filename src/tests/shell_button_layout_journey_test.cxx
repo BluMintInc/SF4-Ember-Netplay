@@ -168,5 +168,51 @@ void RedFocusAndCaptureRows() {
     Check(row("edit-button").value.empty() && row("fn-lp").enabled, "Cancelled capture left the waiting value");
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
+// Menu confirm and Menu back: a press binds the button for this controller,
+// the other row's button is refused, presets keep the binding, and the legend
+// and the target pad follow the answer the runtime resolves from it.
+void MenuButtonRows() {
+    Harness h; std::vector<MenuEntry> rows; std::string status; Tone tone = Tone::Neutral;
+    SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
+    SetMenuStatusProbe([&](const char* text, Tone t) { status = text; tone = t; });
+    const auto row = [&](const char* id) {
+        const auto at = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
+        Check(at != rows.end(), "Menu button row missing"); return *at;
+    };
+    Prepare(h);
+    Check(row("menu-confirm").value == "Cross" && row("menu-back").value == "Circle", "Menu rows do not show the game's buttons by default");
+    const auto layouts = [&] { return std::count_if(h.actions.begin(), h.actions.end(), [](const ShellAction& a) { return a.padAction.kind == ControllerRequest::Kind::Layout; }); };
+    h.Choose("menu-confirm"); h.view.pads[0].held = {"B"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(layouts() == 0 && tone == Tone::Error && status.find(loc::T("button_layout.menu_back")) != std::string::npos,
+        "Menu confirm took the Menu back button");
+    h.Choose("menu-confirm"); h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(LastLayout(h).menu.confirm == 2 && LastLayout(h).menu.back == -1 && LastLayout(h).buttons == DefaultLayout,
+        "Menu confirm did not bind Square alone");
+    Check(tone == Tone::Success && status.find(loc::T("button_layout.menu_confirm")) != std::string::npos, "Binding did not say so");
+    h.Wait(.5f);
+    Check(h.actions.back().preferences.buttonLayouts.size() == 1 && h.actions.back().preferences.buttonLayouts[0].menu.confirm == 2, "Binding did not autosave");
+    h.view.preferences = h.actions.back().preferences;
+    // The runtime resolves the binding on its next frame.
+    h.view.pads[0].menu = {2, -1}; h.view.pads[0].menuButtons = input::ResolveMenuButtons(input::PadXInput, nullptr, nullptr,
+        input::MenuConfirmFunction, input::MenuBackFunction, MenuBindingMask(2), 0);
+    h.view.menuButtons = h.view.pads[0].menuButtons; SetMenuGlyphs(input::PadXInput, h.view.menuButtons, h.view.promptBrand); h.Frame();
+    Check(row("menu-confirm").value == "Square", "Menu confirm row does not show its binding");
+    h.Choose("menu-back"); h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(LastLayout(h).menu.back == -1 && tone == Tone::Error, "Menu back took the bound Menu confirm button");
+    h.Choose("preset"); h.Press(MenuInput::Down); h.Press(MenuInput::Select);
+    Check(LastLayout(h).buttons == LayoutPresets[1].buttons && LastLayout(h).menu.confirm == 2, "A preset dropped the menu binding");
+    // A target pad that is not the gameplay controller selects with its bound button.
+    h.view.pads[0].gameplay = false; h.Frame(); h.FocusOn("test");
+    h.view.pads[0].held = {"down"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(h.shell.Navigation().Focus() == "fn-lp", "Target pad did not move");
+    const auto before = h.actions.size();
+    h.view.pads[0].held = {"A"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame(); h.Frame(0, 2);
+    Check(!row("fn-lp").value.empty() && row("fn-lp").value != loc::T("button_layout.waiting"), "A still selected after Menu confirm moved");
+    h.view.pads[0].held = {"X"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    Check(row("fn-lp").value == loc::T("button_layout.waiting") && h.actions.size() >= before, "The bound button did not select");
+    h.view.pads[0].held = {"Start"}; h.Frame(); h.view.pads[0].held.clear(); h.Frame();
+    SetMenuEntriesProbe({}); SetMenuStatusProbe({});
+    SetMenuGlyphs(input::PadXInput, input::xinput::A, input::xinput::B);
 }
-void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); }
+}
+void ButtonLayoutJourneys() { RedFocusAndCaptureRows(); LayoutAssignPresetReset(); LayoutEditorWarningRoom(); LayoutRoom(); LayoutCancelsAndEdges(); WizardLayoutEntry(); TargetNavigation(); GuidFallbackEdit(); MenuButtonRows(); }

@@ -5261,6 +5261,21 @@ msgstr "Pokračovat v úpravách"
 msgid "button_layout.leave"
 msgstr "Odejít"
 
+msgid "button_layout.menu_confirm"
+msgstr "Potvrzení v nabídkách"
+
+msgid "button_layout.menu_back"
+msgstr "Zpět v nabídkách"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Vyberte a pak stiskněte tlačítko, které potvrzuje v nabídkách Emberu. Dokud žádné nezvolíte, je to tlačítko, kterým potvrzují nabídky hry."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Vyberte a pak stiskněte tlačítko, které vrací zpět v nabídkách Emberu. Dokud žádné nezvolíte, je to tlačítko, kterým se vracejí nabídky hry."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} už je: {1}. Zvolte jiné tlačítko."
+
 msgid "room.delay_policy"
 msgstr "Zpoždění vstupu v místnosti"
 

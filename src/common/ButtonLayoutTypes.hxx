@@ -19,12 +19,29 @@ constexpr ButtonLayout DefaultLayout = {0x40, 0x80, 0x10, 0x20, 0x430, 0x400, 0x
 inline bool ValidLayout(const ButtonLayout& layout) {
     return std::all_of(layout.begin(), layout.end(), [](std::uint32_t mask) { return !(mask & ~FightMask); });
 }
+// The buttons the player chose to confirm and go back in Ember's menus, as
+// indexes into LayoutGlyphs; -1 keeps what the game's own menus use
+// (input::ResolveMenuButtons). Start, View and the directions are never bound.
+struct MenuBinding {
+    int confirm = -1, back = -1;
+    bool operator==(const MenuBinding& other) const { return confirm == other.confirm && back == other.back; }
+    bool operator!=(const MenuBinding& other) const { return !(*this == other); }
+};
+inline bool ValidMenuBinding(const MenuBinding& menu) {
+    const auto inRange = [](int index) { return index >= -1 && index < static_cast<int>(LayoutGlyphs.size()); };
+    return inRange(menu.confirm) && inRange(menu.back) && (menu.confirm < 0 || menu.confirm != menu.back);
+}
+// The physical mask of a bound index, 0 for none or a button the pad lacks.
+inline std::uint32_t MenuBindingMask(int index, const ListedButtons& has = AllLayoutButtons) {
+    return index >= 0 && index < static_cast<int>(LayoutBits.size()) && has[index] ? std::uint32_t(1) << LayoutBits[index] : 0;
+}
 struct StoredLayout {
     Identity identity;
     ButtonLayout buttons = DefaultLayout;
     std::int64_t edited = 0;
+    MenuBinding menu;
     bool operator==(const StoredLayout& other) const {
-        return identity == other.identity && buttons == other.buttons && edited == other.edited;
+        return identity == other.identity && buttons == other.buttons && edited == other.edited && menu == other.menu;
     }
 };
 } }

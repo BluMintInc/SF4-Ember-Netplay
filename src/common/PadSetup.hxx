@@ -93,16 +93,25 @@ struct SetupSummaryInput {
     SetupMenuAction action = SetupMenuAction::None;
     std::uint64_t sequence = 0;
 };
+// The summary's draft menu bindings: the newly recorded Up, Down, LK and MK,
+// never the installed table's buttons (5.8). The summary's prompts name these
+// same inputs, so the advertised button is the one that acts before Save.
+struct SetupMenuDraft {
+    std::optional<RawInput> up, down, select, back;
+};
+inline SetupMenuDraft DraftMenu(const SetupInputs& recorded) {
+    return {recorded[UpStep], recorded[DownStep], recorded[LkStep], recorded[MkStep]};
+}
 // Summary selection uses the same tap ladder, so holding LK on Save can
 // still cancel. Latched actions survive until the drawing thread sees them.
 class SetupSummaryControls {
 public:
-    SetupSummaryInput Read(std::uint64_t now, const SetupInputs& recorded, const std::vector<RawInput>& held) {
-        const auto pressed = [&](int step) { return recorded[step] && std::find(held.begin(), held.end(), *recorded[step]) != held.end(); };
-        state_.up = pressed(UpStep); state_.down = pressed(DownStep);
-        constexpr int menuSteps[] = {LkStep, MkStep};
+    SetupSummaryInput Read(std::uint64_t now, const SetupMenuDraft& draft, const std::vector<RawInput>& held) {
+        const auto pressed = [&](const std::optional<RawInput>& input) { return input && std::find(held.begin(), held.end(), *input) != held.end(); };
+        state_.up = pressed(draft.up); state_.down = pressed(draft.down);
+        const std::optional<RawInput>* menuInputs[] = {&draft.select, &draft.back};
         for (int i = 0; i < 2; ++i) {
-            if (pressed(menuSteps[i])) { if (!since_[i]) since_[i] = now; }
+            if (pressed(*menuInputs[i])) { if (!since_[i]) since_[i] = now; }
             else if (since_[i]) {
                 if (now - *since_[i] < 1000) { state_.action = i == 0 ? SetupMenuAction::Select : SetupMenuAction::Back; ++state_.sequence; }
                 since_[i].reset();
@@ -127,6 +136,8 @@ struct SetupState {
     std::optional<RawInput> conflictInput;
     int reconnectSeconds = 0;
     SetupSummaryInput summaryInput;
+    // Filled in summary mode only.
+    SetupMenuDraft menuDraft;
     bool CanSave() const {
         for (unsigned i = 0; i < SetupSteps.size(); ++i) if (SetupSteps[i].required && !recorded[i]) return false;
         return true;
@@ -190,8 +201,10 @@ public:
             if (gesture_ == Gesture::TapPending && reading.owner) Tap(*reading.owner, now);
             gesture_ = Gesture::Ready;
         }
-        if (state_.mode == SetupMode::Summary) state_.summaryInput = summaryControls_.Read(now, state_.recorded, reading.held);
-        else { summaryControls_.Release(); state_.summaryInput.up = state_.summaryInput.down = false; }
+        if (state_.mode == SetupMode::Summary) {
+            state_.menuDraft = DraftMenu(state_.recorded);
+            state_.summaryInput = summaryControls_.Read(now, state_.menuDraft, reading.held);
+        } else { state_.menuDraft = {}; summaryControls_.Release(); state_.summaryInput.up = state_.summaryInput.down = false; }
         if (now - lastInput_ >= 60000) Stop(SetupEventKind::Stopped, SetupEnd::Idle);
         else if (now >= feedbackUntil_) state_.feedback = state_.mode == SetupMode::Capture && now - lastInput_ >= 10000 ? SetupFeedback::Idle : SetupFeedback::None;
         return events_;

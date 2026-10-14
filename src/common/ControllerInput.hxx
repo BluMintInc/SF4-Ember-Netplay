@@ -17,8 +17,4 @@ inline std::uint32_t MapButtons(std::uint32_t physical, const std::uint32_t* bin
         if (physical & (std::uint32_t(1) << bit)) result |= bindings[bit];
     return result;
 }
-inline std::uint32_t PhysicalBinding(std::uint32_t action,const std::uint32_t* bindings) {
-    for(unsigned bit=4;bit<32;++bit)if(bindings[bit]==action)return std::uint32_t(1)<<bit;
-    return 0;
-}
 } }

@@ -1,5 +1,10 @@
 #include "shell_journey_support.hxx"
+#include "../ui/ControllersScreen.hxx"
 namespace {
+// The summary's Select and Back are the newly recorded LK and MK, and its
+// legend names them, while the stick's installed menu buttons (buttons 3 and
+// 2: its record is unknown, so the game's generic default) do nothing until
+// Save; after it, ordinary menus take the installed buttons again.
 void GameplayTargetSummary() {
     using namespace sf4e; using namespace gamepads;
     Harness h;
@@ -11,15 +16,19 @@ void GameplayTargetSummary() {
     auto& setup = h.view.padSetup.state;
     setup.active = true; setup.mode = SetupMode::Summary;
     for (int i = 0; i < SetupStepCount; ++i) setup.recorded[i] = RawInput{RawKind::Button, i + 10};
+    setup.menuDraft = DraftMenu(setup.recorded);
     h.Screen("pad-setup"); h.FocusOn("save");
     ControllerNavigation navigation;
     SetupSummaryControls summary;
     ControllerSample sample; sample.deviceType = input::PadDirectInput; sample.deviceIndex = 5; sample.connected = true;
+    sample.menu = input::ResolveMenuButtons(input::PadDirectInput, nullptr, nullptr);
+    Check(sample.menu.confirm == 1u << 18 && sample.menu.back == 1u << 17 && !std::strcmp(sample.menu.confirmGlyph, "LK"),
+        "A stick with no verified record lost the game's default");
     std::uint64_t now = 1;
-    // Exercise the overlay's two input paths: old native LP/LK bindings and the wizard's new raw bindings.
-    const auto tick = [&](unsigned oldFight, std::vector<RawInput> raw = {}) {
-        setup.summaryInput = summary.Read(now += 16, setup.recorded, raw);
-        sample.buttons = ControllerButtons(oldFight, sample.deviceType);
+    // Exercise the overlay's two input paths: the installed menu buttons and the wizard's new raw bindings.
+    const auto tick = [&](unsigned installed, std::vector<RawInput> raw = {}) {
+        setup.summaryInput = summary.Read(now += 16, setup.menuDraft, raw);
+        sample.buttons = ControllerButtons(0, sample.deviceType, installed, sample.menu);
         const bool targetIsGameplay = std::any_of(h.view.pads.begin(), h.view.pads.end(), [&](const PadView& row) {
             return row.gameplay && Same(row.identity, h.view.padSetup.identity);
         });
@@ -27,12 +36,18 @@ void GameplayTargetSummary() {
         navigation.Update(sample, true, true, !assigning && !(setup.active && (setup.mode == SetupMode::Capture || targetIsGameplay)));
         h.Frame(navigation.Buttons());
     };
+    std::set<std::string> legend;
+    SetMenuTextProbe([&](const char* id, float, float, float, float) { if (!std::strncmp(id, "legend/", 7)) legend.insert(id + 7); });
     tick(0); tick(0);
+    const auto advertised = RawInputName(*setup.recorded[LkStep]), advertisedBack = RawInputName(*setup.recorded[MkStep]);
+    const auto names = [&](const std::string& text) { return std::any_of(legend.begin(), legend.end(), [&](const std::string& hint) { return hint.find(text) != std::string::npos; }); };
+    Check(names(advertised) && names(advertisedBack), "The summary did not advertise the recorded LK and MK");
+    SetMenuTextProbe({});
     const auto before = h.actions.size();
-    tick(0x10, {{RawKind::Button, 0}}); tick(0);
-    Check(h.actions.size() == before && h.shell.Navigation().Focus() == "save", "Old LP selected through the gameplay target during summary");
-    tick(0x40, {{RawKind::Button, 1}}); tick(0);
-    Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Focus() == "save", "Old LK opened cancel confirmation during summary");
+    tick(sample.menu.confirm, {{RawKind::Button, 2}}); tick(0);
+    Check(h.actions.size() == before && h.shell.Navigation().Focus() == "save", "The installed confirm selected through the gameplay target during summary");
+    tick(sample.menu.back, {{RawKind::Button, 1}}); tick(0);
+    Check(!h.shell.Navigation().Confirming() && h.shell.Navigation().Focus() == "save", "The installed back opened cancel confirmation during summary");
     tick(0, {*setup.recorded[LkStep]});
     Check(h.actions.size() == before, "New LK selected before release");
     tick(0);
@@ -41,8 +56,36 @@ void GameplayTargetSummary() {
     ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, true); tick(0);
     ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, false); tick(0);
     Check(h.shell.Navigation().Focus() == "restart", "Summary target suppressed keyboard navigation");
-    auto other = pad; other.id = 12; other.identity.path = "other-path";
-    h.view.pads[0].gameplay = false; h.view.pads.push_back(other);
+    // After Save, ordinary menus take the installed buttons and their glyphs.
+    setup.active = false; h.view.padSetup.outcome = SetupEnd::Saved; ++h.view.padSetup.revision;
+    h.view.menuButtons = sample.menu; h.Frame();
+    Check(h.shell.Navigation().Screen() != "pad-setup", "Save did not close the summary");
+    ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, false); NoteMenuDevice(0); NoteMenuDevice(MenuInput::Down); NoteMenuDevice(0);
+    legend.clear();
+    SetMenuTextProbe([&](const char* id, float, float, float, float) { if (!std::strncmp(id, "legend/", 7)) legend.insert(id + 7); });
+    SetMenuGlyphs(input::PadDirectInput, sample.menu); h.Frame();
+    SetMenuTextProbe({});
+    Check(names("LK") && names("MK") && !names(advertised), "After Save the legend did not name the installed buttons");
+    navigation.Reset();
+    sample.buttons = 0; navigation.Update(sample, true, true, true); h.Frame(navigation.Buttons());
+    sample.buttons = ControllerButtons(0, sample.deviceType, sample.menu.back, sample.menu);
+    Check(sample.buttons == ControllerSample::Back, "The installed back is not Back after Save");
+}
+// Another gameplay pad keeps its own navigation while a summary runs.
+void OtherPadDuringSummary() {
+    using namespace sf4e; using namespace gamepads;
+    Harness h;
+    PadView pad; pad.id = 11; pad.name = "Unmapped DirectInput stick";
+    pad.identity = {"direct-guid", "", "direct-path", pad.name}; pad.state = RowState::Unmapped;
+    auto other = pad; other.id = 12; other.identity.path = "other-path"; other.gameplay = true;
+    h.view.pads = {pad, other}; h.view.inputDevice.type = input::PadXInput; h.view.padSetup.identity = pad.identity;
+    auto& setup = h.view.padSetup.state; setup.active = true; setup.mode = SetupMode::Summary;
+    for (int i = 0; i < SetupStepCount; ++i) setup.recorded[i] = RawInput{RawKind::Button, i + 10};
+    setup.menuDraft = DraftMenu(setup.recorded);
+    h.Screen("pad-setup"); h.FocusOn("restart");
+    ControllerNavigation navigation;
+    ControllerSample sample; sample.deviceType = input::PadXInput; sample.deviceIndex = 0; sample.connected = true;
+    const auto tick = [&](unsigned held) { sample.buttons = ControllerButtons(held, sample.deviceType, 0, sample.menu); navigation.Update(sample, true, true, true); h.Frame(navigation.Buttons()); };
     tick(0); tick(0); tick(0x2); tick(0);
     Check(h.shell.Navigation().Focus() == "cancel", "A different gameplay pad lost summary navigation");
 }
@@ -167,4 +210,4 @@ static void ControllerSettingsJourney() {
     Check(h.actions.size() == locked, "Locked opt-out changed preferences");
     SetMenuEntriesProbe({});
 }
-void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); GameplayTargetSummary(); }
+void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); GameplayTargetSummary(); OtherPadDuringSummary(); }

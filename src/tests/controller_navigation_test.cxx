@@ -64,8 +64,8 @@ void NativeReader() {
     Check(!Dimps::Pad::ReadController(3, 7, held), "Wrong provider identity accepted");
     Check(ControllerButtons(0x1) == Button::Up && ControllerButtons(0x2) == Button::Down &&
           ControllerButtons(0x4) == Button::Left && ControllerButtons(0x8) == Button::Right, "Native direction bits incorrect");
-    Check(ControllerButtons(0x10) == Button::Confirm && ControllerButtons(0x1000) == (Button::Confirm | Button::Menu) &&
-          ControllerButtons(0x40) == Button::Back && ControllerButtons(0x2000) == Button::Back, "Native action bits incorrect");
+    // Select and Back are physical buttons (Pad::MenuButtons), never a fight function.
+    Check(ControllerButtons(0x10 | 0x40 | 0x2000) == 0 && ControllerButtons(0x1000) == Button::Menu, "A fight function became a menu action");
     Check(ControllerButtons(0x20 | 0x80 | 0x400 | 0x800) == 0, "Unrelated attack became UI action");
     Check(ControllerButtons(0x40,3,0x40000)==Button::Confirm,"Physical A must select even when bound to LK");
     Check(ControllerButtons(0x20,3,0x20000)==Button::Back,"Physical B must return even when bound to MP");
@@ -80,7 +80,14 @@ void NativeReader() {
   ControllerButtons(0,PadXInput,xinput::X)==MenuInput::Fighter&&ControllerButtons(0,PadXInput,xinput::Y)==MenuInput::Options&&
   ControllerButtons(0,PadXInput,xinput::View)==MenuInput::Chat,"An Xbox button reached the menu as another action");
  Check(ControllerButtons(0,PadXInput,xinput::Start)==Button::Menu&&(Button::Menu&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat))==0,"Start became a menu shortcut");
- Check(ControllerButtons(0x10,PadDirectInput,0)==MenuInput::Select&&ControllerButtons(0x10,PadKeyboard,0)==MenuInput::Select,"A non-Xbox pad lost its mapped select");
+ // A stick confirms on its third button and goes back on its second, as the game's menus do.
+ Check(ControllerButtons(0x40,PadDirectInput,1u<<18)==MenuInput::Select&&ControllerButtons(0x80,PadDirectInput,1u<<17)==MenuInput::Back,"A stick lost the game's menu buttons");
+ Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==0,"A stick's LP still selected");
+ // Bound to X and Y, those confirm and go back; X and Y are then no shortcuts, and A and B do nothing.
+ MenuButtons moved; moved.confirm=xinput::X; moved.back=xinput::Y;
+ Check(ControllerButtons(0,PadXInput,xinput::X,moved)==MenuInput::Select&&ControllerButtons(0,PadXInput,xinput::Y,moved)==MenuInput::Back,"A bound button did not select or go back");
+ Check(ControllerButtons(0,PadXInput,xinput::A|xinput::B,moved)==0&&ControllerButtons(0,PadXInput,xinput::View,moved)==MenuInput::Chat,"Moving the menu buttons broke the others");
+
 }
 
 

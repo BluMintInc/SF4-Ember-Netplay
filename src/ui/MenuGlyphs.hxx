@@ -5,6 +5,7 @@
 #include "../common/Localization.hxx"
 #include "../common/ButtonPrompts.hxx"
 #include "../common/ButtonLayout.hxx"
+#include "../common/MenuButtons.hxx"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -13,9 +14,8 @@ namespace sf4e { namespace ui {
 // Native XInput normalization at 006D8415..006D8466. DirectInput device shape
 // cannot be inferred from its binding index; never pretend it is an Xbox pad.
 inline const char* PhysicalGlyph(int type,unsigned mask,const char* fallback) {
-    if(type!=input::PadXInput)return fallback;
-    switch(mask){case input::xinput::A:return "A";case input::xinput::B:return "B";case input::xinput::X:return "X";case input::xinput::Y:return "Y";
-    case input::xinput::LB:return "LB";case input::xinput::RB:return "RB";case input::xinput::LT:return "LT";case input::xinput::RT:return "RT";case input::xinput::LS:return "LS";case input::xinput::RS:return "RS";default:return fallback;}
+    const char* glyph=type==input::PadXInput?input::XInputButtonName(mask):nullptr;
+    return glyph?glyph:fallback;
 }
 gamepads::PromptBrand MenuPromptBrand();
 // A shell's unsaved value takes effect before the normal autosave deadline.

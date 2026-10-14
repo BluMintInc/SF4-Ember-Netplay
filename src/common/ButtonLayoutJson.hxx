@@ -6,7 +6,8 @@ namespace sf4e { namespace gamepads {
 inline nlohmann::json LayoutsToJson(const std::vector<StoredLayout>& layouts) {
     auto result = nlohmann::json::array();
     for (const auto& layout : layouts) result.push_back({{"guid", layout.identity.guid}, {"serial", layout.identity.serial},
-        {"path", layout.identity.path}, {"name", layout.identity.name}, {"buttons", layout.buttons}, {"edited", layout.edited}});
+        {"path", layout.identity.path}, {"name", layout.identity.name}, {"buttons", layout.buttons}, {"edited", layout.edited},
+        {"menuConfirm", layout.menu.confirm}, {"menuBack", layout.menu.back}});
     return result;
 }
 struct LayoutLoadError {
@@ -40,6 +41,11 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
         const auto text = [&](const char* key) { const auto field = entry.find(key); return field != entry.end() && field->is_string() ? field->get<std::string>() : std::string{}; };
         layout.identity = {text("guid"), text("serial"), text("path"), text("name")};
         if (entry.contains("edited") && entry["edited"].is_number_integer()) layout.edited = entry["edited"].get<std::int64_t>();
+        // A missing or unusable menu binding keeps the game's menu buttons; the layout still loads.
+        const auto index = [&](const char* key) { const auto field = entry.find(key); return field != entry.end() && field->is_number_integer() ? field->get<std::int64_t>() : -1; };
+        const auto confirm = index("menuConfirm"), back = index("menuBack");
+        if (confirm >= -1 && confirm < 10 && back >= -1 && back < 10) layout.menu = {static_cast<int>(confirm), static_cast<int>(back)};
+        if (!ValidMenuBinding(layout.menu)) layout.menu = {};
         UpsertLayout(layouts, std::move(layout));
     }
     return layouts;

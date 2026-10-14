@@ -13,10 +13,11 @@ std::vector<Identity> ConnectedLayoutPads(const ShellView& view) {
     for (const auto& pad : view.pads) if (pad.state != RowState::Absent) connected.push_back(pad.identity);
     return connected;
 }
+// The pad's own menu buttons (input::MenuButtons) select and go back here.
 unsigned TargetInput(const PadView& pad) {
     unsigned result = 0;
     const std::pair<const char*, unsigned> buttons[] = {{"up", MenuInput::Up}, {"down", MenuInput::Down},
-        {"left", MenuInput::Left}, {"right", MenuInput::Right}, {"A", MenuInput::Select}, {"B", MenuInput::Back}};
+        {"left", MenuInput::Left}, {"right", MenuInput::Right}, {pad.menuButtons.confirmGlyph, MenuInput::Select}, {pad.menuButtons.backGlyph, MenuInput::Back}};
     for (const auto& button : buttons)
         if (std::find(pad.held.begin(), pad.held.end(), button.first) != pad.held.end()) result |= button.second;
     return result;
@@ -87,17 +88,35 @@ void ApplicationShell::LayoutLog(const ShellView& view, const Submit& submit, st
     submit(std::move(action));
 }
 bool ApplicationShell::ChangeLayout(const PadView& pad, const std::optional<ButtonLayout>& layout,
-    const ShellView& view, const Submit& submit, const std::string& log) {
+    const ShellView& view, const Submit& submit, const std::string& log, const std::optional<MenuBinding>& menu) {
     if (!CanEditLayout(view) || !Served(pad)) return false;
+    const auto binding = menu.value_or(pad.menu);
     ShellAction action; action.command.generation = view.session.generation;
     action.padAction.kind = layout ? ControllerRequest::Kind::Layout : ControllerRequest::Kind::RemoveLayout;
-    action.padAction.id = pad.id; action.padAction.buttons = layout.value_or(DefaultLayout); action.padAction.log = log;
+    action.padAction.id = pad.id; action.padAction.buttons = layout.value_or(DefaultLayout); action.padAction.menu = binding; action.padAction.log = log;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    if (layout) UpsertLayout(preferences_.buttonLayouts, {pad.identity, *layout, static_cast<std::int64_t>(std::time(nullptr))});
+    if (layout) UpsertLayout(preferences_.buttonLayouts, {pad.identity, *layout, static_cast<std::int64_t>(std::time(nullptr)), binding});
     else RemoveLayout(preferences_.buttonLayouts, pad.identity);
     preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45; error_.clear();
     layoutChanged_ = layout.has_value();
     return true;
+}
+void ApplicationShell::ChangeMenuButton(const PadView& pad, bool back, unsigned button, const ShellView& view, const Submit& submit) {
+    layoutFlash_ = back ? "menu-back" : "menu-confirm"; layoutFlashUntil_ = ImGui::GetTime() + .6;
+    const auto row = loc::T(back ? "button_layout.menu_back" : "button_layout.menu_confirm");
+    // Confirm and back never share a button: the one the other row uses now is refused.
+    if (MenuBindingMask(static_cast<int>(button), pad.has) == (back ? pad.menuButtons.confirm : pad.menuButtons.back)) {
+        LayoutLog(view, submit, fmt::format("layout for id {}: menu {} = {} refused (the other menu button)", pad.id, back ? "back" : "confirm", LayoutGlyphs[button]));
+        notice_ = loc::Tf("button_layout.menu_taken", pad.buttonNames[button], loc::T(back ? "button_layout.menu_confirm" : "button_layout.menu_back"));
+        noticeTone_ = Tone::Error; noticeUntil_ = ImGui::GetTime() + 4; layoutFlash_.clear();
+        return;
+    }
+    auto menu = pad.menu;
+    (back ? menu.back : menu.confirm) = static_cast<int>(button);
+    if (menu != pad.menu && ChangeLayout(pad, pad.table, view, submit,
+        fmt::format("layout for id {}: menu {} = {}", pad.id, back ? "back" : "confirm", LayoutGlyphs[button]), menu)) {
+        notice_ = loc::Tf("button_layout.assigned", row, pad.buttonNames[button]); noticeTone_ = Tone::Success; noticeUntil_ = ImGui::GetTime() + 4;
+    }
 }
 bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& submit) {
     auto& nav = menu_.navigation;
@@ -122,6 +141,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     const bool editable = CanEditLayout(view) && Served(pad);
     const auto stored = FindLayout(preferences_.buttonLayouts, pad.identity, ConnectedLayoutPads(view));
     pad.layout = stored.index ? std::make_optional(preferences_.buttonLayouts[*stored.index].buttons) : std::nullopt;
+    pad.menu = stored.index ? preferences_.buttonLayouts[*stored.index].menu : MenuBinding{};
     if (pad.layout) pad.table = *pad.layout;
     pad.buttonNames = LayoutButtonNames(pad, preferences_.buttonPrompts);
     if (absent) pad.held.clear();
@@ -133,7 +153,8 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     if (layoutNeutral_ && pad.held.empty()) layoutNeutral_ = false;
     SetGameplayLayoutPrompts(view);
     const bool capturing = layoutCapture_.Active();
-    const std::optional<std::uint32_t> captureMask = layoutCaptureFunction_ ? std::make_optional(LayoutFunctions[*layoutCaptureFunction_].mask) : std::nullopt;
+    const bool menuCapture = layoutCaptureFunction_ && *layoutCaptureFunction_ >= MenuConfirmCapture;
+    const std::optional<std::uint32_t> captureMask = layoutCaptureFunction_ && !menuCapture ? std::make_optional(LayoutFunctions[*layoutCaptureFunction_].mask) : std::nullopt;
     const auto captureRow = LayoutCaptureRow(layoutCaptureFunction_);
     const LayoutRowMarks marks{capturing ? captureRow : std::string(), ImGui::GetTime() < layoutFlashUntil_ ? layoutFlash_ : std::string()};
     auto rows = editor ? ButtonEditorRows(pad, layoutButton_, editable) : ButtonLayoutRows(pad,
@@ -141,7 +162,8 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     if (wasAbsent != absent) nav.Focus(absent ? "layout-absent" : "test", rows);
     menu_.listCard = {};
     if (capturing) {
-        const auto card = LayoutCaptureCard(pad, captureMask, layoutCapture_.Left(ImGui::GetTime()));
+        const auto left = layoutCapture_.Left(ImGui::GetTime());
+        const auto card = menuCapture ? MenuCaptureCard(pad, *layoutCaptureFunction_ == MenuBackCapture, left) : LayoutCaptureCard(pad, captureMask, left);
         menu_.listCard = {[card](float width) { return CaptureCardHeight(card, width); }, [card] { DrawCaptureCard(card); }};
     }
     menu_.listEnabled = !capturing; menu_.ownsBack = true; menu_.customDetail = capturing;
@@ -170,7 +192,8 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             const auto button = *press.button;
             LayoutLog(view, submit, fmt::format("layout capture for id {} {} took {}", pad.id, captureName, LayoutGlyphs[button]));
             layoutNeutral_ = true; nav.NeutralGate();
-            if (!captureMask) { layoutButton_ = button; nav.Push("button-layout-button"); nav.Focus("bit-lp", ButtonEditorRows(pad, button, true)); }
+            if (menuCapture) ChangeMenuButton(pad, *layoutCaptureFunction_ == MenuBackCapture, button, view, submit);
+            else if (!captureMask) { layoutButton_ = button; nav.Push("button-layout-button"); nav.Focus("bit-lp", ButtonEditorRows(pad, button, true)); }
             else {
                 layoutFlash_ = captureRow; layoutFlashUntil_ = ImGui::GetTime() + .6;
                 auto layout = pad.table; const auto assigned = Assign(layout, button, *captureMask, pad.has);
@@ -203,9 +226,11 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
             } else nav.Return();
         }
     } else if (action.kind == MenuAction::Activate && action.id == "setup") BeginPadSetup(pad, view, submit);
-    else if (editable && action.kind == MenuAction::Activate && (action.id.compare(0, 3, "fn-") == 0 || action.id == "edit-button")) {
+    else if (editable && action.kind == MenuAction::Activate && (action.id.compare(0, 3, "fn-") == 0 || action.id.compare(0, 5, "menu-") == 0 || action.id == "edit-button")) {
         layoutCaptureFunction_.reset();
         for (unsigned i = 0; i < LayoutFunctions.size(); ++i) if (action.id == std::string("fn-") + LayoutFunctions[i].id) layoutCaptureFunction_ = i;
+        if (action.id == "menu-confirm") layoutCaptureFunction_ = MenuConfirmCapture;
+        if (action.id == "menu-back") layoutCaptureFunction_ = MenuBackCapture;
         layoutCapture_.Begin(ImGui::GetTime(), pad.held);
     } else if (editable && action.kind == MenuAction::Chosen && action.id == "preset") {
         for (const auto& preset : LayoutPresets) if (action.text == preset.id && ChangeLayout(pad, preset.buttons, view, submit,

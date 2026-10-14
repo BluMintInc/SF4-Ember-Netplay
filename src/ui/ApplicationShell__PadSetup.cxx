@@ -29,7 +29,7 @@ void ApplicationShell::ClosePadSetup(const ShellView& view, bool controllers) {
     if (reopenScreen_ && *reopenScreen_ == "pad-setup") reopenScreen_.reset();
     setupPad_.reset(); setupStarting_ = false;
     menu_.listEnabled = true; menu_.ownsBack = false; menu_.customDetail = false; menu_.compactDetailHeight = 0; menu_.additionalInput = 0; menu_.shortcutHints.clear();
-    SetMenuGlyphs(view.inputDevice.type, input::xinput::A, input::xinput::B, "LP", "LK", view.promptBrand);
+    SetMenuGlyphs(view.inputDevice.type, view.menuButtons, view.promptBrand);
     SetGameplayLayoutPrompts(view);
 }
 void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submit, bool visible) {
@@ -122,7 +122,12 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
     menu_.footerNote.clear(); menu_.typesText = false; menu_.wideListShare = .46f; menu_.compactDetailHeight = 280;
     if (capture) SetMenuGlyphs(input::PadKeyboard, 0, 0);
     else {
-        SetMenuGlyphs(input::PadXInput, input::xinput::A, input::xinput::B, "LP", "LK", {Brand::Stick});
+        // The draft's own inputs select and go back here, whatever the
+        // installed buttons are, so the prompts name them (SetupMenuDraft).
+        const auto& draft = state.menuDraft;
+        const auto select = draft.select ? RawInputName(*draft.select) : std::string("LK");
+        const auto back = draft.back ? RawInputName(*draft.back) : std::string("MK");
+        SetMenuGlyphs(input::PadDirectInput, 0, 0, select.c_str(), back.c_str(), {Brand::Stick});
         SetMenuPromptBrand({Brand::Stick}, NamesOf(setupPad_->table));
     }
     SetupCommand command = SetupCommand::None; int step = 0;

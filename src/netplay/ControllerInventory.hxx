@@ -32,7 +32,7 @@ public:
                     else if (pad.type == Type::Unknown || pad.type == Type::Standard) row.name.clear(); // localized by the runtime
                 }
                 row.bindings = frame.bindings; row.numberedHats = frame.numberedHats;
-                row.has = frame.has; row.table = frame.table; row.layout = frame.layout;
+                row.has = frame.has; row.table = frame.table; row.layout = frame.layout; row.menu = frame.menu;
                 row.held = HeldGlyphs(frame.state); row.raw = frame.raw; row.rawAtRest = frame.rawAtRest; row.pressed = frame.pressed;
                 if (row.state == RowState::Unmapped || row.state == RowState::GameRead) {
                     const auto match = [&](const NativeController& n) {

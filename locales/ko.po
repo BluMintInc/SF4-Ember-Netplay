@@ -5261,6 +5261,21 @@ msgstr "계속 편집"
 msgid "button_layout.leave"
 msgstr "나가기"
 
+msgid "button_layout.menu_confirm"
+msgstr "메뉴 확인"
+
+msgid "button_layout.menu_back"
+msgstr "메뉴 뒤로"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "선택한 다음 Ember 메뉴에서 확인할 버튼을 누르세요. 고르기 전까지는 게임 메뉴에서 확인하는 버튼입니다."
+
+msgid "button_layout.menu_back_detail"
+msgstr "선택한 다음 Ember 메뉴에서 뒤로 갈 버튼을 누르세요. 고르기 전까지는 게임 메뉴에서 뒤로 가는 버튼입니다."
+
+msgid "button_layout.menu_taken"
+msgstr "{0}은(는) 이미 {1}입니다. 다른 버튼을 고르세요."
+
 msgid "room.delay_policy"
 msgstr "방 입력 지연"
 

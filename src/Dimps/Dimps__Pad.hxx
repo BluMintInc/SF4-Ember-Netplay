@@ -3,6 +3,7 @@
 #include <windows.h>
 #include "../common/PadKind.hxx"
 #include "../common/PadBindingRecords.hxx"
+#include "../common/MenuButtons.hxx"
 
 namespace Dimps {
 	namespace Pad {
@@ -19,8 +20,12 @@ namespace Dimps {
 			PADTYPE_DIRECTINPUT == sf4e::input::PadDirectInput, "sf4e::input::PadKind must match PadType");
 
 		// Game thread, main menu or offline training; never assigns a side.
-		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr,
-                            unsigned int* selectPhysical = nullptr, unsigned int* backPhysical = nullptr);
+		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr);
+        // The buttons that confirm and go back in Ember's menus for a device
+        // (input::ResolveMenuButtons): the player's binding (physical masks, 0
+        // for none), else what the game's own menus use. Reads only; a device
+        // that is disconnected or has no valid record still gets an answer.
+        sf4e::input::MenuButtons MenuButtons(int deviceType, int deviceIndex, std::uint32_t boundConfirm = 0, std::uint32_t boundBack = 0);
 		struct System {
 			static const int BUTTON_MAPPING_FIGHT;
 			static const int BUTTON_MAPPING_MENU;

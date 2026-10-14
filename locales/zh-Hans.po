@@ -5261,6 +5261,21 @@ msgstr "继续编辑"
 msgid "button_layout.leave"
 msgstr "离开"
 
+msgid "button_layout.menu_confirm"
+msgstr "菜单确认"
+
+msgid "button_layout.menu_back"
+msgstr "菜单返回"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "选择后，按下在 Ember 菜单中用于确认的按钮。在你选择之前，它就是游戏自身菜单用于确认的按钮。"
+
+msgid "button_layout.menu_back_detail"
+msgstr "选择后，按下在 Ember 菜单中用于返回的按钮。在你选择之前，它就是游戏自身菜单用于返回的按钮。"
+
+msgid "button_layout.menu_taken"
+msgstr "{0} 已经是{1}。请选择其他按钮。"
+
 msgid "room.delay_policy"
 msgstr "房间输入延迟"
 

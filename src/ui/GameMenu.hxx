@@ -13,9 +13,12 @@ class SelectionArt;
 void SetMenuArt(SelectionArt* art);
 // The art SetMenuArt gave, or null; the passive HUD draws its prompts from it.
 SelectionArt* MenuArt();
-// The fallbacks name a button with no known glyph: the game's LP/LK binding,
-// or the recovery window's stick buttons "1"/"2". They must outlive the call.
-void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LP",const char* backFallback="LK",gamepads::PromptBrand brand={});
+// The fallbacks name a button with no known glyph: the game's menu functions
+// LK and MK on a DirectInput stick, a raw input's name in the pad setup
+// summary, or the recovery window's stick buttons "1"/"2". They are copied.
+void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LK",const char* backFallback="MK",gamepads::PromptBrand brand={});
+// The device's menu buttons as Pad::MenuButtons answers them, glyphs included.
+void SetMenuGlyphs(int deviceType,const input::MenuButtons& buttons,gamepads::PromptBrand brand={});
 struct PlayerCardView {
     std::string name, fighterName;
     int fighter=0, inputDelay=0, members=0, activeTables=0;
@@ -83,7 +86,8 @@ class GameMenu {
 public:
     MenuNavigation navigation;
     // The Xbox X/Y/View hints for the screen being drawn; other devices have
-    // no such buttons, so they are shown only with the A/B glyphs.
+    // no such buttons, so they are shown only for an Xbox pad (or the keyboard),
+    // less any button the player made Select or Back.
     std::vector<LegendHint> shortcutHints;
     // A text box on this screen holds the keyboard whether or not ImGui has
     // activated it this frame, so letters, Space, Backspace and Delete are

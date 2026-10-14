@@ -19,7 +19,7 @@ Terms used below:
 
 1. A plain Ember launch makes every pad work. No Steam setup, no drivers, no files to copy.
 2. The game sees one kind of pad (Xbox). Ember adapts the pictures, never the button positions.
-3. One convention everywhere: the button in the Xbox A position confirms in Ember's menus and in the game's menus.
+3. Ember's menus confirm and go back on the buttons the game's own menus use (the Xbox A and B positions by default, a stick's LK and MK), unless the player binds other buttons for Ember's menus (11.14).
 4. A pad Ember does not know still works as it does today until the player sets it up. Nothing gets worse.
 5. Messages appear only when the player can act on them, and never over a fight.
 6. The wizard can be finished, undone and cancelled with nothing but the pad being set up.
@@ -44,7 +44,7 @@ Brand comes from `SDL_GetGamepadType` for recognised pads, from the saved wizard
 | `SDL_GAMEPAD_TYPE_STANDARD`, `SDL_GAMEPAD_TYPE_UNKNOWN`, any other value | Generic | drawn as Xbox |
 | Steam virtual pad (its SDL GUID encodes 28DE:11FF) | the type SDL reports for it (SDL3 reads Steam's virtual pad info); Generic if none | as its brand |
 | Game-read XInput pad (opt-out, SDL failed) | Xbox | Xbox |
-| Game-read DirectInput pad (unmapped, opt-out, SDL failed) | none: today's generic circle with "LP"/"LK" (in the launcher: "1"/"2") | unchanged |
+| Game-read DirectInput pad (unmapped, opt-out, SDL failed) | none: a generic circle with "LK"/"MK", the game's menu functions (11.14; in the launcher: "1"/"2") | unchanged |
 
 A pad SDL already maps keeps its brand after a wizard setup; only a pad SDL could not map before draws as Stick. Ember's mapping replaces SDL's own for that GUID, so whether SDL maps the pad itself is noted before Ember adds its mapping, at layer start and at save.
 
@@ -52,7 +52,7 @@ Generic draws Xbox art because SDL lays every gamepad out on Xbox positions, and
 
 ### 2.2 Nintendo confirm and back: by position
 
-Ember confirms with the **south** button and goes back with the **east** button on every pad, Nintendo included. On a Switch Pro pad that is the button printed **B** (confirm) and the one printed **A** (back), and the legend shows those printed letters.
+By default Ember confirms with the **south** button and goes back with the **east** button on every pad, Nintendo included: the game's menu table puts LK and MK there (11.14). A player who moves LK and MK in the game's button screen, or binds Menu confirm and Menu back on the Button layout screen, moves Ember's too. On a Switch Pro pad that is the button printed **B** (confirm) and the one printed **A** (back), and the legend shows those printed letters.
 
 Why: SDL3 reports face buttons by position (`SDL_GAMEPAD_BUTTON_SOUTH`, `EAST`, `WEST`, `NORTH`) and the game receives the south button as Xbox A. The game's own menus therefore confirm with the south button. If Ember confirmed by label (east), the same player would press different buttons to confirm in Ember and in the game a second later. Positional keeps one rule; the picture tells the truth about which button that is.
 
@@ -70,7 +70,7 @@ The brand is applied at exactly one translation point, a new `BrandGlyph(id, bra
 Two paths compare the literal id and keep working unchanged:
 
 - `GameMenu.cxx:353`: room shortcut hints (X, Y, View) show only when `selectGlyph` is `"A"`. Every recognised pad now has `"A"`, so PlayStation, Nintendo and Stick players get the shortcut hints.
-- `MenuGlyphs.hxx` `MenuLegend` `prefix()`: extend its generic circle test to ask `BrandGlyph` for the name, so Stick names print and DirectInput "LP"/"LK" still print as today.
+- `MenuGlyphs.hxx` `MenuLegend` `prefix()`: extend its generic circle test to ask `BrandGlyph` for the name, so Stick names print and DirectInput "LK"/"MK" print too.
 
 The brand that applies is chosen by `SetMenuGlyphs`, which gains a brand argument. The menu prompts follow the gameplay controller's brand, resolved through the Button prompts setting (2.4). Keyboard glyph behaviour is unchanged: keyboard prompts still win whenever the keyboard was used last (`NoteMenuDevice`, `ReadMenuInput`).
 
@@ -80,8 +80,8 @@ Values, in Left/Right order: **Automatic**, **Xbox**, **PlayStation**, **Nintend
 
 | Setting | Recognised pad | Stick (wizard) pad | Game-read XInput (opt-out, SDL failed, Steam) | Game-read DirectInput |
 |---|---|---|---|---|
-| Automatic | its brand (2.1) | Stick ids, generic circles | Xbox | unchanged (LP/LK) |
-| Xbox / PlayStation / Nintendo | that brand | that brand, Xbox ids | that brand | unchanged (LP/LK) |
+| Automatic | its brand (2.1) | Stick ids, generic circles | Xbox | LK/MK (11.14) |
+| Xbox / PlayStation / Nintendo | that brand | that brand, Xbox ids | that brand | LK/MK (11.14) |
 
 The PlayStation forced style uses PS4 art for Start/Select. A forced style applies to every place prompts are drawn: the shell legend, room hints, replay HUD, training strip, challenger banner, Go now glyph.
 
@@ -431,7 +431,7 @@ Rows:
 
 Detail pane in summary mode: pad picture and name, then `pad_setup.summary_detail`. While any recorded input is held, its step row's value draws in `palette::Ember` (the test). For step rows, `pad_setup.redo_detail` is the row detail.
 
-Navigation in summary mode, with the pad being set up (its raw inputs read through the just recorded steps): Up and Down move, LK selects, MK is Back. Back on the summary focuses `cancel` and opens its confirmation. The hold ladder's 3000 ms cancel still applies. The gameplay controller (if it is another pad) and the keyboard navigate as on any screen; Esc is Back.
+Navigation in summary mode, with the pad being set up (its raw inputs read through the just recorded steps, `SetupMenuDraft`): Up and Down move, LK selects, MK is Back, and the legend names those recorded inputs, never the installed menu buttons (11.14). Back on the summary focuses `cancel` and opens its confirmation. The hold ladder's 3000 ms cancel still applies. The gameplay controller (if it is another pad) and the keyboard navigate as on any screen; Esc is Back.
 
 ### 5.9 Cancel, save and results
 
@@ -844,7 +844,7 @@ The game's own button screen (now Player row `game-buttons`, 11.5) cannot do thi
 | 8 | LS | 24 | 0 |
 | 9 | RS | 25 | 0 |
 
-Bits 0 to 7 (directions), 8 (View, 0x2000) and 9 (Start, 0x1000) are fixed and never written. The menu table at record+0x1FC is never touched, so the game's menus and Ember's menus keep reading physical A and B whatever the layout (2.2 still holds).
+Bits 0 to 7 (directions), 8 (View, 0x2000) and 9 (Start, 0x1000) are fixed and never written. Ember never writes the menu table at record+0x1FC, so an Ember layout does not move the game's menu buttons or Ember's. The game's own button screen does write it, in step with the fight table (11.14).
 
 **Functions:** LP 0x10, MP 0x20, HP 0x400, LK 0x40, MK 0x80, HK 0x800. A mask is any subset of 0xCF0, including 0 (the button does nothing in fights).
 
@@ -892,7 +892,7 @@ Per slot the layer keeps `owner` (the identity whose Ember layout is in the tabl
 | A pad comes back in a different slot (3.1 rule 4), including mid-match | Treated as "takes slot m" above. Its old slot is handled when another pad takes it. |
 | Let the game read controllers on, or SDL failed | Never writes. |
 
-`SlotWritePlan(previous owners, new placements, layouts)` returns the list of `{slot, source (layout or gameCopy)}` writes and is the unit under test; the game-thread writer only executes it. `GameTableSwap` does the config load row above and the button screen of Decisions 6: `Open(use)` writes every owned slot's `gameCopy`, and `Close` reads every owned slot back into `gameCopy` and writes the layouts again. It is the only path that changes an owned slot's `gameCopy` after the first copy, so nothing compares tables on each update. In IDA the only writers of the fight tables are `System::Initialize` (`0x517900`, from the boot function `0x403DA0`, which builds the records before any layout is written), the loader, and the button screen (its edit copy back in the destructor, and its reset to defaults `0x512A90`/`0x514640`, reached only from `0x4CA9D0`). A slot whose record fails the bounds check is never written; in the swap, one such owned slot refuses the whole `Open` or `Close`, and a refused `Close` is retried on each update.
+`SlotWritePlan(previous owners, new placements, layouts)` returns the list of `{slot, source (layout or gameCopy)}` writes and is the unit under test; the game-thread writer only executes it. `GameTableSwap` does the config load row above and the button screen of Decisions 6: `Open(use)` writes every owned slot's `gameCopy`, and `Close` reads every owned slot back into `gameCopy` and writes the layouts again. It is the only path that changes an owned slot's `gameCopy` after the first copy, so nothing compares tables on each update. The swap saves and restores only the ten fight entries. The menu table needs no swap: Ember never writes it, and what the game's screen writes there (its own LK and MK, in step with `gameCopy`) is meant to stay, since the game's menus and Ember's default (11.14) follow it. In IDA the only writers of the fight tables are `System::Initialize` (`0x517900`, from the boot function `0x403DA0`, which builds the records before any layout is written), the loader, and the button screen (its edit copy back in the destructor, and its reset to defaults `0x512A90`/`0x514640`, reached only from `0x4CA9D0`). A slot whose record fails the bounds check is never written; in the swap, one such owned slot refuses the whole `Open` or `Close`, and a refused `Close` is retried on each update.
 
 **Applying an edit.** The shell does not wait for the autosave. Each change sends `ControllerRequest{Kind::Layout, padId}` with the ten masks (new `Kind::Layout`; `Kind::RemoveLayout` for `remove`), and the runtime writes it on the next frame and logs it. The shell also sets `preferences_.buttonLayouts`, `preferencesDirty_ = true` and `saveAt_ = now + 0.45 s`, as a main fighter pick does, so the normal autosave stores the same data and the status shows Saving, then Saved. If the save fails, the existing `error.settings_not_saved` path applies and the layout stays in force for this session.
 
@@ -1067,7 +1067,7 @@ An empty mask gives no name: the circle is drawn without text and `MenuLegend` p
 
 API shape: `BrandGlyph(id, brand, const FightNames* names = nullptr)`, where `FightNames` holds the ten names in table order; null keeps the 2.3 defaults. `SetMenuPromptBrand` gains the gameplay controller's names and `MenuPromptNames()` returns them; `MenuLegend`, the room hints, replay HUD hints, challenger banner and training strip use those. The Controllers test (4.2), the layout map and the capture pane pass the drawn pad's own names. Like a prompt brand change, an unsaved edit shows at once, because the edit is already written to the table.
 
-Ember's menus still read physical A and B, so on a Stick pad whose A now does HP the legend reads "HP Select" and that button selects.
+Ember's menus still read physical A and B (unless Menu confirm and Menu back are bound, 11.14), so on a Stick pad whose A now does HP the legend reads "HP Select" and that button selects.
 
 ### 11.12 Log lines
 
@@ -1100,6 +1100,33 @@ At `spdlog::info` unless marked, prefix `Input:`, conventions of section 7. `{la
 4. Writes go through the game thread only; the overlay thread only submits requests. A write is ten aligned dword stores and the game re-reads the table on each update, so no lock with the game is needed beyond writing before the update in the same pass.
 5. Code notes 13 (layouts by slot position) still describes the game's own layouts; for pads with an Ember layout 3.1 rule 1 is no longer what keeps a layout, though the rule stays for pads without one.
 
+### 11.14 Menu confirm and back
+
+Ember's menus confirm and go back on the buttons the game's own menus use, unless the player binds others on the Button layout screen. One resolver answers "which physical buttons confirm and go back for this device" for every Ember menu, its legend and its prompt glyphs: `input::ResolveMenuButtons` (`src/common/MenuButtons.hxx`), read on the game thread through `Dimps::Pad::MenuButtons` and, with a pad's binding, `MenuButtonsFor` in the runtime. Ember never writes the game's menu table, so the game's own menus are unchanged.
+
+**What the game does (IDA, `SSFIV.exe` Steam build, read only).**
+
+- Each device's binding record (System+0xD4, stride 0x27C) holds two pad tables of 32 dwords, indexed by physical bit, each entry the game functions that bit triggers: the fight table at +0x17C and the menu table at +0x1FC. The mapper `0x511E70` reads +0x17C when System+0x08 is 0 (fight mapping) and +0x1FC otherwise; the all-device reads the menus use (`0x511640`, `0x5117C0`) always read +0x1FC.
+- Defaults come from `System::Initialize` (`0x517900`): XInput fight `0xA5D078` and menu `0xA5D0F8`; 14 known sticks by GUID (fight/menu pairs `0xA5BEB8`..`0xA5CC38`); any other DirectInput pad fight `0xA5D178` and menu `0xA5D1F8`. The `.ctrlsav` loader (`0x51BC30`, applied by `0x516540`) writes both tables.
+- The game's button screen writes the menu table in step with the fight table: record method `0x510B00` stores the row's fight function at +0x17C[bit] and its menu function at +0x1FC[bit] (row tables `0x942808`, `0x942858`). Whichever button is LK in fights is LK in its menus, and the same for MK.
+- Confirm and cancel are function masks on `Pad::System`: +0xCC = 0x40 (LK) and +0xD0 = 0x80 (MK), set by the constructor `0x517000` and never changed in this build (`0x6503F0` can handle a swap, but nothing sets one). The Scaleform translator `0x49A6B0` sends DECIDE and CANCEL from them; Start and Back are separate START and SELECT tokens. The prompt lookup `0x519D90` finds the physical button whose entry equals the function exactly.
+- So with the defaults the game confirms on A and goes back on B on an XInput pad, and on buttons 3 and 2 of a generic stick (bits 18 and 17); every profiled stick confirms on its own LK button and goes back on its MK button.
+
+**Resolution, for each of confirm and back on its own:**
+
+1. The player's binding (`MenuBinding` in the pad's `buttonLayouts` entry, below).
+2. The lowest physical bit from 8 up (bits 0 to 7 are directions) whose menu-table entry equals System+0xCC (confirm) or +0xD0 (back). A zero or unreadable mask counts as 0x40 or 0x80.
+3. The bit holding the same function in the record's fight table.
+4. Bits 18 and 17, when the record fails its bounds check or neither table has the function.
+
+When a binding lands on the other's game button (the game's table changed after the player bound it), the other takes this one's game button, so the two never share one. Glyphs: on an XInput pad the physical button's glyph id (A, B, X, ..., View, Start), drawn in the pad's brand; on a DirectInput stick the function's fight notation (LK, MK), as the 2.1 table's generic circle. Every consumer reads this one answer: `ControllerButtons` (Select and Back from the physical bits; X, Y and View stay room shortcuts unless one of them confirms or goes back, and then its hint is dropped from the legend), the overlay's per-frame `SetMenuGlyphs`, the Button layout screen's target pad, and the shell after the wizard closes.
+
+**Binding.** The Button layout screen (11.6) lists `menu-confirm` (`button_layout.menu_confirm`) and `menu-back` (`button_layout.menu_back`) after the attack rows. Their value is the pad's name for the resolved button; Select starts the same capture as an attack row (11.7, card `button_layout.press_for`) and the press binds that button for this controller. Only the ten layout buttons can be bound, so Start, View and the directions keep their jobs. The button the other row uses now is refused with `button_layout.menu_taken` in the error tone and nothing is sent; a success shows `button_layout.assigned`. The binding is stored in the pad's layout entry as `menuConfirm` and `menuBack` (indexes into the 11.3 table, -1 for the game's), sent with `Kind::Layout`, kept by presets and edits, and cleared with the entry by `remove`. A first binding on a pad without a layout creates its entry from the starting point (11.3). On load an out-of-range or equal pair falls back to -1 for both; the layout still loads. Only served pads have layouts, so a game-read DirectInput stick always follows the game.
+
+**The wizard's summary is separate.** In summary mode (5.8) the runtime's snapshot carries `SetupMenuDraft`: the newly recorded Up, Down, LK and MK. The summary's Select and Back come from those inputs, and its legend names them with their 5.6 names; it never asks the resolver. After Save, ordinary menus use the resolved buttons of the installed pad.
+
+**Launcher.** The launcher's recovery window, which runs before the game, keeps buttons 1 and 2 (`RecoveryController.cxx`) and its prompts print those numbers. It has no binding record to read, so it does not follow this section.
+
 ---
 
 ## Code notes
@@ -1110,7 +1137,7 @@ Where the code differs from the brief, or where an implementer must take care.
 2. `sf4e__NetplayRuntime__Input.cxx:31`: restore matches `config.deviceType`/`deviceIdx` by slot, and `input::Device::Same` (`InputAssignment.hxx:15`) compares type, index and name. With SDL-served pads, `Same` must compare identity for slots 0 to 3, or a pad moving slot is treated as a new device.
 3. `sf4e__NetplayRuntime__Status.cxx:466`: `canChangeController` is false in any room, so the controller cannot change in a room. Kept as is; the room copy points to leaving the room.
 4. `sf4e__NetplayRuntime__Status.cxx:451` and `en.po` `runtime.match_input_blocked`: the warning exists only for GGPO matches; offline battles and Training show nothing from Ember (kept). Its current text says "If its slot changed, return to the room to reassign it", which slot reservation makes wrong; replaced in section 8.
-5. `GameMenu.cxx:353`: room shortcut hints require `selectGlyph=="A"`. Keeping glyph ids positional (2.3) makes them appear for PlayStation and Nintendo with no change there.
+5. `GameMenu.cxx`: room shortcut hints show for an XInput pad (or the keyboard), less any hint whose button the player made Select or Back (11.14). Keeping glyph ids positional (2.3) makes them appear for PlayStation and Nintendo with no change there.
 6. `MenuGlyphs.hxx` `MenuLegend` `prefix()`: prints a glyph's name when its art is the generic circle. Stick ids rely on this.
 7. `sf4e__ReplayPlayback.cxx:219`, `TrainingShortcuts.cxx:51`, `sf4e__Pad.cxx:127` (Go now) and `sf4e__Overlay.cxx:541` (`padBehind`) all test `PadXInput`. SDL-served pads pass these tests with no change. `TrainingShortcuts.cxx:53` hard-codes "Back"; it needs the brand name table 2.5. `TrainingInRoom.hxx:51` `GoNowGlyph` returns `"View"`, which the brand art then covers.
 8. `sf4e__Overlay.cxx:541`: background play for pads needs XInput answers while the game is unfocused. The layer must keep answering from SDL regardless of focus (set `SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS` to 1) and leave the existing focus gating to Ember's code as it is today.

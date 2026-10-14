@@ -72,6 +72,15 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
         if (row.value.empty()) row.value = loc::T("button_layout.no_button");
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
+    // Ember's menu buttons: the player's choice, else the game's own (input::ResolveMenuButtons).
+    const struct { const char* id; const char* label; const char* detail; std::uint32_t mask; const char* glyph; } menuRows[] = {
+        {"menu-confirm", loc::T("button_layout.menu_confirm"), loc::T("button_layout.menu_confirm_detail"), pad.menuButtons.confirm, pad.menuButtons.confirmGlyph},
+        {"menu-back", loc::T("button_layout.menu_back"), loc::T("button_layout.menu_back_detail"), pad.menuButtons.back, pad.menuButtons.backGlyph}};
+    for (const auto& menu : menuRows) {
+        auto row = Row(menu.id, menu.label, editable && !absent ? std::string(menu.detail) : unavailable, editable && !absent);
+        row.value = MenuButtonName(pad, menu.mask, menu.glyph);
+        row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
+    }
     rows.push_back(Row("edit-button", loc::T("button_layout.edit_button"), editable && !absent ? loc::T("button_layout.edit_button_detail") : unavailable, editable && !absent));
     auto preset = Row("preset", loc::T("button_layout.preset"), editable && !absent ? loc::T("button_layout.preset_detail") : unavailable, editable && !absent);
     preset.value = LayoutName(pad.layout);
@@ -144,6 +153,13 @@ void DrawButtonLayoutDetail(const PadView& pad, ButtonPrompts prompts, bool capt
 }
 CaptureCard LayoutCaptureCard(const PadView& pad, const std::optional<std::uint32_t>& mask, double left) {
     return {mask ? loc::Tf("button_layout.press_for", AttackLongName(*mask)) : std::string(loc::T("button_layout.press_to_change")), pad.name, left};
+}
+CaptureCard MenuCaptureCard(const PadView& pad, bool back, double left) {
+    return {loc::Tf("button_layout.press_for", loc::T(back ? "button_layout.menu_back" : "button_layout.menu_confirm")), pad.name, left};
+}
+std::string MenuButtonName(const PadView& pad, std::uint32_t mask, const char* glyph) {
+    for (unsigned i = 0; i < LayoutBits.size(); ++i) if (mask == std::uint32_t(1) << LayoutBits[i] && !pad.buttonNames[i].empty()) return pad.buttonNames[i];
+    return glyph;
 }
 namespace {
 // The prompt at 1.4x the body font, as the wizard's capture draws it (5.2).
