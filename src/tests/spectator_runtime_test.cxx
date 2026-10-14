@@ -515,37 +515,35 @@ static void Answer(WatchedGame& game, sf4e::room::ActionKind kind, bool take) {
 	sf4e::NetplayFacade::internal::DrainActionReplies();
 }
 
-// The player's own end of a lock-in is known by the room's answer to the
-// action that carried it, not by when it shows: a Release or Stop watching the
-// room accepts is never told as the room's doing, even once the table has
-// begun its next game, and a Release refused or never sent explains nothing,
-// so a stream failure's release after it is told.
-void TestOwnLockEndsThroughRuntime() {
+// A spectator's own view failing while it is locked in is the one end of a
+// lock-in the runtime reports (Runtime::lockInDrops): counted where the
+// failure arms the lock release, once per failed game however many paths
+// record it, and published to the shell. A failure while not locked in counts
+// nothing, and so does the player's own Release or Stop watching, taken or
+// refused, in any order, at any game.
+void TestFailedViewCountsLockInDrops() {
 	namespace room = sf4e::room;
 	namespace facade = sf4e::NetplayFacade;
-	// The ends told since `game` began; the runtime outlives each room.
-	std::uint64_t before = 0;
-	const auto told = [&](WatchedGame& game) { return game.r.runtime->lockInWatch.Ended().sequence - before; };
-	for (const bool refused : {true, false}) {
-		// Refused, or parked and never sent (the link cannot take it), then the stream fails.
+	using fSystem = sf4e::Game::Battle::System;
+	const auto drops = [](WatchedGame& game) { return game.r.runtime->lockInDrops; };
+	struct Case { bool locked, releaseRefused; };
+	for (const auto test : {Case{true, false}, Case{true, true}, Case{false, false}}) {
 		WatchedGame game(false);
-		before = game.r.runtime->lockInWatch.Ended().sequence;
-		SetLocked(game, true);
-		game.r.transport->writable = refused;
-		SubmitRelease(game);
-		CHECK(SentActions(game, room::ActionKind::LockSpectating, 0).size() == (refused ? 1u : 0u));
-		CHECK(refused || game.r.runtime->roomActionIntent.Parked());
-		if (refused) Answer(game, room::ActionKind::LockSpectating, false);
-		SetLocked(game, false);
-		CHECK(told(game) == 1 && game.r.runtime->lockInWatch.Ended().reason == sf4e::netplay::LockInEnd::Dropped);
-		facade::TickRuntime();
-		const auto published = facade::GetRuntimeSnapshotShared()->lockInEnded;
-		CHECK(published.sequence == before + 1 && published.reason == sf4e::netplay::LockInEnd::Dropped);
+		const auto before = drops(game);
+		if (test.locked) SetLocked(game, true);
+		if (test.releaseRefused) { SubmitRelease(game); Answer(game, room::ActionKind::LockSpectating, false); }
+		StreamWatchedGame(game);
+		fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.spectator_stream_lost"));
+		facade::NotifyRuntimeSpectatorStreamFailed();
+		game.Tick(); facade::TickRuntime();
+		CHECK(drops(game) == before + (test.locked ? 1 : 0));
+		CHECK(facade::GetRuntimeSnapshotShared()->lockInDrops == drops(game));
+		facade::ClearMatchNotice();
 	}
 	{
-		// Sent during one game, accepted once the table has begun the next.
+		// Release sent during one game, accepted once the table has begun the next.
 		WatchedGame game(false);
-		before = game.r.runtime->lockInWatch.Ended().sequence;
+		const auto before = drops(game);
 		SetLocked(game, true);
 		SubmitRelease(game);
 		game.End(room::MatchResult::P1Win);
@@ -555,26 +553,29 @@ void TestOwnLockEndsThroughRuntime() {
 		for (const auto fighter : {game.p1, game.p2}) CHECK(game.Act(fighter, room::ActionKind::Ready));
 		CHECK(game.authority.BeginMatch(0, game.p1, game.p2).accepted);
 		game.r.Snapshot(game.authority.SnapshotFor(game.member));
-		facade::internal::DrainActionReplies();
 		CHECK(game.r.Client().GetRoomSnapshot().tables[0].matchGeneration > game.generation);
 		Answer(game, room::ActionKind::LockSpectating, true);
-		const auto& seen = game.r.Client().GetRoomSnapshot();
-		CHECK(!room::FindMember(seen, game.member)->spectatorLocked && told(game) == 0);
-	}
-	{
-		// Stop watching, taken by the room only after several ticks.
-		WatchedGame game(false);
-		before = game.r.runtime->lockInWatch.Ended().sequence;
-		SetLocked(game, true);
-		StreamWatchedGame(game);
-		SubmitStopWatching(game);
-		facade::internal::DrainCommands(true);
-		for (int i = 0; i < 5; ++i) facade::internal::DrainActionReplies();
-		Answer(game, room::ActionKind::Unwatch, true);
-		CHECK(!room::WatchesByChoice(game.r.Client().GetRoomSnapshot().tables[0], game.member) && told(game) == 0);
+		game.Tick(); facade::TickRuntime();
+		CHECK(!room::FindMember(game.r.Client().GetRoomSnapshot(), game.member)->spectatorLocked && drops(game) == before);
 		facade::ClearMatchNotice();
 	}
-	std::cout << "TestOwnLockEndsThroughRuntime passed\n";
+	for (const bool releaseTaken : {true, false}) {
+		// Release and Stop watching in flight together, answered on separate ticks, one refused.
+		WatchedGame game(false);
+		const auto before = drops(game);
+		SetLocked(game, true);
+		StreamWatchedGame(game);
+		SubmitRelease(game);
+		SubmitStopWatching(game);
+		facade::internal::DrainCommands(true);
+		Answer(game, room::ActionKind::LockSpectating, releaseTaken);
+		facade::TickRuntime();
+		Answer(game, room::ActionKind::Unwatch, !releaseTaken);
+		facade::TickRuntime();
+		CHECK(drops(game) == before && !game.r.runtime->spectatorLockRelease.Pending());
+		facade::ClearMatchNotice();
+	}
+	std::cout << "TestFailedViewCountsLockInDrops passed\n";
 }
 
 // A queued watcher's leave (Leave this game) is an Unwatch of the watched game
@@ -802,7 +803,7 @@ int main() {
 	TestUnscoredEndNotice();
 	TestSpectatorLeavesWatchedGame();
 	TestQueuedWatcherLeavesTheGame();
-	TestOwnLockEndsThroughRuntime();
+	TestFailedViewCountsLockInDrops();
 	TestLeaveAfterTheViewRetired();
 	TestParkedStopWatchingCatchesUp();
 	TestFinishedWatchEndsOnlyTheView();

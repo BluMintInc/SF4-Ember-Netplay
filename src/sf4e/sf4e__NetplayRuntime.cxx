@@ -115,7 +115,6 @@ void CloseRoom() {
 	runtime->pendingAbort.reset();
 	runtime->pendingAbortDeadline = 0;
 	runtime->spectatorLockRelease.Cancel();
-	runtime->lockInWatch.Reset();
 	ResetMatchEntry();
 	runtime->matchEnded = false;
 	runtime->terminalAckPending = false;

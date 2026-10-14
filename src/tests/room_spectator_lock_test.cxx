@@ -625,109 +625,6 @@ static void TestHoldTimeLeftIsStampedWhenSent() {
 	CHECK(room.authority.SnapshotFor(room.p1).tables[0].holdRemainingMs == 0);
 }
 
-// Why a lock-in ended reaches the player unless the player ended it: a Release
-// or Stop watching the authority accepted, however late it shows and whatever
-// game the table began meanwhile. One refused or never answered explains
-// nothing, so a later end of the lock-in is told. The watch reads the
-// spectator's projection; the ids are the ones the runtime's sends returned.
-using sf4e::netplay::LockInEnd;
-using sf4e::netplay::LockInWatch;
-
-static Snapshot Seen(const LiveGame& game) { return game.room.authority.SnapshotFor(game.room.spectator); }
-static bool Told(const LockInWatch& watch, std::uint64_t sequence, LockInEnd reason) {
-	return watch.Ended().sequence == sequence && watch.Ended().reason == reason;
-}
-// The room ends the game and begins the next, with the spectator still locked in.
-static void NextGame(LiveGame& game) {
-	CHECK(game.room.authority.EndMatch(0, game.generation, MatchResult::P1Win).accepted);
-	game.room.finished = game.generation;
-	CHECK(game.room.Acknowledge(game.room.p1) && game.room.Acknowledge(game.room.p2) && game.room.Acknowledge(game.room.spectator));
-	CHECK(game.room.ReadyBoth() && game.room.authority.BeginMatch(0, game.room.p1, game.room.p2).accepted);
-	CHECK(game.room.table().matchGeneration > game.generation && game.room.member(game.room.spectator).spectatorLocked);
-}
-
-static void TestOwnLockEndsAreNotTold() {
-	const auto release = [](LiveGame& game) { CHECK(game.room.Lock(game.room.spectator, false).accepted); };
-	{
-		// Lost for another reason (a stream failure's release): told, once.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		release(game);
-		watch.Observe(Seen(game), 1100); watch.Observe(Seen(game), 1200);
-		CHECK(Told(watch, 1, LockInEnd::Dropped));
-	}
-	{
-		// Release accepted with its projection: not told, and spent, so the
-		// loss of the next lock-in is.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		watch.Sent(Seen(game), false, 101, 1000);
-		release(game); watch.Answered(101, true);
-		watch.Observe(Seen(game), 1100);
-		CHECK(watch.Ended().sequence == 0);
-		CHECK(game.room.Lock(game.room.spectator, true).accepted);
-		watch.Observe(Seen(game), 1200);
-		release(game);
-		watch.Observe(Seen(game), 1300);
-		CHECK(Told(watch, 1, LockInEnd::Dropped));
-	}
-	for (const bool refused : {true, false}) {
-		// Release refused, or never answered, then a stream failure: told.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		watch.Sent(Seen(game), false, 101, 1000);
-		if (refused) watch.Answered(101, false);
-		const std::uint64_t failedAt = refused ? 1100 : 1000 + LockInWatch::AnswerMs;
-		watch.Observe(Seen(game), failedAt);
-		release(game);
-		watch.Observe(Seen(game), failedAt + 100);
-		CHECK(Told(watch, 1, LockInEnd::Dropped));
-	}
-	{
-		// Release sent during one game, accepted once the table began the next,
-		// and shown long after: not told.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		watch.Sent(Seen(game), false, 101, 1000);
-		NextGame(game);
-		watch.Observe(Seen(game), 7000);
-		release(game); watch.Answered(101, true);
-		watch.Observe(Seen(game), 9000);
-		CHECK(watch.Ended().sequence == 0);
-	}
-	for (const bool accepted : {true, false}) {
-		// The projection shows the end before the answer: it waits for it.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		watch.Sent(Seen(game), false, 101, 1000);
-		release(game);
-		watch.Observe(Seen(game), 1100);
-		CHECK(watch.Ended().sequence == 0);
-		watch.Answered(101, accepted);
-		watch.Observe(Seen(game), 1200);
-		CHECK(accepted ? watch.Ended().sequence == 0 : Told(watch, 1, LockInEnd::Dropped));
-	}
-	{
-		// Stop watching accepted long after it was sent: not told.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		watch.Sent(Seen(game), true, 102, 1000);
-		watch.Observe(Seen(game), 6500);
-		CHECK(game.Unwatch(false).accepted); watch.Answered(102, true);
-		watch.Observe(Seen(game), 7000);
-		CHECK(watch.Ended().sequence == 0 && !Watches(game));
-	}
-	{
-		// Stop watching on its way while the view drops (still watching): told.
-		LiveGame game(true); LockInWatch watch;
-		watch.Observe(Seen(game), 1000);
-		watch.Sent(Seen(game), true, 102, 1000);
-		CHECK(game.Unwatch(true).accepted);
-		watch.Observe(Seen(game), 1100);
-		CHECK(Told(watch, 1, LockInEnd::Dropped));
-	}
-}
-
 int main() {
 	TestHoldTimeLeftIsStampedWhenSent();
 	TestAcknowledgementReleasesTheHold();
@@ -745,7 +642,6 @@ int main() {
 	TestQueuedButUndeliveredReleaseIsResent();
 	TestLockInAfterFailureSurvivesResends();
 	TestHoldSurvivesRecovery();
-	TestOwnLockEndsAreNotTold();
 	if (failures) return 1;
 	std::puts("RoomSpectatorLock test passed");
 	return 0;

@@ -695,6 +695,25 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
 }
+// Leaving the table the lock-in held says why whoever caused it. A lock-in that
+// ends while still watching that table is the player's own Release, or the
+// release a failed view owes, which the runtime counts instead.
+void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
+ const auto* local=Member(v.room,v.room.localMember);
+ int lockedAt=-1;
+ if(local&&local->spectatorLocked)
+  for(const auto& t:v.room.tables)if(room::WatchesByChoice(t,local->id)){lockedAt=t.id;break;}
+ const char* reason=nullptr;
+ if(lockedInTable_>=0&&lockedAt<0&&local&&v.room.roomEpoch==lockInEpoch_&&!room::WatchesByChoice(v.room.tables[lockedInTable_],local->id)){
+  bool elsewhere=false;
+  for(const auto& t:v.room.tables)elsewhere=elsewhere||room::WatchesByChoice(t,local->id);
+  reason=room::PlaceOf(v.room,local->id).kind!=room::Place::Kind::None?"room.lock_in_ended.playing":
+   elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped";
+ }
+ if(v.lockInDrops>lockInDropsSeen_)reason="room.lock_in_ended.dropped";
+ if(reason){notice_=loc::T(reason);noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+ lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;lockInDropsSeen_=v.lockInDrops;
+}
 bool ApplicationShell::GameIsStale(std::size_t table) const {
  return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
 }

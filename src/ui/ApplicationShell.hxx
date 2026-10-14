@@ -145,9 +145,9 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
-    // Why the room last ended this member's lock-in (RuntimeSnapshot::lockInEnded),
-    // shown once per sequence. A Release or Stop watching the room accepted is never in it.
-    netplay::LockInEnded lockInEnded;
+    // Lock-ins lost to a failure of this member's spectator view
+    // (RuntimeSnapshot::lockInDrops); each new count is told once.
+    std::uint64_t lockInDrops = 0;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -387,8 +387,12 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
-    // The last lock-in end shown (ShellView::lockInEnded).
-    std::uint64_t lockInEndedSeen_=0;
+    // A lock-in that ended gets a notice saying why: the player stopped
+    // watching, moved, or took a place, or their spectator view dropped
+    // (ShellView::lockInDrops). The player's own Release gets none.
+    void TrackLockIn(const ShellView& view, double now);
+    int lockedInTable_=-1;
+    std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
