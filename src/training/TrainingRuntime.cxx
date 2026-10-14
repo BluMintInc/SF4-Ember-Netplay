@@ -464,7 +464,7 @@ void AfterUpdate(Native* system) {
                 other.comboDamage > before.comboDamage);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
-            const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
+            const int boundary = MoveRecoveryEnd(own);
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,

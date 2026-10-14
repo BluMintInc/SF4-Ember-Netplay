@@ -103,12 +103,15 @@ and the names of the `.bac` scripts they start:
 - A Skill no command move started (one the game starts itself) reads Unknown,
   and a focus cancel is only read from a move classed Other.
 - A focus only cancels a move whose recovery it cut short: the move's last
-  sample must be before the end of its script (`actionFrame` below the BAC
-  header's total frames; `RecoveryCutShort`). A move sampled on its last frame
-  or later finished, so a buffered focus and dash after it read as ordinary
-  moves, and a script of unknown length forms no chain. The header's
-  interruptible frame is not used, since it can mark where cancels open, well
-  before the end. Whether the last frame of a finished move samples as the
-  total or one below it has not been seen in a capture.
+  sample must be before its recovery end (`actionFrame` below
+  `MoveRecoveryEnd`, the BAC header's interruptible frame, else its total
+  frames; `RecoveryCutShort`). It is the boundary the playback reply's timing
+  already uses. A move sampled at or past it finished, so a buffered focus and
+  dash after it read as ordinary moves, and a move with neither frame known
+  forms no chain. A genuine cancel (DP xx FADC) comes well before the
+  interruptible frame. Open in the game: whether the last sampled frame of a
+  move that finishes normally equals the boundary or is one below it; if it is
+  one below, a finished move reads as cut short by one frame. A capture owes
+  this.
 - The tests in `src/tests/focus_cancel_test.cxx` are synthetic: they check the
   meter's contract with samples made by hand, not the game.

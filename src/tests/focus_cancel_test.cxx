@@ -18,9 +18,10 @@ using S = ActorStatus;
 // script's own length and interruptible frame, -1 for unknown.
 struct Part { unsigned status; int action; ActionClass kind; int frames; int first, last; int from; int total = -1, interruptible = -1; };
 Part Stand(int frames) { return {S::Stand, 0, ActionClass::Other, frames, -1, -1, 1}; }
-// A move whose script runs total frames, long enough that it is still playing when it is cancelled.
-constexpr int LongMove = 40;
-Part Move(int frames, int first, int action = 400, int from = 1, int total = LongMove, int interruptible = -1) {
+// A move as a real one is scripted: its interruptible frame late in the
+// script, well after the frames a focus cancels it on.
+constexpr int LongMove = 40, LateInterrupt = 30;
+Part Move(int frames, int first, int action = 400, int from = 1, int total = LongMove, int interruptible = LateInterrupt) {
     return {S::Skill, action, ActionClass::Other, frames, first, first + 2, from, total, interruptible};
 }
 Part Focus(int frames, int first, int from = 1) { return {S::Skill, 322, ActionClass::Focus, frames, first, first + 2, from}; }
@@ -156,13 +157,15 @@ int main() {
             Require(ChainOf(bout.View().advantage, 0) && bout.View().advantage.pending, "The dash did not confirm the cancel");
         }
 
-        // The boundary: a focus on the move's last frame of script finds nothing
-        // to cut; one frame short of it, the move was cut. The interruptible
-        // frame, before or after the focus, changes neither.
-        for (int interruptible : {-1, 3, 5, 30}) {
+        // The boundary is the recovery end, MoveRecoveryEnd: the interruptible
+        // frame, else the script's end. A focus on the move's last sample at it
+        // finds nothing to cut; one frame short of it, the move was cut. Either
+        // boundary alone, and the interruptible frame ahead of a longer script.
+        for (int form = 0; form < 3; ++form) {
             Fadc f; f.stun = 12;
-            auto exchange = [&](int total) {
+            auto exchange = [&](int end) {
                 Bout bout;
+                const int total = form == 0 ? end : form == 1 ? end + 10 : -1, interruptible = form == 0 ? -1 : end;
                 bout.Play(Lay({Stand(2), Move(f.dpFirst + 2, f.dpFirst, 400, 1, total, interruptible), Focus(3, f.focusFirst),
                     Dash(true, false, f.dash), Stand(8)}), Lay({Stand(2 + f.dpFirst - 1), Struck(true, f.stun), Stand(8)}));
                 return bout;
@@ -219,21 +222,21 @@ int main() {
             "A dash with no focus was a focus cancel");
         none(Lay({Stand(2), Move(6, 4), Focus(3, 21), Stand(2), Dash(true, true, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
             "A focus let go before the dash was a cancel");
-        // The move's own length is the evidence that a focus cut its recovery
-        // short. A move that had played all its frames and went straight into a
-        // buffered focus and a dash, with no neutral sample between, is no cancel.
-        none(Lay({Stand(2), Move(6, 4, 400, 1, 6), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
-            "A move that finished, then a focus and a dash, was a cancel");
-        none(Lay({Stand(2), Move(7, 4, 400, 1, 6), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
-            "A move sampled past its length, then a focus and a dash, was a cancel");
-        none(Lay({Stand(2), Move(6, 4, 400, 1, 6, 3), Focus(3, 21), Dash(false, true, 18), Stand(4)}), Lay({Stand(5), Struck(false, 12)}),
-            "A finished move with an early interruptible frame was a cancel");
-        // No length known, or none usable: no evidence, no cancel.
-        for (int total : {-1, 0})
-            none(Lay({Stand(2), Move(6, 4, 400, 1, total), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
-                "A move of unknown length was a cancel");
-        none(Lay({Stand(2), Move(6, 4, 400, 1, -1, 30), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
-            "An interruptible frame alone was evidence of a cancel");
+        // The move's recovery end is the evidence that a focus cut it short. A
+        // move sampled at or past it, then a buffered focus and a dash with no
+        // neutral sample between, is no cancel; a larger total changes nothing.
+        none(Lay({Stand(2), Move(6, 4, 400, 1, 40, 6), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+            "A move at its interruptible frame, then a focus and a dash, was a cancel");
+        none(Lay({Stand(2), Move(7, 4, 400, 1, 40, 6), Focus(3, 21), Dash(false, true, 18), Stand(4)}), Lay({Stand(5), Struck(false, 12)}),
+            "A move past its interruptible frame, then a focus and a dash, was a cancel");
+        none(Lay({Stand(2), Move(6, 4, 400, 1, 6, -1), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+            "A move at the end of its script, then a focus and a dash, was a cancel");
+        none(Lay({Stand(2), Move(7, 4, 400, 1, 6, -1), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+            "A move sampled past its script, then a focus and a dash, was a cancel");
+        // Neither boundary known, or neither usable: no evidence, no cancel.
+        for (int unset : {-1, 0})
+            none(Lay({Stand(2), Move(6, 4, 400, 1, unset, unset), Focus(3, 21), Dash(true, false, 18), Stand(4)}), Lay({Stand(5), Struck(true, 12)}),
+                "A move with no recovery end known was a cancel");
         {
             auto unknown = Lay({Stand(2), Move(6, 4), Focus(3, 21), Dash(true, false, 18), Stand(4)});
             for (auto& s : unknown) if (s.action == 400) s.actionClass = ActionClass::Unknown;

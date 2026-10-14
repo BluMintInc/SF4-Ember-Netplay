@@ -105,14 +105,20 @@ struct FighterSample {
     // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
 };
-// Whether a move, as last sampled, still had frames left before the end of its
-// own script: the one evidence that a following action cut its recovery short.
-// A move sampled on or past its last frame finished, so what follows replaced
-// nothing; a script with no known length gives no evidence either way.
-// interruptibleFrame is not used: it marks where a move opens to cancels, which
-// can be well before its end.
+// The frame a move's recovery ends on: where the script says the fighter is
+// free again, its interruptible frame, else its end; -1 when neither is known.
+// The one boundary frame advantage's reply timing and the focus cancel share.
+inline int MoveRecoveryEnd(const FighterSample& move) {
+    if (move.interruptibleFrame > 0) return move.interruptibleFrame;
+    return move.totalFrames > 0 ? move.totalFrames : -1;
+}
+// Whether a move, as last sampled, still had recovery left: the one evidence
+// that a following action cut it short. A move sampled on or past its recovery
+// end finished, so what follows (a buffered focus) replaced nothing; with no
+// boundary known there is no evidence either way.
 inline bool RecoveryCutShort(const FighterSample& move) {
-    return move.totalFrames > 0 && move.actionFrame < static_cast<float>(move.totalFrames);
+    const int end = MoveRecoveryEnd(move);
+    return end > 0 && move.actionFrame < static_cast<float>(end);
 }
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
@@ -566,7 +572,7 @@ private:
     }
     // A focus cancel forms only as a move, a focus that began while the move
     // still played (no frame between them out of Skill, and the move short of
-    // the end of its script: RecoveryCutShort), then a dash straight
+    // the end of its recovery: RecoveryCutShort), then a dash straight
     // out of the focus. The move's readings are taken as the focus begins;
     // the dash puts the chain in this exchange's reading. Anything else after
     // the focus drops it, and another attack after the dash takes it out of
