@@ -1157,6 +1157,9 @@ msgstr "Arriba a la izquierda"
 msgid "hud_position.top_right"
 msgstr "Arriba a la derecha"
 
+msgid "hud_position.top_center"
+msgstr "Arriba al centro"
+
 msgid "settings.edge_spacing"
 msgstr "Espacio al borde"
 

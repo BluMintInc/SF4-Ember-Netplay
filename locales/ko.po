@@ -1157,6 +1157,9 @@ msgstr "왼쪽 위"
 msgid "hud_position.top_right"
 msgstr "오른쪽 위"
 
+msgid "hud_position.top_center"
+msgstr "상단 중앙"
+
 msgid "settings.edge_spacing"
 msgstr "가장자리 여백"
 

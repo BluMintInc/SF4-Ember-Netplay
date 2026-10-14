@@ -1157,6 +1157,9 @@ msgstr "Em cima à esquerda"
 msgid "hud_position.top_right"
 msgstr "Em cima à direita"
 
+msgid "hud_position.top_center"
+msgstr "Em cima no centro"
+
 msgid "settings.edge_spacing"
 msgstr "Espaço da borda"
 

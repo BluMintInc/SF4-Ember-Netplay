@@ -1157,6 +1157,9 @@ msgstr "Na górze, lewo"
 msgid "hud_position.top_right"
 msgstr "Na górze, prawo"
 
+msgid "hud_position.top_center"
+msgstr "Na górze, środek"
+
 msgid "settings.edge_spacing"
 msgstr "Odstęp od krawędzi"
 

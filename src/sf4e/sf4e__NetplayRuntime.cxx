@@ -258,7 +258,7 @@ void StartHelper() {
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
-            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
+            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);

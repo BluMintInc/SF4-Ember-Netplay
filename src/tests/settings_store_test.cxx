@@ -387,11 +387,20 @@ int main() {
     CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",4294967298ull}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",-4294967294ll}})==0);
     CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",18446744073709551615ull}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",2.0}})==0);
     discordDefaults.matchHudAnchor=-1;CHECK(!discordDefaults.Valid());
-    discordDefaults.matchHudAnchor=5;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudAnchor=sf4e::netplay::MaxMatchHudAnchor+1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudAnchor=4;CHECK(discordDefaults.Valid());
+    // Top center is the last position, 5.
+    CHECK(sf4e::netplay::MaxMatchHudAnchor==5);
+    discordDefaults.matchHudAnchor=5;CHECK(discordDefaults.Valid());
+    discordDefaults.matchHudAnchor=6;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudAnchor=4;
     CHECK(store.SaveLauncher({{"matchHudAnchor",4}},error));
     CHECK(store.LoadLauncher(result,error)&&result["matchHudAnchor"]==4);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==4);
+    CHECK(store.SaveLauncher({{"matchHudAnchor",5}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudAnchor"]==5);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==5);
+    CHECK(store.SaveLauncher({{"matchHudAnchor",4}},error));
     discordDefaults.matchHudAnchor=0;
     CHECK(discordDefaults.matchHudLayout==1); // Split by default.
     discordDefaults.matchHudLayout=-1;CHECK(!discordDefaults.Valid());

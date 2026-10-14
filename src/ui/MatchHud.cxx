@@ -6,6 +6,7 @@
 #include "Theme.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 #include <algorithm>
 #include <cfloat>
 #include <string>
@@ -40,6 +41,12 @@ constexpr float MatchWidth=520.f;
 constexpr float MatchHeight=62.f;
 constexpr float MatchStateHeight=24.f;
 constexpr float SplitHeight=34.f,SplitLabel=13.f,SplitValue=18.f,SplitName=19.f;
+// Top center, in the game's 720p frame: the panel fills the band above the K.O. sign (which starts
+// at y 40) between the portraits, a small gap under the top of the image. Its state line goes
+// below the timer and the round markers instead of under the panel. Both follow the name offset,
+// since the game's own HUD position option moves the sign and the timer with the PLAYER labels.
+constexpr int TopCenter=netplay::MaxMatchHudAnchor;
+constexpr float TopCenterBandEnd=38.f,TopCenterGap=3.f,TopCenterStateTop=160.f;
 // The HUD scale is a viewport term times the size setting's factor. The readability
 // floor belongs to the viewport term alone. Flooring the product made Small and
 // Standard identical at 720p and collapsed all three at 480p, so two of the three
@@ -80,16 +87,35 @@ void DrawStateLine(const MatchStripView& view,ImDrawList* draw,float x,float w,f
     const auto line=FitText(state,w-16*s,16*s);
     draw->AddText(DiagnosticFont(),16*s,ImVec2(x+8*s,top+(h-16*s)*.5f),colors[(std::max)(0,(std::min)(2,severity))],line.c_str());
 }
-struct PanelSpot{ImVec2 pos;float stateTop=0;};
+// The game keeps 16:9 inside the window: its image, as a corner and the scale of its 720p units.
+struct GameFrame{float x0,y0,scale;};
+GameFrame FrameOf(const Screen& screen){
+    const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f);
+    return {screen.pos.x+(screen.size.x-1280*gs)*.5f,screen.pos.y+(screen.size.y-720*gs)*.5f,gs};
+}
+// The viewport scale at which a Top center panel `height` tall (at the Large size) fills the band.
+float TopCenterFit(const MatchStripView& view,const Screen& screen,float height){
+    return (TopCenterBandEnd+view.nameOffset-TopCenterGap)*FrameOf(screen).scale/height;
+}
+// `stateApart`: the state line is not under or over the panel (Top center).
+struct PanelSpot{ImVec2 pos;float stateTop=0;bool stateApart=false;};
 // Where the telemetry panel (w by h) sits by the anchor and spacing preferences, and the
 // top of its state line: above the panel at the bottom anchors, below it at the top ones, so
 // it stays on screen. At a top anchor the panel and the room for its state line end by
-// `topLimit`, clear of anything drawn below them.
+// `topLimit`, clear of anything drawn below them. Top center ignores `topLimit` and the
+// spacing: the caller has fitted the panel to its band (TopCenterFit).
 PanelSpot PlacePanel(const MatchStripView& view,const Screen& screen,float w,float h,float s,float topLimit){
     const ImVec2 pos=screen.pos,size=screen.size;
+    const int anchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,view.anchor));
+    if(anchor==TopCenter){
+        const auto frame=FrameOf(screen);
+        PanelSpot spot;spot.stateApart=true;
+        spot.pos=ImVec2(pos.x+(size.x-w)*.5f,frame.y0+TopCenterGap*frame.scale);
+        spot.stateTop=(std::min)(frame.y0+(TopCenterStateTop+view.nameOffset)*frame.scale,pos.y+size.y-MatchStateHeight*s);
+        return spot;
+    }
     const float gap=(view.raised?48.f:12.f)*ViewportScale(size.y);
     // The side anchors keep the 10% margins the strip has always stayed within.
-    const int anchor=(std::max)(0,(std::min)(4,view.anchor));
     const bool top=anchor>=3,left=anchor==1||anchor==3,right=anchor==2||anchor==4;
     const float x=left?pos.x+size.x*.1f:right?pos.x+size.x*.9f-w:pos.x+(size.x-w)*.5f;
     // The state line takes the room on the side facing the screen centre; keep it on screen.
@@ -219,6 +245,25 @@ void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
         x+=c.width;++index;
     }
 }
+// The Ember strip: its width and scale, and where it and its state line sit.
+struct StripPlaced{float w=0,s=1;PanelSpot spot;bool panelBelow=false;};
+StripPlaced PlaceStrip(const MatchStripView& view,const Screen& screen){
+    // At Top center the strip is shrunk to the band above the K.O. sign, as the split panel is,
+    // and goes to Bottom center when that leaves less than half the usual scale.
+    const float usual=ViewportScale(screen.size.y);
+    float viewport=usual;
+    auto placed=view;
+    StripPlaced out;
+    if(view.anchor==TopCenter){
+        const float fit=TopCenterFit(view,screen,MatchHeight*SizeFactors[2]);
+        if(fit<usual*.5f){placed.anchor=0;out.panelBelow=true;}
+        else viewport=(std::min)(viewport,fit);
+    }
+    out.s=viewport*SizeFactor(view);
+    out.w=(std::min)(MatchWidth*out.s,screen.size.x*.8f);
+    out.spot=PlacePanel(placed,screen,out.w,MatchHeight*out.s,out.s,FLT_MAX);
+    return out;
+}
 struct SplitPlaced {
     Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false,panelBelow=false;
 };
@@ -226,8 +271,8 @@ SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     NoteUserText(view.names[0]);NoteUserText(view.names[1]);
     // The game keeps 16:9 inside the window: measure from its image so the names
     // stay beside the life bars on an ultrawide screen.
-    const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f),gameW=1280*gs;
-    const float gx0=screen.pos.x+(screen.size.x-gameW)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
+    const auto frame=FrameOf(screen);
+    const float gs=frame.scale,gx0=frame.x0,gy0=frame.y0;
     SplitPlaced out;
     // Each plate covers the game's own PLAYER label (measured on a 720p versus frame: "PLAYER 1"
     // at x 151..248, "PLAYER 2" at 1030..1130, both y 76..93) and runs toward the timer, short of
@@ -243,11 +288,16 @@ SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     // the band above them is too low for that at the usual scale, so the viewport term
     // shrinks until the Large footprint fits; the three sizes stay distinct. When names
     // moved up leave less than half the usual scale, the panel goes to the bottom corner
-    // on its side instead, where it stays readable.
+    // on its side instead, where it stays readable. Top center fits the band above the K.O.
+    // sign the same way, and goes to Bottom center.
     const float topLimit=y-4*gs,usual=ViewportScale(screen.size.y);
     float viewport=usual;
     auto placed=view;
-    if(view.anchor>=3){
+    if(view.anchor==TopCenter){
+        const float fit=TopCenterFit(view,screen,SplitHeight*SizeFactors[2]);
+        if(fit<usual*.5f){placed.anchor=0;out.panelBelow=true;}
+        else viewport=(std::min)(viewport,fit);
+    }else if(view.anchor>=3){
         const float fit=(topLimit-screen.pos.y)/((SplitHeight+MatchStateHeight+4)*SizeFactors[2]);
         if(fit<usual*.5f){placed.anchor=view.anchor==3?1:2;out.panelBelow=true;}
         else viewport=(std::min)(viewport,fit);
@@ -264,18 +314,31 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view){
     const auto screen=MainScreen();
     return MatchStripGeometry(view,screen.pos,screen.size);
 }
+namespace {
+// The panel box, and the state line's box when there is a line. The panel box takes in the line
+// when it sits against the panel; at Top center the two are apart.
+void SetPanelBounds(MatchStripBounds& bounds,const PanelSpot& spot,float w,float h,float s,bool hasState,bool below){
+    bounds.panel={spot.pos.x,spot.pos.y,spot.pos.x+w,spot.pos.y+h,true};
+    bounds.panelScale=s;bounds.panelBelow=below;
+    if(!hasState)return;
+    bounds.state={spot.pos.x,spot.stateTop,spot.pos.x+w,spot.stateTop+MatchStateHeight*s,true};
+    bounds.stateApart=spot.stateApart;
+    if(spot.stateApart)return;
+    bounds.panel.y0=(std::min)(bounds.panel.y0,bounds.state.y0);
+    bounds.panel.y1=(std::max)(bounds.panel.y1,bounds.state.y1);
+}
+}
 MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,ImVec2 screenSize){
     MatchStripBounds bounds;
-    if(view.layout!=1)return bounds;
+    const bool hasState=!MatchStripStateLine(view).empty();
+    if(view.layout!=1){
+        const auto placed=PlaceStrip(view,{screenPos,screenSize});
+        SetPanelBounds(bounds,placed.spot,placed.w,MatchHeight*placed.s,placed.s,hasState,placed.panelBelow);
+        return bounds;
+    }
     const auto placed=PlaceSplit(view,{screenPos,screenSize});
     for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
-    const float s=placed.tel.s;
-    bounds.panel={placed.spot.pos.x,placed.spot.pos.y,placed.spot.pos.x+placed.tel.w,placed.spot.pos.y+placed.tel.h,true};
-    bounds.panelScale=s;bounds.panelBelow=placed.panelBelow;
-    if(placed.hasState){
-        bounds.panel.y0=(std::min)(bounds.panel.y0,placed.spot.stateTop);
-        bounds.panel.y1=(std::max)(bounds.panel.y1,placed.spot.stateTop+MatchStateHeight*s);
-    }
+    SetPanelBounds(bounds,placed.spot,placed.tel.w,placed.tel.h,placed.tel.s,placed.hasState,placed.panelBelow);
     return bounds;
 }
 void DrawMatchStrip(const MatchStripView& view) {
@@ -287,11 +350,9 @@ void DrawMatchStrip(const MatchStripView& view) {
         DrawStateLine(view,draw,placed.spot.pos.x,placed.tel.w,placed.spot.stateTop,placed.tel.s);
         return;
     }
-    const auto screen=MainScreen();const float s=MatchScale(view);
-    const float w=(std::min)(MatchWidth*s,screen.size.x*.8f);
-    const auto spot=PlacePanel(view,screen,w,MatchHeight*s,s,FLT_MAX);
-    PaintMatchStrip(view,draw,spot.pos,w,s);
-    DrawStateLine(view,draw,spot.pos.x,w,spot.stateTop,s);
+    const auto placed=PlaceStrip(view,MainScreen());
+    PaintMatchStrip(view,draw,placed.spot.pos,placed.w,placed.s);
+    DrawStateLine(view,draw,placed.spot.pos.x,placed.w,placed.spot.stateTop,placed.s);
 }
 void DrawExportCaption(const ExportCaptionView& view) {
     const auto screen=MainScreen();
@@ -359,7 +420,7 @@ std::string MatchHudNameOffsetText(int offset) {
     return loc::Tf(offset<0?"name_offset.up":"name_offset.down",offset<0?-offset:offset);
 }
 const char* MatchStripAnchorName(int anchor) {
-    const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right")};
-    return names[(std::max)(0,(std::min)(4,anchor))];
+    const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right"),loc::T("hud_position.top_center")};
+    return names[(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,anchor))];
 }
 } }

@@ -1157,6 +1157,9 @@ msgstr "En haut à gauche"
 msgid "hud_position.top_right"
 msgstr "En haut à droite"
 
+msgid "hud_position.top_center"
+msgstr "En haut au centre"
+
 msgid "settings.edge_spacing"
 msgstr "Marge au bord"
 

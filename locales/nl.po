@@ -1157,6 +1157,9 @@ msgstr "Linksboven"
 msgid "hud_position.top_right"
 msgstr "Rechtsboven"
 
+msgid "hud_position.top_center"
+msgstr "Boven midden"
+
 msgid "settings.edge_spacing"
 msgstr "Ruimte tot rand"
 

@@ -1158,6 +1158,9 @@ msgstr "Вверху слева"
 msgid "hud_position.top_right"
 msgstr "Вверху справа"
 
+msgid "hud_position.top_center"
+msgstr "Вверху по центру"
+
 msgid "settings.edge_spacing"
 msgstr "Отступ от края"
 

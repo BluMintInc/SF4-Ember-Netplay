@@ -1157,6 +1157,9 @@ msgstr "Oben links"
 msgid "hud_position.top_right"
 msgstr "Oben rechts"
 
+msgid "hud_position.top_center"
+msgstr "Oben Mitte"
+
 msgid "settings.edge_spacing"
 msgstr "Abstand zum Rand"
 

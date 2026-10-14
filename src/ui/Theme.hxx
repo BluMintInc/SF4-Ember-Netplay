@@ -111,8 +111,9 @@ struct MatchStripView {
     unsigned rollbackFrames = 0;
     int pingMs = -1, appliedDelay = -1, size = 1;
     bool spectator = false, raised = false;
-    // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right.
-    // Raised moves it further in from whichever edge it is anchored to.
+    // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right,
+    // 5 top center. Raised moves it further in from whichever edge it is anchored to, except at
+    // top center, which keeps to the band above the game's K.O. sign.
     int anchor = 0;
     // 0 the Ember strip (one panel); 1 split: each name on a plate above its life bar,
     // and a small telemetry panel placed by `anchor`/`raised`.
@@ -141,19 +142,21 @@ void DrawMatchNotice(const std::string& message, int severity);
 // Exposed for the render harness: Small/Standard/Large must not collapse.
 float MatchStripScale(const MatchStripView& view);
 void DrawMatchStripPreview(const MatchStripView& view);
-// Screen rectangles the split layout (view.layout 1) draws into, for the render
-// harness: the two name plates and the telemetry panel with its state line.
-// `valid` is false for the Ember strip, which has no separate name plates.
+// Screen rectangles the match HUD draws into, for the render harness: the two name plates
+// (not valid for the Ember strip, which has none), the telemetry panel and its state line.
+// `panel` takes in the state line unless `stateApart`, as at top center, where the line
+// sits below the timer; `state` is the line's own box when there is one.
 struct MatchStripBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; bool valid = false; };
 // panelScale is the telemetry panel's scale; panelBelow is set when a top-anchored panel
-// went to the bottom corner because names moved up left too little room above them.
-struct MatchStripBounds { MatchStripBox names[2], panel; float panelScale = 0; bool panelBelow = false; };
+// went to the bottom corner because names moved up left too little room above them
+// (top center goes to bottom center when the band above the K.O. sign is too low).
+struct MatchStripBounds { MatchStripBox names[2], panel, state; float panelScale = 0; bool panelBelow = false, stateApart = false; };
 MatchStripBounds MatchStripGeometry(const MatchStripView& view);
 // The same on a screen of any size, for checking placement on screens the harness does not render.
 MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,ImVec2 screenSize);
 // The settings label for a MatchStripView::layout value ("Ember strip", "Split").
 const char* MatchStripLayoutName(int layout);
-// The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").
+// The settings label for a MatchStripView::anchor value ("Bottom center", "Top right", "Top center").
 const char* MatchStripAnchorName(int anchor);
 // "Default", "Up 20" or "Down 6": the split layout's name offset (MatchStripView::nameOffset).
 std::string MatchHudNameOffsetText(int offset);

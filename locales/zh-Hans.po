@@ -1157,6 +1157,9 @@ msgstr "左上"
 msgid "hud_position.top_right"
 msgstr "右上"
 
+msgid "hud_position.top_center"
+msgstr "顶部居中"
+
 msgid "settings.edge_spacing"
 msgstr "边缘间距"
 

@@ -540,7 +540,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));
   else if(a.id=="hud-name-offset")preferences_.matchHudNameOffset=(std::max)(-netplay::MaxMatchHudNameOffset,(std::min)(netplay::MaxMatchHudNameOffset,preferences_.matchHudNameOffset+2*a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
-  else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(4,preferences_.matchHudAnchor+a.delta));
+  else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;

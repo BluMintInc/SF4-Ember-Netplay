@@ -402,6 +402,13 @@ void RoomJourneys() {
  Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not step back to Bottom center");
+ // Right steps through the positions to Top center (the sixth) and stops there; Left comes back.
+ for(int i=0;i<netplay::MaxMatchHudAnchor+3;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
+ Check(h.actions.back().preferences.matchHudAnchor==5,"HUD position did not reach Top center, or went past it");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudAnchor==4,"HUD position did not step back from Top center");
+ for(int i=0;i<netplay::MaxMatchHudAnchor+2;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
+ Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not return to Bottom center");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
  // A new profile is on Auto. Right from Auto starts at 0 frames, and Left from 0 returns to Auto, keeping the number.
