@@ -600,3 +600,70 @@ async fn a_public_room_measures_over_relays_even_with_a_direct_route() {
         member.stop().await;
     }
 }
+
+#[tokio::test]
+async fn a_join_never_waits_for_the_latency_relay() {
+    // Latency endpoints whose relay cannot be reached, as behind a firewall
+    // that blocks the relays, finding each other on loopback.
+    let lookup = MemoryLookup::new();
+    let blocked: RelayUrl = "https://relay.invalid./".parse().unwrap();
+    let net = {
+        let (lookup, blocked) = (lookup.clone(), blocked.clone());
+        LatencyNet::new(move || {
+            Endpoint::builder(presets::Minimal)
+                .relay_mode(RelayMode::custom([blocked.clone()]))
+                .address_lookup(lookup.clone())
+                .clear_ip_transports()
+                .bind_addr((Ipv4Addr::LOCALHOST, 0))
+                .expect("loopback")
+        })
+    };
+    // The join's own work ends after half a second: it is not held for the
+    // relay, which the endpoint never reaches.
+    let started = Instant::now();
+    let (done, latency) = beside(Some((net.clone(), false)), async {
+        sleep(Duration::from_millis(500)).await;
+        7
+    })
+    .await;
+    assert_eq!(done, 7);
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "{:?}",
+        started.elapsed()
+    );
+    let latency = latency.expect("bound while the work ran");
+    assert!(crate::service::network::known_home_region(latency.endpoint()).is_none());
+    // Work that is done at once leaves no route: the bind is dropped.
+    let (_, none) = beside(Some((net.clone(), false)), async {}).await;
+    assert!(none.is_none());
+    drop(latency);
+
+    // Members bound that way: their routes carry no hint, and they still
+    // measure each other.
+    let mut members = Vec::new();
+    for id in 1..=2 {
+        members.push(member_on(net.clone(), Some(&lookup), id, false).await);
+    }
+    for member in &mut members {
+        let (route, hint) = member.actor.latency_route();
+        assert_eq!(route, Some(member.latency()));
+        assert_eq!(hint, None);
+    }
+    let checkpoint = checkpoint(&members.iter().map(Member::seat).collect::<Vec<_>>(), &[]);
+    for member in &mut members {
+        member.commit(&checkpoint).await;
+        member.actor.latency_refresh().await;
+    }
+    members[0].actor.latency_watch(1, ROOM, 1, true);
+    settle(&mut members, Duration::from_secs(10), |members| {
+        members[0].actor.latency.outbound.contains_key(&2)
+    })
+    .await;
+    members[0].actor.latency_second().await;
+    let rows = members[0].latency_events().pop().expect("a table").1;
+    assert_eq!(rows[0].state, "value");
+    for member in members {
+        member.stop().await;
+    }
+}

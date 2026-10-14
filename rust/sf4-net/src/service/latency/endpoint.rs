@@ -9,7 +9,7 @@ use iroh::{
         presets,
     },
 };
-use tokio::time::{Instant, timeout, timeout_at};
+use tokio::time::timeout;
 
 /// The latency endpoint's only ALPN.
 pub(crate) const LATENCY_ALPN: &[u8] = b"sf4e/latency/1";
@@ -115,17 +115,14 @@ impl Drop for LatencyEndpoint {
     }
 }
 
-/// The join and host tasks' latency endpoint: bound within
-/// `LATENCY_BIND_TIMEOUT`, then given what is left of it to reach its relay so
-/// the native side can be told its region. None when it could not bind; the
+/// The join and host tasks' latency endpoint, bound within
+/// `LATENCY_BIND_TIMEOUT`. It does not wait for its relay: the region hint is
+/// sent only if the relay is known by then. None when it could not bind; the
 /// room goes on without a latency route.
 pub(crate) async fn bind_for_room(net: LatencyNet, relay_only: bool) -> Option<LatencyEndpoint> {
-    let deadline = Instant::now() + LATENCY_BIND_TIMEOUT;
-    let endpoint = timeout_at(deadline, bind_latency(&net, relay_only))
+    let endpoint = timeout(LATENCY_BIND_TIMEOUT, bind_latency(&net, relay_only))
         .await
         .ok()?
         .ok()?;
-    let guard = LatencyEndpoint::new(endpoint);
-    let _ = timeout_at(deadline, guard.endpoint().online()).await;
-    Some(guard)
+    Some(LatencyEndpoint::new(endpoint))
 }

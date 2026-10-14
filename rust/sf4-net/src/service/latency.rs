@@ -30,8 +30,8 @@ mod opening;
 mod tests;
 
 use authority::{Inputs, LatencyAuthority, Observer, PeerBinding};
-pub(super) use endpoint::{LatencyEndpoint, LatencyNet};
 use endpoint::bind_for_room;
+pub(super) use endpoint::{LatencyEndpoint, LatencyNet};
 use opening::{
     ACCEPT_DEADLINE, AcceptContext, AdmissionTable, DIAL_DEADLINE, DialFailure, DialRequest,
     InboundOpened, MAX_DIALS, MAX_PENDING, OutboundOpened, SlotGuard, accept_opening, dial_opening,
@@ -151,17 +151,30 @@ impl Default for Latency {
 
 /// Runs `work` while the latency endpoint `binding` asks for is bound, as
 /// the join and host tasks do.
+/// The work never waits on the bind: when it is done, a bind still running is
+/// dropped, and the room has no latency route. The route is sent once, in the
+/// join request, so there is nothing to publish later.
 pub(super) async fn beside<T>(
     binding: Option<(LatencyNet, bool)>,
     work: impl std::future::Future<Output = T>,
 ) -> (T, Option<LatencyEndpoint>) {
-    let bind = async {
-        match binding {
-            Some((net, relay_only)) => bind_for_room(net, relay_only).await,
-            None => None,
-        }
+    let Some((net, relay_only)) = binding else {
+        return (work.await, None);
     };
-    tokio::join!(work, bind)
+    let bind = bind_for_room(net, relay_only);
+    tokio::pin!(work, bind);
+    let mut bound = None;
+    let mut binding = true;
+    loop {
+        tokio::select! {
+            biased;
+            result = &mut work => return (result, bound),
+            endpoint = &mut bind, if binding => {
+                binding = false;
+                bound = endpoint;
+            }
+        }
+    }
 }
 
 /// The next incoming latency connection, or never without an endpoint.
