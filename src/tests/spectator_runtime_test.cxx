@@ -578,6 +578,43 @@ void TestFailedViewCountsLockInDrops() {
 	std::cout << "TestFailedViewCountsLockInDrops passed\n";
 }
 
+// A locked spectator's own Queue or Watch over the live game (here at the
+// table it watches, and at another) leaves the view as a departure: the
+// stream's end is no failure, so no lock release is armed, no drop is counted
+// and the shell tells no "dropped". A real failure still does all three
+// (TestFailedViewCountsLockInDrops).
+void TestTableChangeLeavesWithoutFailure() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	struct Case { room::ActionKind kind; std::uint8_t table; };
+	for (const auto test : {Case{room::ActionKind::Queue, 0}, Case{room::ActionKind::Watch, 1}}) {
+		WatchedGame game(false);
+		auto* runtime = game.r.runtime;
+		SetLocked(game, true);
+		StreamWatchedGame(game);
+		facade::ClearMatchNotice();
+		const auto before = runtime->lockInDrops;
+		const auto sentBefore = game.r.transport->sent.size();
+		const auto& seen = game.r.Client().GetRoomSnapshot();
+		sf4e::NetplayFacade::RuntimeCommand change{};
+		change.command = {sf4e::netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
+		change.roomAction.kind = test.kind; change.roomAction.table = test.table;
+		change.roomAction.roomEpoch = seen.roomEpoch; change.roomAction.revision = seen.revision;
+		change.roomAction.tableRevision = seen.tables[test.table].revision;
+		CHECK(facade::SubmitRuntimeCommand(std::move(change)));
+		facade::internal::DrainCommands(true);
+		const auto status = facade::GetStatus();
+		CHECK(!sf4e::Game::Battle::System::ggpo && runtime->recoveringMatch);
+		CHECK(std::string(status.lastError) == sf4e::loc::T("runtime.returning_room") && status.lastErrorSeverity == sf4e::NoticeSeverity::Info);
+		facade::TickRuntime();
+		CHECK(!runtime->spectatorLockRelease.Pending() && runtime->spectatorStreamFailedGeneration == 0);
+		CHECK(runtime->lockInDrops == before && facade::GetRuntimeSnapshotShared()->lockInDrops == before);
+		CHECK(SentActions(game, room::ActionKind::LockSpectating, sentBefore).empty());
+		facade::ClearMatchNotice();
+	}
+	std::cout << "TestTableChangeLeavesWithoutFailure passed\n";
+}
+
 // A queued watcher's leave (Leave this game) is an Unwatch of the watched game
 // that keeps its place, decided by the runtime when it runs.
 void TestQueuedWatcherLeavesTheGame() {
@@ -804,6 +841,7 @@ int main() {
 	TestSpectatorLeavesWatchedGame();
 	TestQueuedWatcherLeavesTheGame();
 	TestFailedViewCountsLockInDrops();
+	TestTableChangeLeavesWithoutFailure();
 	TestLeaveAfterTheViewRetired();
 	TestParkedStopWatchingCatchesUp();
 	TestFinishedWatchEndsOnlyTheView();

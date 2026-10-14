@@ -221,6 +221,10 @@ int main() {
         CHECK(hint.Due(true, 62) && !hint.Due(true, 72));
         sf4e::ui::TimedHint first(10);
         CHECK(first.Due(true, 0) && first.Due(true, 9.9) && !first.Due(true, 10));
+        // On a clock that keeps going (the process clock, not ImGui's, which a DX9
+        // reset restarts), the same watched game stays expired however long it runs.
+        sf4e::ui::TimedHint resumed(10);
+        CHECK(resumed.Due(true, 1000) && !resumed.Due(true, 1011) && !resumed.Due(true, 1012) && !resumed.Due(true, 5000));
     }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";

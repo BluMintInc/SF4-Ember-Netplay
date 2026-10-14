@@ -13,7 +13,8 @@ inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bo
 
 // A hint for the first seconds of a state (a watched game): due from when the
 // state begins until `seconds` later, and again only once it has ended and
-// begun anew. `now` in seconds, from any clock that does not go back.
+// begun anew. `now` in seconds, from a clock that never goes back and that
+// survives the hint's owner (not ImGui's, which a DX9 reset restarts).
 class TimedHint {
 public:
     explicit TimedHint(double seconds) : seconds_(seconds) {}

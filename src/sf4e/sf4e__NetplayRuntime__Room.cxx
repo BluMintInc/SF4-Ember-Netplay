@@ -260,7 +260,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			// The match teardown this starts ends by itself, so the wait has no budget.
 			Defer(runtime->roomActionIntent, command, Intent::Budget::Untimed);
 			if (DrainingSpectators()) RetireFinishedMatch("iroh_room_action");
-			else AbortLocalMatch(loc::T("runtime.returning_room"), NoticeSeverity::Info);
+			// The player chose this table change, so a spectator's view ends as a
+			// departure, not a stream failure that would drop its lock-in.
+			else AbortLocalMatch(GgpoEnd::Leave(loc::T("runtime.returning_room")));
 			return DispatchOutcome::Deferred;
 		}
 	}

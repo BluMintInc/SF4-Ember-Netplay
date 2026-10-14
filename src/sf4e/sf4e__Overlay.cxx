@@ -723,8 +723,11 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
     // A watched game says how to leave it, for its first seconds.
+    // The hint outlives the ImGui context a DX9 reset recreates, whose clock
+    // restarts, so it runs on the process clock.
     static sf4e::ui::TimedHint watchingHint(10);
-    const bool watchingHintDue = watchingHint.Due(snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, ImGui::GetTime());
+    const bool watchingHintDue = watchingHint.Due(
+        snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, GetTickCount64() / 1000.0);
     if (layers.matchActive && focused && passive) {
         if (!status.spectator && snapshot.practiceMatch)
             sf4e::ui::DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
