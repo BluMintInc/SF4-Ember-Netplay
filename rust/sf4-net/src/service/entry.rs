@@ -152,6 +152,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         coordination_port,
         refresh_roster: None,
         wake: Arc::new(Notify::new()),
+        latency: Default::default(),
     };
     let result = actor.run(receiver, failure).await;
     actor.clear_room();

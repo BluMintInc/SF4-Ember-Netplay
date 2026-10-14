@@ -32,7 +32,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use tokio::sync::{Mutex, watch};
 
+mod latency_roster;
 mod server_owned;
+pub use latency_roster::{LatencyRoster, LatencyRow, RosterInvalid, committed_latency_roster};
 pub use server_owned::Ownership;
 
 pub const MAX_CHECKPOINT: usize = 1024 * 1024;
@@ -377,6 +379,12 @@ struct Memory {
     max_nodes: usize,
     /// The committed revision, published for `Store::committed_changes`.
     commits: watch::Sender<u64>,
+    /// How many times `machine.committed` was replaced: once per accepted
+    /// native checkpoint and once per installed snapshot, whatever either
+    /// holds. A reader that sees it move by more than one missed a commit.
+    observations: u64,
+    /// `observations`, published for `Store::observed_changes`.
+    observed: watch::Sender<u64>,
 }
 impl Memory {
     fn new(max_nodes: usize) -> Self {
@@ -388,15 +396,25 @@ impl Memory {
             snapshot: None,
             max_nodes,
             commits: watch::Sender::new(0),
+            observations: 0,
+            observed: watch::Sender::new(0),
         }
     }
 
-    /// Tells `committed_changes` readers when the committed revision moved.
+    /// Tells `committed_changes` readers when the committed revision moved,
+    /// and `observed_changes` readers when the committed value was replaced,
+    /// which a snapshot at the same revision also does.
     fn publish_commit(&self) {
         let revision = self.machine.committed.revision;
         self.commits.send_if_modified(|published| {
             let moved = *published != revision;
             *published = revision;
+            moved
+        });
+        let observations = self.observations;
+        self.observed.send_if_modified(|published| {
+            let moved = *published != observations;
+            *published = observations;
             moved
         });
     }
@@ -480,6 +498,18 @@ impl Store {
     /// asking on a timer.
     pub async fn committed_changes(&self) -> watch::Receiver<u64> {
         self.0.lock().await.commits.subscribe()
+    }
+
+    /// The committed checkpoint and how many times it has been replaced,
+    /// read together under the one lock.
+    pub async fn committed_observed(&self) -> (Arc<Committed>, u64) {
+        let memory = self.0.lock().await;
+        (memory.machine.committed.clone(), memory.observations)
+    }
+
+    /// Follows `committed_observed`'s count.
+    pub async fn observed_changes(&self) -> watch::Receiver<u64> {
+        self.0.lock().await.observed.subscribe()
     }
 
     /// The membership entry applied by the state machine.  OpenRaft's
@@ -771,6 +801,7 @@ impl RaftStorage<RoomTypes> for Store {
         let mut memory = self.0.lock().await;
         let machine = &mut memory.machine;
         let mut receipts = Vec::with_capacity(entries.len());
+        let mut replaced = 0u64;
         for entry in entries {
             machine.applied = Some(entry.log_id);
             let mut receipt = Receipt {
@@ -854,6 +885,7 @@ impl RaftStorage<RoomTypes> for Store {
                             proposal.request.clone(),
                             proposal.term,
                         ));
+                        replaced += 1;
                         machine.recent.push((
                             proposal.dedup_key().to_owned(),
                             proposal.digest(),
@@ -867,6 +899,7 @@ impl RaftStorage<RoomTypes> for Store {
             }
             receipts.push(receipt);
         }
+        memory.observations = memory.observations.saturating_add(replaced);
         memory.publish_commit();
         Ok(receipts)
     }
@@ -936,6 +969,7 @@ impl RaftStorage<RoomTypes> for Store {
         let mut memory = self.0.lock().await;
         memory.machine = machine;
         memory.snapshot = Some((meta.clone(), bytes));
+        memory.observations = memory.observations.saturating_add(1);
         memory.publish_commit();
         Ok(())
     }
@@ -1302,6 +1336,21 @@ impl Coordinator {
 
     pub async fn committed_changes(&self) -> watch::Receiver<u64> {
         self.store.committed_changes().await
+    }
+
+    pub async fn committed_observed(&self) -> (Arc<Committed>, u64) {
+        self.store.committed_observed().await
+    }
+
+    pub async fn observed_changes(&self) -> watch::Receiver<u64> {
+        self.store.observed_changes().await
+    }
+
+    /// Tests only: the state machine, to apply entries and install snapshots
+    /// as Raft would.
+    #[cfg(test)]
+    pub fn store(&self) -> &Store {
+        &self.store
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn probe_reserved(

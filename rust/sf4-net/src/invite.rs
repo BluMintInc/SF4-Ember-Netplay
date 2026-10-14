@@ -45,6 +45,15 @@ pub fn relay_region(relay: &RelayUrl) -> &'static str {
         .map_or("other", |index| relay::REGIONS[index])
 }
 
+/// The pinned relay of a region code: `relay_region`'s inverse. None for
+/// "other" or any code that names no pinned relay.
+pub fn relay_for_region(code: &str) -> Option<RelayUrl> {
+    relay::REGIONS
+        .iter()
+        .position(|region| *region == code)
+        .and_then(|index| RELAYS[index].parse().ok())
+}
+
 /// The route a selected path reports outside the helper: `direct` for an IP
 /// path, `relay:<region>` for a relay path (the code of `relay_region`), and
 /// `unavailable` when no path is selected. It never carries an address, a port
@@ -597,6 +606,12 @@ mod tests {
         assert_eq!(RELAYS.len(), relay::REGIONS.len());
         for (url, code) in RELAYS.iter().zip(relay::REGIONS) {
             assert_eq!(relay_region(&url.parse().unwrap()), code);
+            let pinned = relay_for_region(code).unwrap();
+            assert_eq!(pinned, url.parse::<RelayUrl>().unwrap());
+            assert_eq!(relay_region(&pinned), code);
+        }
+        for code in ["other", "", "USE1", "euc2"] {
+            assert!(relay_for_region(code).is_none(), "{code}");
         }
         // Every relay of the pinned release has a code of its own.
         let mut seen = std::collections::BTreeSet::new();

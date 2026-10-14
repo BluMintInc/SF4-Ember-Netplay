@@ -137,6 +137,15 @@ pub enum Command {
     ShortInvite {
         epoch: u64,
     },
+    /// The room board is open (`on`) or closed. `view` numbers the
+    /// subscription; an open one is renewed every few seconds and lapses
+    /// without it. Answered by `Event::MemberLatency` while it lasts.
+    LatencyWatch {
+        epoch: u64,
+        room: [u8; 16],
+        view: u64,
+        on: bool,
+    },
     /// Identity and tournament-bridge requests. The IPC reader hands these
     /// to `crate::tournament`; they never reach the room actor.
     Tournament {
@@ -272,6 +281,12 @@ pub enum Event {
         epoch: u64,
         invitation: String,
         room: [u8; 16],
+        /// This helper's latency endpoint for the room, and the region code
+        /// of its relay when it has a known one. Absent without one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency: Option<EndpointId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency_relay: Option<String>,
     },
     Connected {
         epoch: u64,
@@ -283,6 +298,19 @@ pub enum Event {
         /// under. Absent in a private room.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         account: Option<String>,
+        /// As in `Hosted`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency: Option<EndpointId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency_relay: Option<String>,
+    },
+    /// The latency to each other member of the room, for the board
+    /// subscription `view`. Sent whole when it changes, and droppable.
+    MemberLatency {
+        epoch: u64,
+        room: [u8; 16],
+        view: u64,
+        members: Vec<MemberLatencyRow>,
     },
     Message {
         epoch: u64,
@@ -416,6 +444,21 @@ pub enum Event {
         data: Option<serde_json::Value>,
     },
     Stopped,
+}
+
+/// One member's latency: `state` is `measuring`, `value` with `rtt_ms`, or
+/// `unavailable` with a `reason`: `unreachable`, `refused`, `in_match`,
+/// `no_latency_route` or `room_unavailable`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemberLatencyRow {
+    pub member: u64,
+    pub incarnation: u64,
+    pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtt_ms: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 /// Native C++ payloads are JSON text. Serializing that text as a JSON

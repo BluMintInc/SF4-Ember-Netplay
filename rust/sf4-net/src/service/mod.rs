@@ -143,6 +143,7 @@ mod departure;
 mod entry;
 mod events;
 mod games;
+mod latency;
 mod members;
 mod network;
 mod probes;
@@ -177,10 +178,12 @@ struct IncomingGame {
     deadline: tokio::time::Instant,
 }
 enum Completion {
-    GuestControl(u64, Invite, io::Result<ControlChannel>),
+    /// A join's control, with the latency endpoint bound beside it.
+    GuestControl(u64, Invite, io::Result<ControlChannel>, Option<latency::LatencyEndpoint>),
     Incoming(u64, io::Result<Connection>),
     ClassifiedGame(IncomingGame, io::Result<transport::GameStream>),
-    Hosted(u64, io::Result<Invite>),
+    /// A hosted room's invitation, with its latency endpoint.
+    Hosted(u64, io::Result<Invite>, Option<latency::LatencyEndpoint>),
     Control(u64, io::Result<ControlChannel>),
     MemberControl(u64, u64, io::Result<ControlChannel>),
     Reconnect(u64, EndpointId, io::Result<ControlChannel>),
@@ -736,6 +739,8 @@ struct Actor {
     /// sees: a control's reader queued a frame, or the room's Raft store
     /// committed (`install_recovery`). The loop ticks at once.
     wake: Arc<Notify>,
+    /// Ping to each member; see `latency.rs`.
+    latency: latency::Latency,
 }
 
 /// Brings the actor's next tick forward to now. A tick already overdue keeps
@@ -908,6 +913,7 @@ impl Actor {
         self.retirement_started = None;
         self.departure_failed = false;
         self.public = None;
+        self.latency_clear();
     }
     fn begin(&mut self, epoch: u64, build: &str) -> bool {
         if epoch <= self.epoch || epoch > i64::MAX as u64 || build.is_empty() || build.len() > 128 {
@@ -999,6 +1005,7 @@ impl Actor {
                 }
             }
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
+            Command::LatencyWatch { epoch, room, view, on } => self.latency_watch(epoch, room, view, on),
             Command::Leave { epoch, abandon } => {
                 let _ = abandon;
                 if !self.matches(epoch) {
@@ -1148,6 +1155,8 @@ impl Actor {
                     }));
                 }
                 self.games.insert(peer, slot);
+                // Preparation already suspends latency (`Unavailable(InMatch)`).
+                self.latency_games_changed();
                 self.emit(Event::GameWaiting {
                     epoch,
                     peer,
@@ -1275,19 +1284,26 @@ impl Actor {
         self.host_address = Some(invite.address());
         let endpoint = self.endpoint.clone();
         let ticket = self.member_ticket();
+        let latency = self.latency_binding();
         self.tasks.spawn(async move {
-            let result = match &ticket {
-                Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
-                None => transport::connect_control(&endpoint, &invite).await,
-            };
-            Completion::GuestControl(epoch, invite, result)
+            let (result, latency) = latency::beside(latency, async {
+                match &ticket {
+                    Some(ticket) => crate::public_room::connect_public(&endpoint, &invite, ticket).await,
+                    None => transport::connect_control(&endpoint, &invite).await,
+                }
+            })
+            .await;
+            Completion::GuestControl(epoch, invite, result, latency)
         });
         Ok(())
     }
 
     async fn completed(&mut self, completion: Completion) -> io::Result<()> {
         let (completion, joined_invite) = match completion {
-            Completion::GuestControl(epoch, invite, result) => {
+            Completion::GuestControl(epoch, invite, result, latency) => {
+                if result.is_ok() {
+                    self.latency_adopt(epoch, latency);
+                }
                 (Completion::Control(epoch, result), Some(invite))
             }
             Completion::MemberControl(epoch, incarnation, result) => {
@@ -1348,7 +1364,7 @@ impl Actor {
             Completion::ProbeAuthorization(key, result) => {
                 self.completed_probe_authorization(key, result).await
             }
-            Completion::Hosted(epoch, result) => self.completed_hosted(epoch, result).await,
+            Completion::Hosted(epoch, result, latency) => self.completed_hosted(epoch, result, latency).await,
             Completion::Incoming(epoch, result) => self.completed_incoming(epoch, result).await,
             Completion::ClassifiedGame(incoming, result) => {
                 self.completed_classified_game(incoming, result).await
@@ -1383,7 +1399,12 @@ impl Actor {
         }
     }
 
-    async fn completed_hosted(&mut self, epoch: u64, result: io::Result<Invite>) -> io::Result<()> {
+    async fn completed_hosted(
+        &mut self,
+        epoch: u64,
+        result: io::Result<Invite>,
+        latency: Option<latency::LatencyEndpoint>,
+    ) -> io::Result<()> {
         if epoch != self.epoch || !self.opening {
             return Ok(());
         }
@@ -1399,10 +1420,14 @@ impl Actor {
                     }
                 };
                 self.room = Some(invite.room());
+                self.latency_adopt(epoch, latency);
+                let (latency, latency_relay) = self.latency_route();
                 self.emit(Event::Hosted {
                     epoch,
                     invitation: invite.encode()?,
                     room: invite.room(),
+                    latency,
+                    latency_relay,
                 })?;
                 self.emit(Event::DiscordInvite {
                     epoch,
@@ -1494,6 +1519,21 @@ impl Actor {
                         Completion::Incoming(epoch, result)
                     });
                 }
+                incoming = latency::accept(self.latency.endpoint.as_ref()), if self.latency.endpoint.is_some() => {
+                    tick_now(tick.as_mut());
+                    let _step = busy.enter("latency:accept");
+                    self.latency_incoming(incoming);
+                }
+                Some(result) = self.latency.openings_in.join_next_with_id(), if !self.latency.openings_in.is_empty() => {
+                    tick_now(tick.as_mut());
+                    let _step = busy.enter("latency:inbound");
+                    self.latency_inbound_done(result).await;
+                }
+                Some(result) = self.latency.openings_out.join_next_with_id(), if !self.latency.openings_out.is_empty() => {
+                    tick_now(tick.as_mut());
+                    let _step = busy.enter("latency:outbound");
+                    self.latency_outbound_done(result).await;
+                }
                 result = self.tasks.join_next(), if !self.tasks.is_empty() => {
                     tick_now(tick.as_mut());
                     let _step = busy.enter(match &result { Some(Ok(completion)) => stall::completion_stage(completion), _ => "task" });
@@ -1521,6 +1561,8 @@ impl Actor {
                     self.expire_probe_permissions();
                     self.pump_probe_invalidations();
                     self.pump_outgoing_checkpoint();
+                    busy.stage("tick:latency");
+                    self.latency_tick().await;
                     busy.stage("tick:pump_committed_checkpoint");
                     self.pump_committed_checkpoint().await?;
                     load.body(started.elapsed());
@@ -1530,6 +1572,9 @@ impl Actor {
                     let _step = busy.enter("statistics");
                     statistics_ticks = statistics_ticks.wrapping_add(1);
                     self.emit_coordination_state().await?;
+                    busy.stage("statistics:latency");
+                    self.latency_second().await;
+                    busy.stage("statistics");
                     if let Ok(time) = now() {
                         self.renew_invitation(time);
                         self.pump_short_link(time);
