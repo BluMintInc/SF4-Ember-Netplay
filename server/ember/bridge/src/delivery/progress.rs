@@ -63,10 +63,14 @@ impl Queue for Progress {
     type Item = Due;
 
     fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+        // Each unsent row looks its own match up by id. Nothing indexes
+        // matches by state, so a list of ended matches would read every
+        // match on every pass while any row waits.
         tx.execute(
             "UPDATE blumint_progress SET state = 'not_required'
              WHERE state IN ('queued', 'retrying', 'delivering')
-               AND match_id IN (SELECT id FROM matches WHERE state IN ('completed', 'cancelled', 'failed', 'expired'))",
+               AND EXISTS (SELECT 1 FROM matches m WHERE m.id = blumint_progress.match_id
+                             AND m.state IN ('completed', 'cancelled', 'failed', 'expired'))",
             [],
         )?;
         let connections: Vec<&String> = self.destinations.keys().collect();
