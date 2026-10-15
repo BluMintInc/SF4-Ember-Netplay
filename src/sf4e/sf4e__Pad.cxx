@@ -16,6 +16,7 @@
 #include "../common/TrainingCallInput.hxx"
 #include "../common/BattlePause.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/KeyboardSlots.hxx"
 #include <spdlog/spdlog.h>
 #include <atomic>
 
@@ -33,11 +34,48 @@ std::atomic<bool> inputBlocked{false};
 // (BackgroundPlay::HidesInput), decided once where it was published: the
 // caches are cleared and the getters give the game nothing.
 std::atomic<bool> hiddenInput{false};
+bool keyboardHookFailed = false;
 }
 bool fPad::MenuInputBlocked() { return inputBlocked.load(); }
 
 void fPad::Install() {
 	System::Install();
+	Keyboards::Install();
+}
+
+void fPad::Keyboards::Install() {
+	int (Keyboards::* scan)() = &ScanDevices;
+	// Before logging is up, so a failure is only kept for LogFirstScan.
+	keyboardHookFailed = DetourAttach((PVOID*)&rPad::System_RawInput::publicMethods.ScanDevices, *(PVOID*)&scan) != NO_ERROR;
+}
+
+namespace {
+// Game thread. The first scan runs inside Main::Initialize, before logging is
+// up, so its result waits for LogFirstScan; later ones (a device change) log
+// at once. The line says how many keyboards a crash report's PC had.
+sf4e::input::KeyboardTrim s_firstScan;
+bool s_scanned = false, s_logging = false;
+void LogScan(const sf4e::input::KeyboardTrim& trim) {
+	if (trim.dropped)
+		spdlog::warn("Keyboards: the game listed {} and has room for {}; the last {} are left out", trim.found,
+			sf4e::input::KeyboardSlotLayout::Capacity, trim.dropped);
+	else spdlog::info("Keyboards: the game listed {}", trim.found);
+}
+}
+
+int fPad::Keyboards::ScanDevices() {
+	const int out = (this->*rPad::System_RawInput::publicMethods.ScanDevices)();
+	const auto trim = sf4e::input::TrimKeyboardSlots(reinterpret_cast<std::uint8_t*>(this));
+	if (s_logging) LogScan(trim);
+	else { s_firstScan = trim; s_scanned = true; }
+	return out;
+}
+
+void fPad::Keyboards::LogFirstScan() {
+	if (s_logging) return;
+	s_logging = true;
+	if (keyboardHookFailed) spdlog::warn("Keyboards: the scan could not be hooked; the game keeps every keyboard it lists");
+	else if (s_scanned) LogScan(s_firstScan);
 }
 
 void fSystem::Install() {

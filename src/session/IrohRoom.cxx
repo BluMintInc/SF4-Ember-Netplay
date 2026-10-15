@@ -199,21 +199,32 @@ bool IrohRoom::PrepareGame(const std::string& peer, std::uint64_t generation,
 }
 
 bool IrohRoom::EndPeer(const std::string& peer, std::uint64_t generation) {
+	return EndPeerCommand(peer, generation, true) == PeerEnd::Ended;
+}
+
+IrohRoom::PeerEnd IrohRoom::TryEndPeer(const std::string& peer, std::uint64_t generation) {
+	return EndPeerCommand(peer, generation, false);
+}
+
+IrohRoom::PeerEnd IrohRoom::EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull) {
 	if ((state_ != State::Ready && state_ != State::Degraded) || !IsEndpointIdentity(peer) ||
 		generation == 0 || generation <= closedGeneration_ ||
-		generation > static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)())) return false;
+		generation > static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)())) return PeerEnd::Refused;
 	auto game = games_.find(peer);
-	if (game == games_.end()) return true;
-	if (game->second.generation != generation) return false;
+	if (game == games_.end()) return PeerEnd::Ended;
+	if (game->second.generation != generation) return PeerEnd::Refused;
 	if (game->second.state == GameState::Closed) {
 		games_.erase(game);
-		return true;
+		return PeerEnd::Ended;
 	}
-	if (!Command(json{{"type", "end_peer"}, {"epoch", epoch_}, {"peer", peer},
-		{"generation", generation}}.dump())) return false;
+	const auto command = json{{"type", "end_peer"}, {"epoch", epoch_}, {"peer", peer}, {"generation", generation}}.dump();
+	if (failWhenFull) { if (!Command(command)) return PeerEnd::Refused; }
+	else if (helper_.State() != platform::HelperState::Connected) return PeerEnd::Refused;
+	// A connected helper refuses a command only while its queue is full.
+	else if (!helper_.Send(command)) return PeerEnd::Busy;
 	game->second.state = GameState::Closing;
 	game->second.virtualPort = 0;
-	return true;
+	return PeerEnd::Ended;
 }
 
 bool IrohRoom::EndMatch(std::uint64_t generation) {

@@ -87,6 +87,9 @@ msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een
 msgid "launcher.game_wrong_dll"
 msgstr "Het spel stopte voordat Ember kon starten: een geladen DLL mist een functie. Meestal staat er dan een GGPO.dll, spdlog.dll, fmt.dll of zlib1.dll van een andere mod of oude installatie naast SSFIV.exe. Verplaats zulke bestanden en probeer het opnieuw. Staan ze er niet, stuur dan het launcherlogboek (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows heeft een bestand van het spel geblokkeerd voordat Ember kon starten (app-beheer). Slim app-beheer kan geen enkel programma toestaan: staat het aan in Windows-beveiliging, dan werkt Ember pas als het uit staat. Op een pc die een organisatie beheert, vraag je de beheerder om Ember toe te staan."
+
 msgid "recovery.window"
 msgstr "Ember-herstel"
 
@@ -3253,6 +3256,12 @@ msgstr "Netwerk kon niet starten. Offline spelen kan nog wel."
 
 msgid "runtime.network_helper_unavailable"
 msgstr "Netwerkhelper niet beschikbaar (fout {0}). Offline spelen kan nog wel."
+
+msgid "runtime.network_helper_missing"
+msgstr "Netwerk kon niet starten: sf4-net.exe ontbreekt in de Ember-map. Beveiligingssoftware heeft het mogelijk verwijderd. Installeer Ember opnieuw en sta de map toe in je antivirus. Offline spelen kan nog wel."
+
+msgid "runtime.network_helper_blocked"
+msgstr "Netwerk kon niet starten: beveiligingssoftware heeft sf4-net.exe geblokkeerd. Sta de Ember-map toe in je antivirus en start Ember opnieuw. Offline spelen kan nog wel."
 
 msgid "discord.connecting"
 msgstr "Verbinden met Discord..."

@@ -27,5 +27,14 @@ namespace sf4e {
 			// training override, then the native pad behind the menu capture.
 			unsigned int ReadButtons(int pindex, bool raw);
 		};
+
+		// The game's keyboard scan, kept to the keyboards its object has room for.
+		struct Keyboards : Dimps::Pad::System_RawInput
+		{
+			static void Install();
+			// Once logging is up: what the scan during Main::Initialize found.
+			static void LogFirstScan();
+			int ScanDevices();
+		};
 	}
 }

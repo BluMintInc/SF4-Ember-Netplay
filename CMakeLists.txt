@@ -51,6 +51,10 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME FocusGate SOURCES "src/tests/focus_gate_test.cxx")
     sf4e_add_unit_test(NAME AwayAlert SOURCES "src/tests/away_alert_test.cxx")
     sf4e_add_unit_test(NAME InputLagControl SOURCES "src/tests/input_lag_control_test.cxx")
+    # The game's object layout holds 32-bit pointers.
+    if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+        sf4e_add_unit_test(NAME KeyboardSlots SOURCES "src/tests/keyboard_slots_test.cxx")
+    endif()
     sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
     sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
     sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
@@ -662,6 +666,11 @@ if(BUILD_TESTING)
             add_test(NAME CustomRoomLateSpectator COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
                 --members 3 --single-table --cycles 3 --late-spectator)
             set_tests_properties(CustomRoomLateSpectator PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
+            # A spectator P1 drops before it synchronizes (still loading the
+            # battle) must fail at once when P1 ends its link, not after 30 s.
+            add_test(NAME CustomRoomSlowSpectator COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
+                --members 4 --single-table --cycles 2 --slow-spectator)
+            set_tests_properties(CustomRoomSlowSpectator PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
             # Report-only timing runs: <name>;<members>;<members per table>.
             # The first two members at a table fight and the rest spectate.
             foreach(perf "SingleMatch;2;2" "TwoMatches;4;2" "FourMatches;8;2" "Spectators1;3;3"

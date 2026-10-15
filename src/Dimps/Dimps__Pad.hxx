@@ -91,6 +91,11 @@ namespace Dimps {
 				// sets the byte for the next one, and clears it while the Steam
 				// overlay is open.
 				void (System_RawInput::* Update)();
+				// 0x6E0150: lists the raw input keyboards and registers for them,
+				// once after start and again after a device change. It adds one
+				// keyboard per device with no limit, past the eight the object
+				// holds (common/KeyboardSlots.hxx).
+				int (System_RawInput::* ScanDevices)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {

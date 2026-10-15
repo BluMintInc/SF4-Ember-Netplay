@@ -87,6 +87,9 @@ msgstr "The game would load these files instead of the ones in the Ember folder,
 msgid "launcher.game_wrong_dll"
 msgstr "The game stopped before Ember could start because a DLL it loaded is missing a function. That usually means a GGPO.dll, spdlog.dll, fmt.dll or zlib1.dll from another mod or an older install is next to SSFIV.exe. Move any you find away, then retry. If none is there, send the launcher log at %APPDATA%\\sf4e\\logs\\launcher.log."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows blocked one of the game's files before Ember could start (application control). Smart App Control cannot allow a single program: if it is on in Windows Security, Ember can run only once it is turned off. On a PC an organization manages, ask its administrator to allow Ember."
+
 msgid "recovery.window"
 msgstr "Ember recovery"
 
@@ -2970,6 +2973,10 @@ msgid "runtime.network_start_failed"
 msgstr "Networking could not start. Offline is available."
 msgid "runtime.network_helper_unavailable"
 msgstr "Networking helper is unavailable (error {0}). Offline is available."
+msgid "runtime.network_helper_missing"
+msgstr "Networking could not start: sf4-net.exe is missing from the Ember folder. Security software may have removed it. Reinstall Ember and allow its folder in your antivirus. Offline is available."
+msgid "runtime.network_helper_blocked"
+msgstr "Networking could not start: security software blocked sf4-net.exe. Allow the Ember folder in your antivirus, then restart Ember. Offline is available."
 msgid "discord.connecting"
 msgstr "Connecting to Discord..."
 msgid "discord.unavailable_gameplay_ok"

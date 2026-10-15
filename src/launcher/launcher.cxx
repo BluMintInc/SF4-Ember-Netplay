@@ -834,7 +834,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // A crash's report reads the logs folder; without one the message
         // only names the files.
         const bool reportable = crashed && exitCode != 0xC0000139u && !steamAbove && g_logsDir[0];
+        // Windows code integrity refusing a file (0xC0E90002) is not a crash
+        // either: say what blocked the game and where to allow it.
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
+            exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
             steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
             reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;

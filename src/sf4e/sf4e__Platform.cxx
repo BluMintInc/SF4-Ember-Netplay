@@ -28,6 +28,7 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__Pad.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/FrameShiftMailbox.hxx"
@@ -429,6 +430,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             LogRenderingThread();
             spdlog::info("Sidecar logging initialized; install hooks are active");
             spdlog::info("{}", Game::Battle::MatchReplayListNote());
+            Pad::Keyboards::LogFirstScan();
         }
         catch (const spdlog::spdlog_ex& ex)
         {

@@ -71,6 +71,7 @@ inline const char* ExitCodeName(uint32_t code) {
 	case 0xE06D7363u: return "unhandled C++ exception";
 	case 0xC0000135u: return "DLL not found (STATUS_DLL_NOT_FOUND)";
 	case 0xC0000139u: return "entry point not found (STATUS_ENTRYPOINT_NOT_FOUND): a loaded DLL lacks an export, often a GGPO.dll outside the package";
+	case 0xC0E90002u: return "blocked by Windows code integrity (STATUS_SYSTEM_INTEGRITY_POLICY_VIOLATION): Smart App Control or an application control policy refused a file";
 	default: return "unknown";
 	}
 }
@@ -78,7 +79,7 @@ inline const char* ExitCodeName(uint32_t code) {
 // True when the process died of a fault its crash handler may have
 // recorded, as opposed to a clean exit or a loader failure before Sidecar ran.
 inline bool IsCrashExit(uint32_t code) {
-	if (code == 0xC0000135u || code == 0xC0000139u) return false;
+	if (code == 0xC0000135u || code == 0xC0000139u || code == 0xC0E90002u) return false;
 	return (code & 0xF0000000u) == 0xC0000000u || code == 0xE06D7363u || code == 3 || code == 255;
 }
 

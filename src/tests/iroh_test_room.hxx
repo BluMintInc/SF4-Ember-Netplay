@@ -44,7 +44,22 @@ public:
 		snapshots_[peer] = snapshot;
 		return true;
 	}
-	bool EndPeer(const std::string& peer, std::uint64_t) override { snapshots_.erase(peer); return true; }
+	// The peers whose link EndPeer or TryEndPeer ended. refuseEndPeer refuses
+	// both. busyEndPeer is how many calls find the helper's queue full: a
+	// TryEndPeer is then Busy, and an EndPeer fails the room, as the real one
+	// does, which failedOnFullQueue records.
+	std::vector<std::string> endPeerCalls;
+	bool refuseEndPeer = false, failedOnFullQueue = false;
+	int busyEndPeer = 0;
+	bool EndPeer(const std::string& peer, std::uint64_t) override {
+		if (refuseEndPeer) return false;
+		if (busyEndPeer > 0) { failedOnFullQueue = true; return false; }
+		endPeerCalls.push_back(peer); snapshots_.erase(peer); return true;
+	}
+	PeerEnd TryEndPeer(const std::string& peer, std::uint64_t generation) override {
+		if (busyEndPeer > 0) { --busyEndPeer; return PeerEnd::Busy; }
+		return EndPeer(peer, generation) ? PeerEnd::Ended : PeerEnd::Refused;
+	}
 	bool EndMatch(std::uint64_t generation) override { endMatchCalls.push_back(generation); return true; }
 	void AbandonMatch(std::uint64_t generation) override {
 		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Closed;

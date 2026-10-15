@@ -275,6 +275,111 @@ void TestSpectatorStreamSourceClosed() {
 	CHECK(!fighter.session.StreamSourceClosed());
 	std::cout << "TestSpectatorStreamSourceClosed passed\n";
 }
+
+// (8) P1 of a four-member roster ends a spectator's link when its GGPO drops
+// that spectator. Only a spectator slot of a started match, only once; a
+// refused command, a full helper queue or the room's game_peer_end for the
+// same slot leaves the room and the fight running.
+void TestHostEndsDroppedSpectatorLink() {
+	platform::HelperClient helper;
+	auto room = std::make_shared<FakeIrohRoom>(helper);
+	SessionClient::Callbacks callbacks{};
+	std::string name = "Host";
+	SessionClient client{callbacks, "build", 30000, name};
+	ULONGLONG now = 1000;
+	IrohMatchSession session{client, room, [&now] { return now; }};
+	auto* transport = new MockClient();
+	CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
+	client.RequireMatchAuthorization();
+	transport->state = session::ConnectionState::Connected;
+	CHECK(client.Step() == 0);
+	protocol::SessionHelloResp hello; hello.cid = {"room", "p1"};
+	transport->Push(json(hello));
+	CHECK(client.Step() == 0);
+	std::array<std::uint8_t, 16> id{}; id[15] = 1;
+	room->roomId = id;
+	room->localIdentity = std::string(64, 'L');
+	const std::vector<protocol::ConnectionID> roster{client._cid, {"room", "p2"}, {"room", "s1"}, {"room", "s2"}};
+	client._lobbyData.members.resize(roster.size());
+	for (std::size_t slot = 0; slot < roster.size(); ++slot) client._lobbyData.members[slot].connId = roster[slot];
+	const std::array<std::string, 4> peers{"", std::string(64, 'B'), std::string(64, 'C'), std::string(64, 'D')};
+	auto grant = GameGrant(*room, 5, roster, 0);
+	std::array<std::uint8_t, 32> capability{}; capability[0] = 7;
+	grant["links"] = json::array();
+	for (std::size_t slot = 1; slot < roster.size(); ++slot)
+		grant["links"].push_back({{"slot", slot}, {"peer", peers[slot]}, {"capability", capability}, {"dial", false}});
+	grant["spectators_optional"] = true;
+	transport->Push(grant);
+	CHECK(client.Step() == 0);
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Preparing);
+	CHECK(!session.EndSpectatorStream(2)); // not started yet
+	room->LinkUp(5);
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Prepared);
+	transport->Push(GameConnect(5));
+	CHECK(client.Step() == 0);
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Connecting);
+	CHECK(session.Tick()); // game_ready, every link up
+	transport->Push(json{{"type", "game_start"}, {"generation", 5}});
+	CHECK(client.Step() == 0);
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Started);
+	// Fighters and P1 itself are not spectators.
+	CHECK(!session.EndSpectatorStream(0) && !session.EndSpectatorStream(1) && !session.EndSpectatorStream(4));
+	// A refused command leaves the link and the fight as they were.
+	room->refuseEndPeer = true;
+	CHECK(session.EndSpectatorStream(2));
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Started);
+	CHECK(room->endPeerCalls.empty() && room->Game(peers[2]).state == session::IrohRoom::GameState::Ready);
+	room->refuseEndPeer = false;
+	// A full helper queue: the end waits for the match's next Tick, once.
+	room->busyEndPeer = 2;
+	CHECK(session.EndSpectatorStream(2));
+	CHECK(session.EndSpectatorStream(2)); // asked again while it waits
+	CHECK(room->endPeerCalls.empty());
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Started);
+	CHECK(room->endPeerCalls.size() == 1 && room->endPeerCalls[0] == peers[2]);
+	CHECK(session.Tick());
+	CHECK(room->endPeerCalls.size() == 1);
+	CHECK(!session.EndSpectatorStream(2));
+	CHECK(room->Game(peers[1]).state == session::IrohRoom::GameState::Ready);
+	// The room's game_peer_end after the local end is a late duplicate.
+	transport->Push(json{{"type", "game_peer_end"}, {"generation", 5}, {"slot", 2}});
+	CHECK(client.Step() == 0);
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Started);
+	// A full queue across P1's drop and the room's game_peer_end for the same
+	// spectator: both wait on one pending end, which neither fails the room
+	// (as EndPeer would on that queue) nor the fight, and the link ends once
+	// the queue has room.
+	room->busyEndPeer = 100;
+	CHECK(session.EndSpectatorStream(3));
+	transport->Push(json{{"type", "game_peer_end"}, {"generation", 5}, {"slot", 3}});
+	CHECK(client.Step() == 0);
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Started && !room->failedOnFullQueue);
+	CHECK(room->endPeerCalls.size() == 1);
+	room->busyEndPeer = 0;
+	CHECK(session.Tick());
+	CHECK(room->endPeerCalls.size() == 2 && room->endPeerCalls[1] == peers[3]);
+	CHECK(session.Tick());
+	CHECK(room->endPeerCalls.size() == 2);
+	CHECK(!session.EndSpectatorStream(3));
+	CHECK(session.GetPhase() == Phase::Started && !room->failedOnFullQueue);
+	CHECK(room->Game(peers[1]).state == session::IrohRoom::GameState::Ready);
+	// Once the match ends no link is ended for it.
+	transport->Push(GameEnd(5));
+	CHECK(client.Step() == 0);
+	CHECK(session.Tick(true));
+	CHECK(session.GetPhase() == Phase::Ending);
+	CHECK(!session.EndSpectatorStream(2));
+	CHECK(room->endPeerCalls.size() == 2);
+	std::cout << "TestHostEndsDroppedSpectatorLink passed\n";
+}
 }
 int main() {
 	TestEarlyConnectSameTick();
@@ -284,6 +389,7 @@ int main() {
 	TestSpectatorMissingRoomEndReturnsAtOnce();
 	TestFighterMissingRoomEndIsBounded();
 	TestSpectatorStreamSourceClosed();
+	TestHostEndsDroppedSpectatorLink();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

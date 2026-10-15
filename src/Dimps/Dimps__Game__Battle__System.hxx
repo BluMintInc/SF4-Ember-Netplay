@@ -226,6 +226,11 @@ namespace Dimps {
                 // task (0x484170) flips it on a Select press in the fight, and
                 // 0x5DA5F0 zeroes it with the simulation flags.
                 static int* GetSlowMotion(System* s);
+                // +0x14A4, the key RecordToInternalMementoKey (0x5DAAB0) and its
+                // restore use for the battle's own memento. The constructor
+                // (0x5D94B0) zeroes it; the record initializes it while its
+                // mementoableObject is null.
+                static GameMementoKey* GetMementoKey(System* s);
                 static FixedPoint* GetTransitionProgress(System* s);
                 static FixedPoint* GetTransitionSpeed(System* s);
                 static int* GetTransitionType(System* s);

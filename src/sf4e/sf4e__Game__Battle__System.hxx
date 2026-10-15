@@ -311,7 +311,7 @@ namespace sf4e {
 				// Safe to call outside GGPO callbacks at any time.
 				static void PollNativeMatchResult();
 				// P1 drops a spectator that has not synchronized in time or has
-				// fallen too far behind; a spectator client ends a stream that
+				// fallen too far behind, and ends its link; a spectator client ends a stream that
 				// never synchronized (SpectatorPolicy). Outside callbacks.
 				static void PollSpectators();
 				// Live spectator streams this client forwards inputs to. Only P1

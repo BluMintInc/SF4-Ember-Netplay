@@ -5,6 +5,7 @@
 #include "sf4e__InputLag.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
+#include "../common/MementoGuards.hxx"
 #include "sf4e__CustomContent.hxx"
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
@@ -871,12 +872,31 @@ void fSystem::RestoreAllFromInternalMementos(rSystem* system, rKey::MementoID * 
     // is loaded in training mode, for no real practical reason.
 }
 
+// The battle's own key with an object but no metadata would be written
+// through null by the record below (common/MementoGuards.hxx). What leaves it
+// that way is not known yet, so say what the key held before emptying it.
+static void RepairSystemMementoKey(rSystem* system) {
+    rKey* key = rSystem::GetMementoKey(system);
+    const rKey before = *key;
+    const auto repair = sf4e::memento::RepairUnrecordableKey(*key);
+    if (repair == sf4e::memento::KeyRepair::None) return;
+    static unsigned noted = 0;
+    if (noted >= 8) return;
+    ++noted;
+    spdlog::error("System memento: the battle's key names its object but no metadata (object={} count={} payload={} size={} next={} tracked={}); "
+        "emptied so the record starts it again{}",
+        before.mementoableObject, before.numMementos, before.mementos, before.sizeAllocated, before.nextMementoIndex,
+        fKey::trackedKeys.count(key) != 0,
+        repair == sf4e::memento::KeyRepair::ResetLeavingPayload ? ", leaving its payload behind" : "");
+}
+
 void fSystem::RecordAllToInternalMementos(rSystem* system, GameMementoKey::MementoID* id) {
     // This method exists entirely to work around the check that actors are
     // movable before the training mode mementos are saveable. This could be
     // replaced just by no-oping the `jz` instruction at 0x5d7fa0, but this
     // is probably more legible.
     void* (rSystem:: * GetUnitByIndex)(unsigned int) = rSystem::publicMethods.GetUnitByIndex;
+    RepairSystemMementoKey(system);
     MementoUnitTimer timer(kRecordOps);
     timer.Time(MementoUnitTimer::OTHER, [&] {
         (system->*rSystem::publicMethods.RecordToInternalMementoKey)(id);

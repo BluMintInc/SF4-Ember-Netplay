@@ -215,12 +215,36 @@ static void TestDamagedRetirement() {
     for (int& p : payload) CHECK(!owners.Find(&p));
 }
 
+// A key that names its object but no metadata is emptied, so the next record
+// initializes it; any other key is left exactly as it is.
+static void TestUnrecordableKey() {
+    int object = 0, payload = 0;
+    Metadata metadata[1] = {};
+    Key healthy;
+    healthy.mementoableObject = &object; healthy.metadata = metadata; healthy.numMementos = 1;
+    healthy.mementos = &payload; healthy.sizeAllocated = 16;
+    Key copy = healthy;
+    CHECK(mg::RepairUnrecordableKey(copy) == mg::KeyRepair::None);
+    CHECK(copy.mementoableObject == &object && copy.metadata == metadata && copy.mementos == &payload);
+    Key empty;
+    CHECK(mg::RepairUnrecordableKey(empty) == mg::KeyRepair::None);
+    Key broken;
+    broken.mementoableObject = &object; broken.sizeAllocated = 16;
+    CHECK(mg::RepairUnrecordableKey(broken) == mg::KeyRepair::Reset);
+    CHECK(!broken.mementoableObject && !broken.metadata && !broken.numMementos && !broken.mementos && !broken.sizeAllocated);
+    Key holding;
+    holding.mementoableObject = &object; holding.mementos = &payload; holding.numMementos = 1;
+    CHECK(mg::RepairUnrecordableKey(holding) == mg::KeyRepair::ResetLeavingPayload);
+    CHECK(!holding.mementoableObject && !holding.mementos && !holding.numMementos);
+}
+
 int main() {
     TestOwnership();
     TestTable();
     TestDamagedRetirement();
     TestRing();
     TestDescriptor();
+    TestUnrecordableKey();
     CHECK(mg::ValidTaskCount(0, 96));
     CHECK(mg::ValidTaskCount(96, 96));
     CHECK(!mg::ValidTaskCount(-1, 96));

@@ -87,6 +87,9 @@ msgstr "游戏将加载以下文件，而非 Ember 文件夹中的版本。旧�
 msgid "launcher.game_wrong_dll"
 msgstr "游戏在 Ember 启动前停止，因为加载的某个 DLL 缺少函数。通常是 SSFIV.exe 旁边有其他模组或旧版的 GGPO.dll、spdlog.dll、fmt.dll 或 zlib1.dll。请移走后重试。如没有这些文件，请发送启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）。"
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Ember 启动前，Windows 阻止了游戏的一个文件（应用控制）。智能应用控制无法单独允许一个程序：如果在 Windows 安全设置中已开启，需要关闭后 Ember 才能运行。如果电脑由单位管理，请联系管理员允许 Ember。"
+
 msgid "recovery.window"
 msgstr "Ember 恢复"
 
@@ -3253,6 +3256,12 @@ msgstr "网络无法启动，仍可离线游玩。"
 
 msgid "runtime.network_helper_unavailable"
 msgstr "网络辅助程序不可用（错误 {0}），仍可离线游玩。"
+
+msgid "runtime.network_helper_missing"
+msgstr "无法启动网络：Ember 文件夹中缺少 sf4-net.exe，可能已被安全程序删除。请重新安装 Ember，并在防护程序中允许其文件夹。仍可离线游玩。"
+
+msgid "runtime.network_helper_blocked"
+msgstr "无法启动网络：安全程序阻止了 sf4-net.exe。请在防护程序中允许 Ember 文件夹，然后重新启动 Ember。仍可离线游玩。"
 
 msgid "discord.connecting"
 msgstr "正在连接 Discord..."

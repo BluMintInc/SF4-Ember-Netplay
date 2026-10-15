@@ -156,6 +156,18 @@ void NotifyRuntimeSpectatorStreamFailed() {
 	ArmSpectatorLockRelease(runtime->enteredGeneration, false);
 }
 
+void EndRuntimeSpectatorStream(std::size_t slot) {
+	if (!runtime || !runtime->match) return;
+	const bool ended = runtime->match->EndSpectatorStream(slot);
+	// Not ending: the link was already gone (the spectator left first, or the
+	// match is no longer started). A refusal or a full helper queue is logged
+	// by the match session.
+	spdlog::info("Room: {} spectator slot {} generation={}", ended ? "ending the link of" : "no live link to end for",
+		slot, runtime->match->Generation());
+}
+
+bool IsRuntimeSpectator() { return LocalIsSpectator(); }
+
 void NotifyRuntimeMatchEnded() {
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
@@ -513,7 +525,9 @@ void TickMatch() {
 			HandleSessionlessClose(closedGeneration);
 		}
 		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
-			runtime->error = loc::T("runtime.match_connection_lost");
+			// A spectator in the game lost its one link, to P1: its stream, not a seat.
+			runtime->error = loc::T(LocalIsSpectator() && runtime->matchEntered ?
+				"runtime.spectator_stream_lost" : "runtime.match_connection_lost");
 			// A spectator has no seat to lose: a control reconnect that briefly
 			// empties the projection must not turn its stream failure into a room exit.
 			if (UserApp::netplay && (LocalIsSpectator() || UserApp::netplay->client.GetRoomSnapshot().roomEpoch)) {

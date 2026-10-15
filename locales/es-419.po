@@ -87,6 +87,9 @@ msgstr "El juego cargaría estos archivos en lugar de los de la carpeta de Ember
 msgid "launcher.game_wrong_dll"
 msgstr "El juego se detuvo antes de que Ember pudiera iniciar porque a una DLL que cargó le falta una función. Eso suele significar que hay un GGPO.dll, spdlog.dll, fmt.dll o zlib1.dll de otro mod o de una instalación anterior junto a SSFIV.exe. Quita de ahí los que encuentres y vuelve a intentarlo. Si no hay ninguno, envía el registro del iniciador (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows bloqueó uno de los archivos del juego antes de que Ember pudiera iniciarse (control de aplicaciones). El Control inteligente de aplicaciones no puede permitir un solo programa: si está activado en Seguridad de Windows, Ember solo funcionará cuando lo desactives. En una PC administrada por una organización, pide a su administrador que permita Ember."
+
 msgid "recovery.window"
 msgstr "Recuperación de Ember"
 
@@ -2855,6 +2858,10 @@ msgid "runtime.network_start_failed"
 msgstr "La red no pudo iniciar. El modo sin conexión está disponible."
 msgid "runtime.network_helper_unavailable"
 msgstr "El auxiliar de red no está disponible (error {0}). El modo sin conexión está disponible."
+msgid "runtime.network_helper_missing"
+msgstr "No se pudo iniciar la red: falta sf4-net.exe en la carpeta de Ember. Es posible que un software de seguridad lo haya eliminado. Reinstala Ember y permite su carpeta en tu antivirus. El modo sin conexión está disponible."
+msgid "runtime.network_helper_blocked"
+msgstr "No se pudo iniciar la red: un software de seguridad bloqueó sf4-net.exe. Permite la carpeta de Ember en tu antivirus y vuelve a abrir Ember. El modo sin conexión está disponible."
 msgid "discord.connecting"
 msgstr "Conectando con Discord..."
 msgid "discord.unavailable_gameplay_ok"

@@ -155,6 +155,15 @@ static void NoteLifecycleThread(const char* what) {
 
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	NoteLifecycleThread("initialize");
+	// No device, no overlay: with no context every other overlay entry point
+	// does nothing, and the next Reset that has a device starts it. Reports
+	// from 1.2.0 crashed here on every launch reading through a null device.
+	if (!lpDevice) {
+		RECT client{}; if (hWnd) GetClientRect(hWnd, &client);
+		spdlog::error("Overlay: the game has no Direct3D device (window {}, client area {}x{}); the overlay is not started",
+			hWnd ? "present" : "missing", client.right - client.left, client.bottom - client.top);
+		return;
+	}
 	sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
 	sf4e::OverlayPrefs::StartPersistence();
 	IMGUI_CHECKVERSION();
