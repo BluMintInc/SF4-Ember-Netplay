@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 pub mod league;
+pub mod play;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;
