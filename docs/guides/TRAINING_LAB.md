@@ -133,11 +133,84 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
 **Dummy reply** makes the dummy act by itself once it is free again: after being hit (a dropped combo), after blocking, on wake-up, or any of them. None starts on standby or while a playback or a recording runs.
 
+#### Set one up
+
+1. Press F6 and open **Dummy reply**.
+2. On **Dummy reply**, choose when it replies: **After a dropped combo**, **After blocking**, **On Wake-Up** or **Whenever it recovers**.
+3. On **Reply preset**, pick a common reply with Left and Right, or press Select to type your own into **Reply moves**.
+4. Close the controls and knock the dummy down, or hit it, as the reply needs.
+
+The first time the dummy sees a given knockdown or stun, it measures it and replies as it ends, often a little late. Every time after that, the reply comes out on the first free frame, as a reversal. **Reply timing** moves it up to five frames earlier or later.
+
+#### Ready-made replies
+
+Directions are written for a dummy facing right; the dummy turns them for the side it faces, so `6` is always forward and `4` always back.
+
+| What you want | Type |
+| --- | --- |
+| Reversal dragon punch | `623HP` or `dp HP` |
+| Throw | `LP+LK` |
+| Backdash | `44` |
+| Forward dash | `66` |
+| Jump back, up, forward | `7`, `8`, `9` |
+| Fireball | `236P` or `qcf P` |
+| EX fireball | `236PP` |
+| Super | `236236P` |
+| Ultra | `236236PPP` |
+| Spinning piledriver | `360P` |
+| Low short | `2LK` or `cr.LK` |
+| Focus attack | `MP+MK` |
+| Dragon punch, then focus cancel and dash | `623HP xx FADC` |
+| Short combo | `2LK > 2LP xx 623HP` |
+| Hundred Hand Slap | `HP(mash)` |
+| Block low until free, then sweep | `[1] > 2HK` |
+| Charge move on wake-up (Flash Kick, Sonic Boom) | `[1] > 8HK`, `[1] > 6HP` |
+
+#### Charge moves
+
+Start the reply with a held direction, then type the charge move **without** its charge: `[1] > 8HK` for a Flash Kick, `[1] > 6HP` for a Sonic Boom, `[1] > 6P` for a Psycho Crusher. `[1]` is down-back, so it charges both back and down. The dummy holds it from the moment it is knocked down or stunned and lets go just in time to press the move on its first free frame.
+
+A charge built this way is only as long as the stun. A knockdown is long enough, so charge moves work **On Wake-Up**. Every charge in the game is longer than a normal blockstun, so after blocking the move comes out uncharged unless the blockstun is long.
+
+Don't write the charge twice: `[1] > [4]6P` holds back for a whole new charge after the dummy gets up. `[4]6P` on its own is right only when nothing comes before it to hold the charge through.
+
+#### Notation cheat sheet
+
+Any case works, and spaces are optional.
+
+| Write | Means | Example |
+| --- | --- | --- |
+| `1` to `9` | Directions, as on a number pad: `2` down, `4` back, `6` forward, `8` up, `5` neutral | `623HP` |
+| `LP MP HP LK MK HK` | Buttons; join several with `+` | `LP+LK` |
+| `P` `PP` `PPP`, `K` `KK` `KKK` | Any one, two or three punches or kicks | `236PP` |
+| `qcf` `qcb` `dp` `rdp` `hcf` `hcb` | 236, 214, 623, 421, 41236, 63214 | `qcfP`, `dp HP`, `qcb+LK` |
+| `360` `720` | A full or double circle | `360P` |
+| `cr.` `st.` | Crouching (2) or standing (5) | `cr.MK` |
+| `cl.` `far.` | Close or far standing normal | `cl.HP` |
+| `j.` | A straight-up jump with the attack in the air | `j.HK` |
+| `>` or `,` | Then the next move, once the dummy can act again (a link) | `2LK > 2LP` |
+| `xx` | Cancel into the next move when the hit lands | `2MK xx 236HP` |
+| `~` | Follow-up pressed about ten frames into the move before | `236P ~ LP` |
+| `[4]6` | Charge back, then forward | `[4]6P` |
+| `[1]` | Hold a direction until the next move | `[1] > 2HK` |
+| `[2]30f` | Hold a direction for 30 frames | `[2]30f > 8K` |
+| `10f` | Wait 10 frames, holding nothing | `2LP > 10f > 2LP` |
+| `[HP]` / `]HP[` | Hold a button / let it go | `[MP+MK]` |
+| `(mash)` | Press five times | `HP(mash)` |
+| `FADC` `FADC44` | Focus cancel, dash forward or back | `623HP xx FADC` |
+| `RFADC` | Red focus that lands, then dash | `RFADC` |
+| `@N` | Move this one N frames later or earlier | `623HP@+2` |
+| `#N` | Press this one N frames into the reply | `2LP > 10f > 2LP#30` |
+
+Character-specific move names (`shoryuken`, `sonic boom`) are not read. A line the dummy can't use shows an error and is not sent.
+
+#### Notation reference
+
 **Reply preset** picks a common reply with Left and Right: **Recordings** (no moves, so the dummy replies with a recording), `623P`, `44`, `66`, `LP+LK`, `8`, `9`, `2LK`, `214K`, `236P`, or **Custom**, which brings back the last reply typed that is not a preset. Select on it opens Reply moves to type one. A preset is checked and sent exactly as the same text typed into Reply moves would be, and a reply that spells a preset, in any spelling (`lp+lk`, or an old `throw`), shows as that preset.
 
 **Reply moves** is the reply typed in numpad notation (`623HP`, `44`, `2LK > 2LP xx 623HP`), read for the side the dummy faces. Older saved replies using shared names such as `dash`, `throw` or `focus` migrate to notation when loaded. Character-specific move names are not read. Invalid nonempty text shows an error and is not sent to the dummy. While the line is empty the dummy replies with a recording instead: a slot that is on and presses something, picked by **Playback order** as the stun begins and played once from its first pressed frame. The reply keeps that recording and its timing even if the slots change before it starts; changing a slot, the reply settings, or starting a playback or a recording drops it for that stun. A recording that only stands still is played by **Play** but never as a reply. If no slot can be a reply, the Dummy reply page says so in its status line.
 
-Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, `~` that it is a follow-up pressed about ten frames into it with no hit to wait for (`@N` moves it), otherwise it links. Notation is numpad or prefix style, any case:
+Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, `~` that it is a follow-up pressed about ten frames into it with no hit to wait for (`@N` moves it), otherwise it links. The full form of one move:
 
 ```
 [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]
@@ -154,9 +227,11 @@ Moves are separated by `>` or `,`; `xx` before a move means it cancels the one b
 
 Directions take a few frames each and a button two; between moves the input waits on the fight itself: a link waits for the dummy to be free again, a cancel for the hit to land. The game decides what comes out.
 
+#### How the reply is timed
+
 The reply is timed to the stun. The game does not say how long a stun lasts, so each one is measured the first time it is seen, from the last hit or change of reaction to the free frame, per attacking move and reaction. The first time, the reply starts as the stun ends; from then on its motion goes in while the dummy is still held and its first attack button lands on the first free frame. **Reply timing** moves that frame by up to five either way; a later frame is waited for past the free frame, the first time too. A counter hit's longer stun replaces the plain hit's until the plain hit is seen again. Hit again before it is free, the dummy drops the reply it had begun.
 
-A reply that starts with a held direction (`[1] > 3HP`) begins with the stun instead: the dummy holds the direction from the stun's first frame and lets go in time for the move after it, its motion included (`[1] > 623P`), to press its button on the first free frame plus the reply timing and the move's own `@N`, as a reversal when the stun was seen before; the first time, it lets go as the stun ends. A charge held that way is only as long as the stun, so `[1] > 6P` comes out charged after a knockdown or a long blockstun, and uncharged after a short one; every charge in the game is longer than a normal blockstun. It waits out any stun, a dizzy too. A hold later in the line (`5LP > [4] > 6P`) waits as a link does, until the dummy is free again or 90 frames at most. Type the charge move without its charge after the hold: `[1] > [4]6P` would hold back for a whole charge again after the stun.
+A reply that starts with a held direction (`[1] > 3HP`) begins with the stun instead: the dummy holds the direction from the stun's first frame and lets go in time for the move after it, its motion included (`[1] > 623P`), to press its button on the first free frame plus the reply timing and the move's own `@N`, as a reversal when the stun was seen before; the first time, it lets go as the stun ends. It waits out any stun, a dizzy too. A hold later in the line (`5LP > [4] > 6P`) waits as a link does, until the dummy is free again or 90 frames at most.
 
 While a reply plays the dummy takes its input from Ember, and before and after it the dummy follows its own Training-menu settings, so it blocks as its guard setting says. It cannot block during the frames its reply's motion is entered, and while it holds a direction its guard setting is set aside: it blocks by what it holds, low with `[1]`, high with `[4]`, and not at all with anything else, so a hit that comes then lands and drops the reply. The hit it is blocking when the reply begins stays blocked. The Dummy action row shows the chosen setting throughout. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
 
