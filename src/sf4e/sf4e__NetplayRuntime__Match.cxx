@@ -159,8 +159,9 @@ void NotifyRuntimeSpectatorStreamFailed() {
 void EndRuntimeSpectatorStream(std::size_t slot) {
 	if (!runtime || !runtime->match) return;
 	const bool ended = runtime->match->EndSpectatorStream(slot);
-	// Not ended: the link was already gone (the spectator left first), or the
-	// helper refused, which EndSpectatorStream logs as a warning.
+	// Not ended: the link was already gone (the spectator left first, or the
+	// match is no longer started), or the room refused, which
+	// EndSpectatorStream logs as a warning.
 	spdlog::info("Room: {} spectator slot {} generation={}", ended ? "ended the link of" : "no live link to end for",
 		slot, runtime->match->Generation());
 }

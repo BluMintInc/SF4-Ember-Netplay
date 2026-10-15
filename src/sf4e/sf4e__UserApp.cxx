@@ -184,12 +184,17 @@ static bool StartMatchInputLag() {
     return sf4e::InputLag::StartMatch(netplay->client._matchData.lowerInputLag, seats);
 }
 
-static bool StartRuntimeGgpo() {
+// Why a netplay battle has no GGPO session. NoStream: the session has no
+// started match or no link to P1 left, as when P1 dropped this spectator while
+// its battle loaded. Failed: this PC could not set GGPO up.
+enum class RuntimeGgpoStart { Started, NoStream, Failed };
+
+static RuntimeGgpoStart StartRuntimeGgpo() {
     static_assert(sizeof(sf4e::Pad::System::Inputs) == sf4e::session::GgpoInputBytes, "Recalculate gameplay packet admission when SF4 inputs change");
     sf4e::NetplayFacade::RuntimeMatchEndpoints endpoints;
-    if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return false;
+    if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return RuntimeGgpoStart::NoStream;
     auto& netplay = fUserApp::netplay;
-    if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return false;
+    if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return RuntimeGgpoStart::Failed;
     // Room names are unique, so the name finds the member's link.
     const auto& room = netplay->client.GetRoomSnapshot();
     for (std::size_t side = 0; side < 2; ++side) {
@@ -206,7 +211,7 @@ static bool StartRuntimeGgpo() {
     if (table)
         for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
     if (endpoints.localSlot >= 2) {
-        if (!endpoints.remotePorts[0]) return false;
+        if (!endpoints.remotePorts[0]) return RuntimeGgpoStart::NoStream;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         char loopback[] = "127.0.0.1";
         fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0]);
@@ -226,9 +231,9 @@ static bool StartRuntimeGgpo() {
             auto& player = players[count++]; player.size = sizeof(player); player.player_num = static_cast<int>(slot) + 1;
             if (slot == endpoints.localSlot) {
                 player.type = GGPO_PLAYERTYPE_LOCAL;
-                if (!sf4e::NetplayFacade::BindRuntimeInput(static_cast<int>(slot))) return false;
+                if (!sf4e::NetplayFacade::BindRuntimeInput(static_cast<int>(slot))) return RuntimeGgpoStart::Failed;
             } else {
-                if (!endpoints.remotePorts[slot]) return false;
+                if (!endpoints.remotePorts[slot]) return RuntimeGgpoStart::Failed;
                 player.type = slot < 2 ? GGPO_PLAYERTYPE_REMOTE : GGPO_PLAYERTYPE_SPECTATOR;
                 strcpy_s(player.u.remote.ip_address, "127.0.0.1");
                 player.u.remote.port = endpoints.remotePorts[slot];
@@ -237,7 +242,7 @@ static bool StartRuntimeGgpo() {
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         if (netplay->client.IsCustomRoom()) {
             const auto committedDelay=netplay->client._matchData.inputDelay[endpoints.localSlot];
-            if (committedDelay>sf4e::InputDelayWireCeiling) return false;
+            if (committedDelay>sf4e::InputDelayWireCeiling) return RuntimeGgpoStart::Failed;
             netplay->delay=committedDelay;
         }
         // A Shared room puts the match delay in both seats, so the two players'
@@ -258,7 +263,15 @@ static bool StartRuntimeGgpo() {
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();
-    return fSystem::ggpo != nullptr;
+    return fSystem::ggpo != nullptr ? RuntimeGgpoStart::Started : RuntimeGgpoStart::Failed;
+}
+
+// A spectator without its stream watches the next game at the table, and
+// one whose game has already finished needs no notice.
+static const char* RuntimeGgpoStartNotice(RuntimeGgpoStart start) {
+    if (start == RuntimeGgpoStart::NoStream && sf4e::NetplayFacade::IsRuntimeSpectator())
+        return sf4e::NetplayFacade::IsRuntimeMatchEndCommitted() ? "" : sf4e::loc::T("runtime.spectator_stream_lost");
+    return sf4e::loc::T("runtime.authorized_connection_unavailable");
 }
 
 void fUserApp::_OnVsBattleTasksRegistered() {
@@ -270,10 +283,10 @@ void fUserApp::_OnVsBattleTasksRegistered() {
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
     else if (!StartMatchInputLag())
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.input_lag_unavailable"));
-    // A spectator whose view ended while its battle loaded (P1 dropped it) watches the next game.
-    else if (!StartRuntimeGgpo())
-        fSystem::AbortGgpoMatch(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimeSpectator() ?
-            "runtime.spectator_stream_lost" : "runtime.authorized_connection_unavailable"));
+    else {
+        const auto start = StartRuntimeGgpo();
+        if (start != RuntimeGgpoStart::Started) fSystem::AbortGgpoMatch(RuntimeGgpoStartNotice(start));
+    }
 }
 
 

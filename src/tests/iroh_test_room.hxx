@@ -44,7 +44,13 @@ public:
 		snapshots_[peer] = snapshot;
 		return true;
 	}
-	bool EndPeer(const std::string& peer, std::uint64_t) override { snapshots_.erase(peer); return true; }
+	// The peers whose link EndPeer ended; refuseEndPeer refuses the command.
+	std::vector<std::string> endPeerCalls;
+	bool refuseEndPeer = false;
+	bool EndPeer(const std::string& peer, std::uint64_t) override {
+		if (refuseEndPeer) return false;
+		endPeerCalls.push_back(peer); snapshots_.erase(peer); return true;
+	}
 	bool EndMatch(std::uint64_t generation) override { endMatchCalls.push_back(generation); return true; }
 	void AbandonMatch(std::uint64_t generation) override {
 		for (auto& snapshot : snapshots_) if (snapshot.second.generation == generation) snapshot.second.state = GameState::Closed;

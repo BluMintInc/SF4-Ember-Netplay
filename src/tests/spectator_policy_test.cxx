@@ -214,6 +214,34 @@ int main() {
 		watch.Start(300500, false);
 		CHECK(watch.Poll(300000 + timeout * 10, false) == Step::Wait);
 	}
+	{
+		// P1's drops name the slot each spectator watches from: here slot 2 had
+		// no port and sits out, so handle 1000 watches from slot 3. A handle
+		// dropped by the policy and then reported by GGPO's own event is
+		// ended once; an unknown handle (a fighter's) is ignored.
+		sf4e::SpectatorLinks links;
+		links.Start({{1000, 3}, {1001, 4}});
+		CHECK(links.Take().empty());
+		links.Dropped(1000);
+		links.Dropped(1000);
+		links.Dropped(0);
+		auto taken = links.Take();
+		CHECK(taken.size() == 1 && taken[0] == 3);
+		CHECK(links.Take().empty());
+		links.Dropped(1000);
+		CHECK(links.Take().empty());
+		// A session started or retired forgets the drops not yet taken and the
+		// last session's handles, so the next match's links stay up.
+		links.Dropped(1001);
+		links.Start();
+		CHECK(links.Take().empty());
+		links.Dropped(1001);
+		CHECK(links.Take().empty());
+		links.Start({{1000, 2}});
+		links.Dropped(1000);
+		taken = links.Take();
+		CHECK(taken.size() == 1 && taken[0] == 2);
+	}
 	std::printf("Spectator policy passed\n");
 	return 0;
 }

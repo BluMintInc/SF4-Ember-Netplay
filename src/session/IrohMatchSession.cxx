@@ -527,9 +527,11 @@ bool IrohMatchSession::EndSpectatorStream(std::size_t slot) {
 	if (slot_ != 0 || slot < 2 || phase_ != Phase::Started || !room_) return false;
 	const auto link = std::find_if(links_.begin(), links_.end(), [&](const Link& candidate) { return candidate.slot == slot; });
 	if (link == links_.end()) return false;
-	// Unlike DropSpectatorLink, a refused command does not fail the fight.
+	// Unlike DropSpectatorLink, a refusal does not fail this match: a full
+	// helper queue has already failed the room, and a room that is only not
+	// Ready leaves the spectator's own timeout to end its wait.
 	if (!room_->EndPeer(link->peer, generation_)) {
-		spdlog::warn("Match: the helper refused to end spectator slot {} generation={}", slot, generation_);
+		spdlog::warn("Match: the room refused to end spectator slot {} generation={}", slot, generation_);
 		return false;
 	}
 	SecureZeroMemory(link->capability.data(), link->capability.size());

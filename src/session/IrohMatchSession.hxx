@@ -81,8 +81,9 @@ public:
 	// P1's GGPO stopped serving a spectator (SpectatorPolicy). Ends that
 	// spectator's link for this generation, so its client fails within its
 	// peer-close grace instead of waiting out its own stream timeout. False
-	// when there is no such live link or the helper refused the command; neither
-	// fails the fight, and the spectator's own timeout still ends its wait.
+	// when there is no such live link, or the room refused the command (not
+	// Ready, or a full helper command queue, which fails the room as it would
+	// for any command). This match is not failed for it.
 	bool EndSpectatorStream(std::size_t slot);
 private:
 	struct Link {

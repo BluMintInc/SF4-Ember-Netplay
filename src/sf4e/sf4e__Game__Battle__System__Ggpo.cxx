@@ -92,9 +92,10 @@ struct GgpoCallbackScope : sf4e::gate::AbortLatch::Scope {
 };
 
 static sf4e::SpectatorPolicy s_spectatorPolicy;
-// P1's spectator handles and the match slot each one watches from, so a
-// dropped handle's link can be ended too.
-static std::map<int, std::size_t> s_spectatorSlots;
+// GGPO alone would leave a dropped spectator waiting for a stream that never
+// comes, until its own StreamSyncTimeoutMs or, once it runs, the match end, so
+// P1 ends the dropped spectator's link too.
+static sf4e::SpectatorLinks s_spectatorLinks;
 static sf4e::SpectatorStreamWatch s_streamWatch;
 
 std::size_t fSystem::SpectatorStreamCount() {
@@ -115,6 +116,8 @@ void fSystem::PollSpectators() {
         AbortGgpoMatch(lost ? sf4e::loc::T("runtime.spectator_stream_lost") : "");
         return;
     }
+    // Drops noted since the last poll, the last spectator's among them.
+    for (const auto slot : s_spectatorLinks.Take()) sf4e::NetplayFacade::EndRuntimeSpectatorStream(slot);
     if (!SpectatorStreamCount()) return;
     const auto drop = [&](int handle, const char* reason) {
         GGPONetworkStats stats = {};
@@ -124,10 +127,7 @@ void fSystem::PollSpectators() {
         const auto result = ggpo_disconnect_player(ggpo, handle);
         if (!GGPO_SUCCEEDED(result) && result != GGPO_ERRORCODE_PLAYER_DISCONNECTED)
             spdlog::warn("GGPO: spectator handle {} could not be dropped: {}", handle, (int)result);
-        // GGPO alone would leave the spectator waiting for a stream that never
-        // comes until its own StreamSyncTimeoutMs, or the match end once it runs.
-        const auto slot = s_spectatorSlots.find(handle);
-        if (slot != s_spectatorSlots.end()) sf4e::NetplayFacade::EndRuntimeSpectatorStream(slot->second);
+        s_spectatorLinks.Dropped(handle);
     };
     for (const auto handle : s_spectatorPolicy.SyncOverdue(now)) drop(handle, "not synchronized in time");
     if (!s_spectatorPolicy.SampleDue(now)) return;
@@ -232,6 +232,8 @@ void LogPacerSummary(const char* label) {
 }
 
 void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
+    // A drop not yet taken belongs to this session; the next match's links must not be ended for it.
+    s_spectatorLinks.Start();
     matchTelemetry.Reset();
     rollbackHud.Reset();
     if (ggpo) {
@@ -445,7 +447,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         }
     }
     std::vector<int> spectatorHandles;
-    s_spectatorSlots.clear();
+    std::map<int, std::size_t> spectatorSlots;
     if (localPlayerIdx == 0) {
         for (int i = 2; i < numPlayers; i++) {
             players[i].type = inPlayers[i].type;
@@ -460,10 +462,11 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
             if (players[i].handle == GGPO_INVALID_HANDLE) continue;
             spectatorHandles.push_back(players[i].handle);
             // player_num is the match slot plus one (StartRuntimeGgpo leaves out spectators without a port).
-            s_spectatorSlots[players[i].handle] = static_cast<std::size_t>(inPlayers[i].player_num - 1);
+            spectatorSlots[players[i].handle] = static_cast<std::size_t>(inPlayers[i].player_num - 1);
         }
     }
     s_spectatorPolicy.Start(GetTickCount64(), spectatorHandles);
+    s_spectatorLinks.Start(std::move(spectatorSlots));
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
@@ -910,6 +913,7 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         // the HUD's watcher count already drops.
         if (IsSpectatorHandle(info->u.disconnected.player)) {
             s_spectatorPolicy.OnDisconnected(info->u.disconnected.player);
+            s_spectatorLinks.Dropped(info->u.disconnected.player);
             spdlog::info("GGPO: spectator handle {} disconnected; fight continues", info->u.disconnected.player);
             break;
         }

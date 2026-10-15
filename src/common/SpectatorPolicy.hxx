@@ -156,4 +156,26 @@ private:
 	bool watching_ = false;
 };
 
+// P1's spectator handles and the match slot each one watches from. A
+// spectator GGPO drops, at the policy's request or on its own (its
+// DISCONNECTED_FROM_PEER event, also from inside a callback), is noted here,
+// and Take hands each dropped slot over once, outside callbacks, so its link
+// can be ended. Start, for every session started or retired, forgets the last
+// session's handles and any drop not yet taken.
+class SpectatorLinks {
+public:
+	void Start(std::map<int, std::size_t> slots = {}) { slots_ = std::move(slots); dropped_.clear(); }
+	void Dropped(int handle) {
+		const auto found = slots_.find(handle);
+		if (found == slots_.end()) return;
+		dropped_.push_back(found->second);
+		slots_.erase(found);
+	}
+	std::vector<std::size_t> Take() { std::vector<std::size_t> taken; taken.swap(dropped_); return taken; }
+
+private:
+	std::map<int, std::size_t> slots_;
+	std::vector<std::size_t> dropped_;
+};
+
 }
