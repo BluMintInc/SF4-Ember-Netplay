@@ -277,9 +277,9 @@ void TestSpectatorStreamSourceClosed() {
 }
 
 // (8) P1 of a four-member roster ends a spectator's link when its GGPO drops
-// that spectator. Only a spectator slot of a started match, only once, and a
-// refused command or the room's later game_peer_end for the same slot leaves
-// the fight running.
+// that spectator. Only a spectator slot of a started match, only once; a
+// refused command, a full helper queue or the room's game_peer_end for the
+// same slot leaves the room and the fight running.
 void TestHostEndsDroppedSpectatorLink() {
 	platform::HelperClient helper;
 	auto room = std::make_shared<FakeIrohRoom>(helper);
@@ -352,14 +352,24 @@ void TestHostEndsDroppedSpectatorLink() {
 	CHECK(client.Step() == 0);
 	CHECK(session.Tick());
 	CHECK(session.GetPhase() == Phase::Started);
-	// And a game_peer_end first leaves nothing for the local end.
+	// A full queue across P1's drop and the room's game_peer_end for the same
+	// spectator: both wait on one pending end, which neither fails the room
+	// (as EndPeer would on that queue) nor the fight, and the link ends once
+	// the queue has room.
+	room->busyEndPeer = 100;
+	CHECK(session.EndSpectatorStream(3));
 	transport->Push(json{{"type", "game_peer_end"}, {"generation", 5}, {"slot", 3}});
 	CHECK(client.Step() == 0);
 	CHECK(session.Tick());
-	CHECK(room->endPeerCalls.size() == 2 && room->endPeerCalls[1] == peers[3]);
-	CHECK(!session.EndSpectatorStream(3));
+	CHECK(session.GetPhase() == Phase::Started && !room->failedOnFullQueue);
+	CHECK(room->endPeerCalls.size() == 1);
+	room->busyEndPeer = 0;
 	CHECK(session.Tick());
-	CHECK(session.GetPhase() == Phase::Started);
+	CHECK(room->endPeerCalls.size() == 2 && room->endPeerCalls[1] == peers[3]);
+	CHECK(session.Tick());
+	CHECK(room->endPeerCalls.size() == 2);
+	CHECK(!session.EndSpectatorStream(3));
+	CHECK(session.GetPhase() == Phase::Started && !room->failedOnFullQueue);
 	CHECK(room->Game(peers[1]).state == session::IrohRoom::GameState::Ready);
 	// Once the match ends no link is ended for it.
 	transport->Push(GameEnd(5));

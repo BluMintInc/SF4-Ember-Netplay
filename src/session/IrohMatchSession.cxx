@@ -346,6 +346,9 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 					return candidate.slot == peerSlot;
 				});
 				if (link == links_.end()) continue; // Tolerate a late duplicate event.
+				// A started match ends it with P1's own drops (EndSpectatorStream),
+				// later this Tick: a full helper queue waits instead of failing the room.
+				if (phase_ == Phase::Started) { QueueSpectatorEnd(peerSlot); continue; }
 				if (!DropSpectatorLink(link)) return false;
 				continue;
 			}
@@ -478,6 +481,8 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			const auto state = room_->Game(link->peer).state;
 			const bool closed = state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing;
 			if (closed && optionalSpectators && link->slot >= 2) {
+				// Started: through the pending ends, on the next Tick's flush.
+				if (phase_ == Phase::Started) { QueueSpectatorEnd(link->slot); ++link; continue; }
 				if (!DropSpectatorLink(link)) return false;
 				continue;
 			}
@@ -532,11 +537,15 @@ bool IrohMatchSession::EndSpectatorStream(std::size_t slot) {
 	if (slot_ != 0 || slot < 2 || phase_ != Phase::Started || !room_) return false;
 	const bool live = std::any_of(links_.begin(), links_.end(), [&](const Link& link) { return link.slot == slot; });
 	if (!live) return false;
-	if (std::find(spectatorEnds_.begin(), spectatorEnds_.end(), slot) == spectatorEnds_.end()) spectatorEnds_.push_back(slot);
+	QueueSpectatorEnd(slot);
 	FlushSpectatorEnds();
 	if (std::find(spectatorEnds_.begin(), spectatorEnds_.end(), slot) != spectatorEnds_.end())
 		spdlog::info("Match: helper queue full; ending spectator slot {} generation={} on a later tick", slot, generation_);
 	return true;
+}
+
+void IrohMatchSession::QueueSpectatorEnd(std::size_t slot) {
+	if (std::find(spectatorEnds_.begin(), spectatorEnds_.end(), slot) == spectatorEnds_.end()) spectatorEnds_.push_back(slot);
 }
 
 void IrohMatchSession::FlushSpectatorEnds() {
