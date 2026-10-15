@@ -479,8 +479,11 @@ matches on its connection, an organizer every match in its tenant, and a player
 only their own record, without other players' account IDs.
 
 Records are worked out from the accepted games each time they are read, so a
-voided game or other correction shows straight away. Lobby standings work the
-same way; only a lobby player's best streak is kept as sets are played.
+voided game or other correction shows straight away. A set a platform asked
+for again from a score (BluMint's `startingWins`) counts that score in the
+set's result and its recent score, but only the games played in it in games
+won and lost. Lobby standings work the same way; only a lobby player's best
+streak is kept as sets are played.
 
 ## Receive events
 

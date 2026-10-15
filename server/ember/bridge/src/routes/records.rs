@@ -37,15 +37,25 @@ struct Played {
     opponent: Option<(String, String)>,
     /// Accepted games won by this player, by the opponent, and drawn.
     games: [u32; 3],
+    /// The score the set started from, this player's first: not 0-0 only
+    /// when a platform asked for a set again after an earlier match of it
+    /// ended without a result. Those games were played in that match, so
+    /// they count towards the set but not this match's games.
+    base: [u32; 2],
 }
 
 impl Played {
+    /// The set's score, this player's first.
+    fn score(&self) -> [u32; 2] {
+        [self.base[0] + self.games[0], self.base[1] + self.games[1]]
+    }
+
     fn won(&self) -> bool {
-        self.finished && self.games[0] >= u32::from(self.games_to_win)
+        self.finished && self.score()[0] >= u32::from(self.games_to_win)
     }
 
     fn lost(&self) -> bool {
-        self.finished && self.games[1] >= u32::from(self.games_to_win)
+        self.finished && self.score()[1] >= u32::from(self.games_to_win)
     }
 }
 
@@ -61,7 +71,8 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
                 o.participant_id, o.ember_id, m.tournament_id,
                 (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p1_win'),
                 (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'p2_win'),
-                (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'draw')
+                (SELECT COUNT(*) FROM attempts a WHERE a.match_id = m.id AND a.state = 'accepted' AND a.outcome = 'draw'),
+                m.base_p1, m.base_p2
          FROM match_participants p
          JOIN matches m ON m.id = p.match_id AND m.assignment_generation = p.assignment_generation
          LEFT JOIN match_participants o
@@ -74,6 +85,7 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
         let slot: u8 = row.get(6)?;
         let p1: u32 = row.get(10)?;
         let p2: u32 = row.get(11)?;
+        let base: [u32; 2] = [row.get(13)?, row.get(14)?];
         let metadata: String = row.get(4)?;
         let opponent = match (row.get::<_, Option<String>>(7)?, row.get::<_, Option<String>>(8)?) {
             (Some(participant), Some(ember)) => Some((participant, ember)),
@@ -91,6 +103,7 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
             updated_at: row.get(5)?,
             opponent,
             games: if slot == 0 { [p1, p2, row.get(12)?] } else { [p2, p1, row.get(12)?] },
+            base: if slot == 0 { base } else { [base[1], base[0]] },
         })
     })?
     .collect::<rusqlite::Result<Vec<_>>>()
@@ -168,8 +181,8 @@ pub async fn record(
                     json!({
                         "match_id": row.match_id,
                         "result": result,
-                        "wins": row.games[0],
-                        "opponent_wins": row.games[1],
+                        "wins": row.score()[0],
+                        "opponent_wins": row.score()[1],
                         "games_to_win": row.games_to_win,
                         "opponent": opponent,
                         "lobby_id": row.lobby_id,

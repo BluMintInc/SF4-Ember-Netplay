@@ -4,6 +4,7 @@
 mod common;
 
 use common::{
+    Player,
     blumint::*,
     play::{bound, permit, report},
     results,
@@ -588,6 +589,31 @@ async fn starting_wins_continue_the_set() {
     win(&f, &id, 0, "game-3").await;
     assert_eq!(reports(&f, &id).await, vec![result(&f, &id, [2, 0])]);
 
+    // Each player's record counts both sets from their starting score, and
+    // only the games played in them.
+    let (status, kate) = record(&f, &f.kate).await;
+    assert_eq!(status, StatusCode::OK, "{kate}");
+    assert_eq!(kate["sets"], json!({ "played": 2, "won": 2, "lost": 0 }));
+    assert_eq!(kate["games"], json!({ "won": 2, "lost": 1, "drawn": 0 }));
+    assert_eq!(
+        (
+            &kate["recent"][0]["result"],
+            &kate["recent"][0]["wins"],
+            &kate["recent"][0]["opponent_wins"]
+        ),
+        (&json!("won"), &json!(2), &json!(0))
+    );
+    let (_, sam) = record(&f, &f.sam).await;
+    assert_eq!(sam["sets"], json!({ "played": 2, "won": 0, "lost": 2 }));
+    assert_eq!(
+        (
+            &sam["recent"][0]["result"],
+            &sam["recent"][0]["wins"],
+            &sam["recent"][0]["opponent_wins"]
+        ),
+        (&json!("lost"), &json!(0), &json!(2))
+    );
+
     // Both teams or neither, each a whole number short of the set.
     let mut one_sided = request(&f, 2);
     one_sided["teams"][0]["startingWins"] = json!(1);
@@ -635,4 +661,10 @@ async fn starting_wins_continue_the_set() {
     report(&f, &f.kate, &f.kate, &id, &game, 1, Outcome::P1Win).await;
     report(&f, &f.sam, &f.sam, &id, &game, 2, Outcome::P1Win).await;
     assert_eq!(match_state(&f, &id).await, "completed");
+}
+
+async fn record(f: &Fixture, player: &Player) -> (StatusCode, Json) {
+    f.bridge
+        .get(&f.provider, &format!("/v1/players/{}/record", player.id()))
+        .await
 }
