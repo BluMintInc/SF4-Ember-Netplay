@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Input gestiona este mando, por lo que sus botones siguen tus ajustes de Steam. Para que Ember lo gestione, inicia Ember fuera de Steam o desactiva Steam Input para Ultra Street Fighter IV en Steam."
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember aún no conoce los botones de este mando. Hasta que lo configures, el juego lo lee directamente y los menús de Ember usan los botones asignados a LP y LK. Selecciónalo para configurarlo."
+msgstr "Ember aún no conoce los botones de este mando. Hasta que lo configures, el juego lo lee directamente y los menús de Ember usan los botones asignados a Patada débil y Patada media. Selecciónalo para configurarlo."
 
 msgid "controllers.detail_full"
 msgstr "El juego tiene espacio para cuatro mandos. Desconecta otro para usar este."

@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Input 正在处理此控制器，因此按钮遵循你的 Steam 设置。要让 Ember 处理它，请在 Steam 外启动 Ember，或在 Steam 中关闭 Ultra Street Fighter IV 的 Steam Input。"
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember 尚未识别此控制器的按钮。设置前，游戏会直接读取它，Ember 菜单使用分配为 LP 和 LK 的按钮。选择以进行设置。"
+msgstr "Ember 尚未识别此控制器的按钮。设置前，游戏会直接读取它，Ember 菜单使用分配为轻脚和中脚 的按钮。选择以进行设置。"
 
 msgid "controllers.detail_full"
 msgstr "游戏最多支持四个控制器。断开另一个才能使用此控制器。"

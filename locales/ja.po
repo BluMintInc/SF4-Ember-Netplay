@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Inputがこのコントローラーを扱うため、ボタンはSteamの設定に従います。Emberに扱わせるには、Steamの外からEmberを起動するか、SteamでUltra Street Fighter IVのSteam Inputをオフにしてください。"
 
 msgid "controllers.detail_unmapped"
-msgstr "Emberはこのコントローラーのボタンをまだ認識していません。設定するまではゲームが直接読み、EmberのメニューではLPとLKに設定されたボタンを使います。選択すると設定できます。"
+msgstr "Emberはこのコントローラーのボタンをまだ認識していません。設定するまではゲームが直接読み、Emberのメニューでは弱キックと中キックに設定されたボタンを使います。選択すると設定できます。"
 
 msgid "controllers.detail_full"
 msgstr "ゲームで使えるコントローラーは4台までです。他の1台を外すと使えます。"

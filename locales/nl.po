@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Input beheert deze controller, dus de knoppen volgen je Steam-instellingen. Start Ember buiten Steam of schakel Steam Input voor Ultra Street Fighter IV in Steam uit om Ember de controller te laten beheren."
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember kent de knoppen van deze controller nog niet. Tot de instelling leest het spel hem rechtstreeks en gebruiken Embers menu's de knoppen die als LP en LK zijn ingesteld. Selecteer om hem in te stellen."
+msgstr "Ember kent de knoppen van deze controller nog niet. Tot de instelling leest het spel hem rechtstreeks en gebruiken Embers menu's de knoppen die als Lichte trap en Middelzware trap zijn ingesteld. Selecteer om hem in te stellen."
 
 msgid "controllers.detail_full"
 msgstr "Het spel biedt ruimte voor vier controllers. Koppel een andere los om deze te gebruiken."

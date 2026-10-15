@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Tento ovladač spravuje Steam Input, takže jeho tlačítka odpovídají vašemu nastavení Steam. Pokud ho má spravovat Ember, spusťte Ember mimo Steam nebo vypněte Steam Input pro Ultra Street Fighter IV ve službě Steam."
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember ještě nezná tlačítka tohoto ovladače. Dokud nebude nastaven, hra jej čte přímo a nabídky Ember používají tlačítka přiřazená k LP a LK. Vyberte pro nastavení."
+msgstr "Ember ještě nezná tlačítka tohoto ovladače. Dokud nebude nastaven, hra jej čte přímo a nabídky Ember používají tlačítka přiřazená k lehkému a střednímu kopu. Vyberte pro nastavení."
 
 msgid "controllers.detail_full"
 msgstr "Hra má místo pro čtyři ovladače. Odpojte jiný, abyste mohli použít tento."

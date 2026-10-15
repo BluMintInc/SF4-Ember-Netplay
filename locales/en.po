@@ -4630,7 +4630,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Input handles this controller, so its buttons follow your Steam settings. To let Ember handle it, start Ember outside Steam, or turn off Steam Input for Ultra Street Fighter IV in Steam."
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember does not know this controller's buttons yet. Until it is set up, the game reads it directly and Ember's menus use the buttons set as LP and LK. Select to set it up."
+msgstr "Ember does not know this controller's buttons yet. Until it is set up, the game reads it directly and Ember's menus use the buttons set as Light kick and Medium kick. Select to set it up."
 
 msgid "controllers.detail_full"
 msgstr "The game has room for four controllers. Disconnect another one to use this one."

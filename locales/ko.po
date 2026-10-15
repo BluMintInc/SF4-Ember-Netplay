@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Input이 이 컨트롤러를 처리하므로 버튼은 Steam 설정을 따릅니다. Ember가 처리하게 하려면 Steam 밖에서 Ember를 실행하거나 Steam에서 Ultra Street Fighter IV의 Steam Input을 끄세요."
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember는 아직 이 컨트롤러의 버튼을 모릅니다. 설정하기 전에는 게임이 직접 읽으며 Ember 메뉴에서는 LP와 LK에 지정된 버튼을 사용합니다. 선택하여 설정하세요."
+msgstr "Ember는 아직 이 컨트롤러의 버튼을 모릅니다. 설정하기 전에는 게임이 직접 읽으며 Ember 메뉴에서는 약 킥과 중 킥에 지정된 버튼을 사용합니다. 선택하여 설정하세요."
 
 msgid "controllers.detail_full"
 msgstr "게임은 컨트롤러 네 개를 지원합니다. 다른 하나를 분리하면 이 컨트롤러를 사용할 수 있습니다."

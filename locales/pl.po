@@ -4986,7 +4986,7 @@ msgid "controllers.detail_steam"
 msgstr "Steam Input obsługuje ten kontroler, więc jego przyciski korzystają z ustawień Steam. Aby obsługiwał go Ember, uruchom Ember poza Steam lub wyłącz Steam Input dla Ultra Street Fighter IV w Steam."
 
 msgid "controllers.detail_unmapped"
-msgstr "Ember nie zna jeszcze przycisków tego kontrolera. Do czasu ustawienia gra odczytuje go bezpośrednio, a menu Ember używają przycisków przypisanych do LP i LK. Wybierz, aby go ustawić."
+msgstr "Ember nie zna jeszcze przycisków tego kontrolera. Do czasu ustawienia gra odczytuje go bezpośrednio, a menu Ember używają przycisków przypisanych do lekkiego i średniego kopnięcia. Wybierz, aby go ustawić."
 
 msgid "controllers.detail_full"
 msgstr "Gra ma miejsce na cztery kontrolery. Odłącz inny, aby użyć tego."
