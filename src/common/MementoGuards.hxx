@@ -46,6 +46,22 @@ const char* ValidateDescriptor(const Key& key, uintptr_t baseVtable) {
     return nullptr;
 }
 
+// A record by id initializes its key only while mementoableObject is null,
+// then writes metadata[nextMementoIndex] (the battle system's, 0x5DAAB0).
+// Initialize and ClearKey never leave an object without metadata, yet 1.2.0
+// crashed writing through exactly such a key on a rollback save (EMBER-19
+// and EMBER-24). Emptying it lets the record initialize it again. A payload
+// it still names cannot be freed without metadata, so it is left behind.
+enum class KeyRepair { None, Reset, ResetLeavingPayload };
+
+template <class Key>
+KeyRepair RepairUnrecordableKey(Key& key) {
+    if (!key.mementoableObject || key.metadata) return KeyRepair::None;
+    const bool payload = key.mementos != nullptr;
+    key = Key{};
+    return payload ? KeyRepair::ResetLeavingPayload : KeyRepair::Reset;
+}
+
 // Whether every saved descriptor of an owner passes release validation, as a
 // release would judge it. A release that restores before it frees (the
 // legacy round trip) checks this first so nothing invalid is installed.
