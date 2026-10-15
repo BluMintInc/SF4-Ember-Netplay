@@ -230,11 +230,13 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 	table.rules.format = static_cast<SetFormat>(binding.gamesToWin);
 	// A set its platform asked for again starts from the score it carries.
 	// Only the first binding sets it: a newer one for the same set (a fighter
-	// changed endpoints) keeps the score the table has played to.
+	// changed endpoints) keeps the score the table has played to, which the
+	// old endpoint leaving below would otherwise reset.
 	if (starting && (binding.startingWins[0] || binding.startingWins[1])) {
 		table.score[0] = binding.startingWins[0];
 		table.score[1] = binding.startingWins[1];
 	}
+	const std::uint32_t played[2] = { table.score[0], table.score[1] };
 	Touch(table);
 	std::vector<Event> events;
 	// Fighters only: anyone the binding does not name leaves the room.
@@ -244,6 +246,10 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 	for (const auto stranger : strangers) {
 		auto left = Leave(stranger);
 		events.insert(events.end(), left.events.begin(), left.events.end());
+	}
+	if (!starting) {
+		table.score[0] = played[0];
+		table.score[1] = played[1];
 	}
 	SeatBoundFighters();
 	TouchRoom();

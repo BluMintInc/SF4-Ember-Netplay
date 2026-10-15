@@ -683,7 +683,13 @@ static void TestStartingWins() {
 	auto carried = Binding();
 	carried.startingWins = {1, 0};
 	CHECK(authority.BindTournament(carried).accepted);
-	const MemberId b = JoinAs(authority, "B", EndpointB);
+	MemberId b = JoinAs(authority, "B", EndpointB);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	// A fighter who drops before the first game comes back to the starting score.
+	CHECK(authority.Leave(b).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	b = JoinAs(authority, "B", EndpointB);
+	CHECK(b && authority.SnapshotView().tables[0].p2 == b);
 	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
 	PlayBoundGame(authority, a, b, MatchResult::P2Win);
 	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
@@ -697,6 +703,15 @@ static void TestStartingWins() {
 	Snapshot copy;
 	nlohmann::json(authority.SnapshotView()).get_to(copy);
 	CHECK(copy.tournament.startingWins == carried.startingWins);
+	// A newer binding that moves a fighter to another endpoint sends the old
+	// one away, and the set keeps the 1-1 it has played to.
+	auto moved = Binding(3, EndpointC);
+	moved.startingWins = carried.startingWins;
+	CHECK(authority.BindTournament(moved).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	b = JoinAs(authority, "B", EndpointC);
+	CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
 	PlayBoundGame(authority, a, b, MatchResult::P1Win);
 	const auto& table = authority.SnapshotView().tables[0];
 	CHECK(table.lastSet.score[0] == 2 && table.lastSet.score[1] == 1 && table.lastSet.winnerSeat == 0);
