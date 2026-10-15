@@ -109,6 +109,12 @@ Acks acks;
 // meter. Logged per battle: a large count explains a missing frame-advantage
 // readout (ledger F-006).
 std::uint64_t gapResets = 0;
+// Updates since the meter last took a frame that simulated frames all the
+// same: not ready (no fight running), or more than one frame each. A field
+// report of a meter that stopped moving then shows whether it was fed and
+// holding, or not fed at all; logged once a stretch, at MeterUnfedLogUpdates.
+constexpr std::uint64_t MeterUnfedLogUpdates = 600;
+std::uint64_t unfedUpdates = 0, unfedNotReady = 0, unfedMultiFrame = 0;
 // The root position the engine keeps for each fighter, which a Place moves
 // (MoveFighters: only x, on the ground; add y and facing if they are ever
 // needed) and the session's facing is read from.
@@ -512,6 +518,16 @@ void AfterUpdate(Native* system) {
         meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
         ++gapResets;
     }
+    if (sampling && delta == 1) unfedUpdates = unfedNotReady = unfedMultiFrame = 0;
+    else if (delta != 0 && session.GetView().available) {
+        ++unfedUpdates; ++(sampling ? unfedMultiFrame : unfedNotReady);
+        if (unfedUpdates == MeterUnfedLogUpdates) {
+            const auto& view = meter.View();
+            spdlog::warn("Training: frame meter not fed for {} updates that simulated frames ({} not ready, {} more than one frame, "
+                "last step {}); held={} frames={} resets this battle={}",
+                unfedUpdates, unfedNotReady, unfedMultiFrame, delta, view.frozen, view.frames.size(), gapResets);
+        }
+    }
     sampling = false; following = false;
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
@@ -554,7 +570,7 @@ void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
     if (session.GetView().available)
         spdlog::info("Training: frame meter reset {} times on multi-frame updates this battle", gapResets);
-    gapResets = 0; leaving.Reset();
+    gapResets = 0; unfedUpdates = unfedNotReady = unfedMultiFrame = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     if (dummyControl.Release()) if (Native* system = Native::staticMethods.GetSingleton()) ReturnDummyControl(system);
