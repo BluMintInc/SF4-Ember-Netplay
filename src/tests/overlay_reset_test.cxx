@@ -162,6 +162,16 @@ int main() {
         if (!value) { ++failures; std::printf("FAIL: %s\n", message); }
     };
     namespace Overlay = sf4e::Overlay;
+    // A game that started without a Direct3D device: no overlay, and every
+    // entry point that later runs does nothing until a Reset brings one.
+    Overlay::InitializeOverlay(window, nullptr);
+    check(!ImGui::GetCurrentContext(), "an overlay started without a device");
+    bool pictured = false;
+    Overlay::DrawOverlay([&] { pictured = true; });
+    check(pictured, "a frame with no overlay skipped the picture");
+    check(Overlay::OverlayWindowFunc(window, WM_KEYDOWN, 'L', 0) == 0, "a key was swallowed with no overlay");
+    Overlay::FreeOverlay();
+    check(!ImGui::GetCurrentContext(), "freeing an overlay that never started made a context");
     Overlay::InitializeOverlay(window, device);
     Overlay::OverlayWindowFunc(window, WM_ACTIVATEAPP, TRUE, 0);
     check(Overlay::HasInputFocus(), "initial activation did not reach overlay");
