@@ -1977,7 +1977,7 @@ msgid "training.meter.classic_colors"
 msgstr "Kolory SF6 i meaty"
 
 msgid "training.meter.classic_extras"
-msgstr "Legenda, znaczniki i obramowanie"
+msgstr "Legenda i znaczniki"
 
 msgid "training.meter.classic_slant"
 msgstr "Ukośne komórki"
