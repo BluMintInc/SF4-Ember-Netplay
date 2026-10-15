@@ -352,7 +352,12 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
         (status, refused),
         (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
     );
-    assert_eq!(create(&f, "create-2", 4).await.0, StatusCode::CONFLICT);
+    let (status, refused) = create(&f, "create-2", 4).await;
+    assert_eq!(status, StatusCode::LOCKED, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_busy", "players": [f.kate.id(), f.sam.id()] })
+    );
     let (status, refused) = f
         .bridge
         .post(&f.provider, "/v1/blumint/matches", request(&f, 1))
@@ -888,4 +893,57 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
         )
     );
     assert_eq!(matches(&f).await, 0);
+}
+
+// BluMint holds a match whose player is still in another one, and asks again
+// under the same key until that match ends, so the refusal names only the
+// players who are busy, and is not stored against the key.
+#[tokio::test]
+async fn a_busy_player_is_refused_until_their_match_ends() {
+    let f = fixture().await;
+    let mut lou = f.bridge.player(3);
+    f.bridge.open_session(&mut lou).await;
+    let lou_id = lou.id().as_str().to_owned();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('99', ?1, 'lou', 1)",
+                [lou_id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    lookup(&f, json!({ "discord": ["99"] })).await;
+    let (_, created) = create(&f, "set-1", 1).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let against_lou = |first: &Player, second: &Player| {
+        let mut body = request(&f, 1);
+        body["teams"] = json!([team("one", first.id()), team("two", second.id())]);
+        body
+    };
+    let (status, refused) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::LOCKED,
+            json!({ "code": "player_busy", "players": [f.kate.id()] })
+        )
+    );
+    let (status, refused) = create_with(&f, "set-3", against_lou(&lou, &f.sam)).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::LOCKED,
+            json!({ "code": "player_busy", "players": [f.sam.id()] })
+        )
+    );
+    assert_eq!(matches(&f).await, 1);
+    win(&f, &id, 0, "game-1").await;
+    let (status, next) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
+    assert_eq!(status, StatusCode::OK, "{next}");
+    assert_ne!(next["matchId"], id.as_str());
 }

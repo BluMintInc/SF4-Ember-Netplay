@@ -26,6 +26,9 @@ pub enum BluMintRefusal {
     KeyReused,
     /// Players with no current link on the connection, as BluMint sent them.
     PlayerUnlinked(Vec<EmberId>),
+    /// Players still in another match on the connection. BluMint asks again
+    /// under the same key until they are free.
+    PlayerBusy(Vec<EmberId>),
     /// Not a refusal: the bridge's own failure, in its own envelope.
     Bridge(ApiFailure),
 }
@@ -61,6 +64,10 @@ impl IntoResponse for BluMintRefusal {
             Self::PlayerUnlinked(players) => (
                 StatusCode::BAD_REQUEST,
                 json!({ "code": "player_unlinked", "players": players }),
+            ),
+            Self::PlayerBusy(players) => (
+                StatusCode::LOCKED,
+                json!({ "code": "player_busy", "players": players }),
             ),
             Self::Bridge(failure) => return failure.into_response(),
         };

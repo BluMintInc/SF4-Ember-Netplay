@@ -22,7 +22,7 @@ use crate::{
     ctx::Ctx,
     error::ApiFailure,
     http::{Body, GENERAL_BODY, idempotency_key},
-    routes::matches::{NewMatch, idempotent, insert_match, into_response},
+    routes::matches::{NewMatch, busy, idempotent, insert_match, into_response},
     util::new_id,
 };
 
@@ -176,9 +176,10 @@ fn insert(
     )?)
 }
 
-/// The two players as the participants they are linked as on the connection.
-/// Every player without a current link is named, so BluMint can look them
-/// all up again at once.
+/// The two players as the participants they are linked as on the connection,
+/// once neither is in another match there. Every player without a current
+/// link is named, so BluMint can look them all up again at once; then every
+/// player still playing, so BluMint holds the match until both are free.
 fn seats(
     tx: &Transaction<'_>,
     connection_id: &str,
@@ -198,6 +199,15 @@ fn seats(
     }
     if !unlinked.is_empty() {
         return Err(BluMintRefusal::PlayerUnlinked(unlinked));
+    }
+    let mut playing = Vec::new();
+    for ember_id in players {
+        if busy(tx, connection_id, ember_id, "")? {
+            playing.push(ember_id.clone());
+        }
+    }
+    if !playing.is_empty() {
+        return Err(BluMintRefusal::PlayerBusy(playing));
     }
     Ok(roster)
 }
