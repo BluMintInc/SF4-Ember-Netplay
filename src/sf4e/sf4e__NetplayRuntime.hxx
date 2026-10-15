@@ -454,6 +454,8 @@ void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
 // Keeps the helper's ping subscription in step with the room board.
 void TickMemberLatency();
+// Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).
+bool FighterSelectorShown(std::uint64_t roomGeneration);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

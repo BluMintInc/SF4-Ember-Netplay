@@ -311,6 +311,10 @@ namespace sf4e {
 		// was drawn this frame. The runtime asks for each member's ping only
 		// while the board is drawn (netplay/LatencyBoard.hxx).
 		void NoteLatencyBoard(std::uint64_t roomGeneration);
+		// Any thread: Ember's fighter selector was drawn this frame in room
+		// `roomGeneration`. A player called back from Training does not lose
+		// the time they have to ready while choosing (session/TrainingCall.hxx).
+		void NoteFighterSelector(std::uint64_t roomGeneration);
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
 		// a Room entry, the same session at the main menu and the room's own gate

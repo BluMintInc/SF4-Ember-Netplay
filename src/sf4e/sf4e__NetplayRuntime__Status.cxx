@@ -570,6 +570,12 @@ void PumpDiscordClient() {
 }
 
 static netplay::LatencyBoardPulse latencyBoard;
+// The board's kind of pulse, for the fighter selector.
+static netplay::LatencyBoardPulse fighterSelector;
+
+bool FighterSelectorShown(std::uint64_t roomGeneration) {
+	return fighterSelector.Shown(roomGeneration, GetTickCount64());
+}
 
 void TickMemberLatency() {
 	if (!runtime->room) return;
@@ -609,6 +615,10 @@ std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, boo
 
 void NoteLatencyBoard(std::uint64_t roomGeneration) {
 	internal::latencyBoard.Note(roomGeneration, GetTickCount64());
+}
+
+void NoteFighterSelector(std::uint64_t roomGeneration) {
+	internal::fighterSelector.Note(roomGeneration, GetTickCount64());
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

@@ -618,7 +618,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
 
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
- boardDrawn_=false;
+ boardDrawn_=false;selectionDrawn_=false;
  const double now = ImGui::GetTime();
  UpdatePadSetup(v,submit,true);
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
@@ -755,7 +755,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   selectionFresh_=false;selectionOpenOn_.clear();
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
-  selection();
+  selection();selectionDrawn_=true;
   const auto forwarded=TakeForwardedMenuAction();
   if(forwarded.kind==MenuAction::Close)nav.Return();
   else if(forwarded.kind==MenuAction::Shortcut&&inRoom)RoomShortcut(forwarded,v);

@@ -656,6 +656,10 @@ static void CallOutOfTraining() {
 	in.autoAccept = runtime->preferences.trainingAutoReady;
 	in.canReady = GetRuntimeSnapshotShared()->canReady;
 	in.generation = training::ReadPlace().generation;
+	in.choosingFighter = FighterSelectorShown(room.roomEpoch);
+	const auto* client = inRoom ? &UserApp::netplay->client : nullptr;
+	in.readyInFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
+		(client && client->_outstandingReadyRequestNumber != -1);
 	const auto dropped = runtime->trainingCall.Dropped();
 	const auto result = runtime->trainingCall.Reconcile(room, in, GetTickCount64(), input::TrainingGoNow());
 	if (runtime->trainingCall.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");
@@ -670,7 +674,7 @@ static void CallOutOfTraining() {
 		break;
 	case room::TrainingCall::Step::Open:
 		++runtime->trainingCallSequence;
-		spdlog::info("Room: back from Training; {} s to ready", room::TrainingCall::ReadyWindowMs / 1000);
+		spdlog::info("Room: back from Training; {} s to ready", (runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
 		break;
 	case room::TrainingCall::Step::Ready:
 		++runtime->trainingReadySequence;

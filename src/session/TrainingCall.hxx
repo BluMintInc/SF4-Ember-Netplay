@@ -1,6 +1,7 @@
 #pragma once
 #include "RoomModel.hxx"
 #include "../common/TrainingCallInput.hxx"
+#include <algorithm>
 #include <cstdint>
 
 namespace sf4e { namespace room {
@@ -12,16 +13,25 @@ namespace sf4e { namespace room {
 // The steps, each returned once:
 // - Call: the local player is in Training and another fighter now sits
 //   opposite them at their table. The battle is to be sent to the main menu.
-// - Open: they are back at the main menu. The ready window starts and the
-//   table is to be shown.
+//   A player who goes back into a Training battle while the window is open
+//   is called again, and keeps the time they had left.
+// - Open: they are back at the main menu. The ready window starts, or goes
+//   on, and the table is to be shown.
 // - Ready: the window is open, readying is possible and the player has asked
 //   for it to be done for them.
 // - Forfeit: the window ran out without a Ready. The seat is to be given up.
+// The window's time runs only while the player is at the main menu, out of
+// Ember's fighter selector and with no Ready of theirs on its way: choosing a
+// fighter or a Ready the room is still taking costs them nothing. However the
+// time is held, the seat is given up WindowCapMs after they were first back.
 // The window ends without a step when the player readies, when the opponent
 // leaves, or when the table starts or stops being theirs.
 class TrainingCall {
 public:
     static constexpr std::uint64_t ReadyWindowMs = 15000;
+    // The most a window can be held, from the first time the player is back
+    // at the main menu, so the one waiting is never kept there for long.
+    static constexpr std::uint64_t WindowCapMs = 60000;
     // How long a call may wait for the game to reach the main menu before it
     // is forgotten: the battle did not leave, and nothing is taken from the
     // player for that.
@@ -32,6 +42,8 @@ public:
         bool atMainMenu = false;
         bool canReady = false;     // the runtime's own gate for a Ready
         bool autoAccept = false;   // the player's choice to be readied at once
+        bool choosingFighter = false;  // Ember's fighter selector is on screen
+        bool readyInFlight = false;    // a Ready of theirs is sent or parked, not yet in the room
         std::uint64_t generation = 0;  // the Training battle's (training::View)
     };
     // Whether the local player may go to Training from the room: a member
@@ -62,11 +74,27 @@ public:
             roomEpoch_ = room.roomEpoch; generation_ = in.generation; serial_ = ++calls_;
             return Step::Call;
         case State::Called:
-            if (in.atMainMenu) { state_ = State::Window; sinceMs_ = nowMs; readied_ = false; return Step::Open; }
+            if (in.atMainMenu) {
+                state_ = State::Window; lastMs_ = nowMs; readied_ = false;
+                if (!openedMs_) openedMs_ = nowMs;
+                return Step::Open;
+            }
+            // Called again from the window: the battle is sent home as before,
+            // and only the cap can end the call now.
+            if (openedMs_) {
+                if (nowMs - openedMs_ >= WindowCapMs) { Reset(); return Step::Forfeit; }
+                return Step::None;
+            }
             if (nowMs - sinceMs_ >= ArrivalMs) Reset();
             return Step::None;
         case State::Window:
-            if (nowMs - sinceMs_ >= ReadyWindowMs) { Reset(); return Step::Forfeit; }
+            if (in.inTraining) {
+                state_ = State::Called; sinceMs_ = nowMs; generation_ = in.generation; serial_ = ++calls_;
+                return Step::Call;
+            }
+            if (in.atMainMenu && !in.choosingFighter && !in.readyInFlight) spentMs_ += nowMs - lastMs_;
+            lastMs_ = nowMs;
+            if (spentMs_ >= ReadyWindowMs || nowMs - openedMs_ >= WindowCapMs) { Reset(); return Step::Forfeit; }
             if (in.autoAccept && in.canReady && !readied_) { readied_ = true; return Step::Ready; }
             return Step::None;
         }
@@ -75,8 +103,9 @@ public:
     // Milliseconds left to ready, 0 when no window is open.
     std::uint64_t Remaining(std::uint64_t nowMs) const {
         if (state_ != State::Window) return 0;
-        const std::uint64_t spent = nowMs - sinceMs_;
-        return spent >= ReadyWindowMs ? 0 : ReadyWindowMs - spent;
+        const std::uint64_t open = nowMs - openedMs_;
+        if (spentMs_ >= ReadyWindowMs || open >= WindowCapMs) return 0;
+        return (std::min)(ReadyWindowMs - spentMs_, WindowCapMs - open);
     }
     bool Called() const { return state_ == State::Called; }
     // The call while it stands, from Call until Open or until it ends
@@ -87,7 +116,10 @@ public:
         call.roomEpoch = roomEpoch_; call.table = table_; call.opponent = opponent_; call.generation = generation_; call.serial = serial_;
         return call;
     }
-    void Reset() { state_ = State::Idle; table_ = NoTable; opponent_ = 0; sinceMs_ = 0; readied_ = false; roomEpoch_ = 0; generation_ = 0; serial_ = 0; }
+    void Reset() {
+        state_ = State::Idle; table_ = NoTable; opponent_ = 0; sinceMs_ = 0; readied_ = false; roomEpoch_ = 0; generation_ = 0; serial_ = 0;
+        openedMs_ = 0; lastMs_ = 0; spentMs_ = 0;
+    }
 private:
     enum class State : std::uint8_t { Idle, Called, Window };
     static constexpr std::uint8_t NoTable = 0xff;
@@ -105,7 +137,11 @@ private:
     // Each call has its own number, never reused: serial_ is the standing
     // call's, calls_ the last given.
     std::uint64_t serial_ = 0, calls_ = 0;
+    // When the call was made (Called).
     std::uint64_t sinceMs_ = 0;
+    // The window: when the player was first back at the main menu, the last
+    // update, and the window time spent so far.
+    std::uint64_t openedMs_ = 0, lastMs_ = 0, spentMs_ = 0;
     bool readied_ = false;
 };
 
