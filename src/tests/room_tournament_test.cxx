@@ -655,6 +655,59 @@ static void TestNativeStartWindow() {
 	CHECK(!other.RestoreCheckpoint(forged));
 }
 
+// One game at the bound table, from both fighters' Ready to the result both
+// acknowledge.
+static void PlayBoundGame(RoomAuthority& authority, MemberId a, MemberId b, MatchResult result) {
+	ReadyBoth(authority);
+	CHECK(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
+	CHECK(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
+	const auto generation = authority.SnapshotView().tables[0].permitGeneration;
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	CHECK(authority.EndMatch(0, generation, result).accepted);
+	for (const auto member : authority.TerminalMembers(0, generation)) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = generation;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+}
+
+// A set its platform asked for again starts from the score it carries and is
+// won in that many fewer games. A newer binding for the same set, after a
+// fighter's endpoint changed, keeps the score the table has played to. The
+// snapshot names the starting score only when it is not 0-0, so a set from
+// the start keeps the bytes it always had.
+static void TestStartingWins() {
+	RoomAuthority authority("Match", 8, 1);
+	authority.AdvanceTime(1000);
+	const MemberId a = JoinAs(authority, "A", EndpointA, true);
+	auto carried = Binding();
+	carried.startingWins = {1, 0};
+	CHECK(authority.BindTournament(carried).accepted);
+	const MemberId b = JoinAs(authority, "B", EndpointB);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	auto rebound = carried;
+	rebound.bindingRevision = 2;
+	CHECK(authority.BindTournament(rebound).accepted);
+	CHECK(authority.SnapshotView().tournament.bindingRevision == 2);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	CHECK(nlohmann::json(authority.SnapshotView().tournament)["starting_wins"] == nlohmann::json::array({1, 0}));
+	CHECK(!nlohmann::json(Binding()).contains("starting_wins"));
+	Snapshot copy;
+	nlohmann::json(authority.SnapshotView()).get_to(copy);
+	CHECK(copy.tournament.startingWins == carried.startingWins);
+	PlayBoundGame(authority, a, b, MatchResult::P1Win);
+	const auto& table = authority.SnapshotView().tables[0];
+	CHECK(table.lastSet.score[0] == 2 && table.lastSet.score[1] == 1 && table.lastSet.winnerSeat == 0);
+	// A starting score that would already have won the set binds nothing.
+	auto won = Binding();
+	won.startingWins = {0, 2};
+	RoomAuthority other("Match", 8, 1);
+	CHECK(JoinAs(other, "A", EndpointA, true));
+	CHECK(!other.BindTournament(won).accepted && !other.SnapshotView().tournament.Active());
+}
+
 // Casual rooms are unchanged: Ready starts the game with no permit.
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
@@ -690,6 +743,7 @@ int main() {
 	TestNativeStartWindow();
 	TestCasualRoomsNeedNoPermit();
 	TestPracticeRoomsTakeNoBinding();
+	TestStartingWins();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");
 	return failures ? 1 : 0;

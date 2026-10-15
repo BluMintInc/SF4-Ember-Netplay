@@ -26,7 +26,7 @@ bool TournamentBinding::Valid() const {
 		return IsLowerHex(value.endpoint, 64) && IsIdentifier(value.emberId, 64);
 	};
 	return IsIdentifier(matchId, 64) && assignmentGeneration && bindingRevision &&
-		ValidGamesToWin(gamesToWin) &&
+		ValidGamesToWin(gamesToWin) && startingWins[0] < gamesToWin && startingWins[1] < gamesToWin &&
 		fighter(fighters[0]) && fighter(fighters[1]) &&
 		fighters[0].endpoint != fighters[1].endpoint && fighters[0].emberId != fighters[1].emberId;
 }
@@ -56,6 +56,9 @@ void to_json(nlohmann::json& json, const TournamentBinding& value) {
 		{"fighters", nlohmann::json::array({
 			{{"endpoint", value.fighters[0].endpoint}, {"ember_id", value.fighters[0].emberId}},
 			{{"endpoint", value.fighters[1].endpoint}, {"ember_id", value.fighters[1].emberId}}})}};
+	// Left out at 0-0, so a set from the start keeps the snapshot it always had.
+	if (value.startingWins[0] || value.startingWins[1])
+		json["starting_wins"] = {value.startingWins[0], value.startingWins[1]};
 }
 
 void from_json(const nlohmann::json& json, TournamentBinding& value) {
@@ -71,6 +74,15 @@ void from_json(const nlohmann::json& json, TournamentBinding& value) {
 	for (std::size_t slot = 0; slot < 2; ++slot) {
 		value.fighters[slot].endpoint = ReadText(fighters.at(slot), "endpoint", 64, false);
 		value.fighters[slot].emberId = ReadText(fighters.at(slot), "ember_id", 64, false);
+	}
+	if (const auto found = json.find("starting_wins"); found != json.end()) {
+		if (!found->is_array() || found->size() != 2) throw std::invalid_argument("room tournament starting wins");
+		for (std::size_t slot = 0; slot < 2; ++slot) {
+			const auto& wins = found->at(slot);
+			if (!wins.is_number_unsigned() || wins.get<std::uint64_t>() > static_cast<std::uint64_t>(MaxSetLength))
+				throw std::invalid_argument("room tournament starting wins");
+			value.startingWins[slot] = static_cast<std::uint8_t>(wins.get<std::uint64_t>());
+		}
 	}
 	if (!value.Valid()) throw std::invalid_argument("room tournament binding");
 }
@@ -212,9 +224,17 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 		if (current.assignmentGeneration == binding.assignmentGeneration &&
 			current.bindingRevision == binding.bindingRevision && current.fighters == binding.fighters) return Accept();
 	}
+	const bool starting = !current.Active();
 	current = binding;
 	Table& table = snapshot_.tables[TournamentTable];
 	table.rules.format = static_cast<SetFormat>(binding.gamesToWin);
+	// A set its platform asked for again starts from the score it carries.
+	// Only the first binding sets it: a newer one for the same set (a fighter
+	// changed endpoints) keeps the score the table has played to.
+	if (starting && (binding.startingWins[0] || binding.startingWins[1])) {
+		table.score[0] = binding.startingWins[0];
+		table.score[1] = binding.startingWins[1];
+	}
 	Touch(table);
 	std::vector<Event> events;
 	// Fighters only: anyone the binding does not name leaves the room.
