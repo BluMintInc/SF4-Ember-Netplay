@@ -657,9 +657,9 @@ static void CallOutOfTraining() {
 	in.canReady = GetRuntimeSnapshotShared()->canReady;
 	in.generation = training::ReadPlace().generation;
 	in.choosingFighter = FighterSelectorShown(room.roomEpoch);
-	const auto* client = inRoom ? &UserApp::netplay->client : nullptr;
-	in.readyInFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
-		(client && client->_outstandingReadyRequestNumber != -1);
+	// From the press until its seat flag commits, it fails or its budget ends
+	// (ParkedIntent: parked, sent, or awaiting the commit).
+	in.readyInFlight = runtime->readyIntent.Active() || runtime->controller.GetSnapshot().readyPending;
 	const auto dropped = runtime->trainingCall.Dropped();
 	const auto result = runtime->trainingCall.Reconcile(room, in, GetTickCount64(), input::TrainingGoNow());
 	if (runtime->trainingCall.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");

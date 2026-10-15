@@ -164,7 +164,27 @@ int main() {
 		// Staying in Training past the cap gives the seat up.
 		CHECK(call.Update(room, in, 31000) == Step::Call);
 		CHECK(call.Update(room, in, 1000 + TrainingCall::WindowCapMs - 1) == Step::None);
-		CHECK(call.Update(room, in, 1000 + TrainingCall::WindowCapMs) == Step::Forfeit);
+		CHECK(call.Update(room, in, 1000 + TrainingCall::WindowCapMs) == Step::Forfeit && !call.Called());
+		// Reset by the forfeit: a later call starts with the full time and its own cap.
+		CHECK(call.Update(room, in, 70000) == Step::Call);
+		CHECK(call.Update(room, In(false, true), 71000) == Step::Open && call.Remaining(71000) == TrainingCall::ReadyWindowMs);
+		CHECK(call.Update(room, In(false, false), 71000 + TrainingCall::WindowCapMs - 1) == Step::None);
+		CHECK(call.Update(room, In(false, false), 71000 + TrainingCall::WindowCapMs) == Step::Forfeit);
+	}
+	{
+		// The cap comes before any other step on the tick it is reached: back at
+		// the main menu then is no new window, and Training then is no new call.
+		const auto room = Room(2, 1, 2);
+		const auto openThenCalled = [&](TrainingCall& call) {
+			CHECK(call.Update(room, In(true, false), 0) == Step::Call);
+			CHECK(call.Update(room, In(false, true), 1000) == Step::Open);
+			CHECK(call.Update(room, In(true, false), 2000) == Step::Call);
+		};
+		TrainingCall menu; openThenCalled(menu);
+		CHECK(menu.Update(room, In(false, true), 1000 + TrainingCall::WindowCapMs) == Step::Forfeit && menu.Remaining(1000 + TrainingCall::WindowCapMs) == 0);
+		TrainingCall training; openThenCalled(training);
+		CHECK(training.Update(room, In(false, true), 3000) == Step::Open);
+		CHECK(training.Update(room, In(true, false), 1000 + TrainingCall::WindowCapMs) == Step::Forfeit && !training.Called());
 	}
 	{
 		// The battle never leaves: the call is forgotten and the seat is kept.

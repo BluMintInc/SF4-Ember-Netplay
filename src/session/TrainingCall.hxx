@@ -67,6 +67,9 @@ public:
         const bool waiting = opponent && open && !at->ready[seat];
         if (state_ != State::Idle && (!waiting || at->id != table_ || opponent != opponent_ || room.roomEpoch != roomEpoch_)) Reset();
         if (!waiting) return Step::None;
+        // Once the player has been back at the main menu, the cap ends the
+        // call whatever it is doing: called again from Training or waiting.
+        if (openedMs_ && nowMs - openedMs_ >= WindowCapMs) { Reset(); return Step::Forfeit; }
         switch (state_) {
         case State::Idle:
             if (!in.inTraining) return Step::None;
@@ -79,13 +82,9 @@ public:
                 if (!openedMs_) openedMs_ = nowMs;
                 return Step::Open;
             }
-            // Called again from the window: the battle is sent home as before,
-            // and only the cap can end the call now.
-            if (openedMs_) {
-                if (nowMs - openedMs_ >= WindowCapMs) { Reset(); return Step::Forfeit; }
-                return Step::None;
-            }
-            if (nowMs - sinceMs_ >= ArrivalMs) Reset();
+            // Called again from the window, the call is never forgotten: only
+            // the cap above ends it.
+            if (!openedMs_ && nowMs - sinceMs_ >= ArrivalMs) Reset();
             return Step::None;
         case State::Window:
             if (in.inTraining) {
@@ -94,7 +93,7 @@ public:
             }
             if (in.atMainMenu && !in.choosingFighter && !in.readyInFlight) spentMs_ += nowMs - lastMs_;
             lastMs_ = nowMs;
-            if (spentMs_ >= ReadyWindowMs || nowMs - openedMs_ >= WindowCapMs) { Reset(); return Step::Forfeit; }
+            if (spentMs_ >= ReadyWindowMs) { Reset(); return Step::Forfeit; }
             if (in.autoAccept && in.canReady && !readied_) { readied_ = true; return Step::Ready; }
             return Step::None;
         }
