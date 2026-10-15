@@ -3,6 +3,7 @@ pub mod discord;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
+pub mod idempotency;
 pub mod ledger;
 pub mod links;
 pub mod lobbies;
