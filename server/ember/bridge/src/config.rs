@@ -232,9 +232,6 @@ pub struct Policy {
     /// connection restarts disputes: it is cancelled instead, which the
     /// platform hears as a restart.
     pub reviews_disputes: bool,
-    /// The platform's result format has no way to say a match expired unplayed
-    /// (BluMint's takes a score or a restart), so it is sent nothing for one.
-    pub silent_expiry: bool,
 }
 
 impl Policy {
@@ -242,7 +239,6 @@ impl Policy {
         Self {
             own_api_only: kind == BLUMINT,
             reviews_disputes: disputes == Disputes::Review,
-            silent_expiry: kind == BLUMINT,
         }
     }
 }

@@ -4,10 +4,7 @@
 //! settling a game (`extend`, called inside those transactions) each set the
 //! deadline to now plus that lifetime, so the snapshot, the assignment list
 //! and the sweep all read `expires_at` as it is.
-use ember_protocol::{
-    event::Kind,
-    matches::{DeliveryState, MatchState},
-};
+use ember_protocol::{event::Kind, matches::MatchState};
 use rusqlite::{Transaction, params};
 use serde_json::json;
 
@@ -15,10 +12,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::{
-        ledger::{Match, bump, load, match_event, participants, release},
-        policy,
-    },
+    routes::ledger::{Match, bump, load, match_event, participants, release},
 };
 
 /// Matches expired in one pass; the rest wait for the next.
@@ -92,16 +86,6 @@ fn expire_and_release(tx: &Transaction<'_>, ctx: &Ctx, found: &Match) -> Result<
             "expires_at": expires_at,
         }),
     )?;
-    // A platform that cannot be told is sent nothing, and its result is no
-    // longer queued (an unsent one would be leased again and again).
-    if policy::of(tx, &found.connection_id)?.silent_expiry
-        && found.delivery == DeliveryState::Queued
-    {
-        tx.execute(
-            "UPDATE matches SET delivery_state = 'not_required' WHERE id = ?1 AND delivery_state = 'queued'",
-            [&found.id],
-        )?;
-    }
     audit(
         tx,
         ctx.now,

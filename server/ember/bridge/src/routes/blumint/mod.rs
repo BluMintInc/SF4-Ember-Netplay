@@ -10,17 +10,18 @@
 //! - match status: pending, running, complete or cancelled, with each player's
 //!   presence and the score.
 //!
-//! The bridge sends each finished match's score to BluMint, or asks it to
-//! restart a cancelled match, once BluMint's API key for the connection is
-//! configured. A match whose result the two games disputed is cancelled where
-//! it would wait for review (`matches::needs_review`), since BluMint has no
-//! organizer review; a restart is its way to replay. A match nobody played
-//! expires (`expiry::expire_stale`) and is sent nothing: BluMint's result
-//! format cannot say it, and a restart would be a request it never made; its
-//! status reads `cancelled`. `register` tells BluMint
-//! where the three endpoints are.
+//! The bridge sends each finished match's result to BluMint, or an abort
+//! BluMint can ask the set again after for a cancelled one, once BluMint's API
+//! key for the connection is configured (`report`). A match whose result the
+//! two games disputed is cancelled where it would wait for review
+//! (`matches::needs_review`), since BluMint has no organizer review; asking
+//! again is its way to replay. A match nobody played expires
+//! (`expiry::expire_stale`) and is sent as an abort BluMint must not retry,
+//! so its host takes the match. `register` tells BluMint where the three
+//! endpoints are.
 mod create;
 mod refusal;
+mod report;
 
 use std::collections::BTreeMap;
 
@@ -30,12 +31,13 @@ use axum::{
     response::Response,
 };
 use ember_protocol::{EmberId, matches::MatchState};
-use rusqlite::{Transaction, params};
+use rusqlite::params;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 pub use create::create;
 pub use refusal::BluMintRefusal;
+pub use report::submission;
 
 use crate::{
     AppState, auth,
@@ -45,7 +47,7 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     routes::{
         discord,
-        ledger::{Match, load, participants, scores},
+        ledger::{load, participants, scores},
         policy,
     },
     util::outbound_client,
@@ -176,29 +178,6 @@ pub fn presence(state: MatchState, claimed: bool) -> &'static str {
         (true, Created | AwaitingPlayers | Provisioning) => "present-not-ready",
         (true, _) => "present-ready",
     }
-}
-
-/// What the bridge sends BluMint for a match, or None while it is still on
-/// (`delivery::results`).
-pub fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> {
-    Ok(match found.state {
-        MatchState::Completed => {
-            let (wins, _) = scores(tx, &found.id)?;
-            let teams: Vec<Value> = participants(tx, &found.id, found.generation)?
-                .into_iter()
-                .map(|p| json!({ "score": wins[usize::from(p.slot)], "players": [{ "inGameId": p.ember_id }] }))
-                .collect();
-            Some(json!({ "matchId": found.id, "teams": teams }))
-        }
-        MatchState::Cancelled | MatchState::Failed => {
-            Some(json!({ "matchId": found.id, "mustRestart": true }))
-        }
-        // Nothing BluMint accepts says "not played", and a restart would
-        // start a match nobody asked for; it is told through its status
-        // (`match_status`) only.
-        MatchState::Expired => None,
-        _ => None,
-    })
 }
 
 /// Tells BluMint where this bridge's three endpoints are, with a new provider

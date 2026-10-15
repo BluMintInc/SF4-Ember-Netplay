@@ -206,6 +206,19 @@ async fn match_status(f: &Fixture, id: &str) -> Json {
     body
 }
 
+/// Kate's and Sam's teams with their wins, as every report carries them.
+fn teams(f: &Fixture, wins: [u8; 2]) -> Json {
+    json!([
+        { "players": [ { "inGameId": f.kate.id() } ], "wins": wins[0] },
+        { "players": [ { "inGameId": f.sam.id() } ], "wins": wins[1] },
+    ])
+}
+
+/// An abort BluMint can ask the set again after, with the wins so far.
+fn restart(f: &Fixture, id: &str, reason: &str, wins: [u8; 2]) -> Json {
+    json!({ "mode": "abort", "matchId": id, "reason": reason, "retryable": true, "teams": teams(f, wins) })
+}
+
 fn submitted(f: &Fixture) -> Vec<Json> {
     let received = f.blumint.lock().unwrap();
     received
@@ -224,6 +237,16 @@ async fn void_last(f: &Fixture, id: &str, key: &str) -> StatusCode {
     results::void_last(&f.bridge, &f.provider, &f.organizer, id, key)
         .await
         .0
+}
+
+/// The match's state, as the bridge's own match route reads it.
+async fn match_state(f: &Fixture, id: &str) -> String {
+    let (status, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    found["state"].as_str().unwrap().to_owned()
 }
 
 async fn status_revision(f: &Fixture, id: &str) -> String {
@@ -403,10 +426,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     );
     assert_eq!(
         submitted(&f),
-        vec![json!({ "matchId": id, "teams": [
-            { "score": 0, "players": [ { "inGameId": f.kate.id() } ] },
-            { "score": 1, "players": [ { "inGameId": f.sam.id() } ] },
-        ] })]
+        vec![json!({ "mode": "result", "matchId": id, "teams": teams(&f, [0, 1]) })]
     );
     // The key still answers the match it made, now that it is over.
     assert_eq!(create(&f, "create-1", 1).await, (StatusCode::OK, created));
@@ -473,10 +493,7 @@ async fn a_result_is_final_once_it_is_being_sent() {
     assert_eq!(void_last(&f, &id, "void-3").await, StatusCode::CONFLICT);
     assert_eq!(
         submitted(&f),
-        vec![json!({ "matchId": id, "teams": [
-            { "score": 0, "players": [ { "inGameId": f.kate.id() } ] },
-            { "score": 1, "players": [ { "inGameId": f.sam.id() } ] },
-        ] })]
+        vec![json!({ "mode": "result", "matchId": id, "teams": teams(&f, [0, 1]) })]
     );
 }
 
@@ -487,6 +504,8 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "create-1", 2).await;
     let first = created["matchId"].as_str().unwrap().to_owned();
+    // Kate won a game before it was called off; the abort keeps it.
+    win(&f, &first, 0, "game-1").await;
     let (status, _) = f
         .bridge
         .post_keyed(
@@ -542,8 +561,8 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
     let mut sent = submitted(&f);
     sent.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
     let mut restarts = vec![
-        json!({ "matchId": first, "mustRestart": true }),
-        json!({ "matchId": second, "mustRestart": true }),
+        restart(&f, &first, "serverFailure", [1, 0]),
+        restart(&f, &second, "insufficientPlayers", [0, 0]),
     ];
     restarts.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
     assert_eq!(sent, restarts);
@@ -689,7 +708,7 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
     ember_bridge::deliver_results(&enabled).await;
     assert_eq!(
         submitted(&f),
-        vec![json!({ "matchId": id, "mustRestart": true })]
+        vec![restart(&f, &id, "serverFailure", [0, 0])]
     );
 }
 
@@ -742,11 +761,11 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
     );
 }
 
-// BluMint's result format has no way to say a match was never played, and a
-// restart would be a request it never made, so an expired match is sent
-// nothing. Its status reads `cancelled` and its players can be matched again.
+// A match nobody played is sent as an abort BluMint must not retry: a new
+// match would wait the same way, so BluMint's host takes the match over.
+// Its players can be matched again, under a new key.
 #[tokio::test]
-async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
+async fn an_expired_match_is_sent_to_blumint_as_a_final_abort() {
     // An hour, so the match expires well inside the day its key is kept.
     let f = fixture_with(keyed(), 1).await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
@@ -761,28 +780,24 @@ async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
     // the hour: a second that passes during the test must not end it early.
     f.bridge.clock.advance(60 * 60 - 10);
     ember_bridge::maintain(f.bridge.state()).await;
-    assert_eq!(match_status(&f, &id).await["status"], "pending");
+    assert_eq!(match_state(&f, &id).await, "awaiting_players");
     // The same request while it is open still answers with the same match.
     let (_, again) = create(&f, "create-1", 2).await;
     assert_eq!(again["matchId"], id.as_str());
 
     f.bridge.clock.advance(10);
     ember_bridge::maintain(f.bridge.state()).await;
-    let status = match_status(&f, &id).await;
-    assert_eq!(status["status"], "cancelled");
-    assert_eq!(status["teams"][0]["players"][0]["status"], "absent");
-    // Nothing is queued for BluMint, however many passes run.
+    assert_eq!(match_state(&f, &id).await, "expired");
+    results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
     assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("not_required".into(), 0)
-    );
-    for _ in 0..3 {
-        ember_bridge::deliver_results(f.bridge.state()).await;
-    }
-    assert_eq!(submitted(&f), Vec::<Json>::new());
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("not_required".into(), 0)
+        submitted(&f),
+        vec![json!({
+            "mode": "abort",
+            "matchId": id,
+            "reason": "insufficientPlayers",
+            "retryable": false,
+            "teams": teams(&f, [0, 0]),
+        })]
     );
 
     // Its key still answers the match it made; BluMint asks for a new match
@@ -796,8 +811,8 @@ async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
     assert_eq!(status, StatusCode::OK, "{next}");
     assert_ne!(next["matchId"], id.as_str());
     assert_eq!(
-        match_status(&f, next["matchId"].as_str().unwrap()).await["status"],
-        "pending"
+        match_state(&f, next["matchId"].as_str().unwrap()).await,
+        "awaiting_players"
     );
 }
 
