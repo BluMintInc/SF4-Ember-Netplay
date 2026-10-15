@@ -61,6 +61,12 @@ pub fn api_base(connection: &Connection) -> &str {
     }
 }
 
+/// A creation or close body as the handler sees it. A body over the cap, or
+/// cut short, is then refused as `invalid_request` in BluMint's format, after
+/// authentication, rather than by the extractor in the bridge's envelope,
+/// which BluMint cannot read.
+type BluMintBody = std::result::Result<Body<GENERAL_BODY>, ApiFailure>;
+
 /// BluMint's bodies as plain JSON: its match settings carry decimals
 /// (`"gravity": 1.1`), which the bridge's strict profile refuses. The size cap
 /// still applies, and nothing here is signed or stored as sent.

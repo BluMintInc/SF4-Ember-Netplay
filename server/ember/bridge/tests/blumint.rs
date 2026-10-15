@@ -286,10 +286,15 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
     let mut nameless = request(&f, 2);
     nameless["teams"][1]["players"][0]["identities"] =
         json!([{ "source": "discord", "inGameId": SAM }]);
+    // The host's match settings are free-form, so a body can outgrow the
+    // bridge's cap.
+    let mut oversized = request(&f, 2);
+    oversized["matchSettings"] = json!({ "notes": "n".repeat(70 * 1024) });
     for (body, code) in [
         (pair, "match_unsupported"),
         (doubled, "invalid_request"),
         (nameless, "invalid_request"),
+        (oversized, "invalid_request"),
         (json!({ "teams": "kate and sam" }), "invalid_request"),
     ] {
         let (status, refused) = create_with(&f, "create-1", body).await;
@@ -449,6 +454,7 @@ async fn a_closed_match_sends_nothing() {
         json!({ "matchId": id, "reason": "" }),
         json!({ "matchId": id, "reason": "r".repeat(65) }),
         json!({ "idempotencyKey": "k".repeat(129), "reason": "decided" }),
+        json!({ "matchId": id, "reason": "decided", "padding": "p".repeat(70 * 1024) }),
     ] {
         let (status, refused) = close(&f, body.clone()).await;
         assert_eq!(

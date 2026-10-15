@@ -13,12 +13,14 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{BluMintRefusal, MATCHES_PATH, connection, create::key_owner, outcome, parse};
+use super::{
+    BluMintBody, BluMintRefusal, MATCHES_PATH, connection, create::key_owner, outcome, parse,
+};
 use crate::{
     AppState,
     audit::audit,
     ctx::Ctx,
-    http::{Body, GENERAL_BODY, ok},
+    http::ok,
     routes::{
         ledger::{Match, load},
         matches::cancel_and_release,
@@ -52,10 +54,10 @@ struct CloseRequest {
 pub async fn close(
     State(state): State<AppState>,
     headers: HeaderMap,
-    body: Body<GENERAL_BODY>,
+    body: BluMintBody,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
-    let request: CloseRequest = parse(&body)?;
+    let request: CloseRequest = parse(&body?)?;
     if request.reason.is_empty() || request.reason.len() > MAX_REASON {
         return Err(BluMintRefusal::InvalidRequest);
     }
