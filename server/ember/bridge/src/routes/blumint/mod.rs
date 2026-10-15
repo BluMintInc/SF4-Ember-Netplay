@@ -12,7 +12,9 @@
 //!
 //! The bridge sends each finished match's result to BluMint, or an abort
 //! BluMint can ask the set again after for a cancelled one, once BluMint's API
-//! key for the connection is configured (`report`). A match whose result the
+//! key for the connection is configured (`report`). While a set is played it
+//! also tells BluMint when the first game starts and the score after each
+//! game that does not end it (`delivery::progress`). A match whose result the
 //! two games disputed is cancelled where it would wait for review
 //! (`matches::needs_review`), since BluMint has no organizer review; asking
 //! again is its way to replay. A match nobody played expires
@@ -37,7 +39,7 @@ use serde_json::{Value, json};
 
 pub use create::create;
 pub use refusal::BluMintRefusal;
-pub use report::submission;
+pub use report::{progress, started, submission};
 
 use crate::{
     AppState, auth,

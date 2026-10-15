@@ -14,9 +14,10 @@ use serde_json::json;
 
 use crate::{
     ctx::Ctx,
+    delivery::progress,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::{expiry, lobbies},
+    routes::{expiry, lobbies, policy},
     tournament,
 };
 
@@ -299,6 +300,16 @@ pub fn settle(
     let revision = bump(tx, found, next, ctx.now)?;
     // A decided game is activity: the match gets a whole lifetime from now.
     expiry::extend(tx, ctx.now, &found.id)?;
+    // A game won that did not end the set is reported to a platform that
+    // hears sets in play; the game that ends it is the result.
+    if !correcting
+        && next == MatchState::BetweenGames
+        && wins != wins_before
+        && (0..2).all(|slot| wins[slot] >= wins_before[slot])
+        && policy::of(tx, &found.connection_id)?.reports_progress
+    {
+        progress::queue(tx, &found.id, accepted.len() as u64)?;
+    }
     // The reopened match now holds its players; the ones a bracket
     // correction released from later sets can be picked up elsewhere.
     if !freed.is_empty() {

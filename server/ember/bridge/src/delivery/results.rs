@@ -25,7 +25,7 @@ use super::{
 use crate::{
     AppState,
     audit::audit,
-    config::BLUMINT,
+    config::{BLUMINT, Connection},
     error::Result,
     routes::{
         blumint,
@@ -35,29 +35,89 @@ use crate::{
     util::outbound_client,
 };
 
+/// BluMint's submit endpoint for one connection, with BluMint's API key for
+/// it. Results and the reports on a set in play (`delivery::progress`) both
+/// go there.
+pub struct BluMint {
+    submit_url: String,
+    key: Zeroizing<String>,
+}
+
+impl BluMint {
+    /// The endpoint of an enabled BluMint connection whose key is configured.
+    pub fn of(state: &AppState, connection: &Connection) -> Option<Self> {
+        (connection.enabled && connection.is_blumint()).then_some(())?;
+        Some(Self {
+            submit_url: format!("{}/tournaments/match/submit", blumint::api_base(connection)),
+            key: state.integrations.api_keys.get(&connection.id)?.clone(),
+        })
+    }
+
+    pub async fn post(&self, body: Vec<u8>) -> std::result::Result<Answer, Outcome> {
+        let retry = |error: &str| Outcome::Retry {
+            error: error.to_owned(),
+            retry_after: None,
+        };
+        let Ok(client) = outbound_client().build() else {
+            return Err(retry("client"));
+        };
+        let response = client
+            .post(&self.submit_url)
+            .header("x-api-key", self.key.as_str())
+            .header("content-type", "application/json")
+            .body(body)
+            .send()
+            .await
+            .map_err(|error| {
+                retry(if error.is_timeout() {
+                    "timeout"
+                } else {
+                    "connection failed"
+                })
+            })?;
+        Ok(answer(response).await)
+    }
+}
+
+/// What a platform's answer to a report means for it.
+pub fn outcome(answered: &Answer) -> Outcome {
+    let retry = |error: String| Outcome::Retry {
+        error,
+        retry_after: answered.retry_after,
+    };
+    let status = answered.status;
+    match status {
+        // 409: the platform already has this match's result.
+        200..=299 | 409 => Outcome::Delivered,
+        429 => retry(format!("http {status}")),
+        // Any other refusal is the same on a retry.
+        400..=499 => Outcome::Refused(format!("http {status}")),
+        _ => retry(format!("http {status}")),
+    }
+}
+
 /// Where one connection's results go.
 enum Destination {
-    /// BluMint's submit endpoint, with BluMint's API key for the connection.
-    BluMint {
-        submit_url: String,
-        key: Zeroizing<String>,
-    },
+    BluMint(BluMint),
     /// The connection's `results_url`, signed with its result secret.
-    Signed { url: String, secret: Secret },
+    Signed {
+        url: String,
+        secret: Secret,
+    },
 }
 
 impl Destination {
     /// Who the audit log names as sending.
     fn actor(&self) -> &'static str {
         match self {
-            Self::BluMint { .. } => BLUMINT,
+            Self::BluMint(_) => BLUMINT,
             Self::Signed { .. } => "results",
         }
     }
 
     fn format(&self) -> Format {
         match self {
-            Self::BluMint { .. } => Format::BluMint,
+            Self::BluMint(_) => Format::BluMint,
             Self::Signed { .. } => Format::Signed,
         }
     }
@@ -69,30 +129,7 @@ impl Destination {
         body: Vec<u8>,
     ) -> std::result::Result<Answer, Outcome> {
         match self {
-            Self::BluMint { submit_url, key } => {
-                let retry = |error: &str| Outcome::Retry {
-                    error: error.to_owned(),
-                    retry_after: None,
-                };
-                let Ok(client) = outbound_client().build() else {
-                    return Err(retry("client"));
-                };
-                let response = client
-                    .post(submit_url)
-                    .header("x-api-key", key.as_str())
-                    .header("content-type", "application/json")
-                    .body(body)
-                    .send()
-                    .await
-                    .map_err(|error| {
-                        retry(if error.is_timeout() {
-                            "timeout"
-                        } else {
-                            "connection failed"
-                        })
-                    })?;
-                Ok(answer(response).await)
-            }
+            Self::BluMint(blumint) => blumint.post(body).await,
             Self::Signed { url, secret } => {
                 let Ok(headers) =
                     webhook::sign(&[secret], &result_id(match_id), state.now(), &body)
@@ -183,13 +220,7 @@ impl Results {
             .filter(|connection| connection.enabled)
             .filter_map(|connection| {
                 let destination = if connection.is_blumint() {
-                    Destination::BluMint {
-                        submit_url: format!(
-                            "{}/tournaments/match/submit",
-                            blumint::api_base(connection)
-                        ),
-                        key: state.integrations.api_keys.get(&connection.id)?.clone(),
-                    }
+                    Destination::BluMint(BluMint::of(state, connection)?)
                 } else {
                     Destination::Signed {
                         url: connection.results_url.clone()?,
@@ -271,18 +302,9 @@ impl Queue for Results {
             Ok(None) => return Outcome::Cancelled,
             Err(_) => return retry("database unavailable".into(), None),
         };
-        let answered = match destination.send(state, &item.match_id, body).await {
-            Ok(answered) => answered,
-            Err(outcome) => return outcome,
-        };
-        let status = answered.status;
-        match status {
-            // 409: the platform already has this match's result.
-            200..=299 | 409 => Outcome::Delivered,
-            429 => retry(format!("http {status}"), answered.retry_after),
-            // Any other refusal is the same on a retry.
-            400..=499 => Outcome::Refused(format!("http {status}")),
-            _ => retry(format!("http {status}"), answered.retry_after),
+        match destination.send(state, &item.match_id, body).await {
+            Ok(answered) => outcome(&answered),
+            Err(outcome) => outcome,
         }
     }
 
@@ -354,10 +376,10 @@ mod tests {
         let results = std::sync::Arc::new(Results {
             destinations: [(
                 "bm-partner".to_owned(),
-                Destination::BluMint {
+                Destination::BluMint(BluMint {
                     submit_url: String::new(),
                     key: Zeroizing::new(String::new()),
-                },
+                }),
             )]
             .into(),
         });

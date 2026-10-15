@@ -232,6 +232,10 @@ pub struct Policy {
     /// connection restarts disputes: it is cancelled instead, which the
     /// platform hears as a restart.
     pub reviews_disputes: bool,
+    /// The platform hears how a set stands while it is played: when its
+    /// first game starts, and after each game that does not end it
+    /// (BluMint, `delivery::progress`).
+    pub reports_progress: bool,
 }
 
 impl Policy {
@@ -239,6 +243,7 @@ impl Policy {
         Self {
             own_api_only: kind == BLUMINT,
             reviews_disputes: disputes == Disputes::Review,
+            reports_progress: kind == BLUMINT,
         }
     }
 }

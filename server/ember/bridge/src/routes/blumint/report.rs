@@ -1,5 +1,6 @@
 //! What the bridge reports to BluMint about a match, at
-//! `/tournaments/match/submit`: its result once the set is won, or an abort
+//! `/tournaments/match/submit`: that its first game started, its score after
+//! each game that did not end it, its result once the set is won, or an abort
 //! when it ended without one. Every report names each player by the Ember ID
 //! BluMint sent and carries every team's wins so far, so a game an abort
 //! overtook is never lost.
@@ -7,6 +8,7 @@ use ember_protocol::{event::Kind, matches::MatchState};
 use rusqlite::{OptionalExtension, Transaction};
 use serde_json::{Value, json};
 
+use super::presence;
 use crate::{
     error::Result,
     routes::ledger::{Match, participants, scores},
@@ -37,6 +39,27 @@ pub fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> 
     body["matchId"] = json!(found.id);
     body["teams"] = json!(teams(tx, found)?);
     Ok(Some(body))
+}
+
+/// The status of a set whose first game has started, with each player's
+/// presence (`delivery::progress`).
+pub fn started(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
+    let mut players = Vec::new();
+    for player in participants(tx, &found.id, found.generation)? {
+        let claimed: bool = tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM match_claims WHERE match_id = ?1 AND ember_id = ?2)",
+            rusqlite::params![found.id, player.ember_id.as_str()],
+            |row| row.get(0),
+        )?;
+        players
+            .push(json!({ "inGameId": player.ember_id, "status": presence(found.state, claimed) }));
+    }
+    Ok(json!({ "mode": "status", "matchId": found.id, "status": "running", "players": players }))
+}
+
+/// The score of a set still being played (`delivery::progress`).
+pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
+    Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
 }
 
 /// Each team's players and its wins so far, P1 first.

@@ -30,11 +30,13 @@ use crate::{
     AppState,
     auth::{self, Player},
     ctx::Ctx,
+    delivery::progress,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json as respond},
     routes::{
         expiry,
         ledger::{Match, Participant, bump, load, match_event, participants},
+        policy,
         sessions::{self, Target},
     },
     util::new_id,
@@ -716,6 +718,11 @@ fn issue(
         "DELETE FROM attempt_preparations WHERE match_id = ?1",
         [match_id],
     )?;
+    // The set's first game: a platform that hears sets in play is told it
+    // has begun.
+    if seq == 1 && policy::of(tx, &fighter.found.connection_id)?.reports_progress {
+        progress::queue(tx, match_id, progress::STARTED)?;
+    }
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
     // A game starting is activity: the match gets a whole lifetime from now.
     expiry::extend(tx, ctx.now, match_id)?;

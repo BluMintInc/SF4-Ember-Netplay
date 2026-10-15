@@ -5,9 +5,10 @@
 //! overwrites the one that replaced it. Retries follow one schedule with
 //! jitter until a day has passed since the first attempt.
 //!
-//! Two queues use it: signed webhooks from the outbox (`webhooks`), and
-//! match results sent to the platform that created the match
-//! (`results`).
+//! Three queues use it: signed webhooks from the outbox (`webhooks`), match
+//! results sent to the platform that created the match (`results`), and
+//! BluMint's reports on a set while it is played (`progress`).
+pub mod progress;
 pub mod results;
 pub mod webhooks;
 
