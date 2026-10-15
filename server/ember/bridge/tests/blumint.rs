@@ -856,8 +856,9 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
         authentication["config"],
         json!({ "location": "header", "key": "Authorization", "valuePrefix": "Bearer " })
     );
-    // BluMint calls back with the credential it was handed.
-    let token = authentication["apiKey"].as_str().unwrap();
+    // BluMint calls back with the credential it was handed, as its secret.
+    assert!(authentication.get("apiKey").is_none(), "{authentication}");
+    let token = authentication["secret"].as_str().unwrap();
     let (status, _) = f
         .bridge
         .post(token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))

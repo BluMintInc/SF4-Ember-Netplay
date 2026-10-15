@@ -213,7 +213,7 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
         .map_err(|_| "could not issue the callback credential".to_owned())?;
     let authentication = json!({
         "config": { "location": "header", "key": "Authorization", "valuePrefix": "Bearer " },
-        "apiKey": token,
+        "secret": token,
     });
     let origin = &state.config.origin;
     let client = outbound_client()
