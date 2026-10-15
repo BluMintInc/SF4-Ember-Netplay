@@ -726,8 +726,9 @@ fn issue(
         progress::queue(tx, match_id, progress::STARTED)?;
     }
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
-    // A game starting is activity: the match gets a whole lifetime from now.
-    expiry::extend(tx, ctx.now, match_id)?;
+    // A game starting is activity: the match gets a whole lifetime from now,
+    // unless its connection keeps the first deadline.
+    expiry::extend(tx, ctx.now, &fighter.found.connection_id, match_id)?;
     match_event(
         tx,
         ctx,

@@ -2,8 +2,9 @@
 //! plays"). A match stores its current deadline (`expires_at`) and how long a
 //! quiet match lives (`expiry_secs`). Creating the match, issuing a permit and
 //! settling a game (`extend`, called inside those transactions) each set the
-//! deadline to now plus that lifetime, so the snapshot, the assignment list
-//! and the sweep all read `expires_at` as it is.
+//! deadline to now plus that lifetime, except on a BluMint connection, whose
+//! matches keep the deadline they were made with. The snapshot, the
+//! assignment list and the sweep all read `expires_at` as it is.
 use ember_protocol::{event::Kind, matches::MatchState};
 use rusqlite::{Transaction, params};
 use serde_json::json;
@@ -12,7 +13,10 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::ledger::{Match, bump, load, match_event, participants, release},
+    routes::{
+        ledger::{Match, bump, load, match_event, participants, release},
+        policy,
+    },
 };
 
 /// Matches expired in one pass; the rest wait for the next.
@@ -31,8 +35,13 @@ pub fn lifetime(ctx: &Ctx, is_set: bool) -> Option<u64> {
 /// Game activity: moves the match's deadline to a whole lifetime from now, so
 /// a set the players are working through is never cut off. Called inside the
 /// transaction that issues a permit or settles a game (a result, an abort, a
-/// voided game or a correction). Never moves a deadline earlier.
-pub fn extend(tx: &Transaction<'_>, now: u64, match_id: &str) -> Result<()> {
+/// voided game or a correction). Never moves a deadline earlier, and never
+/// moves one on a connection whose matches keep their first deadline
+/// (`Policy::fixed_lifetime`).
+pub fn extend(tx: &Transaction<'_>, now: u64, connection_id: &str, match_id: &str) -> Result<()> {
+    if policy::of(tx, connection_id)?.fixed_lifetime {
+        return Ok(());
+    }
     tx.execute(
         "UPDATE matches SET expires_at = MAX(expires_at, ?1 + expiry_secs)
          WHERE id = ?2 AND expiry_secs IS NOT NULL",

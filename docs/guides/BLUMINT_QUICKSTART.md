@@ -212,13 +212,15 @@ with the wins so far:
 | The two games disagree about a game, or one never reports it | `disputed` | `true` |
 | Neither game reported a game, or a player's link ended | `insufficientPlayers` | `true` |
 | Called off another way, such as by the bridge's operator | `serverFailure` | `true` |
-| Nobody played it within 24 hours of its creation | `insufficientPlayers` | `false` |
+| Still open 24 hours after its creation, with no game being played | `insufficientPlayers` | `false` |
 
 BluMint has no review step, so a match that would wait for one is ended and
 posted as a retryable abort, and you ask for the set again under a new key
 with `startingWins`. A match nobody played is not worth asking for again, so
-its host takes it. (A set with games already recorded ends only after 24
-hours with no game started or decided.)
+its host takes it. A set with games already recorded ends the same way:
+games played do not move the 24 hours, since you free a player held by a
+match you could not close only for 24 hours after it was made. A game in
+progress at that time is played out first.
 
 | BluMint answers | The bridge |
 |---|---|

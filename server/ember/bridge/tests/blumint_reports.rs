@@ -359,10 +359,17 @@ async fn an_expired_match_is_sent_to_blumint_as_a_final_abort() {
     let (status, next) = create(&f, "create-2", 2).await;
     assert_eq!(status, StatusCode::OK, "{next}");
     assert_ne!(next["matchId"], id.as_str());
-    assert_eq!(
-        match_state(&f, next["matchId"].as_str().unwrap()).await,
-        "awaiting_players"
-    );
+    let next = next["matchId"].as_str().unwrap().to_owned();
+    assert_eq!(match_state(&f, &next).await, "awaiting_players");
+
+    // A game played keeps the deadline the match was made with: BluMint
+    // frees players from a match it could not close only that long after
+    // the match was made.
+    f.bridge.clock.advance(30 * 60);
+    win(&f, &next, 0, "game-1").await;
+    f.bridge.clock.advance(30 * 60 + 10);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &next).await, "expired");
 }
 
 // BluMint shows a set's score as it is played, so each game won that does not

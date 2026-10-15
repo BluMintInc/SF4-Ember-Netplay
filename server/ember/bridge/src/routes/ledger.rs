@@ -307,8 +307,9 @@ pub fn settle(
         }
     }
     let revision = bump(tx, found, next, ctx.now)?;
-    // A decided game is activity: the match gets a whole lifetime from now.
-    expiry::extend(tx, ctx.now, &found.id)?;
+    // A decided game is activity: the match gets a whole lifetime from now,
+    // unless its connection keeps the first deadline.
+    expiry::extend(tx, ctx.now, &found.connection_id, &found.id)?;
     // A game won that did not end the set is reported to a platform that
     // hears sets in play; the game that ends it is the result.
     if !correcting
