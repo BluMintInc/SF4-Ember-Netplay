@@ -22,7 +22,7 @@ async fn registration_works_without_a_running_bridge() {
     let app = Router::new()
         .route("/api/tournaments/setLookupPlayer", post(record.clone()))
         .route("/api/tournaments/match/setCreate", post(record.clone()))
-        .route("/api/tournaments/match/setRetrieveStatus", post(record));
+        .route("/api/tournaments/match/setClose", post(record));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let api_base = format!("http://{}/api", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, app).await });

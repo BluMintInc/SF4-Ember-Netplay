@@ -76,10 +76,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/assignments", get(matches::assignments))
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))
-        .route(
-            blumint::STATUS_PATH,
-            get(blumint::status).post(blumint::status),
-        )
+        .route(blumint::CLOSE_PATH, post(blumint::close))
         .route(
             discord::START_PATH,
             post(discord::start).delete(discord::cancel),

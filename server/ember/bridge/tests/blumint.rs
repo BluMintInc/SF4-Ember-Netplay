@@ -1,6 +1,7 @@
 //! BluMint's partner API against a stand-in BluMint: player lookup by Discord
-//! account, match creation with a Play link, status, result submission with
-//! retries and restarts, and registration of the three endpoints.
+//! account, match creation with a Play link and its refusals, reports while a
+//! set is played, results and aborts with retries, closes, and registration of
+//! the three endpoints.
 mod common;
 
 use std::{
@@ -88,7 +89,7 @@ async fn fake_blumint() -> (String, Shared) {
         .route("/api/tournaments/match/submit", post(record))
         .route("/api/tournaments/setLookupPlayer", post(record))
         .route("/api/tournaments/match/setCreate", post(record))
-        .route("/api/tournaments/match/setRetrieveStatus", post(record))
+        .route("/api/tournaments/match/setClose", post(record))
         .with_state(shared.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}/api", listener.local_addr().unwrap());
@@ -234,18 +235,6 @@ async fn matches(f: &Fixture) -> i64 {
         .read(|tx| Ok(tx.query_row("SELECT COUNT(*) FROM matches", [], |row| row.get(0))?))
         .await
         .unwrap()
-}
-
-async fn match_status(f: &Fixture, id: &str) -> Json {
-    let (status, body) = f
-        .bridge
-        .get(
-            &f.provider,
-            &format!("/v1/blumint/matches/status?matchId={id}"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    body
 }
 
 /// Each report on a set in play queued for the match: games played, state.
@@ -490,13 +479,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
         created["matchUrl"],
         format!("https://embernetplay.link/m#{}/{id}", f.bridge.bridge_id).as_str()
     );
-    let before = match_status(&f, &id).await;
-    assert_eq!(before["status"], "pending");
-    assert_eq!(
-        before["teams"][0]["players"][0],
-        json!({ "inGameId": f.kate.id(), "status": "absent" })
-    );
-    assert_eq!(before["teams"][1]["score"], 0);
+    assert_eq!(match_state(&f, &id).await, "awaiting_players");
 
     // Nothing is sent before the match ends.
     ember_bridge::deliver_results(f.bridge.state()).await;
@@ -505,7 +488,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     // bridge's own worker runs alongside these passes; either may send.
     f.blumint.lock().unwrap().fail = 1;
     win(&f, &id, 1, "game-1").await;
-    assert_eq!(match_status(&f, &id).await["status"], "complete");
+    assert_eq!(match_state(&f, &id).await, "completed");
     results::until(&f.bridge, &id, |(state, attempts)| {
         state == "retrying" && attempts == 1
     })
@@ -559,7 +542,7 @@ async fn a_result_is_final_once_it_is_being_sent() {
     let id = created["matchId"].as_str().unwrap().to_owned();
     win(&f, &id, 0, "game-1").await;
     assert_eq!(void_last(&f, &id, "void-1").await, StatusCode::CREATED);
-    assert_eq!(match_status(&f, &id).await["status"], "running");
+    assert_eq!(match_state(&f, &id).await, "between_games");
     win(&f, &id, 1, "game-2").await;
 
     // Once the bridge starts sending the result, it stands, sent or not.
@@ -638,7 +621,7 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
         .await
         .unwrap();
     assert_eq!(removed.status(), StatusCode::OK);
-    assert_eq!(match_status(&f, &second).await["status"], "cancelled");
+    assert_eq!(match_state(&f, &second).await, "cancelled");
 
     // Without the key nothing is sent; with it, both restarts are.
     ember_bridge::deliver_results(f.bridge.state()).await;
@@ -833,14 +816,11 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
         .iter()
         .map(|(path, key, body)| {
             assert_eq!(key, "bm-key");
-            let field = [
-                "lookupPlayerUrl",
-                "createMatchUrl",
-                "retrieveMatchStatusUrl",
-            ]
-            .into_iter()
-            .find(|field| body.get(field).is_some())
-            .unwrap();
+            assert!(body.get("retrieveMatchStatusUrl").is_none(), "{body}");
+            let field = ["lookupPlayerUrl", "createMatchUrl", "closeMatchUrl"]
+                .into_iter()
+                .find(|field| body.get(field).is_some())
+                .unwrap();
             (
                 path.clone(),
                 body[field].as_str().unwrap().to_owned(),
@@ -848,9 +828,27 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
             )
         })
         .collect();
-    assert_eq!(urls[0].1, f.bridge.url("/v1/blumint/lookup"));
-    assert_eq!(urls[1].1, f.bridge.url("/v1/blumint/matches"));
-    assert_eq!(urls[2].1, f.bridge.url("/v1/blumint/matches/status"));
+    let paths: Vec<_> = urls
+        .iter()
+        .map(|(path, url, _)| (path.as_str(), url.clone()))
+        .collect();
+    assert_eq!(
+        paths,
+        [
+            (
+                "/api/tournaments/setLookupPlayer",
+                f.bridge.url("/v1/blumint/lookup")
+            ),
+            (
+                "/api/tournaments/match/setCreate",
+                f.bridge.url("/v1/blumint/matches")
+            ),
+            (
+                "/api/tournaments/match/setClose",
+                f.bridge.url("/v1/blumint/matches/close")
+            ),
+        ]
+    );
     let authentication = &urls[0].2;
     assert_eq!(
         authentication["config"],
@@ -925,25 +923,6 @@ async fn an_expired_match_is_sent_to_blumint_as_a_final_abort() {
         match_state(&f, next["matchId"].as_str().unwrap()).await,
         "awaiting_players"
     );
-}
-
-// A status request without matchId gets the bridge's JSON error, and only
-// after its credential is checked: a caller without one gets 401 first.
-#[tokio::test]
-async fn a_status_request_without_a_match_id_is_refused_as_json_after_authentication() {
-    let f = fixture().await;
-    let (status, body) = f
-        .bridge
-        .get(&f.provider, "/v1/blumint/matches/status")
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    assert_eq!(common::code(&body), "invalid_request", "{body}");
-    let (status, body) = f
-        .bridge
-        .get("not-a-credential", "/v1/blumint/matches/status")
-        .await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
-    assert_eq!(common::code(&body), "unauthenticated", "{body}");
 }
 
 // BluMint looks up every player a refusal names and asks again, so a
@@ -1307,5 +1286,105 @@ async fn answers_from_blumint() {
         let id = finished(vec![(refused, None)]).await;
         results::until(&f.bridge, &id, |(state, _)| state == "failed").await;
         assert_eq!(results::delivery(&f.bridge, &id).await.1, 1, "{refused}");
+    }
+}
+
+/// BluMint's close, under a close key as long as BluMint's longest.
+async fn close(f: &Fixture, body: Json) -> (StatusCode, Json) {
+    let key = format!("close-key-{}", "k".repeat(128));
+    f.bridge
+        .post_keyed(&f.provider, "/v1/blumint/matches/close", body, Some(&key))
+        .await
+}
+
+// BluMint closes a match it no longer needs, and waits for the 200 before it
+// creates the players' next one. A closed match frees its players and is
+// sent nothing more; a closed key makes no match from then on.
+#[tokio::test]
+async fn a_closed_match_sends_nothing() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    for _ in 0..2 {
+        let (status, closed) = close(&f, json!({ "matchId": id, "reason": "decided" })).await;
+        assert_eq!(status, StatusCode::OK, "{closed}");
+    }
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("not_required".into(), 0)
+    );
+
+    // Whatever the reason, the match closes.
+    for (key, reason) in [("set-2", "hostOverride"), ("set-3", "a reason from later")] {
+        let (_, created) = create(&f, key, 2).await;
+        let id = created["matchId"].as_str().unwrap().to_owned();
+        let (status, closed) = close(&f, json!({ "matchId": id, "reason": reason })).await;
+        assert_eq!(status, StatusCode::OK, "{closed}");
+        assert_eq!(match_state(&f, &id).await, "cancelled");
+        assert!(reports(&f, &id).await.is_empty());
+    }
+
+    // BluMint never had the answer, so it names the creation's key: the
+    // match made under it closes, and the key makes no match again.
+    let (_, created) = create(&f, "set-4", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-4", "reason": "removed" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    assert_eq!(
+        create(&f, "set-4", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    // A key the bridge never made a match under is closed all the same, so
+    // a creation still on its way makes nothing.
+    let made = matches(&f).await;
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-5", "reason": "replaced" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(
+        create(&f, "set-5", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    assert_eq!(matches(&f).await, made);
+    assert!(reports(&f, &id).await.is_empty());
+
+    let (status, refused) = close(
+        &f,
+        json!({ "matchId": "emt_00000000-0000-0000-0000-000000000000", "reason": "decided" }),
+    )
+    .await;
+    assert_eq!(
+        (status, refused),
+        (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
+    );
+    for body in [
+        json!({ "matchId": id, "idempotencyKey": "set-4", "reason": "decided" }),
+        json!({ "reason": "decided" }),
+        json!({ "matchId": id }),
+        json!({ "matchId": id, "reason": "" }),
+        json!({ "matchId": id, "reason": "r".repeat(65) }),
+        json!({ "idempotencyKey": "k".repeat(129), "reason": "decided" }),
+    ] {
+        let (status, refused) = close(&f, body.clone()).await;
+        assert_eq!(
+            (status, refused),
+            (
+                StatusCode::BAD_REQUEST,
+                json!({ "code": "invalid_request" })
+            ),
+            "{body}"
+        );
     }
 }

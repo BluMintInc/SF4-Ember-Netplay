@@ -1,4 +1,4 @@
-//! How the bridge refuses a BluMint match creation: BluMint reads only a
+//! How the bridge refuses a BluMint match creation or close: BluMint reads only a
 //! `code` at the top level of the body (plus `players` where the code names
 //! players) and files any other 400 or 409 as an answer it cannot read, which
 //! is final. So these routes answer in BluMint's registry format instead of
@@ -29,6 +29,10 @@ pub enum BluMintRefusal {
     /// Players still in another match on the connection. BluMint asks again
     /// under the same key until they are free.
     PlayerBusy(Vec<EmberId>),
+    /// A close names a match the bridge did not make for this connection.
+    /// BluMint closes only matches the bridge made for it, so this is a
+    /// defect for someone to look at, and BluMint's host takes the match.
+    UnknownMatch,
     /// Not a refusal: the bridge's own failure, in its own envelope.
     Bridge(ApiFailure),
 }
@@ -69,8 +73,21 @@ impl IntoResponse for BluMintRefusal {
                 StatusCode::LOCKED,
                 json!({ "code": "player_busy", "players": players }),
             ),
+            Self::UnknownMatch => (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" })),
             Self::Bridge(failure) => return failure.into_response(),
         };
         crate::http::json(status, &body)
+    }
+}
+
+/// Runs a BluMint route's write. A refusal leaves the write as it found it,
+/// so it commits as the answer; the bridge's own failure rolls the write
+/// back.
+pub fn outcome<T>(
+    work: impl FnOnce() -> Result<T, BluMintRefusal>,
+) -> crate::error::Result<Result<T, BluMintRefusal>> {
+    match work() {
+        Err(BluMintRefusal::Bridge(failure)) => Err(failure),
+        answer => Ok(answer),
     }
 }

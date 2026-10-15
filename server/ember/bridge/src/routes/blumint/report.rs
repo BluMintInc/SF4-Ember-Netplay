@@ -8,7 +8,6 @@ use ember_protocol::{event::Kind, matches::MatchState};
 use rusqlite::{OptionalExtension, Transaction};
 use serde_json::{Value, json};
 
-use super::presence;
 use crate::{
     error::Result,
     routes::ledger::{Match, participants, scores},
@@ -62,6 +61,17 @@ pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
 }
 
+/// A player is present once their Ember claimed the match, and ready once the
+/// room both fighters sit in is bound (from `ready` on).
+fn presence(state: MatchState, claimed: bool) -> &'static str {
+    use MatchState::*;
+    match (claimed, state) {
+        (false, _) => "absent",
+        (true, Created | AwaitingPlayers | Provisioning) => "present-not-ready",
+        (true, _) => "present-ready",
+    }
+}
+
 /// Each team's players and its wins so far, P1 first.
 fn teams(tx: &Transaction<'_>, found: &Match) -> Result<Vec<Value>> {
     let (wins, _) = scores(tx, &found.id)?;
@@ -102,6 +112,21 @@ pub fn abort_reason(cancel_reason: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_player_is_present_once_their_ember_claimed_and_ready_once_the_room_is_bound() {
+        assert_eq!(presence(MatchState::Running, false), "absent");
+        assert_eq!(
+            presence(MatchState::AwaitingPlayers, true),
+            "present-not-ready"
+        );
+        assert_eq!(
+            presence(MatchState::Provisioning, true),
+            "present-not-ready"
+        );
+        assert_eq!(presence(MatchState::Ready, true), "present-ready");
+        assert_eq!(presence(MatchState::Completed, true), "present-ready");
+    }
 
     #[test]
     fn every_cancel_reason_reads_as_one_abort_reason() {

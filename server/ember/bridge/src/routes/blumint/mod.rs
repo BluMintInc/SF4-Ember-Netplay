@@ -1,44 +1,41 @@
-//! BluMint's game partner API (v1.3.0), for connections of kind `blumint`.
+//! BluMint's game partner API (2.0.0), for connections of kind `blumint`.
 //! BluMint calls three endpoints here, with the connection's provider
 //! credential as `Authorization: Bearer`:
 //!
 //! - player lookup: the sign-in IDs of a BluMint user, answered with the Ember
 //!   IDs connected to those Discord accounts (`discord` is the one sign-in
 //!   method Ember supports);
-//! - match creation: two teams of one Ember ID each, answered with the match ID
-//!   and its Play link, which only those two players can use;
-//! - match status: pending, running, complete or cancelled, with each player's
-//!   presence and the score.
+//! - match creation (`create`): two teams of one Ember ID each, under an
+//!   `Idempotency-Key`, answered with the match ID and its Play link, which
+//!   only those two players can use, or refused in BluMint's format
+//!   (`refusal`);
+//! - match close (`close`): BluMint no longer needs a match, which ends it.
 //!
-//! The bridge sends each finished match's result to BluMint, or an abort
-//! BluMint can ask the set again after for a cancelled one, once BluMint's API
-//! key for the connection is configured (`report`). While a set is played it
-//! also tells BluMint when the first game starts and the score after each
-//! game that does not end it (`delivery::progress`). A match whose result the
-//! two games disputed is cancelled where it would wait for review
-//! (`matches::needs_review`), since BluMint has no organizer review; asking
-//! again is its way to replay. A match nobody played expires
-//! (`expiry::expire_stale`) and is sent as an abort BluMint must not retry,
-//! so its host takes the match. `register` tells BluMint where the three
-//! endpoints are.
+//! The bridge reports each match to BluMint once BluMint's API key for the
+//! connection is configured (`report`): when the set's first game starts and
+//! its score after each game that does not end it (`delivery::progress`),
+//! then its result, or an abort for a match that ended without one
+//! (`delivery::results`). A match whose result the two games disputed is
+//! cancelled where it would wait for review (`matches::needs_review`), since
+//! BluMint has no organizer review, and its abort lets BluMint ask for the
+//! set again. A match nobody played expires (`expiry::expire_stale`) and is
+//! sent as an abort BluMint must not retry, so its host takes the match.
+//! `register` tells BluMint where the three endpoints are.
+mod close;
 mod create;
 mod refusal;
 mod report;
 
 use std::collections::BTreeMap;
 
-use axum::{
-    extract::{Query, State, rejection::QueryRejection},
-    http::HeaderMap,
-    response::Response,
-};
-use ember_protocol::{EmberId, matches::MatchState};
-use rusqlite::params;
-use serde::Deserialize;
+use axum::{extract::State, http::HeaderMap, response::Response};
+use ember_protocol::EmberId;
 use serde_json::{Value, json};
 
+pub use close::close;
 pub use create::create;
 pub use refusal::BluMintRefusal;
+use refusal::outcome;
 pub use report::{progress, started, submission};
 
 use crate::{
@@ -47,17 +44,13 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
-    routes::{
-        discord,
-        ledger::{load, participants, scores},
-        policy,
-    },
+    routes::{discord, policy},
     util::outbound_client,
 };
 
 pub const LOOKUP_PATH: &str = "/v1/blumint/lookup";
 pub const MATCHES_PATH: &str = "/v1/blumint/matches";
-pub const STATUS_PATH: &str = "/v1/blumint/matches/status";
+pub const CLOSE_PATH: &str = "/v1/blumint/matches/close";
 
 /// BluMint's API for a connection: `api_base`, or by its environment.
 pub fn api_base(connection: &Connection) -> &str {
@@ -116,72 +109,6 @@ pub async fn lookup(
     Ok(ok(&json!({ "discord": found })))
 }
 
-#[derive(Deserialize)]
-pub struct StatusQuery {
-    #[serde(rename = "matchId")]
-    match_id: String,
-}
-
-/// `GET /v1/blumint/matches/status?matchId=`. The query is read after the
-/// credential, so a caller without one gets 401 whatever it sent, and a
-/// missing `matchId` gets the usual JSON error.
-pub async fn status(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    query: std::result::Result<Query<StatusQuery>, QueryRejection>,
-) -> Result<Response> {
-    let connection_id = connection(&state, &headers).await?;
-    let Query(query) = query.map_err(|_| ApiFailure::invalid("The query needs a matchId."))?;
-    let body = state
-        .db
-        .read(move |tx| {
-            let found = load(tx, &query.match_id)?
-                .filter(|found| found.connection_id == connection_id)
-                .ok_or_else(ApiFailure::not_found)?;
-            let (wins, _) = scores(tx, &found.id)?;
-            let mut teams = Vec::new();
-            for player in participants(tx, &found.id, found.generation)? {
-                let claimed: bool = tx.query_row(
-                    "SELECT EXISTS (SELECT 1 FROM match_claims WHERE match_id = ?1 AND ember_id = ?2)",
-                    params![found.id, player.ember_id.as_str()],
-                    |row| row.get(0),
-                )?;
-                teams.push(json!({
-                    "score": wins[usize::from(player.slot)],
-                    "players": [{ "inGameId": player.ember_id, "status": presence(found.state, claimed) }],
-                }));
-            }
-            Ok(json!({ "status": match_status(found.state), "teams": teams }))
-        })
-        .await?;
-    Ok(ok(&body))
-}
-
-/// BluMint's word for a match's state: players gathering, playing, done, or
-/// ended without a result.
-pub fn match_status(state: MatchState) -> &'static str {
-    use MatchState::*;
-    match state {
-        Created | AwaitingPlayers | Provisioning | Ready => "pending",
-        Running | BetweenGames | AwaitingReports | NeedsReview => "running",
-        Completed => "complete",
-        // BluMint has no word for a match nobody played; "cancelled" is its
-        // only ended-without-a-result status. It is never sent a restart.
-        Cancelled | Failed | Expired => "cancelled",
-    }
-}
-
-/// A player is present once their Ember claimed the match, and ready once the
-/// room both fighters sit in is bound (from `ready` on).
-pub fn presence(state: MatchState, claimed: bool) -> &'static str {
-    use MatchState::*;
-    match (claimed, state) {
-        (false, _) => "absent",
-        (true, Created | AwaitingPlayers | Provisioning) => "present-not-ready",
-        (true, _) => "present-ready",
-    }
-}
-
 /// Tells BluMint where this bridge's three endpoints are, with a new provider
 /// credential for BluMint to call them with. The credential goes straight to
 /// BluMint and is never shown.
@@ -230,11 +157,7 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
             "createMatchUrl",
             MATCHES_PATH,
         ),
-        (
-            "/tournaments/match/setRetrieveStatus",
-            "retrieveMatchStatusUrl",
-            STATUS_PATH,
-        ),
+        ("/tournaments/match/setClose", "closeMatchUrl", CLOSE_PATH),
     ] {
         if !policy::stored_enabled(state, connection_id).await {
             return Err(disabled());
@@ -253,46 +176,4 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_match_state_reads_as_one_blumint_status() {
-        use MatchState::*;
-        let table = [
-            (Created, "pending"),
-            (AwaitingPlayers, "pending"),
-            (Provisioning, "pending"),
-            (Ready, "pending"),
-            (Running, "running"),
-            (BetweenGames, "running"),
-            (AwaitingReports, "running"),
-            (NeedsReview, "running"),
-            (Completed, "complete"),
-            (Cancelled, "cancelled"),
-            (Failed, "cancelled"),
-            (Expired, "cancelled"),
-        ];
-        for (state, status) in table {
-            assert_eq!(match_status(state), status, "{state:?}");
-        }
-    }
-
-    #[test]
-    fn a_player_is_present_once_their_ember_claimed_and_ready_once_the_room_is_bound() {
-        assert_eq!(presence(MatchState::Running, false), "absent");
-        assert_eq!(
-            presence(MatchState::AwaitingPlayers, true),
-            "present-not-ready"
-        );
-        assert_eq!(
-            presence(MatchState::Provisioning, true),
-            "present-not-ready"
-        );
-        assert_eq!(presence(MatchState::Ready, true), "present-ready");
-        assert_eq!(presence(MatchState::Completed, true), "present-ready");
-    }
 }

@@ -16,7 +16,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{BluMintRefusal, MATCHES_PATH, connection, parse};
+use super::{BluMintRefusal, MATCHES_PATH, connection, outcome, parse};
 use crate::{
     AppState,
     ctx::Ctx,
@@ -115,9 +115,7 @@ pub async fn create(
     let digest = wire::digest(&json!({ "players": players, "gamesToWin": games_to_win }))
         .map_err(ApiFailure::from)?;
     let ctx = Ctx::of(&state);
-    // Each registration issues a new credential, so the connection, not the
-    // credential, owns the key.
-    let actor = format!("connection:{connection_id}");
+    let actor = key_owner(&connection_id);
     let answer = state
         .db
         .write(move |tx| {
@@ -136,15 +134,10 @@ pub async fn create(
     Ok(into_response(answer))
 }
 
-/// A refusal leaves the write as it found it, so it commits as the answer;
-/// the bridge's own failure rolls the write back.
-fn outcome<T>(
-    work: impl FnOnce() -> std::result::Result<T, BluMintRefusal>,
-) -> crate::error::Result<std::result::Result<T, BluMintRefusal>> {
-    match work() {
-        Err(BluMintRefusal::Bridge(failure)) => Err(failure),
-        answer => Ok(answer),
-    }
+/// Who a creation's `Idempotency-Key` belongs to. Each registration issues a
+/// new credential, so it is the connection, not the credential.
+pub fn key_owner(connection_id: &str) -> String {
+    format!("connection:{connection_id}")
 }
 
 /// Seats the two players and records the match. Returns its ID.
