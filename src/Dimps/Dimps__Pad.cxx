@@ -123,6 +123,7 @@ void System_RawInput::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.SetDeviceInUse) = (PVOID)(peRootOffset + 0x2e1310);
 	*(PVOID*)(&publicMethods.ClearKeys) = (PVOID)(peRootOffset + 0x2df8e0);
 	*(PVOID*)(&publicMethods.Update) = (PVOID)(peRootOffset + 0x2dfa00);
+	*(PVOID*)(&publicMethods.ScanDevices) = (PVOID)(peRootOffset + 0x2e0150);
 	staticMethods.GetSingleton = (System_RawInput * (*)())(peRootOffset + 0x2e00e0);
 }
 
