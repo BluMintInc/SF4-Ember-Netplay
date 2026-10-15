@@ -2,7 +2,11 @@
 //! one player, played in Ember.
 use std::collections::BTreeMap;
 
-use axum::{extract::State, http::HeaderMap, response::Response};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::Response,
+};
 use ember_protocol::{
     EmberId, json as wire,
     matches::{MAX_GAMES_TO_WIN, Participant, Rules},
@@ -12,13 +16,13 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{BluMintRefusal, connection, parse};
+use super::{BluMintRefusal, MATCHES_PATH, connection, parse};
 use crate::{
     AppState,
     ctx::Ctx,
     error::ApiFailure,
-    http::{Body, GENERAL_BODY, ok},
-    routes::matches::{NewMatch, insert_match},
+    http::{Body, GENERAL_BODY, idempotency_key},
+    routes::matches::{NewMatch, idempotent, insert_match, into_response},
     util::new_id,
 };
 
@@ -80,14 +84,20 @@ fn games_to_win(series: Option<&Series>) -> Result<u8, BluMintRefusal> {
 }
 
 /// `POST /v1/blumint/matches`. `series.gamesToWin` (1 to 10, best of 1 to 19)
-/// sets the set's length. Refusals answer in BluMint's format
-/// (`BluMintRefusal`).
+/// sets the set's length. BluMint sends an `Idempotency-Key` with every
+/// creation and asks again under it until it has an answer, so every request
+/// under one key answers the match it made, even once that match has ended;
+/// BluMint sends a new key when it wants a new match. A key keeps its match
+/// for a day (`routes::maintenance_once`), past the three hours BluMint
+/// needs. Refusals answer in BluMint's format (`BluMintRefusal`), and are
+/// never stored against the key.
 pub async fn create(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
+    let key = idempotency_key(&headers)?;
     let request: CreateRequest = parse(&body)?;
     let [a, b] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
@@ -100,44 +110,30 @@ pub async fn create(
         return Err(BluMintRefusal::InvalidRequest);
     }
     let games_to_win = games_to_win(request.series.as_ref())?;
+    // What makes two requests the same match: team names and BluMint's own
+    // settings may change under one key without changing it.
+    let digest = wire::digest(&json!({ "players": players, "gamesToWin": games_to_win }))
+        .map_err(ApiFailure::from)?;
     let ctx = Ctx::of(&state);
-    let bridge_id = state.config.bridge_id.clone();
-    let match_id = state
+    // Each registration issues a new credential, so the connection, not the
+    // credential, owns the key.
+    let actor = format!("connection:{connection_id}");
+    let answer = state
         .db
         .write(move |tx| {
             outcome(|| {
-                if let Some(id) = active(tx, &connection_id, &players, games_to_win)? {
-                    return Ok(id);
-                }
-                let roster = seats(tx, &connection_id, &players)?;
-                let tenant_id = ctx.tenant_of(&connection_id)?;
-                let rules = Rules::standard(games_to_win, PROFILE);
-                let external_match_id = new_id("blumint");
-                let digest = wire::digest(&json!({ "blumint": external_match_id }))
-                    .map_err(ApiFailure::from)?;
-                Ok(insert_match(
-                    tx,
-                    &ctx,
-                    &NewMatch {
-                        tenant_id: &tenant_id,
-                        connection_id: &connection_id,
-                        external_match_id: &external_match_id,
-                        digest: &digest,
-                        rules: &rules,
-                        required_build_id: "",
-                        metadata: &BTreeMap::new(),
-                        participants: [&roster[0], &roster[1]],
-                        lobby_id: None,
-                        tournament_id: None,
-                    },
-                )?)
+                idempotent(tx, &actor, MATCHES_PATH, &key, &digest, ctx.now, |tx| {
+                    let id = insert(tx, &ctx, &connection_id, &players, games_to_win, &digest)?;
+                    Ok((
+                        StatusCode::OK,
+                        json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
+                    ))
+                })
             })
         })
         .await??;
     state.committed();
-    Ok(ok(
-        &json!({ "matchId": match_id, "matchUrl": play_url(&bridge_id, &match_id) }),
-    ))
+    Ok(into_response(answer))
 }
 
 /// A refusal leaves the write as it found it, so it commits as the answer;
@@ -151,33 +147,33 @@ fn outcome<T>(
     }
 }
 
-/// The active match the connection already has between these players, in
-/// this order, of this length. BluMint sends no request ID, so this is how
-/// a creation it retries after losing the answer gets the same match; any
-/// other request for a busy player is refused as busy.
-fn active(
+/// Seats the two players and records the match. Returns its ID.
+fn insert(
     tx: &Transaction<'_>,
+    ctx: &Ctx,
     connection_id: &str,
-    players: &[EmberId],
+    players: &[EmberId; 2],
     games_to_win: u8,
-) -> rusqlite::Result<Option<String>> {
-    tx.query_row(
-        "SELECT m.id FROM matches m
-         JOIN match_participants a
-           ON a.match_id = m.id AND a.assignment_generation = m.assignment_generation AND a.slot = 0
-         JOIN match_participants b
-           ON b.match_id = m.id AND b.assignment_generation = m.assignment_generation AND b.slot = 1
-         WHERE m.connection_id = ?1 AND a.ember_id = ?2 AND b.ember_id = ?3 AND m.games_to_win = ?4
-           AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')",
-        params![
+    digest: &str,
+) -> std::result::Result<String, BluMintRefusal> {
+    let roster = seats(tx, connection_id, players)?;
+    let tenant_id = ctx.tenant_of(connection_id)?;
+    Ok(insert_match(
+        tx,
+        ctx,
+        &NewMatch {
+            tenant_id: &tenant_id,
             connection_id,
-            players[0].as_str(),
-            players[1].as_str(),
-            games_to_win
-        ],
-        |row| row.get(0),
-    )
-    .optional()
+            external_match_id: &new_id("blumint"),
+            digest,
+            rules: &Rules::standard(games_to_win, PROFILE),
+            required_build_id: "",
+            metadata: &BTreeMap::new(),
+            participants: [&roster[0], &roster[1]],
+            lobby_id: None,
+            tournament_id: None,
+        },
+    )?)
 }
 
 /// The two players as the participants they are linked as on the connection.

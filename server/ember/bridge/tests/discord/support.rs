@@ -292,10 +292,11 @@ pub async fn blumint_match(
 ) -> (StatusCode, Json) {
     let team = |id: &str| json!({ "players": [ { "identities": [ { "source": "partner", "inGameId": id } ] } ] });
     bridge
-        .post(
+        .post_keyed(
             provider,
             "/v1/blumint/matches",
             json!({ "teams": [team(one), team(two)], "spectators": [], "matchSettings": {}, "series": { "gamesToWin": 2 } }),
+            Some(&format!("{one}-{two}")),
         )
         .await
 }
