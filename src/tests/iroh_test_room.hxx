@@ -44,12 +44,18 @@ public:
 		snapshots_[peer] = snapshot;
 		return true;
 	}
-	// The peers whose link EndPeer ended; refuseEndPeer refuses the command.
+	// The peers whose link EndPeer or TryEndPeer ended. refuseEndPeer refuses
+	// both; busyEndPeer is how many TryEndPeer calls find the helper's queue full.
 	std::vector<std::string> endPeerCalls;
 	bool refuseEndPeer = false;
+	int busyEndPeer = 0;
 	bool EndPeer(const std::string& peer, std::uint64_t) override {
 		if (refuseEndPeer) return false;
 		endPeerCalls.push_back(peer); snapshots_.erase(peer); return true;
+	}
+	PeerEnd TryEndPeer(const std::string& peer, std::uint64_t generation) override {
+		if (busyEndPeer > 0) { --busyEndPeer; return PeerEnd::Busy; }
+		return EndPeer(peer, generation) ? PeerEnd::Ended : PeerEnd::Refused;
 	}
 	bool EndMatch(std::uint64_t generation) override { endMatchCalls.push_back(generation); return true; }
 	void AbandonMatch(std::uint64_t generation) override {

@@ -330,13 +330,23 @@ void TestHostEndsDroppedSpectatorLink() {
 	CHECK(!session.EndSpectatorStream(0) && !session.EndSpectatorStream(1) && !session.EndSpectatorStream(4));
 	// A refused command leaves the link and the fight as they were.
 	room->refuseEndPeer = true;
-	CHECK(!session.EndSpectatorStream(2));
+	CHECK(session.EndSpectatorStream(2));
 	CHECK(session.Tick());
 	CHECK(session.GetPhase() == Phase::Started);
+	CHECK(room->endPeerCalls.empty() && room->Game(peers[2]).state == session::IrohRoom::GameState::Ready);
 	room->refuseEndPeer = false;
+	// A full helper queue: the end waits for the match's next Tick, once.
+	room->busyEndPeer = 2;
 	CHECK(session.EndSpectatorStream(2));
+	CHECK(session.EndSpectatorStream(2)); // asked again while it waits
+	CHECK(room->endPeerCalls.empty());
+	CHECK(session.Tick());
+	CHECK(session.GetPhase() == Phase::Started);
 	CHECK(room->endPeerCalls.size() == 1 && room->endPeerCalls[0] == peers[2]);
+	CHECK(session.Tick());
+	CHECK(room->endPeerCalls.size() == 1);
 	CHECK(!session.EndSpectatorStream(2));
+	CHECK(room->Game(peers[1]).state == session::IrohRoom::GameState::Ready);
 	// The room's game_peer_end after the local end is a late duplicate.
 	transport->Push(json{{"type", "game_peer_end"}, {"generation", 5}, {"slot", 2}});
 	CHECK(client.Step() == 0);

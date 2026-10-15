@@ -210,6 +210,10 @@ public:
 	// Remove one authorized gameplay edge without ending the generation's other
 	// links. This is used when the room authority retires a spectator.
 	virtual bool EndPeer(const std::string& peer, std::uint64_t generation);
+	// EndPeer that does not fail the room when the helper's command queue is
+	// momentarily full: Busy then, and the caller tries again.
+	enum class PeerEnd { Ended, Busy, Refused };
+	virtual PeerEnd TryEndPeer(const std::string& peer, std::uint64_t generation);
 	virtual bool EndMatch(std::uint64_t generation);
 	// Stop waiting for game_closed on this generation's mappings. The helper
 	// clears them when it runs end_match, so only the lost event is skipped.
@@ -287,6 +291,7 @@ private:
 	std::size_t committedLiveMembers_ = 0;
 	bool Begin(bool host);
 	bool Command(const std::string& payload);
+	PeerEnd EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull);
 	SendResult SendRemote(Connection connection, const std::string& payload, std::int64_t* id);
 	bool Queue(std::deque<Message>& destination, Message message);
 	void Fail(const char* code);
