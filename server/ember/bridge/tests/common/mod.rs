@@ -3,6 +3,7 @@
 //! browser. All keys and seeds here are throwaway test values.
 #![allow(dead_code)]
 
+pub mod blumint;
 pub mod league;
 pub mod play;
 pub mod public_rooms;
