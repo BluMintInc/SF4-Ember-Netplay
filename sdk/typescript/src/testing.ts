@@ -46,6 +46,8 @@ export interface Binding {
   roster_digest: string;
   fighters: [{ ember_id: string; endpoint_id: string }, { ember_id: string; endpoint_id: string }];
   issued_at: number;
+  /** Games each slot had already won when the set started, P1 first, with version 2. Absent at 0-0. */
+  starting_wins?: [number, number];
 }
 
 /** One official game, signed by the bridge. */

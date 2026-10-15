@@ -227,8 +227,9 @@ fn binding(
         return Ok(None);
     };
     let [p1, p2] = [&fighter.roster[0].ember_id, &fighter.roster[1].ember_id];
+    let starting_wins = fighter.found.starting_wins;
     let binding = Binding {
-        version: play::VERSION,
+        version: Binding::version_for(starting_wins),
         bridge_id: ctx.config.bridge_id.clone(),
         match_id: fighter.found.id.clone(),
         assignment_generation: Counter(fighter.found.generation),
@@ -249,6 +250,7 @@ fn binding(
             },
         ],
         issued_at: ctx.now,
+        starting_wins,
     };
     Ok(Some(
         ctx.keys

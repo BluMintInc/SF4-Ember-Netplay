@@ -226,6 +226,7 @@ fn create_match(
             required_build_id: &command.required_build_id,
             metadata: &command.metadata,
             participants: command.by_slot(),
+            starting_wins: [0, 0],
             lobby_id: None,
             tournament_id: None,
         },
@@ -245,6 +246,8 @@ pub struct NewMatch<'a> {
     pub metadata: &'a BTreeMap<String, String>,
     /// Ordered by slot.
     pub participants: [&'a Assigned; 2],
+    /// Games each slot has already won when the match starts (`019`).
+    pub starting_wins: [u8; 2],
     pub lobby_id: Option<&'a str>,
     pub tournament_id: Option<&'a str>,
 }
@@ -313,8 +316,9 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15)",
+            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, base_p1, base_p2)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15,
+            ?16, ?17)",
         params![
             id,
             new.tenant_id,
@@ -330,7 +334,9 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             new.tournament_id,
             delivery,
             expires_at,
-            lifetime
+            lifetime,
+            new.starting_wins[0],
+            new.starting_wins[1]
         ],
     )?;
     for participant in new.participants {

@@ -1399,3 +1399,95 @@ async fn a_closed_match_sends_nothing() {
         );
     }
 }
+
+/// BluMint's request for a set it asks for again, from `wins`.
+fn carried(f: &Fixture, games_to_win: u8, wins: [u8; 2]) -> Json {
+    let mut body = request(f, games_to_win);
+    for (slot, won) in wins.into_iter().enumerate() {
+        body["teams"][slot]["startingWins"] = json!(won);
+    }
+    body
+}
+
+// BluMint asks for a set again after its match ended without a result, with
+// the games each team had won. The set carries on from that score, and every
+// report counts it, so the set ends when a team reaches its length in all.
+#[tokio::test]
+async fn starting_wins_continue_the_set() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (status, created) = create_with(&f, "set-1", carried(&f, 2, [1, 0])).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 1, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 1])]);
+    win(&f, &id, 0, "game-2").await;
+    assert_eq!(
+        reports(&f, &id).await,
+        vec![progressed(&f, &id, [1, 1]), result(&f, &id, [2, 1])]
+    );
+    let completed: Vec<Json> = f
+        .bridge
+        .events(&f.provider, "0")
+        .await
+        .into_iter()
+        .filter(|event| {
+            event["type"] == "io.ember.tournament.match.completed.v1"
+                && event["data"]["match_id"] == id
+        })
+        .collect();
+    assert_eq!(completed[0]["data"]["starting_wins"], json!([1, 0]));
+
+    let (_, created) = create_with(&f, "set-2", carried(&f, 2, [1, 0])).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-3").await;
+    assert_eq!(reports(&f, &id).await, vec![result(&f, &id, [2, 0])]);
+
+    // Both teams or neither, each a whole number short of the set.
+    let mut one_sided = request(&f, 2);
+    one_sided["teams"][0]["startingWins"] = json!(1);
+    for body in [carried(&f, 2, [2, 0]), carried(&f, 2, [0, 3]), one_sided, {
+        let mut negative = carried(&f, 2, [0, 0]);
+        negative["teams"][1]["startingWins"] = json!(-1);
+        negative
+    }] {
+        let (status, refused) = create_with(&f, "set-3", body.clone()).await;
+        assert_eq!(
+            (status, refused),
+            (
+                StatusCode::BAD_REQUEST,
+                json!({ "code": "invalid_request" })
+            ),
+            "{body}"
+        );
+    }
+
+    // After a reset BluMint sends 0 for every team, which is a set from the
+    // start: the same match as one with no starting wins.
+    let (status, created) = create_with(&f, "set-3", carried(&f, 2, [0, 0])).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(
+        create(&f, "set-3", 2).await,
+        (StatusCode::OK, created.clone())
+    );
+    assert_eq!(
+        create_with(&f, "set-3", carried(&f, 2, [1, 0])).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let binding = bound(&f, &id).await;
+    assert_eq!(binding["version"], 1);
+    assert!(binding.get("starting_wins").is_none(), "{binding}");
+    close(&f, json!({ "matchId": id, "reason": "removed" })).await;
+
+    // The room the fighters play in starts from the score too.
+    let (_, created) = create_with(&f, "set-4", carried(&f, 2, [1, 0])).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let binding = bound(&f, &id).await;
+    assert_eq!(binding["version"], 2);
+    assert_eq!(binding["starting_wins"], json!([1, 0]));
+    let game = permit(&f, &id, &binding, 1).await;
+    report(&f, &f.kate, &f.kate, &id, &game, 1, Outcome::P1Win).await;
+    report(&f, &f.sam, &f.sam, &id, &game, 2, Outcome::P1Win).await;
+    assert_eq!(match_state(&f, &id).await, "completed");
+}

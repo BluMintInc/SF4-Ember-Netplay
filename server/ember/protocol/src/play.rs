@@ -22,6 +22,11 @@ use crate::{
 /// own game settings, results by two-player agreement or organizer review.
 pub const PROFILE: &str = "ember-room-v1";
 pub const VERSION: u8 = 1;
+/// The version of a binding whose set does not start at 0-0
+/// (`Binding::starting_wins`). A binding that starts at 0-0 stays `VERSION`,
+/// byte for byte, so a helper that predates starting wins plays every such
+/// set, and refuses this version rather than seat a set at the wrong score.
+pub const BINDING_BASE_VERSION: u8 = 2;
 /// How long a permit may wait for its game to start (spec 15.3).
 pub const PERMIT_START_SECS: u64 = 120;
 /// A provisioning lease, renewed by claiming again (spec 14.1).
@@ -167,12 +172,39 @@ pub struct Binding {
     /// By slot: P1, then P2.
     pub fighters: [BoundFighter; 2],
     pub issued_at: u64,
+    /// Games each slot has already won when the set starts, P1 first: a set
+    /// its platform asked for again after it was cut short carries on from
+    /// its score. Left out at 0-0.
+    #[serde(default, skip_serializing_if = "starts_at_zero")]
+    pub starting_wins: [u8; 2],
+}
+
+fn starts_at_zero(wins: &[u8; 2]) -> bool {
+    *wins == [0, 0]
 }
 
 impl Binding {
+    /// The version a binding with these starting wins carries.
+    pub fn version_for(starting_wins: [u8; 2]) -> u8 {
+        if starts_at_zero(&starting_wins) {
+            VERSION
+        } else {
+            BINDING_BASE_VERSION
+        }
+    }
+
     pub fn check(&self) -> Result<()> {
         let fields = [
-            (self.version == VERSION, "version"),
+            (
+                self.version == Self::version_for(self.starting_wins),
+                "version",
+            ),
+            (
+                self.starting_wins
+                    .iter()
+                    .all(|&wins| wins < self.games_to_win),
+                "starting_wins",
+            ),
             (is_prefixed_id(&self.bridge_id, "brg"), "bridge_id"),
             (is_prefixed_id(&self.match_id, "emt"), "match_id"),
             (
@@ -589,6 +621,7 @@ mod tests {
                 },
             ],
             issued_at: 100,
+            starting_wins: [0, 0],
         };
         assert!(binding.check().is_ok());
         assert_eq!(binding.slot_of(&"b".repeat(64)), Some(1));
@@ -598,6 +631,67 @@ mod tests {
         binding.fighters[1].endpoint_id = "b".repeat(64);
         binding.fighters.swap(0, 1);
         assert_eq!(binding.check(), Err(Error::Mismatch("roster_digest")));
+    }
+
+    // A set that starts at 0-0, a set asked for again after a reset among
+    // them, keeps the binding every released helper accepts, byte for byte.
+    // One that carries on from a score is a version those helpers refuse,
+    // rather than seat it at 0-0.
+    #[test]
+    fn a_binding_names_its_starting_wins_only_when_the_set_does_not_start_at_zero() {
+        let (a, b) = (key(1), key(2));
+        let mut binding = Binding {
+            version: VERSION,
+            bridge_id: "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11".into(),
+            match_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12".into(),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(1),
+            room_id: "0123456789abcdef0123456789abcdef".into(),
+            build_id: "build".into(),
+            games_to_win: 2,
+            rules_digest: rules_digest(&rules()).unwrap(),
+            roster_digest: roster_digest(a.ember_id(), b.ember_id()).unwrap(),
+            fighters: [
+                BoundFighter {
+                    ember_id: a.ember_id().clone(),
+                    endpoint_id: "a".repeat(64),
+                },
+                BoundFighter {
+                    ember_id: b.ember_id().clone(),
+                    endpoint_id: "b".repeat(64),
+                },
+            ],
+            issued_at: 100,
+            starting_wins: [0, 0],
+        };
+        let at_zero = json::to_value(&binding).unwrap();
+        let mut released = serde_json::to_value(&binding).unwrap();
+        assert!(released.get("starting_wins").is_none(), "{released}");
+        assert_eq!(released["version"], 1);
+        // What a released bridge signs reads back as a set from 0-0, and
+        // signs the same bytes again.
+        released.as_object_mut().unwrap().remove("starting_wins");
+        let read: Binding = serde_json::from_value(released).unwrap();
+        assert_eq!(read.starting_wins, [0, 0]);
+        assert_eq!(json::to_value(&read).unwrap(), at_zero);
+        assert!(binding.check().is_ok());
+        assert_eq!(Binding::version_for([0, 0]), VERSION);
+
+        binding.starting_wins = [1, 0];
+        assert_eq!(binding.check(), Err(Error::InvalidField("version")));
+        binding.version = Binding::version_for(binding.starting_wins);
+        assert_eq!(binding.version, BINDING_BASE_VERSION);
+        assert!(binding.check().is_ok());
+        let carried = serde_json::to_value(&binding).unwrap();
+        assert_eq!(carried["starting_wins"], serde_json::json!([1, 0]));
+        assert_eq!(carried["version"], 2);
+        let signed = binding.sign(&key(9), "k1").unwrap();
+        assert_eq!(signed.verify(&key(9).public_key(), "k1").unwrap(), &binding);
+
+        binding.starting_wins = [0, 2];
+        assert_eq!(binding.check(), Err(Error::InvalidField("starting_wins")));
+        binding.starting_wins = [0, 0];
+        assert_eq!(binding.check(), Err(Error::InvalidField("version")));
     }
 
     #[test]
@@ -702,6 +796,7 @@ mod tests {
                     },
                 ],
                 issued_at: 100,
+                starting_wins: [0, 0],
             }
         }
 

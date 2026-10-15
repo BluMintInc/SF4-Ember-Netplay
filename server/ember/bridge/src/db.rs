@@ -37,6 +37,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (17, include_str!("../migrations/017_creator_region.sql")),
     (18, include_str!("../migrations/018_blumint_progress.sql")),
+    (19, include_str!("../migrations/019_match_base_score.sql")),
 ];
 
 #[derive(Clone)]

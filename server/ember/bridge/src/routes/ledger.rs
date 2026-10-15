@@ -43,13 +43,15 @@ pub struct Match {
     pub tournament_id: Option<String>,
     /// Whether, and how far, its result has been sent to its platform.
     pub delivery: DeliveryState,
+    /// Games each slot had won when the match started, P1 first.
+    pub starting_wins: [u8; 2],
 }
 
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(tx
         .query_row(
             "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id, tournament_id, delivery_state
+                    lobby_id, tournament_id, delivery_state, base_p1, base_p2
              FROM matches WHERE id = ?1",
             [id],
             |row| {
@@ -65,6 +67,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
                     row.get::<_, Option<String>>(8)?,
                     row.get::<_, Option<String>>(9)?,
                     row.get::<_, String>(10)?,
+                    [row.get::<_, u8>(11)?, row.get::<_, u8>(12)?],
                 ))
             },
         )
@@ -81,6 +84,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
             lobby_id: row.8,
             tournament_id: row.9,
             delivery: DeliveryState::parse(&row.10).unwrap_or(DeliveryState::Ambiguous),
+            starting_wins: row.11,
         }))
 }
 
@@ -124,9 +128,14 @@ pub fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<V
     .collect()
 }
 
-/// Accepted wins per slot, from the ledger rather than any room score.
+/// Wins per slot, from the ledger rather than any room score: the match's
+/// starting wins plus its accepted games, and the accepted attempts.
 pub fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
-    let mut wins = [0u8; 2];
+    let mut wins: [u8; 2] = tx.query_row(
+        "SELECT base_p1, base_p2 FROM matches WHERE id = ?1",
+        [id],
+        |row| Ok([row.get(0)?, row.get(1)?]),
+    )?;
     let mut accepted = Vec::new();
     let rows = tx
         .prepare("SELECT id, outcome FROM attempts WHERE match_id = ?1 AND state = 'accepted' ORDER BY seq")?
@@ -377,6 +386,7 @@ pub fn settle(
                 Cause::Players { report_ids } => report_ids.clone(),
             },
             provider_delivery_state: found.delivery,
+            starting_wins: found.starting_wins,
         };
         completed.check().map_err(|_| ApiFailure::unavailable())?;
         match_event(

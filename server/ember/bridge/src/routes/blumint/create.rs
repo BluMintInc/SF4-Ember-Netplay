@@ -13,7 +13,7 @@ use ember_protocol::{
     play::{PROFILE, play_url},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{BluMintRefusal, MATCHES_PATH, connection, outcome, parse};
@@ -43,6 +43,22 @@ struct Series {
 #[derive(Deserialize)]
 struct Team {
     players: Vec<TeamPlayer>,
+    /// Games the team has already won: present on every team when BluMint
+    /// asks for a set again after its match ended without a result, and 0
+    /// on every team after its host reset the set.
+    #[serde(rename = "startingWins")]
+    starting_wins: Option<Value>,
+}
+
+/// What makes two requests the same match. Team names and BluMint's own
+/// settings may change under one key without changing it.
+#[derive(Serialize)]
+struct Set {
+    players: [EmberId; 2],
+    #[serde(rename = "gamesToWin")]
+    games_to_win: u8,
+    #[serde(rename = "startingWins")]
+    starting_wins: [u8; 2],
 }
 
 /// Every account BluMint knows the player by. For Ember that is the one
@@ -83,8 +99,30 @@ fn games_to_win(series: Option<&Series>) -> Result<u8, BluMintRefusal> {
         .ok_or(BluMintRefusal::MatchUnsupported)
 }
 
+/// Where the set starts: no team's `startingWins` for a new set, or every
+/// team's, each a whole number below the set's length.
+fn starting_wins(teams: [&Team; 2], games_to_win: u8) -> Result<[u8; 2], BluMintRefusal> {
+    let won = |team: &Team| {
+        team.starting_wins
+            .as_ref()
+            .map(|wins| {
+                wins.as_u64()
+                    .filter(|&wins| wins < u64::from(games_to_win))
+                    .map(|wins| wins as u8)
+                    .ok_or(BluMintRefusal::InvalidRequest)
+            })
+            .transpose()
+    };
+    match (won(teams[0])?, won(teams[1])?) {
+        (None, None) => Ok([0, 0]),
+        (Some(first), Some(second)) => Ok([first, second]),
+        _ => Err(BluMintRefusal::InvalidRequest),
+    }
+}
+
 /// `POST /v1/blumint/matches`. `series.gamesToWin` (1 to 10, best of 1 to 19)
-/// sets the set's length. BluMint sends an `Idempotency-Key` with every
+/// sets the set's length, and `startingWins` the score it starts from, which
+/// every report counts. BluMint sends an `Idempotency-Key` with every
 /// creation and asks again under it until it has an answer, so every request
 /// under one key answers the match it made, even once that match has ended;
 /// BluMint sends a new key when it wants a new match. A key keeps its match
@@ -99,10 +137,10 @@ pub async fn create(
     let connection_id = connection(&state, &headers).await?;
     let key = idempotency_key(&headers)?;
     let request: CreateRequest = parse(&body)?;
-    let [a, b] = request.teams.as_slice() else {
+    let [first, second] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
-    let ([a], [b]) = (a.players.as_slice(), b.players.as_slice()) else {
+    let ([a], [b]) = (first.players.as_slice(), second.players.as_slice()) else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
     let players = [ember_id(a)?, ember_id(b)?];
@@ -110,10 +148,12 @@ pub async fn create(
         return Err(BluMintRefusal::InvalidRequest);
     }
     let games_to_win = games_to_win(request.series.as_ref())?;
-    // What makes two requests the same match: team names and BluMint's own
-    // settings may change under one key without changing it.
-    let digest = wire::digest(&json!({ "players": players, "gamesToWin": games_to_win }))
-        .map_err(ApiFailure::from)?;
+    let set = Set {
+        players,
+        games_to_win,
+        starting_wins: starting_wins([first, second], games_to_win)?,
+    };
+    let digest = wire::digest(&set).map_err(ApiFailure::from)?;
     let ctx = Ctx::of(&state);
     let actor = key_owner(&connection_id);
     let answer = state
@@ -121,7 +161,7 @@ pub async fn create(
         .write(move |tx| {
             outcome(|| {
                 idempotent(tx, &actor, MATCHES_PATH, &key, &digest, ctx.now, |tx| {
-                    let id = insert(tx, &ctx, &connection_id, &players, games_to_win, &digest)?;
+                    let id = insert(tx, &ctx, &connection_id, &set, &digest)?;
                     Ok((
                         StatusCode::OK,
                         json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
@@ -145,11 +185,10 @@ fn insert(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     connection_id: &str,
-    players: &[EmberId; 2],
-    games_to_win: u8,
+    set: &Set,
     digest: &str,
 ) -> std::result::Result<String, BluMintRefusal> {
-    let roster = seats(tx, connection_id, players)?;
+    let roster = seats(tx, connection_id, &set.players)?;
     let tenant_id = ctx.tenant_of(connection_id)?;
     Ok(insert_match(
         tx,
@@ -159,10 +198,11 @@ fn insert(
             connection_id,
             external_match_id: &new_id("blumint"),
             digest,
-            rules: &Rules::standard(games_to_win, PROFILE),
+            rules: &Rules::standard(set.games_to_win, PROFILE),
             required_build_id: "",
             metadata: &BTreeMap::new(),
             participants: [&roster[0], &roster[1]],
+            starting_wins: set.starting_wins,
             lobby_id: None,
             tournament_id: None,
         },

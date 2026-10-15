@@ -96,6 +96,7 @@ async fn accept_binding(
         "room_id": binding.room_id,
         "build_id": binding.build_id,
         "games_to_win": binding.games_to_win,
+        "starting_wins": binding.starting_wins,
         "rules_digest": binding.rules_digest,
         "roster_digest": binding.roster_digest,
         "fighters": binding.fighters,

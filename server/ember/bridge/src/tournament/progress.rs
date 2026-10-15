@@ -93,6 +93,7 @@ fn start_node(
             required_build_id: &tournament.required_build_id,
             metadata: &metadata,
             participants: [&assigned[0], &assigned[1]],
+            starting_wins: [0, 0],
             lobby_id: None,
             tournament_id: Some(&tournament.id),
         },

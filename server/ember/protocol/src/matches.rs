@@ -261,11 +261,20 @@ pub struct MatchCompleted {
     pub accepted_attempt_ids: Vec<String>,
     pub evidence_report_ids: Vec<String>,
     pub provider_delivery_state: DeliveryState,
+    /// Wins each slot had when the set started, P1 first, counted in
+    /// `scores` but won in an earlier match its platform cut short. Left out
+    /// at 0-0.
+    #[serde(default, skip_serializing_if = "starts_at_zero")]
+    pub starting_wins: [u8; 2],
+}
+
+fn starts_at_zero(wins: &[u8; 2]) -> bool {
+    *wins == [0, 0]
 }
 
 impl MatchCompleted {
     /// One winner at exactly N, the other below N, and one accepted attempt
-    /// per counted win.
+    /// per counted win past the starting wins.
     pub fn check(&self) -> Result<()> {
         let [a, b] = self.scores.as_slice() else {
             return Err(Error::InvalidField("scores"));
@@ -282,7 +291,11 @@ impl MatchCompleted {
             && winner.ember_id == self.winner_id
             && winner.wins == n
             && loser.wins < n
-            && usize::from(a.wins + b.wins) == self.accepted_attempt_ids.len()
+            && self.starting_wins.iter().all(|&wins| wins < n)
+            && a.wins >= self.starting_wins[0]
+            && b.wins >= self.starting_wins[1]
+            && usize::from(a.wins + b.wins - self.starting_wins[0] - self.starting_wins[1])
+                == self.accepted_attempt_ids.len()
             && is_prefixed_id(&self.match_id, "emt")
             && self.match_revision.is_positive()
             && self.assignment_generation.is_positive()
