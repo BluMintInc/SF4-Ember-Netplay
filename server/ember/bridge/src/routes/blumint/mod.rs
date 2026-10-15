@@ -19,6 +19,9 @@
 //! format cannot say it, and a restart would be a request it never made; its
 //! status reads `cancelled`. `register` tells BluMint
 //! where the three endpoints are.
+mod create;
+mod refusal;
+
 use std::collections::BTreeMap;
 
 use axum::{
@@ -26,14 +29,13 @@ use axum::{
     http::HeaderMap,
     response::Response,
 };
-use ember_protocol::{
-    EmberId, json as wire,
-    matches::{MAX_GAMES_TO_WIN, MatchState, Participant, Rules, games_to_win_valid},
-    play::{PROFILE, play_url},
-};
-use rusqlite::{OptionalExtension, Transaction, params};
+use ember_protocol::{EmberId, matches::MatchState};
+use rusqlite::{Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
+
+pub use create::create;
+pub use refusal::BluMintRefusal;
 
 use crate::{
     AppState, auth,
@@ -44,17 +46,14 @@ use crate::{
     routes::{
         discord,
         ledger::{Match, load, participants, scores},
-        matches::{NewMatch, insert_match},
         policy,
     },
-    util::{new_id, outbound_client},
+    util::outbound_client,
 };
 
 pub const LOOKUP_PATH: &str = "/v1/blumint/lookup";
 pub const MATCHES_PATH: &str = "/v1/blumint/matches";
 pub const STATUS_PATH: &str = "/v1/blumint/matches/status";
-/// Set length when BluMint's match settings name none: first to 2.
-const DEFAULT_GAMES_TO_WIN: u8 = 2;
 
 /// BluMint's API for a connection: `api_base`, or by its environment.
 pub fn api_base(connection: &Connection) -> &str {
@@ -111,143 +110,6 @@ pub async fn lookup(
     let found: Vec<EmberId> = found.into_iter().map(|player| player.ember_id).collect();
     state.committed();
     Ok(ok(&json!({ "discord": found })))
-}
-
-#[derive(Deserialize)]
-struct CreateRequest {
-    teams: Vec<Team>,
-    #[serde(default, rename = "matchSettings")]
-    settings: BTreeMap<String, Value>,
-}
-
-#[derive(Deserialize)]
-struct Team {
-    players: Vec<TeamPlayer>,
-}
-
-/// The guide names the field `playerId`, the OpenAPI schema `inGameId`.
-#[derive(Deserialize)]
-struct TeamPlayer {
-    #[serde(alias = "playerId", rename = "inGameId")]
-    in_game_id: EmberId,
-}
-
-/// `POST /v1/blumint/matches`: a set between two teams of one, played in
-/// Ember. `matchSettings.gamesToWin` (1 to 10, best of 1 to 19) sets its length; other
-/// settings are BluMint's own and ignored.
-pub async fn create(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Body<GENERAL_BODY>,
-) -> Result<Response> {
-    let connection_id = connection(&state, &headers).await?;
-    let request: CreateRequest = parse(&body)?;
-    let players: Vec<EmberId> = match request.teams.as_slice() {
-        [a, b] if a.players.len() == 1 && b.players.len() == 1 => {
-            vec![
-                a.players[0].in_game_id.clone(),
-                b.players[0].in_game_id.clone(),
-            ]
-        }
-        _ => {
-            return Err(ApiFailure::invalid(
-                "Ember matches are two teams of one player.",
-            ));
-        }
-    };
-    let games_to_win = match request.settings.get("gamesToWin") {
-        None => DEFAULT_GAMES_TO_WIN,
-        Some(value) => value
-            .as_u64()
-            .and_then(|n| u8::try_from(n).ok())
-            .filter(|n| games_to_win_valid(*n))
-            .ok_or_else(|| {
-                ApiFailure::invalid(format!(
-                    "matchSettings.gamesToWin must be 1 to {MAX_GAMES_TO_WIN}."
-                ))
-            })?,
-    };
-    let ctx = Ctx::of(&state);
-    let bridge_id = state.config.bridge_id.clone();
-    let match_id = state
-        .db
-        .write(move |tx| {
-            if let Some(id) = active(tx, &connection_id, &players, games_to_win)? {
-                return Ok(id);
-            }
-            let tenant_id = ctx.tenant_of(&connection_id)?;
-            let mut roster = Vec::new();
-            for (slot, ember_id) in players.iter().enumerate() {
-                roster.push(Participant {
-                    participant_id: participant(tx, &connection_id, ember_id)?,
-                    ember_id: ember_id.clone(),
-                    slot: slot as u8,
-                });
-            }
-            let rules = Rules::standard(games_to_win, PROFILE);
-            let external_match_id = new_id("blumint");
-            let digest = wire::digest(&json!({ "blumint": external_match_id }))?;
-            insert_match(
-                tx,
-                &ctx,
-                &NewMatch {
-                    tenant_id: &tenant_id,
-                    connection_id: &connection_id,
-                    external_match_id: &external_match_id,
-                    digest: &digest,
-                    rules: &rules,
-                    required_build_id: "",
-                    metadata: &BTreeMap::new(),
-                    participants: [&roster[0], &roster[1]],
-                    lobby_id: None,
-                    tournament_id: None,
-                },
-            )
-        })
-        .await?;
-    state.committed();
-    Ok(ok(
-        &json!({ "matchId": match_id, "matchUrl": play_url(&bridge_id, &match_id) }),
-    ))
-}
-
-/// The active match the connection already has between these players, in
-/// this order, of this length. BluMint sends no request ID, so this is how
-/// a creation it retries after losing the answer gets the same match; any
-/// other request for a busy player is refused as busy.
-fn active(
-    tx: &Transaction<'_>,
-    connection_id: &str,
-    players: &[EmberId],
-    games_to_win: u8,
-) -> Result<Option<String>> {
-    Ok(tx
-        .query_row(
-            "SELECT m.id FROM matches m
-             JOIN match_participants a
-               ON a.match_id = m.id AND a.assignment_generation = m.assignment_generation AND a.slot = 0
-             JOIN match_participants b
-               ON b.match_id = m.id AND b.assignment_generation = m.assignment_generation AND b.slot = 1
-             WHERE m.connection_id = ?1 AND a.ember_id = ?2 AND b.ember_id = ?3 AND m.games_to_win = ?4
-               AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')",
-            params![connection_id, players[0].as_str(), players[1].as_str(), games_to_win],
-            |row| row.get(0),
-        )
-        .optional()?)
-}
-
-/// The participant an Ember ID is linked as on the connection.
-fn participant(tx: &Transaction<'_>, connection_id: &str, ember_id: &EmberId) -> Result<String> {
-    tx.query_row(
-        "SELECT a.participant_id FROM links l JOIN external_accounts a ON a.id = l.account_id
-         WHERE l.ember_id = ?1 AND l.connection_id = ?2 AND l.revoked_at IS NULL",
-        params![ember_id.as_str(), connection_id],
-        |row| row.get(0),
-    )
-    .map_err(|_| {
-        ApiFailure::invalid("That in-game ID was not found by a player lookup on this connection.")
-            .detail("inGameId", ember_id.as_str())
-    })
 }
 
 #[derive(Deserialize)]

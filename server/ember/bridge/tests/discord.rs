@@ -219,14 +219,12 @@ async fn a_platforms_links_follow_the_discord_account() {
         vec![(two_id.clone(), claim(KATE))]
     );
     // The first Ember ID can no longer be put in a match there.
-    let (status, refused) = bridge
-        .post(
-            &provider,
-            "/v1/blumint/matches",
-            json!({ "teams": [ { "players": [ { "inGameId": one_id } ] }, { "players": [ { "inGameId": two_id } ] } ] }),
-        )
-        .await;
+    let (status, refused) = blumint_match(&bridge, &provider, &one_id, &two_id).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_unlinked", "players": [one_id] })
+    );
 
     // Signing in again with the same account keeps its link.
     connect(&bridge, &two, "kate").await;
@@ -275,14 +273,13 @@ async fn a_link_the_player_removed_stays_removed_until_they_sign_in_again() {
     }
     assert_eq!(platform_links(&bridge).await, vec![]);
     let other = player(&bridge, 2).await;
-    let (status, _) = bridge
-        .post(
-            &provider,
-            "/v1/blumint/matches",
-            json!({ "teams": [ { "players": [ { "inGameId": kate_id } ] }, { "players": [ { "inGameId": other.id() } ] } ] }),
-        )
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let other_id = other.id().to_string();
+    let (status, refused) = blumint_match(&bridge, &provider, &kate_id, &other_id).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_unlinked", "players": [kate_id, other_id] })
+    );
 
     // Signing in with Discord again gives the consent again.
     connect(&bridge, &kate, "kate").await;

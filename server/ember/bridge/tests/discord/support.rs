@@ -283,6 +283,23 @@ pub async fn lookup(bridge: &Bridge, provider: &str, users: &[&str]) -> Json {
     found
 }
 
+/// BluMint's request for a first to 2 between these two Ember IDs.
+pub async fn blumint_match(
+    bridge: &Bridge,
+    provider: &str,
+    one: &str,
+    two: &str,
+) -> (StatusCode, Json) {
+    let team = |id: &str| json!({ "players": [ { "identities": [ { "source": "partner", "inGameId": id } ] } ] });
+    bridge
+        .post(
+            provider,
+            "/v1/blumint/matches",
+            json!({ "teams": [team(one), team(two)], "spectators": [], "matchSettings": {}, "series": { "gamesToWin": 2 } }),
+        )
+        .await
+}
+
 /// The active links on BluMint's connection: Ember ID and the claim that
 /// approved it, by Ember ID.
 pub async fn platform_links(bridge: &Bridge) -> Vec<(String, String)> {
