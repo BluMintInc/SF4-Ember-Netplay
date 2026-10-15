@@ -77,6 +77,20 @@ impl BluMint {
             })?;
         Ok(answer(response).await)
     }
+
+    /// What BluMint's answer to a report means. BluMint answers 401 to a key
+    /// it does not know and 403 to a key bound to no game: a key that was
+    /// rotated or set up wrong, which its operator fixes, so the report waits
+    /// for that within its day.
+    pub fn outcome(answered: &Answer) -> Outcome {
+        match answered.status {
+            401 | 403 => Outcome::Retry {
+                error: format!("http {}", answered.status),
+                retry_after: answered.retry_after,
+            },
+            _ => outcome(answered),
+        }
+    }
 }
 
 /// What a platform's answer to a report means for it.
@@ -112,6 +126,13 @@ impl Destination {
         match self {
             Self::BluMint(_) => BLUMINT,
             Self::Signed { .. } => "results",
+        }
+    }
+
+    fn outcome(&self, answered: &Answer) -> Outcome {
+        match self {
+            Self::BluMint(_) => BluMint::outcome(answered),
+            Self::Signed { .. } => outcome(answered),
         }
     }
 
@@ -303,7 +324,7 @@ impl Queue for Results {
             Err(_) => return retry("database unavailable".into(), None),
         };
         match destination.send(state, &item.match_id, body).await {
-            Ok(answered) => outcome(&answered),
+            Ok(answered) => destination.outcome(&answered),
             Err(outcome) => outcome,
         }
     }

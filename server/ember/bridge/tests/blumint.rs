@@ -1282,10 +1282,21 @@ async fn answers_from_blumint() {
     f.bridge.clock.advance(7);
     results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
 
-    for refused in [404, 400, 401, 403] {
+    for refused in [404, 400] {
         let id = finished(vec![(refused, None)]).await;
         results::until(&f.bridge, &id, |(state, _)| state == "failed").await;
         assert_eq!(results::delivery(&f.bridge, &id).await.1, 1, "{refused}");
+    }
+    // A key BluMint does not know, or one bound to no game, waits for its
+    // operator to fix it.
+    for unauthorized in [401, 403] {
+        let id = finished(vec![(unauthorized, None)]).await;
+        results::until(&f.bridge, &id, |(state, attempts)| {
+            state == "retrying" && attempts == 1
+        })
+        .await;
+        f.bridge.clock.advance(2);
+        results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
     }
 }
 

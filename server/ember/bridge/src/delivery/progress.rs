@@ -14,10 +14,7 @@ use std::collections::BTreeMap;
 use rusqlite::{Transaction, params};
 use serde_json::json;
 
-use super::{
-    BATCH, Leased, Outcome, Queue, Record, Settled,
-    results::{BluMint, outcome},
-};
+use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
@@ -144,7 +141,7 @@ impl Queue for Progress {
                 error: "http 404".into(),
                 retry_after: answered.retry_after,
             },
-            Ok(answered) => outcome(&answered),
+            Ok(answered) => BluMint::outcome(&answered),
             Err(outcome) => outcome,
         }
     }

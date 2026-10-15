@@ -600,6 +600,15 @@ async fn the_platforms_answer_settles_retries_or_refuses_a_result() {
         "failed"
     );
     assert_eq!(f.results(&third).len(), 1);
+
+    // 401 and 403 refuse it too: only BluMint's results wait for a key to
+    // be fixed.
+    for (external, status) in [("set-4", 401), ("set-5", 403)] {
+        f.receiver.answer_with(&[status]);
+        let id = f.finished(external).await;
+        f.until(&id, |(state, _)| state == "failed").await;
+        assert_eq!(f.delivery(&id).await, ("failed".into(), 1), "{status}");
+    }
 }
 
 #[tokio::test]
