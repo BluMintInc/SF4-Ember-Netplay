@@ -87,6 +87,9 @@ msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará ko
 msgid "launcher.game_wrong_dll"
 msgstr "Hra se zastavila před spuštěním Ember, protože načtené DLL chybí funkce. Obvykle je vedle SSFIV.exe soubor GGPO.dll, spdlog.dll, fmt.dll nebo zlib1.dll z jiného modu či starší instalace. Přesuňte nalezené soubory jinam a zkuste to znovu. Pokud tam žádný není, pošlete protokol spouštěče (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows zablokoval jeden ze souborů hry dříve, než se Ember mohl spustit (řízení aplikací). Inteligentní řízení aplikací neumí povolit jediný program: pokud je v Zabezpečení Windows zapnuté, Ember poběží až po jeho vypnutí. Na počítači spravovaném organizací požádejte jejího správce o povolení Emberu."
+
 msgid "recovery.window"
 msgstr "Obnovení Ember"
 
@@ -3235,6 +3238,12 @@ msgstr "Síť se nepodařilo spustit. Hraní offline je dostupné."
 
 msgid "runtime.network_helper_unavailable"
 msgstr "Síťový pomocník není dostupný (chyba {0}). Hraní offline je dostupné."
+
+msgid "runtime.network_helper_missing"
+msgstr "Síť se nepodařilo spustit: ve složce Emberu chybí sf4-net.exe. Mohl ho odstranit bezpečnostní software. Přeinstalujte Ember a povolte jeho složku v antiviru. Hraní offline je dostupné."
+
+msgid "runtime.network_helper_blocked"
+msgstr "Síť se nepodařilo spustit: bezpečnostní software zablokoval sf4-net.exe. Povolte složku Emberu v antiviru a Ember spusťte znovu. Hraní offline je dostupné."
 
 msgid "discord.connecting"
 msgstr "Připojování k Discord..."

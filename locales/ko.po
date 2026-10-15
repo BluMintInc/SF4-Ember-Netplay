@@ -87,6 +87,9 @@ msgstr "게임이 Ember 폴더의 파일 대신 아래 파일을 불러오며, �
 msgid "launcher.game_wrong_dll"
 msgstr "불러온 DLL에 필요한 함수가 없어 Ember 시작 전에 게임이 종료되었습니다. 대개 SSFIV.exe 옆에 다른 모드나 이전 설치의 GGPO.dll, spdlog.dll, fmt.dll 또는 zlib1.dll이 있을 때 발생합니다. 발견한 파일을 다른 곳으로 옮긴 뒤 다시 시도하세요. 파일이 없다면 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 보내주세요."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Ember가 시작되기 전에 Windows가 게임 파일을 차단했습니다(앱 제어). 스마트 앱 컨트롤은 프로그램 하나만 허용할 수 없습니다. Windows 보안에서 켜져 있으면 끄고 나서 Ember를 실행할 수 있습니다. 관리되는 PC라면 관리자에게 Ember 허용을 요청하세요."
+
 msgid "recovery.window"
 msgstr "Ember 복구"
 
@@ -3235,6 +3238,12 @@ msgstr "네트워크를 시작하지 못했습니다. 오프라인 플레이는 
 
 msgid "runtime.network_helper_unavailable"
 msgstr "네트워크 보조 프로그램을 사용할 수 없습니다(오류 {0}). 오프라인 플레이는 가능합니다."
+
+msgid "runtime.network_helper_missing"
+msgstr "네트워크를 시작할 수 없습니다. Ember 폴더에 sf4-net.exe가 없습니다. 보안 프로그램이 삭제했을 수 있습니다. Ember를 다시 설치하고 백신 프로그램에서 폴더를 허용하세요. 오프라인 플레이는 가능합니다."
+
+msgid "runtime.network_helper_blocked"
+msgstr "네트워크를 시작할 수 없습니다. 보안 프로그램이 sf4-net.exe를 차단했습니다. 백신 프로그램에서 Ember 폴더를 허용한 뒤 Ember를 다시 시작하세요. 오프라인 플레이는 가능합니다."
 
 msgid "discord.connecting"
 msgstr "Discord에 연결 중..."

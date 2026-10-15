@@ -2,6 +2,7 @@
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../common/Localization.hxx"
+#include "../common/HelperFailure.hxx"
 #include <cstdlib>
 #include <iostream>
 #include <type_traits>
@@ -14,6 +15,11 @@ static Dimps::GameEvents::RootEvent* UnavailableRoot() { ++rootQueries; return n
 
 int wmain(int argc, wchar_t** argv) {
 	CHECK(argc == 2);
+	// Security software that removed or refused sf4-net.exe is named; any other code stays a number.
+	CHECK(netplay::ClassifyHelperFailure(ERROR_FILE_NOT_FOUND) == netplay::HelperFailure::Missing);
+	CHECK(netplay::ClassifyHelperFailure(226) == netplay::HelperFailure::Missing);
+	CHECK(netplay::ClassifyHelperFailure(225) == netplay::HelperFailure::Blocked);
+	CHECK(netplay::ClassifyHelperFailure(ERROR_ACCESS_DENIED) == netplay::HelperFailure::Other);
 	static_assert(std::is_trivially_copyable<Payload>::value, "Injected bootstrap must remain POD-copyable");
 	Payload payload = {};
 	CHECK(IsCompatiblePayload(&payload, sizeof(payload)));
@@ -50,13 +56,14 @@ int wmain(int argc, wchar_t** argv) {
 	// the helper failure and the Discord status follow the active language, also
 	// when the language is chosen after they were raised.
 	CHECK(snapshot.controller == loc::T("controller.none"));
-	CHECK(snapshot.helperError == loc::Tf("runtime.network_helper_unavailable", ERROR_FILE_NOT_FOUND));
+	// A helper that is not there (Win32 2) is said to be missing, not given as a number.
+	CHECK(snapshot.helperError == loc::T("runtime.network_helper_missing"));
 	CHECK(snapshot.discordStatus == loc::T("discord.unavailable_gameplay_ok"));
 	loc::SetActive(loc::Locale::Fr);
 	NetplayFacade::TickRuntime();
 	auto french = NetplayFacade::GetRuntimeSnapshot();
 	CHECK(french.controller == loc::T("controller.none") && french.controller != snapshot.controller);
-	CHECK(french.helperError == loc::Tf("runtime.network_helper_unavailable", ERROR_FILE_NOT_FOUND) && french.helperError != snapshot.helperError);
+	CHECK(french.helperError == loc::T("runtime.network_helper_missing") && french.helperError != snapshot.helperError);
 	CHECK(french.discordStatus == loc::T("discord.unavailable_gameplay_ok") && french.discordStatus != snapshot.discordStatus);
 	loc::SetActive(loc::Locale::En);
 	NetplayFacade::TickRuntime();

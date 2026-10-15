@@ -4,6 +4,7 @@
 #include "sf4e__Gamepads.hxx"
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/LatencyBoard.hxx"
+#include "../common/HelperFailure.hxx"
 #include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -34,7 +35,12 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
 std::string StickyText() {
     switch (runtime->stickyError) {
     case StickyError::StartFailed: return loc::T("runtime.network_start_failed");
-    case StickyError::HelperUnavailable: return loc::Tf("runtime.network_helper_unavailable", runtime->stickyCode);
+    case StickyError::HelperUnavailable:
+        switch (netplay::ClassifyHelperFailure(runtime->stickyCode)) {
+        case netplay::HelperFailure::Missing: return loc::T("runtime.network_helper_missing");
+        case netplay::HelperFailure::Blocked: return loc::T("runtime.network_helper_blocked");
+        default: return loc::Tf("runtime.network_helper_unavailable", runtime->stickyCode);
+        }
     default: return {};
     }
 }

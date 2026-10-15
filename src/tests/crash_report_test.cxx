@@ -54,6 +54,9 @@ static void TestExitCodeNames() {
 	CHECK(std::string(ExitCodeName(0xC0000135u)).find("DLL not found") == 0);
 	CHECK(std::string(ExitCodeName(0xC0000139u)).find("entry point not found") == 0);
 	CHECK(std::string(ExitCodeName(0xC0000139u)).find("GGPO.dll") != std::string::npos);
+	// Smart App Control or another code integrity policy: named, and not a crash to report.
+	CHECK(std::string(ExitCodeName(0xC0E90002u)).find("code integrity") != std::string::npos);
+	CHECK(!IsCrashExit(0xC0E90002u));
 	CHECK(std::string(ExitCodeName(0x12345678u)) == "unknown");
 	CHECK(IsCrashExit(0xC0000374u));
 	CHECK(IsCrashExit(0xC0000005u));

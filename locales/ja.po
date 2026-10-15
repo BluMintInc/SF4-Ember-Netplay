@@ -87,6 +87,9 @@ msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読�
 msgid "launcher.game_wrong_dll"
 msgstr "読み込んだDLLに必要な関数がないため、Emberの起動前にゲームが停止しました。通常、別のMODや古いインストールのGGPO.dll、spdlog.dll、fmt.dll、zlib1.dllがSSFIV.exeの隣にあります。見つかったファイルを移動して再試行してください。ない場合はランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を送ってください。"
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Emberの起動前に、Windowsがゲームのファイルをブロックしました（アプリコントロール）。スマートアプリコントロールでは特定のプログラムだけを許可できません。Windowsセキュリティでオンになっている場合、Emberはオフにしてから動きます。管理されたPCでは、管理者にEmberの許可を依頼してください。"
+
 msgid "recovery.window"
 msgstr "Emberの復旧"
 
@@ -3235,6 +3238,12 @@ msgstr "通信を開始できませんでした。オフラインでは遊べま
 
 msgid "runtime.network_helper_unavailable"
 msgstr "通信補助プログラムを利用できません（エラー{0}）。オフラインでは遊べます。"
+
+msgid "runtime.network_helper_missing"
+msgstr "通信を開始できません。Emberのフォルダーにsf4-net.exeがありません。セキュリティソフトが削除した可能性があります。Emberを再インストールし、セキュリティソフトでフォルダーを許可してください。オフラインでは遊べます。"
+
+msgid "runtime.network_helper_blocked"
+msgstr "通信を開始できません。セキュリティソフトがsf4-net.exeをブロックしました。セキュリティソフトでEmberのフォルダーを許可し、Emberを再起動してください。オフラインでは遊べます。"
 
 msgid "discord.connecting"
 msgstr "Discordに接続中..."
