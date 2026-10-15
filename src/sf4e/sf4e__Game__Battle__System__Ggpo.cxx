@@ -5,6 +5,7 @@
 #include "../common/GgpoDisconnectTolerance.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include <atomic>
+#include <map>
 
 // Stands in for a saved state on frames that save nothing (the save callback).
 static unsigned char s_inertSaveState;
@@ -91,6 +92,9 @@ struct GgpoCallbackScope : sf4e::gate::AbortLatch::Scope {
 };
 
 static sf4e::SpectatorPolicy s_spectatorPolicy;
+// P1's spectator handles and the match slot each one watches from, so a
+// dropped handle's link can be ended too.
+static std::map<int, std::size_t> s_spectatorSlots;
 static sf4e::SpectatorStreamWatch s_streamWatch;
 
 std::size_t fSystem::SpectatorStreamCount() {
@@ -120,6 +124,10 @@ void fSystem::PollSpectators() {
         const auto result = ggpo_disconnect_player(ggpo, handle);
         if (!GGPO_SUCCEEDED(result) && result != GGPO_ERRORCODE_PLAYER_DISCONNECTED)
             spdlog::warn("GGPO: spectator handle {} could not be dropped: {}", handle, (int)result);
+        // GGPO alone would leave the spectator waiting for a stream that never
+        // comes until its own StreamSyncTimeoutMs, or the match end once it runs.
+        const auto slot = s_spectatorSlots.find(handle);
+        if (slot != s_spectatorSlots.end()) sf4e::NetplayFacade::EndRuntimeSpectatorStream(slot->second);
     };
     for (const auto handle : s_spectatorPolicy.SyncOverdue(now)) drop(handle, "not synchronized in time");
     if (!s_spectatorPolicy.SampleDue(now)) return;
@@ -437,6 +445,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         }
     }
     std::vector<int> spectatorHandles;
+    s_spectatorSlots.clear();
     if (localPlayerIdx == 0) {
         for (int i = 2; i < numPlayers; i++) {
             players[i].type = inPlayers[i].type;
@@ -448,7 +457,10 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
                 }
                 continue;
             }
-            if (players[i].handle != GGPO_INVALID_HANDLE) spectatorHandles.push_back(players[i].handle);
+            if (players[i].handle == GGPO_INVALID_HANDLE) continue;
+            spectatorHandles.push_back(players[i].handle);
+            // player_num is the match slot plus one (StartRuntimeGgpo leaves out spectators without a port).
+            s_spectatorSlots[players[i].handle] = static_cast<std::size_t>(inPlayers[i].player_num - 1);
         }
     }
     s_spectatorPolicy.Start(GetTickCount64(), spectatorHandles);

@@ -523,6 +523,20 @@ bool IrohMatchSession::DropSpectatorLink(std::vector<Link>::iterator& link) {
 	return true;
 }
 
+bool IrohMatchSession::EndSpectatorStream(std::size_t slot) {
+	if (slot_ != 0 || slot < 2 || phase_ != Phase::Started || !room_) return false;
+	const auto link = std::find_if(links_.begin(), links_.end(), [&](const Link& candidate) { return candidate.slot == slot; });
+	if (link == links_.end()) return false;
+	// Unlike DropSpectatorLink, a refused command does not fail the fight.
+	if (!room_->EndPeer(link->peer, generation_)) {
+		spdlog::warn("Match: the helper refused to end spectator slot {} generation={}", slot, generation_);
+		return false;
+	}
+	SecureZeroMemory(link->capability.data(), link->capability.size());
+	links_.erase(link);
+	return true;
+}
+
 bool IrohMatchSession::StreamSourceClosed() const {
 	if (slot_ < 2 || !room_) return false;
 	return std::any_of(links_.begin(), links_.end(), [&](const Link& link) {

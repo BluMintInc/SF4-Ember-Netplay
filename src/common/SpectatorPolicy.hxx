@@ -57,10 +57,12 @@ public:
 	// RUNNING this long after its session started. P1's session starts only
 	// once P1 has loaded the battle, which on a slow disk or behind a slow
 	// opponent can take well over SyncDeadlineMs, so this is generous: giving
-	// up on a stream that would have come up is worse than a late notice. A
-	// spectator P1 dropped before it synchronized would otherwise wait
-	// forever: P1 answers sync requests for 5 s after the drop, then goes
-	// silent.
+	// up on a stream that would have come up is worse than a late notice. P1
+	// ends the link of a spectator it drops, which ends that spectator's wait
+	// within its peer-close grace; this bounds the wait when that end never
+	// arrives. Without either, a spectator P1 dropped before it synchronized
+	// would wait forever: P1 answers sync requests for 5 s after the drop,
+	// then goes silent.
 	static constexpr std::uint64_t StreamSyncTimeoutMs = 30000;
 
 	// A player enters a started match only from the main menu. A spectator that

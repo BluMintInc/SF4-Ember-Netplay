@@ -345,6 +345,11 @@ namespace sf4e {
 		// the session is being retired. Its battle then closes sessionless, and
 		// the runtime leaves that game instead of ending the view silently.
 		void NotifyRuntimeSpectatorStreamFailed();
+		// P1's GGPO dropped the spectator in this match slot. Ends its link so
+		// that spectator's client gives up at once (IrohMatchSession::EndSpectatorStream).
+		void EndRuntimeSpectatorStream(std::size_t slot);
+		// This PC watches the current or last match rather than playing it.
+		bool IsRuntimeSpectator();
 		// A rollback-confirmed native result, with the save frame it was
 		// captured at and the input frame confirmed when it was published.
 		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);

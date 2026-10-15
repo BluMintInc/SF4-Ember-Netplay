@@ -270,8 +270,10 @@ void fUserApp::_OnVsBattleTasksRegistered() {
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
     else if (!StartMatchInputLag())
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.input_lag_unavailable"));
+    // A spectator whose view ended while its battle loaded (P1 dropped it) watches the next game.
     else if (!StartRuntimeGgpo())
-        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
+        fSystem::AbortGgpoMatch(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimeSpectator() ?
+            "runtime.spectator_stream_lost" : "runtime.authorized_connection_unavailable"));
 }
 
 
