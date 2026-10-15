@@ -157,9 +157,8 @@ and their last update, so old stale ones expired the first time the bridge ran
 its maintenance.
 
 A platform with a `results_url` is sent the result with outcome `expired`
-(no winner; scores are what was recorded), never `restart`. BluMint is sent
-nothing for an expired match, because its result format has only a score or a
-restart; its status call answers `cancelled`.
+(no winner; scores are what was recorded), never `restart`. BluMint is sent an
+abort it must not retry (`retryable: false`), so its host takes the match.
 
 ## Matches played in Ember
 
@@ -258,7 +257,7 @@ always see and disconnect an account connected earlier.
 
 ## BluMint
 
-A connection of kind `blumint` serves BluMint's game partner API (v1.3.0) with
+A connection of kind `blumint` serves BluMint's game partner API (2.0.0) with
 the connection's provider credential as `Authorization: Bearer`:
 
 - `POST /v1/blumint/lookup` answers `discord` with the Ember IDs connected to
@@ -266,23 +265,30 @@ the connection's provider credential as `Authorization: Bearer`:
   `discord`) so matches can be created for it. An Ember ID already linked
   there by a code keeps that link.
 - `POST /v1/blumint/matches` creates an `ember-room-v1` set from two teams of
-  one and answers `matchId` and the match's `play_url` as `matchUrl`.
-- `GET` (or `POST`) `/v1/blumint/matches/status?matchId=` maps the match to
-  `pending`, `running`, `complete` or `cancelled`, with each player's presence
-  and score. A match nobody played before it expired reads `cancelled`.
+  one, of `series.gamesToWin`, starting from the teams' `startingWins`, and
+  answers `matchId` and the match's `play_url` as `matchUrl`. Every request
+  under one `Idempotency-Key` answers the same match. Refusals answer
+  BluMint's registry codes at the top level (`invalid_request`,
+  `match_unsupported`, `key_reused`, `player_unlinked` and `423`
+  `player_busy`), never the bridge's error envelope.
+- `POST /v1/blumint/matches/close` ends the match BluMint names, or the one
+  made under a creation key it names, and closes that key to every later
+  creation.
 
-The bridge posts each completed match's score to BluMint, and `mustRestart`
-for a cancelled match. BluMint has no review step, so a match that would go
-to `needs_review` (the two games disagree, a report never arrives, a player's
-link ends) is cancelled instead. A match nobody plays expires after a day and
-is sent nothing: BluMint's result format has no way to say "not played", and
-`mustRestart` would ask it to restart a match it may have meant to drop.
-Posts need BluMint's API key for the
-connection in the integration secrets; a match that ends before the key is
-there is posted once it is. Posts are retried for a day; the match's
-`provider_delivery_state` says how it went. BluMint takes one result per
-match, so once the bridge starts posting it (`delivering`) an organizer can
-no longer correct it. `ember-bridge
+The bridge reports each match to BluMint: a `status` when the set's first
+game starts, a `progress` after each game won that does not end the set, and
+the `result`, each team with its `wins`. A cancelled match is an `abort` with
+the wins so far and `retryable: true`, which BluMint answers by asking for
+the set again with those wins as `startingWins`. BluMint has no review step,
+so a match that would go to `needs_review` (the two games disagree, a report
+never arrives, a player's link ends) is cancelled instead. A match nobody
+plays expires after a day and is an `abort` with `retryable: false`, so
+BluMint's host takes it. Posts need BluMint's API key for the connection in
+the integration secrets; a match that ends before the key is there is posted
+once it is. Posts are retried for a day; the match's
+`provider_delivery_state` says how its result went. BluMint takes one result
+per match, so once the bridge starts posting it (`delivering`) an organizer
+can no longer correct it. A closed match is sent nothing more. `ember-bridge
 blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.

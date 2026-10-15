@@ -72,7 +72,7 @@ pub struct Policy {
     pub results: Results,          // None | BluMint | Signed
     pub own_api_only: bool,        // kind blumint
     pub reviews_disputes: bool,    // disputes == "review"
-    pub silent_expiry: bool,       // kind blumint: told nothing of an expired match
+    pub reports_progress: bool,    // kind blumint: told when a set starts and after each game
 }
 ```
 
@@ -144,11 +144,9 @@ players freed, `match.expired` emitted (`match_id`, `match_revision`, `state`,
 `reason: "not_played"`, `expires_at`). It is never `cancelled`, and a platform
 is never sent `restart` for it.
 
-Delivery: a `results_url` connection gets outcome `expired`. BluMint's result
-format takes a score or `mustRestart` only, so a BluMint match that expires is
-sent nothing (its `delivery_state` becomes `not_required`) and its status
-reads `cancelled`, the only ended-without-a-result word its API has. To be
-confirmed with BluMint.
+Delivery: a `results_url` connection gets outcome `expired`. BluMint gets an
+abort with `reason: "insufficientPlayers"` and `retryable: false`, so it does
+not ask for the match again and its host takes it.
 
 `GET /v1/assignments` rows and `GET /v1/matches/{id}` carry `created_at` and
 `expires_at`, and an expired match stays in the assignments for a day.
