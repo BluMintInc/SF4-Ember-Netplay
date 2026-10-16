@@ -405,39 +405,7 @@ async fn a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry() {
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(match_state(&f, &id).await, "expired");
 
-    let provider = f.bridge.provider("mock-a").await;
-    let (mut a, mut b) = (f.bridge.player(41), f.bridge.player(42));
-    f.bridge.open_session(&mut a).await;
-    f.bridge.open_session(&mut b).await;
-    let link_a = f.bridge.link(&provider, &a, "mock-a", "direct-a").await;
-    let link_b = f.bridge.link(&provider, &b, "mock-a", "direct-b").await;
-    let (status, direct) = f
-        .bridge
-        .post_keyed(
-            &provider,
-            "/v1/matches",
-            json!({
-                "external_match_id": "direct-1",
-                "game": "usf4",
-                "participants": [
-                    { "participant_id": link_a["participant_id"], "ember_id": a.id(), "slot": 0 },
-                    { "participant_id": link_b["participant_id"], "ember_id": b.id(), "slot": 1 },
-                ],
-                "rules": {
-                    "games_to_win": 2, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
-                    "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
-                    "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
-                },
-                "observer_policy": "authorized_only",
-                "result_policy": "two_player_agreement_or_review",
-                "required_build_id": "test-build",
-                "metadata": {},
-            }),
-            Some("direct-1"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{direct}");
-    let direct = direct["match_id"].as_str().unwrap();
+    let (provider, direct) = direct_match(&f).await;
     let (_, found) = f
         .bridge
         .get(&provider, &format!("/v1/matches/{direct}"))
@@ -594,6 +562,22 @@ async fn a_report_whose_count_comes_back_after_a_void_is_sent_again() {
     assert_eq!(progress(&f, &id).await, vec![(1, "delivered".into())]);
 }
 
+// BluMint keeps no score for a match it does not know, so a progress report
+// it answers 404 is not sent again; only the status report is.
+#[tokio::test]
+async fn a_progress_report_on_a_match_blumint_does_not_know_is_not_sent_again() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.blumint.lock().unwrap().answers.push_back((404, None));
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    assert_eq!(progress(&f, &id).await, vec![(1, "failed".into())]);
+    f.bridge.clock.advance(2);
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+}
+
 // A report still waiting when the set ends is never sent: it would tell
 // BluMint a finished set is still on, and the result has the final score.
 #[tokio::test]
@@ -631,8 +615,10 @@ async fn a_sets_first_game_posts_one_running_status() {
     let id = created["matchId"].as_str().unwrap().to_owned();
     let binding = bound(&f, &id).await;
     assert!(reports(&f, &id).await.is_empty());
-    // BluMint does not know the match yet, and asks to be told again.
-    f.blumint.lock().unwrap().answers.push_back((404, None));
+    // BluMint does not know the match yet, and asks to be told again. Its
+    // Retry-After keeps the bridge's own worker from sending it again while
+    // the test reads the queue.
+    f.blumint.lock().unwrap().answers.push_back((404, Some(30)));
     let first = permit(&f, &id, &binding, 1).await;
     let started = json!({
         "mode": "status",
@@ -645,7 +631,7 @@ async fn a_sets_first_game_posts_one_running_status() {
     });
     assert_eq!(reports(&f, &id).await, vec![started.clone()]);
     assert_eq!(progress(&f, &id).await, vec![(0, "retrying".into())]);
-    f.bridge.clock.advance(2);
+    f.bridge.clock.advance(31);
     assert_eq!(
         reports(&f, &id).await,
         vec![started.clone(), started.clone()]

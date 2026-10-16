@@ -315,6 +315,45 @@ pub async fn void_last(f: &Fixture, id: &str, key: &str) -> StatusCode {
         .0
 }
 
+/// A match the bridge's own API made for two other players on `mock-a`,
+/// another connection: the connection's provider credential, and the match.
+pub async fn direct_match(f: &Fixture) -> (String, String) {
+    let provider = f.bridge.provider("mock-a").await;
+    let (mut a, mut b) = (f.bridge.player(41), f.bridge.player(42));
+    f.bridge.open_session(&mut a).await;
+    f.bridge.open_session(&mut b).await;
+    let link_a = f.bridge.link(&provider, &a, "mock-a", "direct-a").await;
+    let link_b = f.bridge.link(&provider, &b, "mock-a", "direct-b").await;
+    let (status, direct) = f
+        .bridge
+        .post_keyed(
+            &provider,
+            "/v1/matches",
+            json!({
+                "external_match_id": "direct-1",
+                "game": "usf4",
+                "participants": [
+                    { "participant_id": link_a["participant_id"], "ember_id": a.id(), "slot": 0 },
+                    { "participant_id": link_b["participant_id"], "ember_id": b.id(), "slot": 1 },
+                ],
+                "rules": {
+                    "games_to_win": 2, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
+                    "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
+                    "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
+                },
+                "observer_policy": "authorized_only",
+                "result_policy": "two_player_agreement_or_review",
+                "required_build_id": "test-build",
+                "metadata": {},
+            }),
+            Some("direct-1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{direct}");
+    let id = direct["match_id"].as_str().unwrap().to_owned();
+    (provider, id)
+}
+
 /// The organizer voids the match's `nth` accepted game, first game 0.
 pub async fn void_game(f: &Fixture, id: &str, nth: usize, key: &str) -> StatusCode {
     let (_, found) = f
