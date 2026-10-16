@@ -162,6 +162,12 @@ impl Client {
         if profile.origin != origin || !is_prefixed_id(&profile.bridge_id, "brg") {
             return Err(Failure::new("bridge_mismatch"));
         }
+        Ok((profile, self.capabilities(origin).await?))
+    }
+
+    /// What the bridge at `origin` offers.
+    pub async fn capabilities(&self, origin: &str) -> Result<Capabilities, Failure> {
+        check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
         let (status, body) = self
             .call(
                 reqwest::Method::GET,
@@ -178,7 +184,7 @@ impl Client {
         if capabilities.api_version != "v1" {
             return Err(Failure::new("unsupported_bridge"));
         }
-        Ok((profile, capabilities))
+        Ok(capabilities)
     }
 
     /// The bridge's public signing keys, from the approved origin only.

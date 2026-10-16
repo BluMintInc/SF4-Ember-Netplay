@@ -57,15 +57,18 @@ pub fn status(tx: &Transaction<'_>, found: &Match, now: u64) -> Result<Value> {
     let mut players = Vec::new();
     for player in participants(tx, &found.id, found.generation)? {
         let ember_id = player.ember_id.as_str();
-        let connected = liveness.claiming(tx, &found.id, ember_id, now)?
-            || tx.query_row(
-                "SELECT EXISTS (SELECT 1 FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2)",
-                [found.id.as_str(), ember_id],
-                |row| row.get(0),
-            )?;
-        players.push(
-            json!({ "inGameId": player.ember_id, "status": presence(found.state, connected) }),
-        );
+        let claim = liveness.claim(tx, &found.id, ember_id, now)?;
+        let refused: bool = tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2)",
+            [found.id.as_str(), ember_id],
+            |row| row.get(0),
+        )?;
+        let seen = match claim {
+            _ if refused => Seen::Present { ready: false },
+            Some(ready) => Seen::Present { ready },
+            None => Seen::Absent,
+        };
+        players.push(json!({ "inGameId": player.ember_id, "status": presence(found.state, seen) }));
     }
     Ok(status_of(started, players))
 }
@@ -75,7 +78,7 @@ pub fn unopened_status(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     let players = participants(tx, &found.id, found.generation)?
         .into_iter()
         .map(
-            |player| json!({ "inGameId": player.ember_id, "status": presence(found.state, false) }),
+            |player| json!({ "inGameId": player.ember_id, "status": presence(found.state, Seen::Absent) }),
         )
         .collect();
     Ok(status_of(false, players))
@@ -102,18 +105,27 @@ pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
 }
 
-/// A player is present while their Ember is connected to the match
-/// (`liveness`). A player refused for their build stays present until a
-/// claim of theirs is taken, whether or not they stay: that Ember stops
-/// claiming, and the mismatch is the two fighters' builds. A player is ready while a game of the match is on, from
-/// its permit until it is decided. A game is prepared only once both
-/// fighters press Ready, so before that the bridge cannot tell which of two
-/// present players is waiting on the other: both read as not ready.
-fn presence(state: MatchState, connected: bool) -> &'static str {
-    match (connected, state) {
-        (false, _) => "absent",
-        (true, MatchState::Running | MatchState::AwaitingReports) => "present-ready",
-        (true, _) => "present-not-ready",
+/// What the bridge knows of a player: whether their Ember is connected to
+/// the match (`liveness`), and if so whether its latest claim said they
+/// pressed Ready at the match's table. A player refused for their build
+/// stays present, not ready, until a claim of theirs is taken, whether or not
+/// they stay: that Ember stops claiming, and the mismatch is the two
+/// fighters' builds.
+#[derive(Clone, Copy)]
+enum Seen {
+    Absent,
+    Present { ready: bool },
+}
+
+/// A present player is ready once they press Ready at the table, and while
+/// a game of the match is on, from its permit until it is decided. An Ember
+/// too old to say reads not ready until a game starts.
+fn presence(state: MatchState, seen: Seen) -> &'static str {
+    match (seen, state) {
+        (Seen::Absent, _) => "absent",
+        (Seen::Present { .. }, MatchState::Running | MatchState::AwaitingReports)
+        | (Seen::Present { ready: true }, _) => "present-ready",
+        (Seen::Present { ready: false }, _) => "present-not-ready",
     }
 }
 
@@ -159,10 +171,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_player_is_present_while_their_ember_is_connected_and_ready_while_a_game_is_on() {
+    fn a_player_is_present_while_their_ember_is_connected_and_ready_once_they_press_ready() {
         use MatchState::*;
+        let (waiting, ready) = (
+            Seen::Present { ready: false },
+            Seen::Present { ready: true },
+        );
         for state in [AwaitingPlayers, Running, BetweenGames] {
-            assert_eq!(presence(state, false), "absent", "{state:?}");
+            assert_eq!(presence(state, Seen::Absent), "absent", "{state:?}");
         }
         for state in [
             AwaitingPlayers,
@@ -171,10 +187,12 @@ mod tests {
             BetweenGames,
             NeedsReview,
         ] {
-            assert_eq!(presence(state, true), "present-not-ready", "{state:?}");
+            assert_eq!(presence(state, waiting), "present-not-ready", "{state:?}");
+            assert_eq!(presence(state, ready), "present-ready", "{state:?}");
         }
         for state in [Running, AwaitingReports] {
-            assert_eq!(presence(state, true), "present-ready", "{state:?}");
+            assert_eq!(presence(state, waiting), "present-ready", "{state:?}");
+            assert_eq!(presence(state, ready), "present-ready", "{state:?}");
         }
     }
 

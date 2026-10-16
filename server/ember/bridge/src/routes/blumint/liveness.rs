@@ -3,7 +3,7 @@
 //! claim not renewed within `LEASE_SECS` means it left. Time the bridge was
 //! down is not counted against a claim that was live when it stopped, since
 //! no Ember could claim meanwhile.
-use rusqlite::{Transaction, named_params};
+use rusqlite::{OptionalExtension, Transaction, named_params};
 
 use crate::error::Result;
 
@@ -22,10 +22,10 @@ macro_rules! lapses_at {
     };
 }
 
-const CLAIMING: &str = concat!(
-    "SELECT EXISTS (SELECT 1 FROM match_claims c WHERE c.match_id = :match AND c.ember_id = :ember AND ",
+const CLAIM: &str = concat!(
+    "SELECT c.ready FROM match_claims c WHERE c.match_id = :match AND c.ember_id = :ember AND ",
     lapses_at!(),
-    " > :now)"
+    " > :now"
 );
 
 const LAPSED: &str = concat!(
@@ -59,26 +59,29 @@ impl Liveness {
         )?)
     }
 
-    /// Whether the fighter's claim on the match is live at `now`.
-    pub fn claiming(
+    /// Whether the fighter's claim on the match is live at `now`, and if
+    /// so whether it said they pressed Ready.
+    pub fn claim(
         &self,
         tx: &Transaction<'_>,
         match_id: &str,
         ember_id: &str,
         now: u64,
-    ) -> Result<bool> {
-        Ok(tx.query_row(
-            CLAIMING,
-            named_params! {
-                ":match": match_id,
-                ":ember": ember_id,
-                ":lease": LEASE_SECS,
-                ":down_since": self.down_since,
-                ":resumed_at": self.resumed_at,
-                ":now": now,
-            },
-            |row| row.get(0),
-        )?)
+    ) -> Result<Option<bool>> {
+        Ok(tx
+            .query_row(
+                CLAIM,
+                named_params! {
+                    ":match": match_id,
+                    ":ember": ember_id,
+                    ":lease": LEASE_SECS,
+                    ":down_since": self.down_since,
+                    ":resumed_at": self.resumed_at,
+                    ":now": now,
+                },
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     /// The open matches a claim lapsed on since the last sweep, which is

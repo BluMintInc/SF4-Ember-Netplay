@@ -371,6 +371,69 @@ static void TestOrderingAndLeases() {
 	CHECK(refused.GetPhase() == Phase::Failed && refused.Reason() == "report_not_saved");
 }
 
+// Each claim says whether this fighter pressed Ready at the match's table, so
+// the bridge can tell the tournament who has not. A change is claimed at once,
+// at most every ReadyClaimSpacingMs, but not ahead of a failed claim's retry.
+static void TestReadyGoesWithTheClaim() {
+	TournamentPlay play;
+	play.Start("brg_x", "emt_x", 0);
+	// The Ready a tick's claim says, if it claims.
+	const auto claimed = [](const std::vector<Output>& out) {
+		const auto* claim = Find(out, Kind::Claim);
+		return claim ? std::optional<bool>(claim->ready) : std::nullopt;
+	};
+	const auto first = claimed(play.Tick(0, {}));
+	CHECK(first && !*first);
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 100);
+	room::Snapshot snapshot;
+	snapshot.tournament = MakeBinding(RoomA, 1).room;
+	snapshot.localMember = 2;
+	room::Member self;
+	self.id = 2;
+	self.table = static_cast<std::int8_t>(room::TournamentTable);
+	self.seat = 1;
+	snapshot.members.push_back(self);
+	auto& table = snapshot.tables[room::TournamentTable];
+	table.p2 = 2;
+	const auto view = Joined(RoomA, &snapshot, false);
+	CHECK(!claimed(play.Tick(200, view)));
+
+	// Ready goes out ReadyClaimSpacingMs after the last claim, not 10 s on.
+	table.ready[1] = true;
+	CHECK(!claimed(play.Tick(1000, view)));
+	const auto ready = claimed(play.Tick(2000, view));
+	CHECK(ready && *ready);
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 2100);
+	CHECK(!claimed(play.Tick(3000, view)));
+	// Taking it back goes out as soon too.
+	table.ready[1] = false;
+	CHECK(!claimed(play.Tick(3500, view)));
+	const auto unready = claimed(play.Tick(4000, view));
+	CHECK(unready && !*unready);
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 1)), 4100);
+
+	// Ready only counts in this fighter's own seat at the match's table.
+	table.ready[0] = true;
+	CHECK(!claimed(play.Tick(7000, view)));
+	snapshot.members[0].seat = -1;
+	table.ready[1] = true;
+	CHECK(!claimed(play.Tick(7000, view)));
+	snapshot.members[0].seat = 1;
+	snapshot.tournament = room::TournamentBinding();
+	CHECK(!claimed(play.Tick(7000, view)));
+	snapshot.tournament = MakeBinding(RoomA, 1).room;
+	CHECK(!claimed(play.Tick(7000, Joined(RoomB, &snapshot, false))));
+	const auto again = claimed(play.Tick(7000, view));
+	CHECK(again && *again);
+
+	// A failed claim's retry is not brought forward.
+	play.OnFailure(Kind::Claim, "service_unavailable", 7100);
+	table.ready[1] = false;
+	CHECK(!claimed(play.Tick(9200, view)));
+	const auto retried = claimed(play.Tick(12100, view));
+	CHECK(retried && !*retried);
+}
+
 int main() {
 	TestHostPublishesAndBinds();
 	TestGuestJoins();
@@ -379,6 +442,7 @@ int main() {
 	TestCancelledStart();
 	TestFinishedAndFailed();
 	TestOrderingAndLeases();
+	TestReadyGoesWithTheClaim();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("tournament play tests passed\n");
 	return failures ? 1 : 0;

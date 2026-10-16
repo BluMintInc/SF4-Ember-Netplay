@@ -8,11 +8,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ember_protocol::{
+    api::Capabilities,
     challenge::{Action, Method},
     encoding::{Counter, is_prefixed_id, prefixed_id},
     play::{
-        Binding, Claim, ClaimAnswer, Observation, Permit, Prepare, PrepareAnswer, PublishRoom,
-        SignedBinding, SignedPermit, TABLE,
+        Binding, CLAIM_READY_FEATURE, Claim, ClaimAnswer, Observation, Permit, Prepare,
+        PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE,
     },
     report::Outcome as GameOutcome,
 };
@@ -30,6 +31,8 @@ use super::{
 pub struct State {
     bindings: HashMap<String, Binding>,
     permits: HashMap<(String, u64), Permit>,
+    /// Whether the bridge of each match reads a claim's `ready`.
+    reads_ready: HashMap<String, bool>,
 }
 
 fn check_match_id(match_id: &str) -> Result<(), Failure> {
@@ -180,25 +183,34 @@ pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     .await
 }
 
-/// Claims `match_id` with this helper run's endpoint. Claiming again renews
-/// a provisioning lease and picks up a newer binding.
+/// Claims `match_id` with this helper run's endpoint, saying whether the
+/// fighter has pressed Ready at its table. Claiming again renews a
+/// provisioning lease and picks up a newer binding.
 pub async fn claim_match(
     shared: &Arc<Shared>,
     bridge_id: &str,
     match_id: &str,
     build: &str,
+    ready: bool,
 ) -> Outcome {
     check_match_id(match_id)?;
     let claim = Claim {
         endpoint_id: shared.endpoint_id.clone(),
         helper_instance_id: shared.instance_id.clone(),
         build_id: build.to_owned(),
+        ready: None,
     };
     claim.check().map_err(|_| Failure::new("invalid_request"))?;
-    let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
     client::with_session(shared, bridge_id, |bridge, token| {
-        let command = command.clone();
+        let claim = claim.clone();
         async move {
+            let claim = Claim {
+                ready: reads_ready(shared, &bridge, match_id)
+                    .await?
+                    .then_some(ready),
+                ..claim
+            };
+            let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
             let path = format!("/v1/matches/{match_id}/claims");
             let value = proven(shared, &bridge, &token, Action::MatchClaim, &path, command).await?;
             let answer: ClaimAnswer = serde_json::from_value(value)
@@ -207,6 +219,33 @@ pub async fn claim_match(
         }
     })
     .await
+}
+
+/// Whether the bridge reads a claim's `ready`. An older bridge refuses a
+/// claim carrying it, so the helper asks the bridge's capabilities once per
+/// match, and again on the next claim if it could not.
+async fn reads_ready(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    match_id: &str,
+) -> Result<bool, Failure> {
+    let state = || shared.play.lock().map_err(|_| Failure::new("internal"));
+    if let Some(&known) = state()?.reads_ready.get(match_id) {
+        return Ok(known);
+    }
+    let Ok(capabilities) = shared.client.capabilities(&bridge.origin).await else {
+        return Ok(false);
+    };
+    let reads = lists_ready(&capabilities);
+    state()?.reads_ready.insert(match_id.to_owned(), reads);
+    Ok(reads)
+}
+
+fn lists_ready(capabilities: &Capabilities) -> bool {
+    capabilities
+        .features
+        .iter()
+        .any(|feature| feature == CLAIM_READY_FEATURE)
 }
 
 /// Publishes the room this game hosts for `match_id`.
@@ -461,6 +500,7 @@ pub fn forget(shared: &Shared, match_id: &str) -> Outcome {
     let mut state = shared.play.lock().map_err(|_| Failure::new("internal"))?;
     state.bindings.remove(match_id);
     state.permits.retain(|(id, _), _| id != match_id);
+    state.reads_ready.remove(match_id);
     Ok(None)
 }
 
@@ -468,4 +508,51 @@ fn random() -> Result<[u8; 16], Failure> {
     let mut bytes = [0; 16];
     getrandom::fill(&mut bytes).map_err(|_| Failure::new("internal"))?;
     Ok(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tournament::Request;
+
+    fn capabilities(features: &[&str]) -> Capabilities {
+        serde_json::from_value(json!({
+            "api_version": "v1", "event_version": "v1", "games": ["usf4"], "games_to_win": [1],
+            "native_rules_profiles": [], "native_play": true, "result_sources": [],
+            "features": features,
+            "limits": {
+                "max_body_bytes": 1, "max_proof_body_bytes": 1, "max_json_depth": 1,
+                "challenge_lifetime_secs": 1, "session_lifetime_secs": 1, "link_code_lifetime_secs": 1,
+            },
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn the_game_says_whether_its_fighter_is_ready_with_each_claim() {
+        let claim = |extra: Value| {
+            let mut value = json!({ "op": "match_claim", "bridge_id": "brg_x", "match_id": "emt_x", "build": "b1" });
+            if let Value::Object(extra) = extra {
+                value.as_object_mut().unwrap().extend(extra);
+            }
+            serde_json::from_value::<Request>(value)
+        };
+        let ready = |request: Request| match request {
+            Request::MatchClaim { ready, .. } => ready,
+            _ => panic!("not a claim"),
+        };
+        assert!(ready(claim(json!({ "ready": true })).unwrap()));
+        assert!(!ready(claim(json!({ "ready": false })).unwrap()));
+        assert!(!ready(claim(json!({})).unwrap()));
+        assert!(claim(json!({ "ready": "yes" })).is_err());
+    }
+
+    #[test]
+    fn a_claim_says_ready_only_to_a_bridge_that_reads_it() {
+        assert!(lists_ready(&capabilities(&[
+            "matches.play",
+            CLAIM_READY_FEATURE
+        ])));
+        assert!(!lists_ready(&capabilities(&["matches.play"])));
+    }
 }

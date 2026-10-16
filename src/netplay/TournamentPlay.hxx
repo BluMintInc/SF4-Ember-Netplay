@@ -23,6 +23,9 @@ namespace sf4e { namespace netplay { namespace tournament {
 // How often a fighter claims the match again: it renews a provisioning lease
 // and picks up a newer binding.
 constexpr std::uint64_t ClaimIntervalMs = 10000;
+// How soon after a claim a change of the fighter's Ready is claimed, so the
+// bridge hears it at once, however often they press it.
+constexpr std::uint64_t ReadyClaimSpacingMs = 2000;
 // How soon a failed request is tried again.
 constexpr std::uint64_t RetryMs = 5000;
 // How often a fighter waiting for a permit asks the bridge, at most.
@@ -79,6 +82,7 @@ struct Output {
 		Bind, PermitReady,                // room changes
 		Forget,                           // the helper drops what it verified
 	} kind = Kind::Claim;
+	bool ready = false;                           // Claim: this fighter pressed Ready at the match's table
 	std::string roomId, invitation;               // Publish, Join
 	std::string leaseId, fence, replaces;         // Publish
 	std::uint64_t generation = 0;                 // Prepare, Report, PermitReady
@@ -127,6 +131,9 @@ public:
 
 private:
 	void Fail(Phase phase, const std::string& reason);
+	// This fighter is seated at the match's bound table in the match's room,
+	// and has pressed Ready there.
+	bool SeatReady(const RoomView& room) const;
 	void FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out);
 	void TrackPermits(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out);
 	// Hands `report` to the helper and keeps it until the helper saved it.
@@ -139,6 +146,10 @@ private:
 	std::vector<Output> pending_;
 	bool claimInFlight_ = false, prepareInFlight_ = false, publishInFlight_ = false;
 	std::uint64_t nextClaimMs_ = 0, nextPrepareMs_ = 0, nextPublishMs_ = 0, openedAtMs_ = 0;
+	// The Ready the last claim said, and when it was sent. A claim that
+	// failed waits out its retry, whatever changed.
+	bool claimedReady_ = false, claimFailed_ = false;
+	std::uint64_t claimedAtMs_ = 0;
 	// The provisioning lease from a Host answer, until the room is published.
 	std::string leaseId_, fence_;
 	bool hostRequested_ = false, joinRequested_ = false, leaving_ = false, published_ = false;

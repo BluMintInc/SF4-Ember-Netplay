@@ -179,8 +179,9 @@ with BluMint's API key. Every report names each player by the Ember ID you
 sent, and its `wins` count the `startingWins` the match was created with.
 
 A `status` report each time the match's status changes: as each player
-opens the match in Ember or leaves it, as each game starts, and as each game
-ends with another to come. A match nobody has opened has none.
+opens the match in Ember or leaves it, presses Ready or takes it back, as
+each game starts, and as each game ends with another to come. A match nobody
+has opened has none.
 
 ```json
 { "mode": "status", "matchId": "emt_...", "status": "running",
@@ -195,18 +196,22 @@ from then on, whatever games an organizer recorded. Each player is:
 | `status` | When |
 |---|---|
 | `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for a minute |
-| `present-not-ready` | Their Ember is connected to it and no game is being played, before the first or between games; or it was refused because its build differs from their opponent's |
-| `present-ready` | A game is being played, from its start until both games report it |
+| `present-not-ready` | Their Ember is connected to it and they have not pressed Ready for the next game, or took it back or left their seat; or it was refused because its build differs from their opponent's |
+| `present-ready` | They pressed Ready for the next game, or a game is being played, from its start until both games report it |
+
+Each player's Ember says whether they have pressed Ready every time it
+claims the match, and claims again as soon as that changes, at most once
+every two seconds, so
+a player waiting for an opponent who never presses Ready reads
+`present-ready` and the opponent `present-not-ready`. Each game's end takes
+both players' Ready back, so both read `present-not-ready` until they press
+it for the next game. An Ember from before this release does not say, and its
+player reads `present-not-ready` until a game starts.
 
 A refused Ember stops claiming the match, so the bridge cannot tell whether
 that player stays: they read `present-not-ready` for the rest of the match,
 until they open it again on their opponent's build. Time the bridge itself
 is down does not count toward the minute.
-
-Ember cannot say which present player is not ready. A game starts only once
-both players press Ready, and the bridge hears of neither press before then,
-so a player waiting for an opponent who never presses Ready reads
-`present-not-ready`, the same as that opponent.
 
 `revision` is an integer that rises with each change on the match, and
 `observedAt` is when the bridge saw it. A report that waited is sent as the
