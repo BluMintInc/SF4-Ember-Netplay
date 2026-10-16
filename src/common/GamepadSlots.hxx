@@ -79,6 +79,13 @@ inline void Classify(std::vector<Pad>& pads, const std::set<std::string>& savedE
     }
 }
 
+// SDL's DirectInput backend and the game both open a pad for exclusive use, so
+// only one can read it. SDL holds an unmapped or game-read pad raw only while the
+// setup wizard reads it (setup = the pad being set up); otherwise the game keeps it.
+inline bool WantsRawHandle(const Pad& pad, const std::optional<Identity>& setup) {
+    return setup && Same(pad.identity, *setup) && (pad.status == Status::Unmapped || pad.status == Status::GameRead);
+}
+
 struct DroppedReservation {
     int slot;
     Identity owner;

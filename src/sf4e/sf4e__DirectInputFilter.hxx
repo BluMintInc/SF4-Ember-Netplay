@@ -19,4 +19,9 @@ HRESULT Wrap(REFIID iid, void** object, Serves serves);
 // The native provider's accepted enumeration, before SDL ordering or names.
 std::vector<gamepads::NativeController> ReadControllers();
 
+// Game thread. The pads at these driver paths are read raw by the setup wizard:
+// the game's devices for them give up their exclusive acquisition now and fail
+// Acquire until a later call leaves the path out. Replaces the previous list.
+void LendToSetup(const std::vector<std::string>& paths);
+
 } }

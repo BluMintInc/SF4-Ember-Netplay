@@ -90,7 +90,9 @@ void CaptureMenuInput() {
                 LogGameplayController(*device, "restore"); runtime->setupAdoption.reset();
             }
         }
-        if (!runtime->inputInitialized && runtime->input.State()==input::Capture::Idle &&
+        // A DirectInput pad in setup reads disconnected to the game (LendToSetup);
+        // a provisional choice is not replaced or captured over meanwhile.
+        if (!runtime->inputInitialized && !setup.state.active && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) RestoreMenuController();
         const int previousIndex = runtime->input.Selected().index;
         const bool captured = runtime->input.Tick(runtime->inputDevices);

@@ -40,9 +40,9 @@ template<class Api>
 struct FakeDevice : Api::Device {
     ULONG refs = 1, added = 0, released = 0;
     unsigned queries = 0;
-    unsigned reads = 0, events = 0, polls = 0, acquires = 0;
+    unsigned reads = 0, events = 0, polls = 0, acquires = 0, unacquires = 0;
     unsigned pathReads = 0;
-    HRESULT propertyResult = DI_OK, formatResult = DI_OK;
+    HRESULT propertyResult = DI_OK, formatResult = DI_OK, acquireResult = DIERR_OTHERAPPHASPRIO;
     HRESULT pathResult = DI_OK, infoResult = DI_OK;
     std::wstring path;
     std::vector<DIOBJECTDATAFORMAT> objects;
@@ -81,7 +81,7 @@ struct FakeDevice : Api::Device {
         return DIERR_OBJECTNOTFOUND;
     }
     HRESULT STDMETHODCALLTYPE GetDeviceInfo(typename Api::Instance* out) override { *out = info; return infoResult; }
-    HRESULT STDMETHODCALLTYPE Acquire() override { ++acquires; return DIERR_OTHERAPPHASPRIO; }
+    HRESULT STDMETHODCALLTYPE Acquire() override { ++acquires; return acquireResult; }
     HRESULT STDMETHODCALLTYPE Poll() override { ++polls; return DI_NOEFFECT; }
     HRESULT STDMETHODCALLTYPE GetCapabilities(DIDEVCAPS*) override { return E_NOTIMPL; }
     HRESULT STDMETHODCALLTYPE EnumObjects(typename Api::Objects, void*, DWORD) override { return E_NOTIMPL; }
@@ -97,7 +97,7 @@ struct FakeDevice : Api::Device {
         std::copy(path.begin(), path.end(), out->wszPath);
         return pathResult;
     }
-    HRESULT STDMETHODCALLTYPE Unacquire() override { return E_NOTIMPL; }
+    HRESULT STDMETHODCALLTYPE Unacquire() override { ++unacquires; return DI_OK; }
     HRESULT STDMETHODCALLTYPE SetEventNotification(HANDLE) override { return E_NOTIMPL; }
     HRESULT STDMETHODCALLTYPE SetCooperativeLevel(HWND, DWORD) override { return E_NOTIMPL; }
     HRESULT STDMETHODCALLTYPE RunControlPanel(HWND, DWORD) override { return E_NOTIMPL; }
@@ -336,6 +336,39 @@ static void UnavailableInstance() {
     CHECK(device->Release() == 0 && inner.refs == 0);
 }
 
+// An unmapped pad is the game's until the setup wizard reads it raw through SDL.
+// Both take it exclusively, so the game's device lets go at once and fails
+// Acquire while lent, then takes the pad back.
+template<class Api>
+static void LentToSetup() {
+    FakeDevice<Api> inner, other;
+    inner.path = LR"(\\?\hid#stick-c)"; other.path = LR"(\\?\hid#stick-d)"; other.info.guidInstance.Data1 = 44;
+    void* object = static_cast<typename Api::Device*>(&inner);
+    void* otherObject = static_cast<typename Api::Device*>(&other);
+    CHECK(filter::Wrap(Api::DeviceIid(), &object, Serves) == S_OK && filter::Wrap(Api::DeviceIid(), &otherObject, Serves) == S_OK);
+    auto* device = static_cast<typename Api::Device*>(object);
+    auto* otherDevice = static_cast<typename Api::Device*>(otherObject);
+    auto stick = Controller(); stick.status = pads::Status::Unmapped; stick.identity.path = R"(\\.\HID#STICK-C)";
+    inventory = {stick};
+    inner.acquireResult = other.acquireResult = DI_OK;
+    CHECK(device->Acquire() == DI_OK && inner.acquires == 1);
+    filter::LendToSetup({stick.identity.path});
+    CHECK(inner.unacquires == 1 && !other.unacquires);
+    CHECK(device->Acquire() == DIERR_OTHERAPPHASPRIO && inner.acquires == 1 && inner.unacquires == 2);
+    CHECK(otherDevice->Acquire() == DI_OK && other.acquires == 1);
+    // Lending is not serving: the game's reads still reach the pad.
+    DIJOYSTATE state{};
+    CHECK(device->GetDeviceState(sizeof(state), &state) == DIERR_INPUTLOST && inner.reads == 1);
+    filter::LendToSetup({});
+    CHECK(device->Acquire() == DI_OK && inner.acquires == 2 && inner.unacquires == 2);
+    // A released wrapper leaves the registry.
+    CHECK(device->Release() == 0 && inner.refs == 0);
+    filter::LendToSetup({stick.identity.path});
+    CHECK(inner.unacquires == 2);
+    filter::LendToSetup({});
+    CHECK(otherDevice->Release() == 0 && other.refs == 0);
+}
+
 template<class Api>
 static BOOL CALLBACK Count(const typename Api::Instance*, void* context) {
     ++*static_cast<unsigned*>(context); return DIENUM_CONTINUE;
@@ -481,6 +514,7 @@ int main() {
     Decision(); NeutralBuilder();
     DeviceWrapper<Ansi>(); DeviceWrapper<Wide>();
     UnavailableInstance<Ansi>(); UnavailableInstance<Wide>();
+    LentToSetup<Ansi>(); LentToSetup<Wide>();
     InputWrapper<Ansi>(); InputWrapper<Wide>();
     PerInstanceEnumeration<Ansi>(); PerInstanceEnumeration<Wide>();
     FailedIdentityQueries<Ansi>(); FailedIdentityQueries<Wide>();

@@ -154,15 +154,20 @@ void Rebuild() {
     }
     SDL_free(ids);
     Classify(pads, savedEmberMappingGuids);
+    const auto settingUp = setup.state.active ? std::make_optional(setup.identity) : std::nullopt;
     for (auto it = rawHandles.begin(); it != rawHandles.end();) {
         const bool keep = std::any_of(pads.begin(), pads.end(), [&](const Pad& pad) {
-            return pad.id == it->first && (pad.status == Status::Unmapped ||
-                (setup.state.active && Same(pad.identity, setup.identity) && pad.status == Status::GameRead));
+            return pad.id == it->first && WantsRawHandle(pad, settingUp);
         });
         if (keep) { ++it; continue; }
         SDL_CloseJoystick(it->second.handle); it = rawHandles.erase(it);
     }
-    for (auto& pad : pads) if ((pad.status == Status::Unmapped || (setup.state.active && Same(pad.identity, setup.identity) && pad.status == Status::GameRead)) && !rawHandles.count(pad.id)) {
+    // The game's device lets go before SDL opens the pad, so SDL's open acquires
+    // it and reads its rest; closed handles above hand it back to the game.
+    std::vector<std::string> lent;
+    for (const auto& pad : pads) if (WantsRawHandle(pad, settingUp)) lent.push_back(pad.identity.path);
+    DirectInputFilter::LendToSetup(lent);
+    for (auto& pad : pads) if (WantsRawHandle(pad, settingUp) && !rawHandles.count(pad.id)) {
         if (auto* joystick = SDL_OpenJoystick(pad.id)) {
             RawJoystick raw{joystick, {}};
             for (int axis = 0; axis < SDL_GetNumJoystickAxes(joystick); ++axis) {
@@ -173,6 +178,8 @@ void Rebuild() {
             rawHandles.emplace(pad.id, std::move(raw));
         }
     }
+    // SDL's DirectInput backend reports no serial, so an unmapped pad's identity
+    // is the same with or without its setup handle.
     for (auto& pad : pads) {
         const auto raw = rawHandles.find(pad.id);
         if (raw != rawHandles.end()) pad.identity.serial = Text(SDL_GetJoystickSerial(raw->second.handle));
@@ -421,6 +428,7 @@ void CloseLocked() {
     handles.clear(); rumble.clear();
     for (const auto& [id, raw] : rawHandles) SDL_CloseJoystick(raw.handle);
     rawHandles.clear(); frames.clear();
+    DirectInputFilter::LendToSetup({});
     inventory = {}; snapshots = {};
     SDL_Quit();
     active = false;

@@ -36,7 +36,9 @@ void ApplicationShell::UpdatePadSetup(const ShellView& view, const Submit& submi
     auto& nav = menu_.navigation;
     if (visible && view.atMainMenu && !setupPad_) reopenScreen_.reset();
     std::set<unsigned> pressed, rising;
-    for (const auto& pad : view.pads) if (pad.pressed && std::any_of(pad.raw.begin(), pad.raw.end(), [](const RawInput& input) { return input.kind <= RawKind::HatLeft; })) {
+    // Outside the wizard SDL leaves an unmapped pad to the game: it has no raw
+    // inputs, and pressed is the game's own DirectInput word (ControllerInventory).
+    for (const auto& pad : view.pads) if (pad.pressed && (pad.raw.empty() || std::any_of(pad.raw.begin(), pad.raw.end(), [](const RawInput& input) { return input.kind <= RawKind::HatLeft; }))) {
         pressed.insert(pad.id); if (!setupPromptHeld_.count(pad.id)) rising.insert(pad.id);
     }
     setupPromptHeld_ = std::move(pressed);

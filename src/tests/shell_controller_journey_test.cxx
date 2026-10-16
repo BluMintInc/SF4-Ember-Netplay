@@ -140,6 +140,22 @@ void SetupJourneys() {
     Check(h.shell.Navigation().Screen() == "controllers", "Reopening lost the silent cancel destination");
 }
 }
+// Outside the wizard the game holds an unmapped pad, so its press arrives as
+// the game's own DirectInput word: pressed with no raw inputs.
+static void GamePressPrompt() {
+    using namespace sf4e; using namespace gamepads;
+    Harness h; h.view.inputDevice.type = input::PadXInput;
+    PadView pad; pad.id = 12; pad.name = "Game-held stick"; pad.picture = "controller_generic";
+    pad.identity = {"held-guid", "", "held-path", pad.name}; pad.state = RowState::Unmapped; pad.directInputIndex = 4;
+    h.view.pads = {pad}; h.Frame();
+    h.view.pads[0].pressed = true; h.Frame();
+    Check(h.actions.back().padAction.kind == ControllerRequest::Kind::Prompt, "A press read by the game did not prompt setup");
+    h.Frame(0, 3); Check(h.shell.Navigation().Screen() == "home", "The prompting press opened setup without a release");
+    h.view.pads[0].pressed = false; h.Frame();
+    h.view.pads[0].pressed = true; h.Frame();
+    Check(h.shell.Navigation().Screen() == "pad-setup" && h.actions.back().padAction.kind == ControllerRequest::Kind::Setup,
+        "A release and press read by the game did not open setup");
+}
 static void ControllerSettingsJourney() {
     using namespace sf4e;
     using namespace gamepads;
@@ -210,4 +226,4 @@ static void ControllerSettingsJourney() {
     Check(h.actions.size() == locked, "Locked opt-out changed preferences");
     SetMenuEntriesProbe({});
 }
-void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); GameplayTargetSummary(); OtherPadDuringSummary(); }
+void ControllerJourneys() { ControllerSettingsJourney(); SetupJourneys(); GamePressPrompt(); GameplayTargetSummary(); OtherPadDuringSummary(); }

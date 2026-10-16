@@ -3,6 +3,7 @@
 #include "../common/DirectInputState.hxx"
 #include "../platform/Utf8.hxx"
 #include <spdlog/spdlog.h>
+#include <algorithm>
 #include <mutex>
 #include <new>
 #include <set>
@@ -13,6 +14,22 @@ namespace {
 bool ServesDevice(const GUID& instance, DWORD product, const std::string& path);
 std::mutex controllersMutex;
 std::vector<gamepads::NativeController> nativeControllers;
+// Live game devices, so a pad lent to the setup wizard is let go at once, not at
+// the game's next poll. Never held while calling into Gamepads.
+class Lendable {
+public:
+    virtual const std::string& Path() const = 0;
+    virtual void LetGo() = 0;
+protected:
+    ~Lendable() = default;
+};
+struct LentState { std::mutex mutex; std::vector<std::string> paths; std::set<Lendable*> devices; };
+// Leaked on purpose: the game may release its devices after this DLL's statics are destroyed.
+LentState& Lent() { static auto* state = new LentState; return *state; }
+bool LentLocked(const std::string& path) {
+    const auto& lentPaths = Lent().paths;
+    return std::any_of(lentPaths.begin(), lentPaths.end(), [&](const std::string& lent) { return gamepads::SameDriverPath(lent, path); });
+}
 struct GuidLess {
     bool operator()(const GUID& a, const GUID& b) const { return std::memcmp(&a, &b, sizeof(GUID)) < 0; }
 };
@@ -94,7 +111,7 @@ private:
 };
 
 template<class Api>
-class Device final : public OwnedCom<typename Api::Device> {
+class Device final : public OwnedCom<typename Api::Device>, private Lendable {
     using Base = OwnedCom<typename Api::Device>;
     using Base::inner_;
 public:
@@ -102,7 +119,9 @@ public:
         Base(inner, Api::DeviceIid()), serves_(serves), path_(DevicePath(inner)) {
         info_.dwSize = sizeof(info_);
         if (FAILED(inner_->GetDeviceInfo(&info_))) info_ = {};
+        std::lock_guard lock(Lent().mutex); Lent().devices.insert(this);
     }
+    ~Device() override { std::lock_guard lock(Lent().mutex); Lent().devices.erase(this); }
     HRESULT STDMETHODCALLTYPE GetDeviceState(DWORD size, void* out) override {
         if (!Served()) return inner_->GetDeviceState(size, out);
         return neutral_.Write(size, out) ? DI_OK : DIERR_INVALIDPARAM;
@@ -153,7 +172,13 @@ public:
     HRESULT STDMETHODCALLTYPE GetCapabilities(DIDEVCAPS* a) override { return inner_->GetCapabilities(a); }
     HRESULT STDMETHODCALLTYPE EnumObjects(typename Api::EnumObjects a, void* b, DWORD c) override { return inner_->EnumObjects(a,b,c); }
     HRESULT STDMETHODCALLTYPE GetProperty(REFGUID a, DIPROPHEADER* b) override { return inner_->GetProperty(a,b); }
-    HRESULT STDMETHODCALLTYPE Acquire() override { return inner_->Acquire(); }
+    HRESULT STDMETHODCALLTYPE Acquire() override {
+        // While the wizard reads the pad through SDL, the game polls it as
+        // lost (sub_6D8C90 zeroes its state) instead of taking it back.
+        std::lock_guard lock(Lent().mutex);
+        if (LentLocked(path_)) { inner_->Unacquire(); return DIERR_OTHERAPPHASPRIO; }
+        return inner_->Acquire();
+    }
     HRESULT STDMETHODCALLTYPE Unacquire() override { return inner_->Unacquire(); }
     HRESULT STDMETHODCALLTYPE SetEventNotification(HANDLE a) override { return inner_->SetEventNotification(a); }
     HRESULT STDMETHODCALLTYPE SetCooperativeLevel(HWND a, DWORD b) override { return inner_->SetCooperativeLevel(a,b); }
@@ -176,6 +201,8 @@ public:
     HRESULT STDMETHODCALLTYPE SetActionMap(typename Api::ActionFormat* a, typename Api::String b, DWORD c) override { return inner_->SetActionMap(a,b,c); }
     HRESULT STDMETHODCALLTYPE GetImageInfo(typename Api::ImageInfo* a) override { return inner_->GetImageInfo(a); }
 private:
+    const std::string& Path() const override { return path_; }
+    void LetGo() override { inner_->Unacquire(); }
     bool Served() const { return info_.dwSize && serves_(info_.guidInstance, info_.guidProduct.Data1, path_); }
     const Serves serves_;
     const std::string path_;
@@ -277,6 +304,14 @@ HRESULT Wrap(REFIID iid, void** object, Serves serves) {
 std::vector<gamepads::NativeController> ReadControllers() {
     std::lock_guard lock(controllersMutex);
     return nativeControllers;
+}
+
+void LendToSetup(const std::vector<std::string>& paths) {
+    auto& lent = Lent();
+    std::lock_guard lock(lent.mutex);
+    lent.paths.clear();
+    for (const auto& path : paths) if (!path.empty()) lent.paths.push_back(path);
+    for (auto* device : lent.devices) if (LentLocked(device->Path())) device->LetGo();
 }
 
 HRESULT WINAPI Create(HINSTANCE instance, DWORD version, REFIID iid, void** out, IUnknown* outer) {

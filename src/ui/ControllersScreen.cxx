@@ -154,7 +154,9 @@ void TestLine(const PadView& pad, PromptBrand brand, const std::vector<const cha
 }
 }
 void DrawControllerDetail(const PadView& pad, ButtonPrompts prompts) {
-    Picture(pad, 64);
+    // The game holds an unmapped pad, so Ember sees only whether it reads a press
+    // (no input names): the picture lights while it does.
+    Picture(pad, 64, pad.state == RowState::Unmapped && !pad.pressed ? .4f : 1.f);
     if (pad.state == RowState::Recognised || pad.state == RowState::Steam) {
         ImGui::TextUnformatted(loc::T("controllers.test_heading"));
         const auto brand = ResolvePrompts(prompts, input::PadXInput, pad.brand);
@@ -162,7 +164,9 @@ void DrawControllerDetail(const PadView& pad, ButtonPrompts prompts) {
         TestLine(pad, brand, {"A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LS", "RS", "View", "Start"});
     } else if (pad.state == RowState::Unmapped) {
         ImGui::TextUnformatted(loc::T("controllers.test_heading"));
-        const auto text = pad.raw.empty() ? std::string(loc::T("controllers.test_nothing")) : loc::Tf("controllers.test_raw", RawInputList(pad.raw));
+        // An empty line while pressed keeps the pane from moving.
+        const auto text = !pad.raw.empty() ? loc::Tf("controllers.test_raw", RawInputList(pad.raw)) :
+            pad.pressed ? std::string() : std::string(loc::T("controllers.test_nothing"));
         ImGui::TextWrapped("%s", text.c_str());
     }
 }

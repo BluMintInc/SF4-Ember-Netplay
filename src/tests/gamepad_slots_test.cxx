@@ -114,6 +114,28 @@ static void Eligibility() {
     }
 }
 
+// SDL and the game both take DirectInput pads exclusively, so SDL holds one raw
+// only for the wizard; outside setup an unmapped stick stays the game's.
+static void RawHandles() {
+    auto unmapped = Controller(1); unmapped.mapped = false;
+    auto stick = Controller(2); stick.vid = NativeProfiles[0].vid; stick.pid = NativeProfiles[0].pid;
+    std::vector<Pad> pads{unmapped, stick, Controller(3)};
+    Classify(pads, {});
+    CHECK(pads[0].status == Status::Unmapped && pads[1].status == Status::GameRead && pads[2].status == Status::NotInUse);
+    for (const auto& pad : pads) CHECK(!WantsRawHandle(pad, std::nullopt));
+    CHECK(WantsRawHandle(pads[0], pads[0].identity) && !WantsRawHandle(pads[1], pads[0].identity) && !WantsRawHandle(pads[2], pads[0].identity));
+    CHECK(WantsRawHandle(pads[1], pads[1].identity) && !WantsRawHandle(pads[0], pads[1].identity));
+    // A recognised pad in setup is read through its gamepad handle instead.
+    CHECK(!WantsRawHandle(pads[2], pads[2].identity));
+    for (const auto status : {Status::Slotted, Status::SteamTwin}) {
+        auto other = pads[0]; other.status = status;
+        CHECK(!WantsRawHandle(other, other.identity));
+    }
+    // The setup identity may carry a serial the inventory's copy lacks; Same() still matches.
+    auto serialed = pads[0].identity; serialed.serial = "SERIAL-1";
+    CHECK(WantsRawHandle(pads[0], serialed));
+}
+
 static void SteamPairing() {
     auto steam = Controller(2, SteamGuid);
     auto physical = Controller(1);
@@ -289,6 +311,6 @@ static void Mapping() {
 }
 
 int main() {
-    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); SteamPairing(); SteamByGuid(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
+    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); RawHandles(); SteamPairing(); SteamByGuid(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
     std::cout << "Gamepad slots and XInput mapping passed\n";
 }
