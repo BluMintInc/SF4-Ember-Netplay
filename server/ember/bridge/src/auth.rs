@@ -274,8 +274,8 @@ impl Service {
     }
 }
 
-/// Issues a provider or organizer credential. The token is returned once and
-/// stored only as a keyed hash.
+/// Issues a provider or organizer credential, returning its id and its token.
+/// The token is returned once and stored only as a keyed hash.
 pub fn issue_credential(
     tx: &Transaction<'_>,
     keys: &Keys,
@@ -284,8 +284,9 @@ pub fn issue_credential(
     role: Role,
     label: &str,
     now: u64,
-) -> Result<String> {
+) -> Result<(String, String)> {
     let token = new_token(SERVICE_PREFIX);
+    let id = new_id("cred");
     let role_name = match role {
         Role::Provider => "provider",
         Role::Organizer => "organizer",
@@ -300,7 +301,7 @@ pub fn issue_credential(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
             hash(keys, "service", &token).as_slice(),
-            new_id("cred"),
+            id,
             tenant_id,
             connection_id,
             role_name,
@@ -308,7 +309,7 @@ pub fn issue_credential(
             now
         ],
     )?;
-    Ok(token)
+    Ok((id, token))
 }
 
 /// Starts a mock-provider browser session for `account_id` and returns the

@@ -299,6 +299,8 @@ earlier one gave a team, so once a `progress` report has been posted an
 organizer can no longer void a game of the set. A closed match is sent nothing more. `ember-bridge
 blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
+Once all three are registered it revokes the callback credential an earlier
+registration handed over; one that fails partway leaves it in place.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.
 
 A `blumint` connection makes matches only through BluMint's create

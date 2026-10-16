@@ -30,6 +30,7 @@ use std::collections::BTreeMap;
 
 use axum::{extract::State, http::HeaderMap, response::Response};
 use ember_protocol::EmberId;
+use rusqlite::params;
 use serde_json::{Value, json};
 
 pub use close::close;
@@ -77,10 +78,16 @@ fn parse<T: serde::de::DeserializeOwned>(body: &Body<GENERAL_BODY>) -> Result<T>
 
 /// The BluMint connection a provider credential speaks for.
 async fn connection(state: &AppState, headers: &HeaderMap) -> Result<String> {
+    Ok(caller(state, headers).await?.0)
+}
+
+/// The BluMint connection a provider credential speaks for, and the
+/// credential's id.
+async fn caller(state: &AppState, headers: &HeaderMap) -> Result<(String, String)> {
     let service = auth::service(state, headers).await?;
     let id = service.provider_connection()?.to_owned();
     match state.config.connection(&id) {
-        Some((_, connection)) if connection.kind == BLUMINT => Ok(id),
+        Some((_, connection)) if connection.kind == BLUMINT => Ok((id, service.id)),
         _ => Err(ApiFailure::not_found()),
     }
 }
@@ -115,9 +122,15 @@ pub async fn lookup(
     Ok(ok(&json!({ "discord": found })))
 }
 
+/// The label of the credential BluMint calls the bridge with.
+const CALLBACK_LABEL: &str = "BluMint callbacks";
+
 /// Tells BluMint where this bridge's three endpoints are, with a new provider
 /// credential for BluMint to call them with. The credential goes straight to
-/// BluMint and is never shown.
+/// BluMint and is never shown. BluMint keeps one credential per route, so
+/// once every route has the new one, the ones earlier registrations handed
+/// over are revoked. A registration that fails partway revokes nothing,
+/// since BluMint may hold either credential on each route.
 pub async fn register(state: &AppState, connection_id: &str) -> std::result::Result<(), String> {
     let Some((_, connection)) = state
         .config
@@ -141,9 +154,10 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
     if !policy::stored_enabled(state, connection_id).await {
         return Err(disabled());
     }
-    let token = crate::issue_credential(state, Some(connection_id), None, "BluMint callbacks")
-        .await
-        .map_err(|_| "could not issue the callback credential".to_owned())?;
+    let (credential, token) =
+        crate::issue_identified_credential(state, Some(connection_id), None, CALLBACK_LABEL)
+            .await
+            .map_err(|_| "could not issue the callback credential".to_owned())?;
     let authentication = json!({
         "config": { "location": "header", "key": "Authorization", "valuePrefix": "Bearer " },
         "secret": token,
@@ -152,6 +166,11 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
     let client = outbound_client()
         .build()
         .map_err(|error| error.to_string())?;
+    let partway = |error: String| {
+        format!(
+            "{error}; the earlier callback credentials and the new one, {credential}, stay valid until a registration succeeds"
+        )
+    };
     for (path, field, ours) in [
         (
             "/tournaments/setLookupPlayer",
@@ -166,7 +185,7 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
         ("/tournaments/match/setClose", "closeMatchUrl", CLOSE_PATH),
     ] {
         if !policy::stored_enabled(state, connection_id).await {
-            return Err(disabled());
+            return Err(partway(disabled()));
         }
         let body = json!({ field: format!("{origin}{ours}"), "authentication": authentication });
         let response = client
@@ -176,10 +195,32 @@ pub async fn register(state: &AppState, connection_id: &str) -> std::result::Res
             .body(body.to_string())
             .send()
             .await
-            .map_err(|error| format!("{path}: {error}"))?;
+            .map_err(|error| partway(format!("{path}: {error}")))?;
         if !response.status().is_success() {
-            return Err(format!("{path}: BluMint answered {}", response.status()));
+            return Err(partway(format!(
+                "{path}: BluMint answered {}",
+                response.status()
+            )));
         }
     }
-    Ok(())
+    let (connection_id, now) = (connection_id.to_owned(), state.now());
+    state
+        .db
+        .write(move |tx| {
+            let superseded = tx
+                .prepare(
+                    "SELECT id FROM service_credentials
+                     WHERE connection_id = ?1 AND role = 'provider' AND label = ?2 AND id != ?3 AND revoked_at IS NULL",
+                )?
+                .query_map(params![connection_id, CALLBACK_LABEL, credential], |row| {
+                    row.get::<_, String>(0)
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for id in superseded {
+                crate::revoke_in(tx, &id, now)?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|_| "registered, but could not revoke the earlier callback credentials".to_owned())
 }
