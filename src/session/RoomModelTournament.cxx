@@ -225,8 +225,12 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 			current.bindingRevision == binding.bindingRevision && current.fighters == binding.fighters) return Accept();
 	}
 	const bool starting = !current.Active();
-	current = binding;
 	Table& table = snapshot_.tables[TournamentTable];
+	// A casual game still under way at the table is not the set's, so the
+	// first binding waits for it to end; the claim offers it again.
+	if (starting && (table.phase == TablePhase::Ready || table.phase == TablePhase::Playing ||
+		table.phase == TablePhase::Paused)) return Reject(RejectReason::WrongPhase);
+	current = binding;
 	table.rules.format = static_cast<SetFormat>(binding.gamesToWin);
 	// The set starts from the score it carries, 0-0 included, whatever a
 	// casual game left on the table. Only the first binding sets it: a newer
