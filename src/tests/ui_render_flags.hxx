@@ -1,8 +1,8 @@
 #pragma once
-// Country flags: on the member cards before the name, on the table card under
-// the fighter's name, on the player card, and the country picker with a typed
-// letter and a search. Members with long names and long country names, one
-// Hidden. The countries are taken off again so the later shots are unchanged.
+// Country flags: before the name on the member cards and the table card, on
+// the player card, and the country picker with a typed letter and a search.
+// Members with long names and long country names, one Hidden. The countries
+// are taken off again so the later shots are unchanged.
 #include "ui_render_support.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/SelectionArt.hxx"

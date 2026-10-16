@@ -153,25 +153,24 @@ CardInteraction DrawTableCard(const TableCardView& card) {
   const float tx=x+(seat.occupied&&!side?portrait+8*s:0),tw=half-(seat.occupied?portrait+8*s:0);
   if(seat.occupied&&cardVisible)NoteUserText(seat.name);
   // Names of different lengths read ragged when flush left; centre each
-  // in its own slot so the pair stays symmetric about VS.
-  text(ImVec2(tx,top),tw,seat.occupied?seat.name:std::string(loc::T("room.looking_for_fight")),18*s,seat.occupied?palette::Ivory:palette::Muted,true);
+  // in its own slot so the pair stays symmetric about VS. The flag leads the
+  // name, as in the Members list, and centres with it.
+  if(seat.occupied){
+   const float size=18*s,slot=seat.country.Present()?FlagSlotWidth(size):0;
+   const float measured=(std::min)(tw-slot,ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,seat.name.c_str()).x);
+   const float left=tx+(std::max)(0.f,(tw-slot-measured)*.5f);
+   const auto flag=DrawCountryFlagBeside(ImGui::GetWindowDrawList(),left,top,size,seat.country);
+   text(ImVec2(left+flag.width,top),tw-(left-tx)-flag.width,seat.name,size,palette::Ivory);
+   if(flag.hovered)flagTip=CountryName(seat.country);
+  }else text(ImVec2(tx,top),tw,loc::T("room.looking_for_fight"),18*s,palette::Muted,true);
   // The fighter who has won sets back to back at this table. A banner takes
   // this line's place when the card is too short for both.
   const bool thirdLine=!bannerHeight||top+53*s<=bannerTop;
-  // The flag and a line's text, centred together in the slot.
-  const auto flagged=[&](float y,const std::string& value,float size,ImU32 color){
-   const float slot=seat.country.Present()?FlagSlotWidth(size):0;
-   const float measured=value.empty()?0:(std::min)(tw-slot,ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,value.c_str()).x);
-   const float x=tx+(std::max)(0.f,(tw-slot-measured)*.5f);
-   const auto flag=DrawCountryFlagBeside(ImGui::GetWindowDrawList(),x,y,size,seat.country);
-   if(!value.empty())text(ImVec2(x+flag.width,y),tw-(x-tx)-flag.width,value,size,color);
-   if(flag.hovered)flagTip=CountryName(seat.country);
-  };
-  // The flag goes under the fighter's name, beside the streak or idle time; a
-  // card with no room for that line puts it before the fighter's name.
-  if(!thirdLine)flagged(top+23*s,seat.caption,14*s,palette::Muted);
-  else if(!seat.caption.empty())text(ImVec2(tx,top+23*s),tw,seat.caption,14*s,palette::Muted,true);
-  if(seat.occupied&&thirdLine)flagged(top+40*s,!seat.streak.empty()?seat.streak:seat.idle,13*s,!seat.streak.empty()?palette::Ember:palette::Muted);
+  text(ImVec2(tx,top+23*s),tw,seat.caption,14*s,palette::Muted,true);
+  if(seat.occupied&&thirdLine){
+   const bool streak=!seat.streak.empty();
+   text(ImVec2(tx,top+40*s),tw,streak?seat.streak:seat.idle,13*s,streak?palette::Ember:palette::Muted,true);
+  }
  }
  text(ImVec2(p.x+12*s+half,top+16*s),gap,card.middle,18*s,palette::Ember,true);
  if(bannerHeight){
