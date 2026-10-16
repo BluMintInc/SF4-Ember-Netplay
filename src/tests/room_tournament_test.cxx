@@ -724,6 +724,42 @@ static void TestStartingWins() {
 }
 
 // Casual rooms are unchanged: Ready starts the game with no permit.
+// A bound table plays one set, so a fighter who drops mid-set rejoins at the
+// score played. The bridge's own count stays the set's score of record; the
+// room shows the set as it stands. A set from 0-0 starts there even when a
+// casual game was scored at the table before it was bound.
+static void TestLeavingKeepsThePlayedScore() {
+	RoomAuthority authority("Match", 8, 1);
+	authority.AdvanceTime(1000);
+	const MemberId a = JoinAs(authority, "A", EndpointA, true);
+	MemberId b = JoinAs(authority, "B", EndpointB);
+	for (const auto member : {a, b})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	ReadyBoth(authority);
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	const auto casual = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(authority.EndMatch(0, casual, MatchResult::P1Win).accepted);
+	for (const auto member : authority.TerminalMembers(0, casual)) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = casual;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	CHECK(authority.BindTournament(Binding()).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 0 && authority.SnapshotView().tables[0].score[1] == 0);
+	PlayBoundGame(authority, a, b, MatchResult::P1Win);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	CHECK(authority.Leave(b).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	b = JoinAs(authority, "B", EndpointB);
+	CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	const auto& table = authority.SnapshotView().tables[0];
+	CHECK(table.lastSet.score[0] == 1 && table.lastSet.score[1] == 2 && table.lastSet.winnerSeat == 1);
+}
+
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
 	const MemberId host = Join(authority, 0, true);
@@ -759,6 +795,7 @@ int main() {
 	TestCasualRoomsNeedNoPermit();
 	TestPracticeRoomsTakeNoBinding();
 	TestStartingWins();
+	TestLeavingKeepsThePlayedScore();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");
 	return failures ? 1 : 0;
