@@ -236,13 +236,13 @@ pub struct Policy {
     /// first game starts, and after each game that does not end it
     /// (BluMint, `delivery::progress`).
     pub reports_progress: bool,
-    /// A quiet match expires a lifetime after it was made, however it has
-    /// been played, rather than a lifetime after its last game, and that
-    /// lifetime is at most `BLUMINT_MATCH_LIFETIME_SECS`.
-    pub fixed_lifetime: bool,
+    /// A match lives at most `BLUMINT_MATCH_LIFETIME_SECS` after it was made,
+    /// however it is played: games move its deadline as on any connection,
+    /// but never past that.
+    pub capped_lifetime: bool,
 }
 
-/// The longest a match on a `Policy::fixed_lifetime` connection lives,
+/// The longest a match on a `Policy::capped_lifetime` connection lives,
 /// whatever `match_expiry_hours` says. BluMint frees a player held by a match
 /// it could not close only for 24 hours after the match was made, so a match
 /// still open past that would keep its players busy while BluMint counts them
@@ -255,7 +255,7 @@ impl Policy {
             own_api_only: kind == BLUMINT,
             reviews_disputes: disputes == Disputes::Review,
             reports_progress: kind == BLUMINT,
-            fixed_lifetime: kind == BLUMINT,
+            capped_lifetime: kind == BLUMINT,
         }
     }
 }

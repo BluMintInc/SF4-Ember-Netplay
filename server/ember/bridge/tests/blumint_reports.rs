@@ -362,12 +362,14 @@ async fn an_expired_match_is_sent_to_blumint_as_a_final_abort() {
     let next = next["matchId"].as_str().unwrap().to_owned();
     assert_eq!(match_state(&f, &next).await, "awaiting_players");
 
-    // A game played keeps the deadline the match was made with: BluMint
-    // frees players from a match it could not close only that long after
-    // the match was made.
+    // A game played gives the match another lifetime from then, so a set
+    // being played is not cut off between its games.
     f.bridge.clock.advance(30 * 60);
     win(&f, &next, 0, "game-1").await;
     f.bridge.clock.advance(30 * 60 + 10);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &next).await, "between_games");
+    f.bridge.clock.advance(30 * 60);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(match_state(&f, &next).await, "expired");
 }
@@ -382,7 +384,7 @@ async fn a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry() {
     let f = fixture_with(Secrets::default(), 48).await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "create-1", 2).await;
-    let id = created["matchId"].as_str().unwrap();
+    let id = created["matchId"].as_str().unwrap().to_owned();
     let (_, found) = f
         .bridge
         .get(&f.provider, &format!("/v1/matches/{id}"))
@@ -391,6 +393,17 @@ async fn a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry() {
         found["expires_at"].as_u64().unwrap() - found["created_at"].as_u64().unwrap()
     };
     assert_eq!(lifetime(&found), 24 * HOUR, "{found}");
+    // A game late in the day moves the deadline no further than that.
+    f.bridge.clock.advance(23 * 60 * 60);
+    win(&f, &id, 0, "game-1").await;
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(lifetime(&found), 24 * HOUR, "{found}");
+    f.bridge.clock.advance(60 * 60 + 10);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "expired");
 
     let provider = f.bridge.provider("mock-a").await;
     let (mut a, mut b) = (f.bridge.player(41), f.bridge.player(42));
