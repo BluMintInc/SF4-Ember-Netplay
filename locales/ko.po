@@ -790,6 +790,12 @@ msgstr "관전한 매치 저장"
 msgid "replays.save_watched_detail"
 msgstr "관전자로 시청한 대전도 저장합니다. 끄면 직접 플레이한 대전만 저장합니다."
 
+msgid "settings.watched_picture"
+msgstr "관전 중인 게임을 구석에"
+
+msgid "settings.watched_picture_detail"
+msgstr "관전 중인 게임 위에 Ember 메뉴를 열면 메뉴 뒤에 어둡게 보이는 대신 불투명한 메뉴의 오른쪽 위에 작게 표시합니다."
+
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"
 
@@ -1969,6 +1975,18 @@ msgstr "HUD에 단축키 표시"
 
 msgid "training.meter.hud_status"
 msgstr "HUD에 녹화 표시"
+
+msgid "training.meter.hud_inputs"
+msgstr "HUD에 입력 표시"
+
+msgid "training.meter.inputs_stick"
+msgstr "스틱"
+
+msgid "training.meter.inputs_arrows"
+msgstr "화살표"
+
+msgid "training.meter.inputs_both"
+msgstr "하이브리드"
 
 msgid "training.meter.classic_data"
 msgstr "HUD 데이터 줄"

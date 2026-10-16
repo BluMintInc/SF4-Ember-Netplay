@@ -790,6 +790,12 @@ msgstr "Matches waar je naar kijkt opslaan"
 msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
 
+msgid "settings.watched_picture"
+msgstr "Bekeken spel in een hoek"
+
+msgid "settings.watched_picture_detail"
+msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
+
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"
 
@@ -1969,6 +1975,18 @@ msgstr "Sneltoetsen op de HUD"
 
 msgid "training.meter.hud_status"
 msgstr "Opname op de HUD"
+
+msgid "training.meter.hud_inputs"
+msgstr "Invoer op de HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Stick"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Pijlen"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybride"
 
 msgid "training.meter.classic_data"
 msgstr "Datalijn op HUD"

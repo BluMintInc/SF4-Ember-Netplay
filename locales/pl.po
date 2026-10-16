@@ -790,6 +790,12 @@ msgstr "Zapisuj oglądane mecze"
 msgid "replays.save_watched_detail"
 msgstr "Zapisuje także mecze oglądane w roli widza. Wyłączone zapisuje tylko mecze, w których grasz."
 
+msgid "settings.watched_picture"
+msgstr "Oglądana gra w rogu"
+
+msgid "settings.watched_picture_detail"
+msgstr "Gdy menu Embera jest otwarte nad oglądaną grą, pokazuje ją małą w prawym górnym rogu nad nieprzezroczystym menu zamiast przyciemnionej za nim."
+
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"
 
@@ -1969,6 +1975,18 @@ msgstr "Skróty na HUD"
 
 msgid "training.meter.hud_status"
 msgstr "Nagrywanie na HUD"
+
+msgid "training.meter.hud_inputs"
+msgstr "Wejścia na HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Drążek"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Strzałki"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybryda"
 
 msgid "training.meter.classic_data"
 msgstr "Wiersz danych na HUD"

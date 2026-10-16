@@ -790,6 +790,12 @@ msgstr "Сохранять просмотренные матчи"
 msgid "replays.save_watched_detail"
 msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
 
+msgid "settings.watched_picture"
+msgstr "Просматриваемая игра в углу"
+
+msgid "settings.watched_picture_detail"
+msgstr "Когда меню Ember открыто поверх игры, которую вы смотрите, показывает её маленькой в правом верхнем углу поверх непрозрачного меню, а не затемнённой за ним."
+
 msgid "replays.link"
 msgstr "Воспроизвести повтор по ссылке"
 
@@ -1970,6 +1976,18 @@ msgstr "Клавиши на HUD"
 
 msgid "training.meter.hud_status"
 msgstr "Запись на HUD"
+
+msgid "training.meter.hud_inputs"
+msgstr "Ввод на HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Стик"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Стрелки"
+
+msgid "training.meter.inputs_both"
+msgstr "Гибрид"
 
 msgid "training.meter.classic_data"
 msgstr "Строка данных на HUD"

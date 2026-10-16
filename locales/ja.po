@@ -790,6 +790,12 @@ msgstr "観戦した対戦を保存"
 msgid "replays.save_watched_detail"
 msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
 
+msgid "settings.watched_picture"
+msgstr "観戦中の試合を隅に表示"
+
+msgid "settings.watched_picture_detail"
+msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上に小さく表示します。"
+
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"
 
@@ -1969,6 +1975,18 @@ msgstr "HUDにショートカットを表示"
 
 msgid "training.meter.hud_status"
 msgstr "HUDに記録を表示"
+
+msgid "training.meter.hud_inputs"
+msgstr "HUDに入力を表示"
+
+msgid "training.meter.inputs_stick"
+msgstr "スティック"
+
+msgid "training.meter.inputs_arrows"
+msgstr "矢印"
+
+msgid "training.meter.inputs_both"
+msgstr "ハイブリッド"
 
 msgid "training.meter.classic_data"
 msgstr "HUDのデータ行"
