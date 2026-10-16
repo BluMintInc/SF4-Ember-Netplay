@@ -14,7 +14,7 @@ use serde_json::json;
 
 use crate::{
     ctx::Ctx,
-    delivery::progress,
+    delivery::{progress, status},
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
     routes::{expiry, lobbies},
@@ -160,6 +160,9 @@ pub fn stale(current: u64) -> ApiFailure {
     .detail("current_revision", current.to_string())
 }
 
+/// Moves the match to `state` under its next revision. A game starting or
+/// ending moves it, so its platform's status of it is observed again
+/// (`delivery::status`).
 pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) -> Result<u64> {
     let revision = found.revision + 1;
     let changed = tx.execute(
@@ -169,6 +172,7 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     if changed != 1 {
         return Err(stale(found.revision));
     }
+    status::observe(tx, &found.id, now)?;
     Ok(revision)
 }
 

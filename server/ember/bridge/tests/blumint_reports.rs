@@ -1,12 +1,13 @@
-//! What the bridge reports to a stand-in BluMint: a set's first game, its
-//! score after each game, its result, and an abort for a match that ended
-//! without one, with retries and the starting wins of a set asked for again.
+//! What the bridge reports to a stand-in BluMint: a match's status as its
+//! players arrive and its games start and end, its score after each game,
+//! its result, and an abort for a match that ended without one, with retries
+//! and the starting wins of a set asked for again.
 mod common;
 
 use common::{
     Player,
     blumint::*,
-    play::{bound, permit, report},
+    play::{BUILD, bound, claim, endpoint, permit, report},
     results,
 };
 use ember_bridge::{AppState, Keys, config, integrations::Secrets};
@@ -604,101 +605,190 @@ async fn a_report_on_a_set_that_has_ended_is_not_sent() {
     assert_eq!(progress(&f, &id).await, vec![(1, "not_required".into())]);
 }
 
-// BluMint counts a set as started once it hears so, which closes the window
-// in which its host can still undo the previous match. The set's first game
-// is reported once, as running, with both players present and ready.
+const ABSENT: &str = "absent";
+const NOT_READY: &str = "present-not-ready";
+const READY: &str = "present-ready";
+
+/// The status reports sent for the match so far, without the times they
+/// were observed, which never go back.
+fn sent_statuses(f: &Fixture, id: &str) -> Vec<Json> {
+    let (sent, times): (Vec<Json>, Vec<String>) = statuses(f, id).into_iter().map(untimed).unzip();
+    for at in &times {
+        assert!(ember_protocol::event::is_rfc3339_utc(at), "{at}");
+    }
+    assert!(times.windows(2).all(|pair| pair[0] <= pair[1]), "{times:?}");
+    sent
+}
+
+// BluMint reads who has turned up from the status, so the bridge sends it on
+// every change: as each player arrives, as each game starts, and as each game
+// ends with another to come, when both are waiting for the next. Each is the
+// match's next revision. It is pending until the fighters' first game starts.
+// A game an agreed abort ends, and the set's end, change it no further.
 #[tokio::test]
-async fn a_sets_first_game_posts_one_running_status() {
-    let f = fixture().await;
+async fn a_status_follows_each_change_of_presence() {
+    // Without a key only the test's own passes send, so each change is sent
+    // before the next.
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
     let (_, created) = create(&f, "set-1", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
-    let binding = bound(&f, &id).await;
-    assert!(reports(&f, &id).await.is_empty());
-    // BluMint does not know the match yet, and asks to be told again. Its
-    // Retry-After keeps the bridge's own worker from sending it again while
-    // the test reads the queue.
-    f.blumint.lock().unwrap().answers.push_back((404, Some(30)));
-    let first = permit(&f, &id, &binding, 1).await;
-    let started = json!({
-        "mode": "status",
-        "matchId": id,
-        "status": "running",
-        "players": [
-            { "inGameId": f.kate.id(), "status": "present-ready" },
-            { "inGameId": f.sam.id(), "status": "present-ready" },
-        ],
-    });
-    assert_eq!(reports(&f, &id).await, vec![started.clone()]);
-    assert_eq!(progress(&f, &id).await, vec![(0, "retrying".into())]);
-    f.bridge.clock.advance(31);
-    assert_eq!(
-        reports(&f, &id).await,
-        vec![started.clone(), started.clone()]
-    );
-    assert_eq!(progress(&f, &id).await, vec![(0, "delivered".into())]);
+    ember_bridge::deliver_results(&keyed).await;
+    assert!(statuses(&f, &id).is_empty());
 
-    // An abort both fighters agree on counts for nobody, and the next games
-    // are no first game.
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    // Sam arrives while Kate is setting up the room, which moves nothing
+    // else about the match.
+    let (status_code, wait) = claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
+    assert_eq!(
+        (status_code, wait["role"].as_str()),
+        (StatusCode::OK, Some("wait"))
+    );
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(statuses(&f, &id).len(), 2);
+    // Both claim again as the room is set up, which changes nothing.
+    let binding = bound(&f, &id).await;
+    ember_bridge::deliver_results(&keyed).await;
+    let first = permit(&f, &id, &binding, 1).await;
+    ember_bridge::deliver_results(&keyed).await;
     report(&f, &f.kate, &f.kate, &id, &first, 1, Outcome::Abort).await;
     report(&f, &f.sam, &f.sam, &id, &first, 2, Outcome::Abort).await;
+    ember_bridge::deliver_results(&keyed).await;
     let second = permit(&f, &id, &binding, 2).await;
+    ember_bridge::deliver_results(&keyed).await;
     report(&f, &f.kate, &f.kate, &id, &second, 3, Outcome::P1Win).await;
+    ember_bridge::deliver_results(&keyed).await;
     report(&f, &f.sam, &f.sam, &id, &second, 4, Outcome::P1Win).await;
-    assert_eq!(reports(&f, &id).await.len(), 3);
+    ember_bridge::deliver_results(&keyed).await;
     let third = permit(&f, &id, &binding, 3).await;
+    ember_bridge::deliver_results(&keyed).await;
     report(&f, &f.kate, &f.kate, &id, &third, 5, Outcome::P1Win).await;
     let (_, decided) = report(&f, &f.sam, &f.sam, &id, &third, 6, Outcome::P1Win).await;
     assert_eq!(decided["attempt_state"], "accepted", "{decided}");
+    ember_bridge::deliver_results(&keyed).await;
+
     assert_eq!(
-        reports(&f, &id).await,
+        sent_statuses(&f, &id),
         vec![
-            started.clone(),
-            started,
-            progressed(&f, &id, [1, 0]),
-            result(&f, &id, [2, 0]),
+            status(&f, &id, 1, "pending", [NOT_READY, ABSENT]),
+            status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+            status(&f, &id, 3, "running", [READY, READY]),
+            status(&f, &id, 4, "running", [NOT_READY, NOT_READY]),
+            status(&f, &id, 5, "running", [READY, READY]),
+            status(&f, &id, 6, "running", [NOT_READY, NOT_READY]),
+            status(&f, &id, 7, "running", [READY, READY]),
         ]
     );
     assert_eq!(
-        progress(&f, &id).await,
-        vec![(0, "delivered".into()), (1, "delivered".into())]
+        submitted(&f),
+        vec![progressed(&f, &id, [1, 0]), result(&f, &id, [2, 0])]
     );
+    // The status has a row of its own, apart from the progress reports.
+    assert_eq!(progress(&f, &id).await, vec![(1, "delivered".into())]);
+    assert_eq!(status_row(&f, &id).await, Some((7, "delivered".into())));
 }
 
-// A game an organizer recorded before the fighters played is not the set's
-// first permitted game, and BluMint still hears the set has begun when it is.
+// A status BluMint has not taken is sent again as it stands, the same
+// revision observed at the same time; BluMint asks for that while it does not
+// know the match yet. One that changes before then is sent as it now
+// stands, under its next revision, and the earlier one is not sent again.
 #[tokio::test]
-async fn the_first_permit_after_an_organizers_game_posts_the_running_status() {
-    let f = fixture().await;
+async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let started = |id: &str| {
-        json!({
-            "mode": "status",
-            "matchId": id,
-            "status": "running",
-            "players": [
-                { "inGameId": f.kate.id(), "status": "present-ready" },
-                { "inGameId": f.sam.id(), "status": "present-ready" },
-            ],
-        })
-    };
+    let keyed = keyed_state(&f);
     let (_, created) = create(&f, "set-1", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
-    draw(&f, &id, "game-1").await;
-    let binding = bound(&f, &id).await;
-    permit(&f, &id, &binding, 1).await;
-    assert_eq!(reports(&f, &id).await, vec![started(&id)]);
-    close(&f, json!({ "matchId": id, "reason": "removed" })).await;
 
-    let (_, created) = create(&f, "set-2", 2).await;
-    let id = created["matchId"].as_str().unwrap().to_owned();
-    win(&f, &id, 0, "game-2").await;
+    f.blumint.lock().unwrap().answers.push_back((404, None));
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(status_row(&f, &id).await, Some((1, "retrying".into())));
+    f.bridge.clock.advance(2);
+    ember_bridge::deliver_results(&keyed).await;
+    let sent = statuses(&f, &id);
+    assert_eq!(sent.len(), 2);
+    assert_eq!(sent[0], sent[1]);
+    assert_eq!(status_row(&f, &id).await, Some((1, "delivered".into())));
+
+    // Sam's arrival waits on BluMint, and the game starts meanwhile.
+    f.blumint.lock().unwrap().answers.push_back((503, Some(30)));
     let binding = bound(&f, &id).await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(status_row(&f, &id).await, Some((2, "retrying".into())));
     permit(&f, &id, &binding, 1).await;
+    ember_bridge::deliver_results(&keyed).await;
+    f.bridge.clock.advance(31);
+    ember_bridge::deliver_results(&keyed).await;
     assert_eq!(
-        reports(&f, &id).await,
-        vec![progressed(&f, &id, [1, 0]), started(&id)]
+        sent_statuses(&f, &id),
+        vec![
+            status(&f, &id, 1, "pending", [NOT_READY, ABSENT]),
+            status(&f, &id, 1, "pending", [NOT_READY, ABSENT]),
+            status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+            status(&f, &id, 3, "running", [READY, READY]),
+        ]
     );
+    assert_eq!(status_row(&f, &id).await, Some((3, "delivered".into())));
+}
+
+// A status still waiting when the match ends is never sent, and the match's
+// end sends none: the result or abort says how it ended.
+#[tokio::test]
+async fn no_status_is_sent_once_the_match_has_ended() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    cancel(&f, &id, "cancel-1").await;
+    ember_bridge::deliver_results(&keyed).await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert!(statuses(&f, &id).is_empty());
+    assert_eq!(
+        submitted(&f),
+        vec![restart(&f, &id, "serverFailure", [0, 0])]
+    );
+    assert_eq!(status_row(&f, &id).await, Some((1, "not_required".into())));
+}
+
+// A game an organizer recorded before the fighters played is not their first
+// game: it says nothing of who is present, and the status stays pending until
+// the fighters' first game starts.
+#[tokio::test]
+async fn an_organizers_game_leaves_the_status_pending() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    for (key, game) in [("set-1", "game-1"), ("set-2", "game-2")] {
+        let (_, created) = create(&f, key, 2).await;
+        let id = created["matchId"].as_str().unwrap().to_owned();
+        if key == "set-1" {
+            draw(&f, &id, game).await;
+        } else {
+            win(&f, &id, 0, game).await;
+        }
+        ember_bridge::deliver_results(&keyed).await;
+        assert_eq!(status_row(&f, &id).await, None);
+        // Both arrive before the next pass, which sends the second arrival's
+        // status alone.
+        let binding = bound(&f, &id).await;
+        ember_bridge::deliver_results(&keyed).await;
+        permit(&f, &id, &binding, 1).await;
+        ember_bridge::deliver_results(&keyed).await;
+        assert_eq!(
+            sent_statuses(&f, &id),
+            vec![
+                status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+                status(&f, &id, 3, "running", [READY, READY]),
+            ],
+            "{key}"
+        );
+        close(&f, json!({ "matchId": id, "reason": "removed" })).await;
+    }
 }
 
 // How the bridge reads each of BluMint's answers to a report: BluMint

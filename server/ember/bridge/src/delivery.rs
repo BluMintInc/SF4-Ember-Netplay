@@ -5,11 +5,13 @@
 //! overwrites the one that replaced it. Retries follow one schedule with
 //! jitter until a day has passed since the first attempt.
 //!
-//! Three queues use it: signed webhooks from the outbox (`webhooks`), match
+//! Four queues use it: signed webhooks from the outbox (`webhooks`), match
 //! results sent to the platform that created the match (`results`), and
-//! BluMint's reports on a set while it is played (`progress`).
+//! BluMint's reports on a set's score while it is played (`progress`) and on
+//! a match's status (`status`).
 pub mod progress;
 pub mod results;
+pub mod status;
 pub mod webhooks;
 
 use std::{future::Future, sync::Arc, time::Duration};

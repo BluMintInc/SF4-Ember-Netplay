@@ -1,14 +1,14 @@
-//! BluMint's reports on a set while it is played (`routes::blumint::report`):
-//! one status when its first game starts, which tells BluMint the set has
-//! begun, and a progress report after each game that raised the score
+//! BluMint's progress reports on a set while it is played
+//! (`routes::blumint::report`): one after each game that raised the score
 //! without ending the set. The game that ends it is reported as the result
-//! (`delivery::results`).
+//! (`delivery::results`), and whether a game is on is the match's status
+//! (`delivery::status`).
 //!
-//! Each is queued in the transaction that started or settled the game, and
-//! its body is read from the ledger when it is sent, so a report that waited
-//! carries the latest score. Once the match has ended nothing more is sent
-//! for it: its result or abort carries the final score, and a progress
-//! report that late would claim a set is still on.
+//! Each is queued in the transaction that settled the game, and its body is
+//! read from the ledger when it is sent, so a report that waited carries the
+//! latest score. Once the match has ended nothing more is sent for it: its
+//! result or abort carries the final score, and a progress report that late
+//! would claim a set is still on.
 use std::collections::BTreeMap;
 
 use ember_protocol::{api::ErrorCode, matches::MatchState};
@@ -26,22 +26,6 @@ use crate::{
         policy,
     },
 };
-
-/// The `games_played` of a set's status report.
-pub const STARTED: u64 = 0;
-
-/// A game of the match was permitted. A platform that hears sets in play is
-/// told the set has begun, once per match, whatever games an organizer
-/// recorded before the fighters' first.
-pub fn game_started(tx: &Transaction<'_>, found: &Match) -> Result<()> {
-    if policy::of(tx, &found.connection_id)?.reports_progress {
-        tx.execute(
-            "INSERT OR IGNORE INTO blumint_progress (match_id, games_played, state) VALUES (?1, ?2, 'queued')",
-            params![found.id, STARTED],
-        )?;
-    }
-    Ok(())
-}
 
 /// A game of the match settled, outside a correction, leaving `wins` after
 /// `games_won` games won in the match. One that raised the score without
@@ -92,8 +76,8 @@ pub fn keep_reported_wins(
     // Sent at least once, whatever its state since: a report the next lease
     // marked not_required may still have reached BluMint.
     let sent: bool = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM blumint_progress WHERE match_id = ?1 AND games_played != ?2 AND attempts > 0)",
-        params![found.id, STARTED],
+        "SELECT EXISTS (SELECT 1 FROM blumint_progress WHERE match_id = ?1 AND attempts > 0)",
+        [&found.id],
         |row| row.get(0),
     )?;
     if sent {
@@ -112,14 +96,9 @@ pub struct Progress {
 
 impl Progress {
     pub fn new(state: &AppState) -> Self {
-        let destinations = state
-            .config
-            .tenants
-            .iter()
-            .flat_map(|tenant| &tenant.connections)
-            .filter_map(|connection| Some((connection.id.clone(), BluMint::of(state, connection)?)))
-            .collect();
-        Self { destinations }
+        Self {
+            destinations: BluMint::destinations(state),
+        }
     }
 }
 
@@ -179,18 +158,14 @@ impl Queue for Progress {
         let Some(destination) = self.destinations.get(&item.connection_id) else {
             return Outcome::Cancelled;
         };
-        let (id, games_played) = (item.match_id.clone(), item.games_played);
+        let id = item.match_id.clone();
         let body = state
             .db
             .read(move |tx| match load(tx, &id)? {
                 Some(found)
                     if !found.state.is_terminal() && policy::enabled(tx, &found.connection_id)? =>
                 {
-                    if games_played == STARTED {
-                        blumint::started(tx, &found).map(Some)
-                    } else {
-                        blumint::progress(tx, &found).map(Some)
-                    }
+                    blumint::progress(tx, &found).map(Some)
                 }
                 _ => Ok(None),
             })
@@ -209,12 +184,6 @@ impl Queue for Progress {
             }
         };
         match destination.post(body).await {
-            // BluMint asks a partner to keep sending a status it does not
-            // know the match for yet.
-            Ok(answered) if games_played == STARTED && answered.status == 404 => Outcome::Retry {
-                error: "http 404".into(),
-                retry_after: answered.retry_after,
-            },
             Ok(answered) => BluMint::outcome(&answered),
             Err(outcome) => outcome,
         }
