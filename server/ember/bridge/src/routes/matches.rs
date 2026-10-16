@@ -271,7 +271,11 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     } else {
         "not_required"
     };
-    let lifetime = expiry::lifetime(ctx, new.lobby_id.is_some() || new.tournament_id.is_some());
+    let lifetime = expiry::lifetime(
+        ctx,
+        new.lobby_id.is_some() || new.tournament_id.is_some(),
+        policy::of(tx, new.connection_id)?,
+    );
     let expires_at = lifetime.map(|secs| ctx.now + secs);
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,

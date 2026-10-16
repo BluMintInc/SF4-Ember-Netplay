@@ -372,6 +372,66 @@ async fn an_expired_match_is_sent_to_blumint_as_a_final_abort() {
     assert_eq!(match_state(&f, &next).await, "expired");
 }
 
+// BluMint frees players from a match it could not close only for a day after
+// the match was made, so a bridge whose quiet matches stay open longer still
+// ends a BluMint match within that day. Its other connections keep the
+// longer expiry.
+#[tokio::test]
+async fn a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry() {
+    const HOUR: u64 = 60 * 60;
+    let f = fixture_with(Secrets::default(), 48).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "create-1", 2).await;
+    let id = created["matchId"].as_str().unwrap();
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    let lifetime = |found: &Json| {
+        found["expires_at"].as_u64().unwrap() - found["created_at"].as_u64().unwrap()
+    };
+    assert_eq!(lifetime(&found), 24 * HOUR, "{found}");
+
+    let provider = f.bridge.provider("mock-a").await;
+    let (mut a, mut b) = (f.bridge.player(41), f.bridge.player(42));
+    f.bridge.open_session(&mut a).await;
+    f.bridge.open_session(&mut b).await;
+    let link_a = f.bridge.link(&provider, &a, "mock-a", "direct-a").await;
+    let link_b = f.bridge.link(&provider, &b, "mock-a", "direct-b").await;
+    let (status, direct) = f
+        .bridge
+        .post_keyed(
+            &provider,
+            "/v1/matches",
+            json!({
+                "external_match_id": "direct-1",
+                "game": "usf4",
+                "participants": [
+                    { "participant_id": link_a["participant_id"], "ember_id": a.id(), "slot": 0 },
+                    { "participant_id": link_b["participant_id"], "ember_id": b.id(), "slot": 1 },
+                ],
+                "rules": {
+                    "games_to_win": 2, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
+                    "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
+                    "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
+                },
+                "observer_policy": "authorized_only",
+                "result_policy": "two_player_agreement_or_review",
+                "required_build_id": "test-build",
+                "metadata": {},
+            }),
+            Some("direct-1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{direct}");
+    let direct = direct["match_id"].as_str().unwrap();
+    let (_, found) = f
+        .bridge
+        .get(&provider, &format!("/v1/matches/{direct}"))
+        .await;
+    assert_eq!(lifetime(&found), 48 * HOUR, "{found}");
+}
+
 // BluMint shows a set's score as it is played, so each game won that does not
 // end the set is reported; the game that ends it is the result, and a game
 // that changes no score is not reported.
