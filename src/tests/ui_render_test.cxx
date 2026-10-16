@@ -894,7 +894,8 @@ int main(int argc, char** argv) {
              view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
              view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");
              view.watchedPicture=ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
-             {auto* pip=FindWindow("Watched game");Require(pip&&pip->LastFrameActive==ImGui::GetFrameCount()&&pip->Pos.y<size.h*.2f&&pip->Pos.x+pip->Size.x<=size.w+1,"The watched game's picture is not in the top right corner");}view.watchedPicture={};page("room-table");
+             {auto* pip=FindWindow("Watched game");Require(pip&&pip->LastFrameActive==ImGui::GetFrameCount()&&pip->Pos.y<size.h*.2f&&pip->Pos.x+pip->Size.x<=size.w+1,"The watched game's picture is not in the top right corner");
+              Require(!(pip->Flags&ImGuiWindowFlags_NoMouseInputs)&&(pip->Flags&ImGuiWindowFlags_NoNav)==ImGuiWindowFlags_NoNav,"The watched game's picture lets the pointer through to the rows it hides, or takes navigation");}view.watchedPicture={};page("room-table");
              view.watchedGame={};view.session.match=match;view.room.tables[0].phase=phase;view.room.tables[0].matchGeneration=generation;}
             // The start held for this locked-in spectator: the card and the
             // lock-in row say the game waits for them.

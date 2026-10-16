@@ -623,12 +623,14 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
 }
 
 // The watched game's picture in a small window of its own in the top right
-// corner: over the menu's panels there, under its dialogs.
+// corner: over the menu's panels there, under its dialogs. It takes the
+// mouse, so the rows it hides are never hovered or clicked through it; NoNav
+// keeps the pad and keys off it (the shell's navigation is its own anyway).
 static void DrawWatchedPicture(ImTextureID picture) {
  const auto* vp=ImGui::GetMainViewport();
  ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x-16*Scale(),vp->Pos.y+16*Scale()),ImGuiCond_Always,ImVec2(1,0));
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(0,0));ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,1);
- if(ImGui::Begin("Watched game",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoSavedSettings|
+ if(ImGui::Begin("Watched game",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoSavedSettings|
   ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoBringToFrontOnFocus)){
   ImGui::Image(picture,ImVec2(vp->Size.x*WatchedPictureShare,vp->Size.y*WatchedPictureShare));
   if(!ImGui::IsPopupOpen("",ImGuiPopupFlags_AnyPopupId))ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
