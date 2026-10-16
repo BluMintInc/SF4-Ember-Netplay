@@ -9,7 +9,8 @@
 //!   `Idempotency-Key`, answered with the match ID and its Play link, which
 //!   only those two players can use, or refused in BluMint's format
 //!   (`refusal`);
-//! - match close (`close`): BluMint no longer needs a match, which ends it.
+//! - match close (`close`): BluMint no longer needs the match its creation's
+//!   `Idempotency-Key` made (`keys`), which ends it.
 //!
 //! The bridge reports each match to BluMint once BluMint's API key for the
 //! connection is configured (`report`): its status each time a player
@@ -25,6 +26,7 @@
 //! `register` tells BluMint where the three endpoints are.
 mod close;
 mod create;
+pub mod keys;
 pub mod liveness;
 mod refusal;
 mod report;

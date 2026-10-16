@@ -29,9 +29,10 @@ pub enum BluMintRefusal {
     /// Players still in another match on the connection. BluMint asks again
     /// under the same key until they are free.
     PlayerBusy(Vec<EmberId>),
-    /// A close names a match the bridge did not make for this connection.
-    /// BluMint closes only matches the bridge made for it, so this is a
-    /// defect for someone to look at, and BluMint's host takes the match.
+    /// A close names a key the bridge holds nothing under for this
+    /// connection: no match, no refused creation and no earlier close.
+    /// BluMint closes only keys it sent the bridge, so this is a defect for
+    /// someone to look at, and BluMint's host takes the match.
     UnknownMatch,
     /// Not a refusal: the bridge's own failure, in its own envelope.
     Bridge(ApiFailure),
@@ -80,9 +81,9 @@ impl IntoResponse for BluMintRefusal {
     }
 }
 
-/// Runs a BluMint route's write. A refusal leaves the write as it found it,
-/// so it commits as the answer; the bridge's own failure rolls the write
-/// back.
+/// Runs a BluMint route's write. A refusal commits as the answer, with
+/// whatever the route kept of it (a refused creation's key, a closed key);
+/// the bridge's own failure rolls the write back.
 pub fn outcome<T>(
     work: impl FnOnce() -> Result<T, BluMintRefusal>,
 ) -> crate::error::Result<Result<T, BluMintRefusal>> {

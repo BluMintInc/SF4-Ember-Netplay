@@ -183,8 +183,9 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 
 /// Expires link intents, holds games whose reports did not arrive, expires
 /// matches nobody played, observes the fighters whose claims lapsed, and
-/// removes stale challenges, sessions and replay records. Durable domain
-/// records (links, matches, attempts, reports, events) stay.
+/// removes stale challenges, sessions, replay records and refused BluMint
+/// keys. Durable domain records (links, matches, attempts, reports, events)
+/// stay, and so does the BluMint key each match was made under.
 pub async fn maintenance_once(state: &AppState) {
     // One clock read for the whole pass, so its steps agree on the time.
     let ctx = Ctx::of(state);
@@ -211,6 +212,7 @@ pub async fn maintenance_once(state: &AppState) {
                 "DELETE FROM idempotency_records WHERE created_at <= ?1",
                 params![cutoff],
             )?;
+            blumint::keys::forget(tx, cutoff)?;
             Ok(())
         })
         .await;
