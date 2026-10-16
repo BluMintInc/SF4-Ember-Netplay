@@ -3478,7 +3478,7 @@ msgid "tournament.stopped_notice"
 msgstr "Tournament match stopped. {0}"
 
 msgid "tournament.failure.build"
-msgstr "This game's version is not the one the tournament requires."
+msgstr "Your Ember version differs from your opponent's. Update Ember, and ask your opponent to update too."
 
 msgid "tournament.failure.rules"
 msgstr "This match's rules cannot be played through Ember."

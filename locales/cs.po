@@ -3823,7 +3823,7 @@ msgid "tournament.stopped_notice"
 msgstr "Turnajový zápas zastaven. {0}"
 
 msgid "tournament.failure.build"
-msgstr "Verze této hry není ta, kterou turnaj vyžaduje."
+msgstr "Vaše verze Ember se liší od verze soupeře. Aktualizujte Ember a požádejte soupeře, aby udělal totéž."
 
 msgid "tournament.failure.rules"
 msgstr "Pravidla tohoto zápasu nelze hrát přes Ember."

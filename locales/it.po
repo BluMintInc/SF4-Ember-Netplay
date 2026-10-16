@@ -3823,7 +3823,7 @@ msgid "tournament.stopped_notice"
 msgstr "Partita del torneo interrotta. {0}"
 
 msgid "tournament.failure.build"
-msgstr "La versione di questo gioco non è quella richiesta dal torneo."
+msgstr "La tua versione di Ember è diversa da quella dell'avversario. Aggiorna Ember e chiedi all'avversario di aggiornarlo a sua volta."
 
 msgid "tournament.failure.rules"
 msgstr "Le regole di questa partita non si possono giocare tramite Ember."

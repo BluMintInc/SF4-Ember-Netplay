@@ -3823,7 +3823,7 @@ msgid "tournament.stopped_notice"
 msgstr "大会の試合が停止しました。{0}"
 
 msgid "tournament.failure.build"
-msgstr "このゲームのバージョンは大会が求めるものではありません。"
+msgstr "お使いのEmberのバージョンが対戦相手と異なります。Emberを更新し、相手にも更新してもらってください。"
 
 msgid "tournament.failure.rules"
 msgstr "この試合のルールはEmberではプレイできません。"
