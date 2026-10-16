@@ -7,7 +7,7 @@ mod common;
 use common::{
     Player,
     blumint::*,
-    play::{BUILD, bound, claim, endpoint, permit, report},
+    play::{BUILD, bound, claim, claim_ready, endpoint, permit, report},
     results,
 };
 use ember_bridge::{AppState, Keys, config, integrations::Secrets};
@@ -694,6 +694,61 @@ async fn a_status_follows_each_change_of_presence() {
     // The status has a row of its own, apart from the progress reports.
     assert_eq!(progress(&f, &id).await, vec![(1, "delivered".into())]);
     assert_eq!(status_row(&f, &id).await, Some((7, "delivered".into())));
+}
+
+// Each fighter's Ember says with every claim whether they pressed Ready at
+// the match's table, and claims again at once when that changes, so BluMint
+// can tell the player who stalls from the one waiting on them. Each change
+// is the status's next revision; a claim that changes nothing sends nothing.
+// A game's end takes both fighters' Ready back, as the room does. An Ember
+// too old to say reads not ready until a game starts.
+#[tokio::test]
+async fn a_player_reads_ready_once_their_ember_says_they_pressed_ready() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    // Both open the match on an Ember too old to say: the first status
+    // BluMint is sent has both present, not ready.
+    let binding = bound(&f, &id).await;
+    ember_bridge::deliver_results(&keyed).await;
+    for (ready, who) in [
+        (true, &f.kate),
+        (true, &f.kate),
+        // Kate takes Ready back, or leaves her seat.
+        (false, &f.kate),
+        (true, &f.sam),
+        (true, &f.kate),
+    ] {
+        let (status_code, answer) = claim_ready(&f, who, &id, ready).await;
+        assert_eq!(status_code, StatusCode::OK, "{answer}");
+        ember_bridge::deliver_results(&keyed).await;
+    }
+    let first = permit(&f, &id, &binding, 1).await;
+    ember_bridge::deliver_results(&keyed).await;
+    report(&f, &f.kate, &f.kate, &id, &first, 1, Outcome::P1Win).await;
+    report(&f, &f.sam, &f.sam, &id, &first, 2, Outcome::P1Win).await;
+    ember_bridge::deliver_results(&keyed).await;
+    // An older Ember's claim between games still says nothing.
+    claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    claim_ready(&f, &f.sam, &id, true).await;
+    ember_bridge::deliver_results(&keyed).await;
+
+    assert_eq!(
+        sent_statuses(&f, &id),
+        vec![
+            status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+            status(&f, &id, 3, "pending", [READY, NOT_READY]),
+            status(&f, &id, 4, "pending", [NOT_READY, NOT_READY]),
+            status(&f, &id, 5, "pending", [NOT_READY, READY]),
+            status(&f, &id, 6, "pending", [READY, READY]),
+            status(&f, &id, 7, "running", [READY, READY]),
+            status(&f, &id, 8, "running", [NOT_READY, NOT_READY]),
+            status(&f, &id, 9, "running", [NOT_READY, READY]),
+        ]
+    );
 }
 
 // A status BluMint has not taken is sent again as it stands, the same

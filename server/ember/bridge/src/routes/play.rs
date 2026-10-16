@@ -344,10 +344,10 @@ fn claim(
         )));
     }
     tx.execute(
-        "INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-         ON CONFLICT (match_id, ember_id) DO UPDATE SET endpoint_id = ?3, helper_instance_id = ?4, build_id = ?5, claimed_at = ?6",
-        params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now],
+        "INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at, ready)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT (match_id, ember_id) DO UPDATE SET endpoint_id = ?3, helper_instance_id = ?4, build_id = ?5, claimed_at = ?6, ready = ?7",
+        params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now, command.ready == Some(true)],
     )?;
     // A claim taken ends an earlier refusal: from now on the fighter is
     // present while they keep claiming, like the other.
@@ -357,7 +357,8 @@ fn claim(
     )?;
     let answer = seat(tx, ctx, match_id, ember_id, fighter)?;
     // Only the first claim moves the match's revision, so the other
-    // fighter's arrival is observed here.
+    // fighter's arrival, and each change of a fighter's Ready, is observed
+    // here.
     status::observe(tx, match_id, ctx.now)?;
     Ok(Ok(answer))
 }

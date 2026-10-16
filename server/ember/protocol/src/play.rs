@@ -61,6 +61,9 @@ pub fn roster_digest(p1: &EmberId, p2: &EmberId) -> Result<String> {
     json::digest(&[p1, p2])
 }
 
+/// The capabilities feature of a bridge that reads a claim's `ready`.
+pub const CLAIM_READY_FEATURE: &str = "matches.claim_ready";
+
 /// `match.claim`: an assigned fighter offers this helper run's endpoint.
 /// Claiming again renews the claim and any provisioning lease it holds.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,6 +72,11 @@ pub struct Claim {
     pub endpoint_id: String,
     pub helper_instance_id: String,
     pub build_id: String,
+    /// Whether the fighter has pressed Ready at the match's table. Sent only
+    /// to a bridge that lists `CLAIM_READY_FEATURE`, since an older one
+    /// refuses a field it does not know; a claim without it is not ready.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready: Option<bool>,
 }
 
 impl Claim {
@@ -721,6 +729,29 @@ mod tests {
             ..refresh
         };
         assert!(replacing.check().is_ok());
+    }
+
+    #[test]
+    fn a_claim_carries_ready_only_when_its_helper_sets_it() {
+        let older = serde_json::json!({
+            "endpoint_id": "a".repeat(64),
+            "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
+            "build_id": "build",
+        });
+        let claim: Claim = serde_json::from_value(older.clone()).unwrap();
+        assert_eq!(claim.ready, None);
+        // Unset, the claim is byte for byte what an older bridge reads.
+        assert_eq!(serde_json::to_value(&claim).unwrap(), older);
+        let ready = Claim {
+            ready: Some(true),
+            ..claim
+        };
+        let sent = serde_json::to_value(&ready).unwrap();
+        assert_eq!(sent["ready"], true);
+        assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), ready);
+        let mut unknown = older;
+        unknown["seat"] = 0.into();
+        assert!(serde_json::from_value::<Claim>(unknown).is_err());
     }
 
     /// Seeded mutation fuzzing of what a helper or the bridge reads from the

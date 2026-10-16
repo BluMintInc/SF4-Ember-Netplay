@@ -47,6 +47,7 @@ pub async fn act(
         .await
 }
 
+/// A claim from a helper that does not say whether its fighter is ready.
 pub async fn claim(
     f: &impl Table,
     player: &Player,
@@ -54,12 +55,44 @@ pub async fn claim(
     endpoint: &str,
     build: &str,
 ) -> (StatusCode, Json) {
+    claim_with(
+        f,
+        player,
+        id,
+        json!({ "endpoint_id": endpoint, "build_id": build }),
+    )
+    .await
+}
+
+/// A claim saying whether the fighter has pressed Ready at the table.
+pub async fn claim_ready(
+    f: &impl Table,
+    player: &Player,
+    id: &str,
+    ready: bool,
+) -> (StatusCode, Json) {
+    claim_with(
+        f,
+        player,
+        id,
+        json!({ "endpoint_id": endpoint(player), "build_id": BUILD, "ready": ready }),
+    )
+    .await
+}
+
+async fn claim_with(
+    f: &impl Table,
+    player: &Player,
+    id: &str,
+    mut command: Json,
+) -> (StatusCode, Json) {
+    command["helper_instance_id"] = json!("ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01");
     act(
         f,
         player,
         Action::MatchClaim,
         &format!("/v1/matches/{id}/claims"),
-        json!({ "endpoint_id": endpoint, "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01", "build_id": build }),
+        command,
     )
     .await
 }

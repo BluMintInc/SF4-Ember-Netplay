@@ -287,7 +287,9 @@ the connection's provider credential as `Authorization: Bearer`:
 
 The bridge reports each match to BluMint: a `status` with each player's
 presence, under a rising `revision`, as each player opens or leaves the
-match, as each game starts and as each game ends with another to come; a
+match, presses Ready or takes it back (each claim's `ready`, sent to a
+bridge that lists `matches.claim_ready`), as each game starts and as each
+game ends with another to come; a
 `progress` after each game won that does not end
 the set; and the `result`, each team with its `wins`. A cancelled match is an `abort` with
 the wins so far and `retryable: true`, which BluMint answers by asking for

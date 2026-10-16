@@ -68,9 +68,18 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 	// match does meanwhile.
 	ResendReports(nowMs, out);
 	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) {
+		// The bridge tells the tournament who has not pressed Ready, so a
+		// change goes out with a claim now rather than the next one.
+		const bool ready = SeatReady(room);
+		if (ready != claimedReady_ && !claimFailed_)
+			nextClaimMs_ = (std::min)(nextClaimMs_, claimedAtMs_ + ReadyClaimSpacingMs);
 		if (!claimInFlight_ && nowMs >= nextClaimMs_) {
-			out.push_back(Make(Output::Kind::Claim));
+			auto claim = Make(Output::Kind::Claim);
+			claim.ready = ready;
+			out.push_back(claim);
 			claimInFlight_ = true;
+			claimedReady_ = ready;
+			claimedAtMs_ = nowMs;
 		}
 		FollowClaim(nowMs, room, out);
 		TrackPermits(nowMs, room, out);
@@ -124,6 +133,15 @@ void TournamentPlay::ReportsSettled() {
 		forgetAfterReports_ = false;
 		pending_.push_back(Make(Output::Kind::Forget));
 	}
+}
+
+bool TournamentPlay::SeatReady(const RoomView& room) const {
+	if (!room.joined || !room.snapshot || targetRoom_.empty() || room.roomId != targetRoom_ ||
+		!room.snapshot->tournament.Active()) return false;
+	const auto& snapshot = *room.snapshot;
+	const auto place = room::PlaceOf(snapshot, snapshot.localMember);
+	return place.kind == room::Place::Kind::Seat && place.table == room::TournamentTable &&
+		snapshot.tables[room::TournamentTable].ready[place.seat];
 }
 
 void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
@@ -242,6 +260,7 @@ void TournamentPlay::TrackPermits(std::uint64_t nowMs, const RoomView& room, std
 void TournamentPlay::OnRoom(Output::Kind request, const ClaimReply& reply, std::uint64_t nowMs) {
 	if (request == Output::Kind::Claim) {
 		claimInFlight_ = false;
+		claimFailed_ = false;
 		nextClaimMs_ = nowMs + ClaimIntervalMs;
 	} else {
 		publishInFlight_ = false;
@@ -293,6 +312,7 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 	switch (request) {
 	case Output::Kind::Claim:
 		claimInFlight_ = false;
+		claimFailed_ = true;
 		// A finished match answers stale_revision: it is over, not broken.
 		if (Final(code)) Fail(code == "stale_revision" ? Phase::Finished : Phase::Failed, code);
 		else nextClaimMs_ = nowMs + RetryMs;

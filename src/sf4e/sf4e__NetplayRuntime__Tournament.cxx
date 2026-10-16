@@ -19,7 +19,8 @@ json Request(const Output& output) {
 	const auto& play = runtime->tournament;
 	switch (output.kind) {
 	case Output::Kind::Claim:
-		return {{"op", "match_claim"}, {"bridge_id", play.BridgeId()}, {"match_id", play.MatchId()}, {"build", sf4e::sidecarHash}};
+		return {{"op", "match_claim"}, {"bridge_id", play.BridgeId()}, {"match_id", play.MatchId()}, {"build", sf4e::sidecarHash},
+			{"ready", output.ready}};
 	case Output::Kind::Publish:
 		return {{"op", "room_publish"}, {"bridge_id", play.BridgeId()}, {"match_id", play.MatchId()},
 			{"room", {{"room_id", output.roomId}, {"invitation", output.invitation}, {"lease_id", OptionalText(output.leaseId)},

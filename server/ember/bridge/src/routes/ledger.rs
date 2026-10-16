@@ -172,6 +172,16 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     if changed != 1 {
         return Err(stale(found.revision));
     }
+    // A game's end clears both fighters' Ready at the table, so it clears
+    // what their claims said too, until each claims again.
+    let underway =
+        |state: MatchState| matches!(state, MatchState::Running | MatchState::AwaitingReports);
+    if underway(found.state) && !underway(state) {
+        tx.execute(
+            "UPDATE match_claims SET ready = 0 WHERE match_id = ?1",
+            [&found.id],
+        )?;
+    }
     status::observe(tx, &found.id, now)?;
     Ok(revision)
 }
