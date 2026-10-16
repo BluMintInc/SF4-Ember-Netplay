@@ -197,9 +197,12 @@ When the set is won:
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 } ] }
 ```
 
-A draw, an abort both games agree on, or a voided game changes no score and
-posts nothing. When a match ends without a result, the bridge posts an abort
-with the wins so far:
+A draw or an abort both games agree on changes no score and posts nothing.
+An organizer voiding a game lowers the score and posts nothing, so once a
+progress report on the set has gone out the bridge refuses to void any game
+of it: you refuse a report below the wins an earlier one gave a team, and
+the set could never be reported again. When a match ends without a result,
+the bridge posts an abort with the wins so far:
 
 ```json
 { "mode": "abort", "matchId": "emt_...", "reason": "disputed", "retryable": true, "teams": [

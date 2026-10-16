@@ -17,7 +17,7 @@ use crate::{
     delivery::progress,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
-    routes::{expiry, lobbies, policy},
+    routes::{expiry, lobbies},
     tournament,
 };
 
@@ -306,20 +306,11 @@ pub fn settle(
             }
         }
     }
+    progress::keep_reported_wins(tx, found, wins_before, wins)?;
     let revision = bump(tx, found, next, ctx.now)?;
-    // A decided game is activity: the match gets a whole lifetime from now,
-    // unless its connection keeps the first deadline.
-    expiry::extend(tx, ctx.now, &found.connection_id, &found.id)?;
-    // A game won that did not end the set is reported to a platform that
-    // hears sets in play; the game that ends it is the result.
-    if !correcting
-        && next == MatchState::BetweenGames
-        && wins != wins_before
-        && (0..2).all(|slot| wins[slot] >= wins_before[slot])
-        && policy::of(tx, &found.connection_id)?.reports_progress
-    {
-        progress::queue(tx, &found.id, accepted.len() as u64)?;
-    }
+    // A decided game is activity, which moves the match's deadline.
+    expiry::extend(tx, ctx.now, found)?;
+    progress::game_settled(tx, found, wins_before, wins, next, accepted.len() as u64)?;
     // The reopened match now holds its players; the ones a bracket
     // correction released from later sets can be picked up elsewhere.
     if !freed.is_empty() {
