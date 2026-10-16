@@ -1,0 +1,60 @@
+name: Bridge and room tests
+on:
+  push:
+    branches: [release, 'blumint/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bridge-and-room:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out exact public commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            server/ember/target
+            rust/sf4-net/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('server/ember/Cargo.lock', 'rust/sf4-net/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Install the pinned Rust toolchain
+        working-directory: server/ember
+        run: rustup toolchain install
+      - name: Check bridge formatting
+        working-directory: server/ember
+        run: cargo fmt --all -- --check
+      - name: Lint the bridge workspace
+        working-directory: server/ember
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Run the bridge workspace tests
+        working-directory: server/ember
+        run: cargo test --locked
+      - name: Run the helper's tournament tests
+        working-directory: rust/sf4-net
+        run: cargo test --locked --lib tournament
+      - name: Install nlohmann-json
+        run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev
+      - name: Build and run the room and tournament suites
+        run: |
+          set -euo pipefail
+          RM="src/session/RoomModel.cxx src/session/RoomModelActions.cxx src/session/RoomModelJson.cxx src/session/RoomModelTournament.cxx src/session/RoomModelServerOwned.cxx src/session/RoomDigest.cxx"
+          mkdir -p build/room
+          g++ -std=c++17 -O1 -pthread -o build/room/room_tournament_test src/tests/room_tournament_test.cxx $RM
+          g++ -std=c++17 -O1 -pthread -o build/room/tournament_fuzz_test src/tests/tournament_fuzz_test.cxx src/session/TournamentAnswers.cxx src/netplay/TournamentPlay.cxx $RM
+          g++ -std=c++17 -O1 -pthread -o build/room/tournament_play_test src/tests/tournament_play_test.cxx src/netplay/TournamentPlay.cxx $RM
+          build/room/room_tournament_test
+          build/room/tournament_fuzz_test
+          build/room/tournament_play_test
