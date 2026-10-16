@@ -13,7 +13,7 @@ use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
     json,
-    matches::{Rules, games_to_win_valid},
+    matches::{Rules, games_to_win_valid, starts_at_zero},
     report::{GameReport, Outcome},
     sign::Domain,
 };
@@ -177,10 +177,6 @@ pub struct Binding {
     /// its score. Left out at 0-0.
     #[serde(default, skip_serializing_if = "starts_at_zero")]
     pub starting_wins: [u8; 2],
-}
-
-fn starts_at_zero(wins: &[u8; 2]) -> bool {
-    *wins == [0, 0]
 }
 
 impl Binding {
