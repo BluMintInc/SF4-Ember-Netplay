@@ -163,8 +163,18 @@ async fn access_log(request: Request, next: Next) -> Response {
     response
 }
 
-/// Runs `maintenance_once` forever.
-pub async fn maintenance(state: AppState) {
+/// Records that the bridge starts again (`blumint::liveness::resume`), says
+/// so on `resumed`, then runs `maintenance_once` forever.
+pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<()>) {
+    let now = state.now();
+    if let Err(error) = state
+        .db
+        .write(move |tx| blumint::liveness::resume(tx, now))
+        .await
+    {
+        eprintln!("maintenance: could not record the restart: {error:?}");
+    }
+    let _ = resumed.send(());
     loop {
         maintenance_once(&state).await;
         tokio::time::sleep(Duration::from_secs(MAINTENANCE_SECS)).await;
@@ -176,9 +186,10 @@ pub async fn maintenance(state: AppState) {
 /// removes stale challenges, sessions and replay records. Durable domain
 /// records (links, matches, attempts, reports, events) stay.
 pub async fn maintenance_once(state: &AppState) {
-    let now = state.now();
-    let cutoff = now.saturating_sub(RETENTION_SECS);
+    // One clock read for the whole pass, so its steps agree on the time.
     let ctx = Ctx::of(state);
+    let now = ctx.now;
+    let cutoff = now.saturating_sub(RETENTION_SECS);
     let done = state
         .db
         .write(move |tx| {

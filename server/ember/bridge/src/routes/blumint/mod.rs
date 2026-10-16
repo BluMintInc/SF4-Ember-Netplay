@@ -25,6 +25,7 @@
 //! `register` tells BluMint where the three endpoints are.
 mod close;
 mod create;
+pub mod liveness;
 mod refusal;
 mod report;
 

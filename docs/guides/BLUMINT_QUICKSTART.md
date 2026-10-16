@@ -192,9 +192,14 @@ from then on, whatever games an organizer recorded. Each player is:
 
 | `status` | When |
 |---|---|
-| `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for 30 seconds |
-| `present-not-ready` | Their Ember is connected to it, and no game is being played: before the first, between games, or refused because their Ember build differs from their opponent's |
+| `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for a minute |
+| `present-not-ready` | Their Ember is connected to it and no game is being played, before the first or between games; or it was refused because its build differs from their opponent's |
 | `present-ready` | A game is being played, from its start until both games report it |
+
+A refused Ember stops claiming the match, so the bridge cannot tell whether
+that player stays: they read `present-not-ready` for the rest of the match,
+until they open it again on their opponent's build. Time the bridge itself
+is down does not count toward the minute.
 
 Ember cannot say which present player is not ready. A game starts only once
 both players press Ready, and the bridge hears of neither press before then,

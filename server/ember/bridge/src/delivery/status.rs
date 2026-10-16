@@ -11,7 +11,6 @@
 //! is sent once the match has ended: its result or abort says how it ended.
 use std::collections::BTreeMap;
 
-use ember_protocol::play::LEASE_SECS;
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Value, json};
 
@@ -20,7 +19,11 @@ use crate::{
     AppState,
     audit::audit,
     error::{ApiFailure, Result},
-    routes::{blumint, ledger::load, policy},
+    routes::{
+        blumint::{self, liveness::Liveness},
+        ledger::load,
+        policy,
+    },
 };
 
 /// Observes the match's status, and queues it to be sent when it differs
@@ -31,16 +34,21 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
     if found.state.is_terminal() || !policy::of(tx, &found.connection_id)?.reports_progress {
         return Ok(());
     }
-    let status = blumint::status(tx, &found, now)?;
-    let last: Option<String> = tx
+    let last: Option<(String, u64)> = tx
         .query_row(
-            "SELECT body FROM blumint_status WHERE match_id = ?1",
+            "SELECT body, observed_at FROM blumint_status WHERE match_id = ?1",
             [match_id],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
+    // A writer reads the clock before it waits for the database, so one
+    // that commits later can carry an earlier time. The status is never
+    // observed before the last one was, or a claim seen lapsed would read
+    // live again.
+    let now = last.as_ref().map_or(now, |(_, at)| now.max(*at));
+    let status = blumint::status(tx, &found, now)?;
     let last = match last {
-        Some(text) => serde_json::from_str(&text).map_err(|_| ApiFailure::unavailable())?,
+        Some((text, _)) => serde_json::from_str(&text).map_err(|_| ApiFailure::unavailable())?,
         None => blumint::unopened_status(tx, &found)?,
     };
     if status == last {
@@ -57,19 +65,12 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
     Ok(())
 }
 
-/// Observes each open match a fighter's claim has lapsed on: nothing else
-/// happens when an Ember stops claiming, so the maintenance pass notices it
-/// leave. A match whose status already says so is unchanged.
+/// Observes each open match a fighter's claim has lapsed on since the last
+/// pass: nothing else happens when an Ember stops claiming, so the
+/// maintenance pass notices it leave. A match whose status already says so
+/// is unchanged.
 pub fn observe_lapsed(tx: &Transaction<'_>, now: u64) -> Result<()> {
-    let ids = tx
-        .prepare(
-            "SELECT DISTINCT c.match_id FROM match_claims c JOIN matches m ON m.id = c.match_id
-             WHERE c.claimed_at + ?1 <= ?2
-               AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')",
-        )?
-        .query_map(params![LEASE_SECS, now], |row| row.get::<_, String>(0))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    for id in ids {
+    for id in Liveness::of(tx)?.sweep(tx, now)? {
         observe(tx, &id, now)?;
     }
     Ok(())
