@@ -87,8 +87,8 @@ Idempotency-Key: tA1b2-round-1-match-1
 ```
 
 ```json
-{ "teams": [ { "name": "kate", "players": [ { "identities": [ { "source": "partner", "inGameId": "emb1_..." } ] } ] },
-             { "name": "sam", "players": [ { "identities": [ { "source": "partner", "inGameId": "emb1_..." } ] } ] } ],
+{ "teams": [ { "name": "kate", "players": [ { "identities": [ { "inGameId": "emb1_..." } ] } ] },
+             { "name": "sam", "players": [ { "identities": [ { "inGameId": "emb1_..." } ] } ] } ],
   "spectators": [],
   "matchSettings": {},
   "series": { "gamesToWin": 2 } }
