@@ -121,11 +121,6 @@ fn end(
         "UPDATE matches SET delivery_state = 'not_required' WHERE id = ?1",
         [&found.id],
     )?;
-    tx.execute(
-        "UPDATE blumint_progress SET state = 'not_required'
-         WHERE match_id = ?1 AND state IN ('queued', 'retrying', 'delivering')",
-        [&found.id],
-    )?;
     audit(
         tx,
         ctx.now,
