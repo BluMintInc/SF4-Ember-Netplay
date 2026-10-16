@@ -177,8 +177,8 @@ with BluMint's API key. Every report names each player by the Ember ID you
 sent, and its `wins` count the `startingWins` the match was created with.
 
 A `status` report each time the match's status changes: as each player
-opens the match in Ember, as each game starts, and as each game ends with
-another to come. A match nobody has opened has none.
+opens the match in Ember or leaves it, as each game starts, and as each game
+ends with another to come. A match nobody has opened has none.
 
 ```json
 { "mode": "status", "matchId": "emt_...", "status": "running",
@@ -192,8 +192,8 @@ from then on, whatever games an organizer recorded. Each player is:
 
 | `status` | When |
 |---|---|
-| `absent` | Their Ember has not opened the match |
-| `present-not-ready` | They opened it, and no game is being played: before the first, between games, or refused because their Ember build differs from their opponent's |
+| `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for 30 seconds |
+| `present-not-ready` | Their Ember is connected to it, and no game is being played: before the first, between games, or refused because their Ember build differs from their opponent's |
 | `present-ready` | A game is being played, from its start until both games report it |
 
 Ember cannot say which present player is not ready. A game starts only once
@@ -292,8 +292,8 @@ so BluMint never receives a second, different result for a match.
 1. **Field names.** BluMint sends each player's Ember ID as an identity's
    `inGameId`, and reads it there in every report.
 2. **Status.** BluMint never calls a status URL. The bridge registers none,
-   and posts a `status` report each time a player arrives or a game starts
-   or ends (see Reports).
+   and posts a `status` report each time a player arrives or leaves, a game
+   starts, or a game ends with another to come (see Reports).
 3. **Restarts.** A match that ended without a result is an abort with
    `retryable`. BluMint asks for the set again under a new key after a
    retryable one, carrying `startingWins`.

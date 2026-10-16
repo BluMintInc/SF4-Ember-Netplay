@@ -233,8 +233,9 @@ pub struct Policy {
     /// platform hears as a restart.
     pub reviews_disputes: bool,
     /// The platform hears how a set stands while it is played: its status
-    /// as each player arrives and each game starts and ends
-    /// (`delivery::status`), and its score after each game that does not end
+    /// as each player arrives or leaves, as each game starts and as each game
+    /// ends with another to come (`delivery::status`), and its score after
+    /// each game that does not end
     /// it (`delivery::progress`). BluMint.
     pub reports_progress: bool,
     /// A match lives at most `BLUMINT_MATCH_LIFETIME_SECS` after it was made,
