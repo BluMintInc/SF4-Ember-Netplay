@@ -308,30 +308,40 @@ pub async fn claim_route(
         })
         .await?;
     state.committed();
-    Ok(respond(StatusCode::OK, &answer))
+    Ok(respond(StatusCode::OK, &answer?))
 }
 
+/// The claim's answer, or its refusal for the fighter's build as the inner
+/// error: the refusal is kept, so the transaction commits it.
 fn claim(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     match_id: &str,
     ember_id: &EmberId,
     command: &Claim,
-) -> Result<ClaimAnswer> {
+) -> Result<Result<ClaimAnswer>> {
     let fighter = fighter(tx, match_id, ember_id)?;
     finished(&fighter.found)?;
     let other = claims(tx, match_id)?
         .into_iter()
         .find(|claim| claim.ember_id != *ember_id);
-    // A room admits one build, so both fighters must run the same one.
+    // A room admits one build, so both fighters must run the same one. The
+    // refused fighter opened the match, so their platform hears they are
+    // present.
     if other
         .as_ref()
         .is_some_and(|other| other.build_id != command.build_id)
     {
-        return Err(ApiFailure::new(
+        tx.execute(
+            "INSERT INTO match_claim_refusals (match_id, ember_id, refused_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT (match_id, ember_id) DO UPDATE SET refused_at = ?3",
+            params![match_id, ember_id.as_str(), ctx.now],
+        )?;
+        status::observe(tx, match_id, ctx.now)?;
+        return Ok(Err(ApiFailure::new(
             ErrorCode::IncompatibleBuild,
             "The two players run different Ember builds. Both need the same version to play this match.",
-        ));
+        )));
     }
     tx.execute(
         "INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at)
@@ -343,7 +353,7 @@ fn claim(
     // Only the first claim moves the match's revision, so the other
     // fighter's arrival is observed here.
     status::observe(tx, match_id, ctx.now)?;
-    Ok(answer)
+    Ok(Ok(answer))
 }
 
 /// What a fighter whose claim was taken is to do: join the room, wait for
