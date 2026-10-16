@@ -996,7 +996,7 @@ async fn an_organizers_game_leaves_the_status_pending() {
             ],
             "{key}"
         );
-        close(&f, json!({ "matchId": id, "reason": "removed" })).await;
+        close(&f, json!({ "idempotencyKey": key, "reason": "removed" })).await;
     }
 }
 
@@ -1151,7 +1151,11 @@ async fn starting_wins_continue_the_set() {
     let binding = bound(&f, &id).await;
     assert_eq!(binding["version"], 1);
     assert!(binding.get("starting_wins").is_none(), "{binding}");
-    close(&f, json!({ "matchId": id, "reason": "removed" })).await;
+    close(
+        &f,
+        json!({ "idempotencyKey": "set-3", "reason": "removed" }),
+    )
+    .await;
 
     // The room the fighters play in starts from the score too.
     let (_, created) = create_with(&f, "set-4", carried(&f, 2, [1, 0])).await;

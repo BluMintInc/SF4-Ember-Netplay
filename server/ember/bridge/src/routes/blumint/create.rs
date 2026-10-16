@@ -16,12 +16,12 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, connection, outcome, parse};
+use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, connection, keys, outcome, parse};
 use crate::{
     AppState,
     ctx::Ctx,
     error::ApiFailure,
-    http::idempotency_key,
+    http::{Body, GENERAL_BODY, idempotency_key},
     routes::matches::{NewMatch, busy, idempotent, insert_match, into_response},
     util::new_id,
 };
@@ -125,10 +125,12 @@ fn starting_wins(teams: [&Team; 2], games_to_win: u8) -> Result<[u8; 2], BluMint
 /// every report counts. BluMint sends an `Idempotency-Key` with every
 /// creation and asks again under it until it has an answer, so every request
 /// under one key answers the match it made, even once that match has ended;
-/// BluMint sends a new key when it wants a new match. A key keeps its match
+/// BluMint sends a new key when it wants a new match. A key replays its match
 /// for a day (`routes::maintenance_once`), past the three hours BluMint
-/// needs. Refusals answer in BluMint's format (`BluMintRefusal`), and are
-/// never stored against the key.
+/// needs, and refuses any other creation for as long as the match exists.
+/// Refusals answer in BluMint's format (`BluMintRefusal`), and are never
+/// stored against the key, though the key is kept for a close
+/// (`keys::refused`).
 pub async fn create(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -136,7 +138,36 @@ pub async fn create(
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
     let key = idempotency_key(&headers)?;
-    let request: CreateRequest = parse(&body?)?;
+    let requested = body
+        .map_err(BluMintRefusal::from)
+        .and_then(|body| requested(&body));
+    let ctx = Ctx::of(&state);
+    let answer = state
+        .db
+        .write(move |tx| {
+            outcome(|| {
+                let answer = requested
+                    .and_then(|(set, digest)| make(tx, &ctx, &connection_id, &key, &set, &digest));
+                if let Err(
+                    BluMintRefusal::InvalidRequest
+                    | BluMintRefusal::MatchUnsupported
+                    | BluMintRefusal::PlayerUnlinked(_)
+                    | BluMintRefusal::PlayerBusy(_),
+                ) = &answer
+                {
+                    keys::refused(tx, &connection_id, &key, ctx.now)?;
+                }
+                answer
+            })
+        })
+        .await??;
+    state.committed();
+    Ok(into_response(answer))
+}
+
+/// The set BluMint asks for, and the digest a key's requests are compared by.
+fn requested(body: &Body<GENERAL_BODY>) -> std::result::Result<(Set, String), BluMintRefusal> {
+    let request: CreateRequest = parse(body)?;
     let [first, second] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
     };
@@ -154,30 +185,31 @@ pub async fn create(
         starting_wins: starting_wins([first, second], games_to_win)?,
     };
     let digest = wire::digest(&set).map_err(ApiFailure::from)?;
-    let ctx = Ctx::of(&state);
-    let actor = key_owner(&connection_id);
-    let answer = state
-        .db
-        .write(move |tx| {
-            outcome(|| {
-                idempotent(tx, &actor, MATCHES_PATH, &key, &digest, ctx.now, |tx| {
-                    let id = insert(tx, &ctx, &connection_id, &set, &digest)?;
-                    Ok((
-                        StatusCode::OK,
-                        json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
-                    ))
-                })
-            })
-        })
-        .await??;
-    state.committed();
-    Ok(into_response(answer))
+    Ok((set, digest))
 }
 
-/// Who a creation's `Idempotency-Key` belongs to. Each registration issues a
-/// new credential, so it is the connection, not the credential.
-pub fn key_owner(connection_id: &str) -> String {
-    format!("connection:{connection_id}")
+/// The answer under `key`: the match it made, or a new one. A key whose
+/// answer is forgotten while its match still exists makes no other.
+fn make(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    connection_id: &str,
+    key: &str,
+    set: &Set,
+    digest: &str,
+) -> std::result::Result<(StatusCode, Value), BluMintRefusal> {
+    let actor = keys::owner(connection_id);
+    idempotent(tx, &actor, MATCHES_PATH, key, digest, ctx.now, |tx| {
+        if keys::made_under(tx, connection_id, key)?.is_some() {
+            return Err(BluMintRefusal::KeyReused);
+        }
+        let id = insert(tx, ctx, connection_id, set, digest)?;
+        keys::keep(tx, &id, key)?;
+        Ok((
+            StatusCode::OK,
+            json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
+        ))
+    })
 }
 
 /// Seats the two players and records the match. Returns its ID.

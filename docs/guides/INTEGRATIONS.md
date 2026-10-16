@@ -273,13 +273,17 @@ the connection's provider credential as `Authorization: Bearer`:
 - `POST /v1/blumint/matches` creates an `ember-room-v1` set from two teams of
   one, of `series.gamesToWin`, starting from the teams' `startingWins`, and
   answers `matchId` and the match's `play_url` as `matchUrl`. Every request
-  under one `Idempotency-Key` answers the same match. Refusals answer
+  under one `Idempotency-Key` answers the same match for a day, and the key
+  stays on the match (`matches.blumint_key`), so it makes no other match for
+  as long as the bridge keeps that one. Refusals answer
   BluMint's registry codes at the top level (`invalid_request`,
   `match_unsupported`, `key_reused`, `player_unlinked` and `423`
   `player_busy`), never the bridge's error envelope.
-- `POST /v1/blumint/matches/close` ends the match BluMint names, or the one
-  made under a creation key it names, and closes that key to every later
-  creation.
+- `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
+  ends the match made under that creation key, however old, and closes the
+  key to every later creation. A key whose every creation was refused is
+  kept a day for a close (`blumint_refused_keys`); a key the bridge holds
+  nothing under answers `404 unknown_match`, and is closed all the same.
 
 The bridge reports each match to BluMint: a `status` with each player's
 presence, under a rising `revision`, as each player opens or leaves the

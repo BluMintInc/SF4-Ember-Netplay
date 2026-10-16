@@ -461,9 +461,10 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
     assert_ne!(next["matchId"], id.as_str());
 }
 
-// BluMint closes a match it no longer needs, and waits for the 200 before it
-// creates the players' next one. A closed match frees its players and is
-// sent nothing more; a closed key makes no match from then on.
+// BluMint closes a match it no longer needs by the key it created it under,
+// and waits for the 200 before it creates the players' next one. A closed
+// match frees its players and is sent nothing more; a closed key makes no
+// match from then on.
 #[tokio::test]
 async fn a_closed_match_sends_nothing() {
     let f = fixture().await;
@@ -474,7 +475,11 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
     let mut revisions = Vec::new();
     for _ in 0..2 {
-        let (status, closed) = close(&f, json!({ "matchId": id, "reason": "decided" })).await;
+        let (status, closed) = close(
+            &f,
+            json!({ "idempotencyKey": "set-1", "reason": "decided" }),
+        )
+        .await;
         assert_eq!(status, StatusCode::OK, "{closed}");
         revisions.push(status_revision(&f, &id).await);
     }
@@ -517,15 +522,14 @@ async fn a_closed_match_sends_nothing() {
     for (key, reason) in [("set-2", "hostOverride"), ("set-3", "a reason from later")] {
         let (_, created) = create(&f, key, 2).await;
         let id = created["matchId"].as_str().unwrap().to_owned();
-        let (status, closed) = close(&f, json!({ "matchId": id, "reason": reason })).await;
+        let (status, closed) = close(&f, json!({ "idempotencyKey": key, "reason": reason })).await;
         assert_eq!(status, StatusCode::OK, "{closed}");
         assert_eq!(match_state(&f, &id).await, "cancelled");
         assert!(reports(&f, &id).await.is_empty());
     }
 
-    // BluMint never had the answer, so it names the creation's key: the
-    // match made under it closes, and the key makes no match again.
-    // The key is the connection's, so a credential from a later
+    // The match made under the key closes, and the key makes no match
+    // again. The key is the connection's, so a credential from a later
     // registration closes it too.
     let (_, created) = create(&f, "set-4", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
@@ -545,9 +549,16 @@ async fn a_closed_match_sends_nothing() {
         create(&f, "set-4", 2).await,
         (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
     );
-    // A key the bridge never made a match under is closed all the same, so
-    // a creation still on its way makes nothing.
+    // A key whose every creation was refused made no match, and closes all
+    // the same, so a creation still on its way makes nothing.
     let made = matches(&f).await;
+    assert_eq!(
+        create(&f, "set-5", 11).await,
+        (
+            StatusCode::BAD_REQUEST,
+            json!({ "code": "match_unsupported" })
+        )
+    );
     let (status, closed) = close(
         &f,
         json!({ "idempotencyKey": "set-5", "reason": "replaced" }),
@@ -558,26 +569,32 @@ async fn a_closed_match_sends_nothing() {
         create(&f, "set-5", 2).await,
         (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
     );
+    // A key the bridge holds nothing under is unknown, and is closed too.
+    assert_eq!(
+        close(
+            &f,
+            json!({ "idempotencyKey": "set-6", "reason": "replaced" })
+        )
+        .await,
+        (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
+    );
+    assert_eq!(
+        create(&f, "set-6", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
     assert_eq!(matches(&f).await, made);
     assert!(reports(&f, &id).await.is_empty());
 
-    let (status, refused) = close(
-        &f,
-        json!({ "matchId": "emt_00000000-0000-0000-0000-000000000000", "reason": "decided" }),
-    )
-    .await;
-    assert_eq!(
-        (status, refused),
-        (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
-    );
+    // A close names the key, never the match.
     for body in [
-        json!({ "matchId": id, "idempotencyKey": "set-4", "reason": "decided" }),
+        json!({ "matchId": id, "reason": "decided" }),
         json!({ "reason": "decided" }),
-        json!({ "matchId": id }),
-        json!({ "matchId": id, "reason": "" }),
-        json!({ "matchId": id, "reason": "r".repeat(65) }),
+        json!({ "idempotencyKey": "set-4" }),
+        json!({ "idempotencyKey": "set-4", "reason": "" }),
+        json!({ "idempotencyKey": "set-4", "reason": "r".repeat(65) }),
+        json!({ "idempotencyKey": "", "reason": "decided" }),
         json!({ "idempotencyKey": "k".repeat(129), "reason": "decided" }),
-        json!({ "matchId": id, "reason": "decided", "padding": "p".repeat(70 * 1024) }),
+        json!({ "idempotencyKey": "set-4", "reason": "decided", "padding": "p".repeat(70 * 1024) }),
     ] {
         let (status, refused) = close(&f, body.clone()).await;
         assert_eq!(
@@ -591,10 +608,67 @@ async fn a_closed_match_sends_nothing() {
     }
 }
 
-// A close names only a match the bridge made for BluMint's connection: one
-// another connection made is unknown to it, and goes on.
+// The answer under a creation key is forgotten after a day, but the key is
+// kept for as long as its match: a close under it still ends the match, and
+// it still makes no other.
 #[tokio::test]
-async fn a_close_naming_another_connections_match_ends_nothing() {
+async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    // The answer is a day old, and the maintenance pass removes it.
+    f.bridge
+        .state()
+        .db
+        .write(|tx| {
+            tx.execute(
+                "UPDATE idempotency_records SET created_at = created_at - 86400",
+                [],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    ember_bridge::maintain(f.bridge.state()).await;
+    let answers: i64 = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx.query_row(
+                "SELECT COUNT(*) FROM idempotency_records WHERE path = '/v1/blumint/matches'",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(answers, 0);
+    assert_eq!(match_state(&f, &id).await, "awaiting_players");
+    assert_eq!(
+        create(&f, "set-1", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-1", "reason": "removed" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    assert_eq!(
+        create(&f, "set-1", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    assert_eq!(matches(&f).await, 1);
+}
+
+// A close names only a key BluMint's connection created under: another
+// connection's key is unknown to it, and that connection's match goes on.
+#[tokio::test]
+async fn a_close_naming_another_connections_key_ends_nothing() {
     let f = fixture().await;
     let (provider, direct) = direct_match(&f).await;
     let (_, found) = f
@@ -602,7 +676,11 @@ async fn a_close_naming_another_connections_match_ends_nothing() {
         .get(&provider, &format!("/v1/matches/{direct}"))
         .await;
     assert_eq!(
-        close(&f, json!({ "matchId": direct, "reason": "decided" })).await,
+        close(
+            &f,
+            json!({ "idempotencyKey": "direct-1", "reason": "decided" })
+        )
+        .await,
         (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
     );
     let (_, after) = f
@@ -630,7 +708,11 @@ async fn closing_a_match_that_has_ended_changes_nothing() {
     })
     .await;
     let before = status_revision(&f, &id).await;
-    let (status, closed) = close(&f, json!({ "matchId": id, "reason": "decided" })).await;
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-1", "reason": "decided" }),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(match_state(&f, &id).await, "completed");
     assert_eq!(status_revision(&f, &id).await, before);

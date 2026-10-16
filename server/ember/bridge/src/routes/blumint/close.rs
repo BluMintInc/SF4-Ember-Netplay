@@ -4,16 +4,16 @@
 //! close before it creates the players' next match, so a closed match frees
 //! its players and is sent nothing more.
 //!
-//! A close names the match, or, when BluMint never had the creation's
-//! answer, the creation's `Idempotency-Key`: whatever the bridge made under
-//! that key is closed, and the key refuses any creation from then on, since
-//! one still on its way would make a match nobody plays or closes.
+//! A close names the match by its creation's `Idempotency-Key` (`keys`):
+//! whatever the bridge made under that key is closed, and the key refuses any
+//! creation from then on, since one still on its way would make a match
+//! nobody plays or closes.
 use axum::{extract::State, http::HeaderMap, response::Response};
 use rusqlite::Transaction;
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::json;
 
-use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, caller, create::key_owner, outcome, parse};
+use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, caller, keys, outcome, parse};
 use crate::{
     AppState,
     audit::audit,
@@ -26,8 +26,6 @@ use crate::{
     },
 };
 
-/// Longest `matchId` BluMint sends, and the longest a creation answers.
-const MAX_MATCH_ID: usize = 256;
 /// Longest creation `Idempotency-Key` BluMint sends.
 const MAX_KEY: usize = 128;
 /// Longest reason the bridge keeps. BluMint's are short words.
@@ -35,10 +33,8 @@ const MAX_REASON: usize = 64;
 
 #[derive(Deserialize)]
 struct CloseRequest {
-    #[serde(rename = "matchId")]
-    match_id: Option<String>,
     #[serde(rename = "idempotencyKey")]
-    idempotency_key: Option<String>,
+    idempotency_key: String,
     reason: String,
 }
 
@@ -54,7 +50,10 @@ pub async fn close(
 ) -> std::result::Result<Response, BluMintRefusal> {
     let (connection_id, credential) = caller(&state, &headers).await?;
     let request: CloseRequest = parse(&body?)?;
-    if request.reason.is_empty() || request.reason.len() > MAX_REASON {
+    if request.reason.is_empty()
+        || request.reason.len() > MAX_REASON
+        || !(1..=MAX_KEY).contains(&request.idempotency_key.len())
+    {
         return Err(BluMintRefusal::InvalidRequest);
     }
     let reason = format!("closed by BluMint: {}", request.reason);
@@ -63,17 +62,7 @@ pub async fn close(
         .db
         .write(move |tx| {
             outcome(|| {
-                let found = match (request.match_id, request.idempotency_key) {
-                    (Some(id), None) if (1..=MAX_MATCH_ID).contains(&id.len()) => Some(
-                        load(tx, &id)?
-                            .filter(|found| found.connection_id == connection_id)
-                            .ok_or(BluMintRefusal::UnknownMatch)?,
-                    ),
-                    (None, Some(key)) if (1..=MAX_KEY).contains(&key.len()) => {
-                        close_key(tx, &ctx, &connection_id, &key)?
-                    }
-                    _ => return Err(BluMintRefusal::InvalidRequest),
-                };
+                let found = close_key(tx, &ctx, &connection_id, &request.idempotency_key)?;
                 if let Some(found) = found {
                     end(tx, &ctx, &credential, &found, &reason)?;
                 }
@@ -85,23 +74,29 @@ pub async fn close(
     Ok(ok(&json!({ "closed": true })))
 }
 
-/// Marks a creation key closed, and returns the match it made, if any.
+/// Marks a creation key closed, and returns the match it made, if any. A key
+/// the bridge holds nothing under (no match, no refused creation, no earlier
+/// close) is `UnknownMatch`, and is still closed, since a creation on its way
+/// would otherwise make a match nobody closes.
 fn close_key(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     connection_id: &str,
     key: &str,
 ) -> std::result::Result<Option<Match>, BluMintRefusal> {
-    let actor = key_owner(connection_id);
-    let made = idempotency::stored(tx, &actor, MATCHES_PATH, key)?;
+    let actor = keys::owner(connection_id);
+    let made = keys::made_under(tx, connection_id, key)?;
+    let known = made.is_some()
+        || keys::was_refused(tx, connection_id, key)?
+        || idempotency::stored(tx, &actor, MATCHES_PATH, key)?.is_some();
     idempotency::refuse(tx, &actor, MATCHES_PATH, key, ctx.now)?;
-    let match_id = made
-        .and_then(|made| serde_json::from_slice::<Value>(&made.body).ok())
-        .and_then(|response| response["matchId"].as_str().map(str::to_owned));
-    Ok(match match_id {
-        Some(id) => load(tx, &id)?.filter(|found| found.connection_id == connection_id),
-        None => None,
-    })
+    if !known {
+        return Err(BluMintRefusal::UnknownMatch);
+    }
+    let Some(id) = made else {
+        return Ok(None);
+    };
+    Ok(load(tx, &id)?)
 }
 
 /// Ends a match BluMint closed with `credential`, unless it already ended,

@@ -116,10 +116,13 @@ expire, but a match nobody plays does: the bridge ends it 24 hours after you
 created it at the latest (see "Reports").
 
 Every request under one `Idempotency-Key` answers the match that key made,
-even after the match has ended, for a day. A renamed team or changed
-`matchSettings` under the key is the same match. Send a new key for a new
-match. A refusal is never stored against the key, so send the same key again
-once the players are linked or free.
+even after the match has ended, for a day. After that the key answers
+`409 key_reused`: the bridge keeps each match's key for as long as it keeps
+the match, so a key never makes a second match, and a close finds the match
+however old it is. A renamed team or changed `matchSettings` under the key is
+the same match. Send a new key for a new match. A refusal is never stored
+against the key, so send the same key again once the players are linked or
+free.
 
 | Situation | Status | Body |
 |---|---|---|
@@ -130,14 +133,15 @@ once the players are linked or free.
 | Not two teams of one player, or `gamesToWin` above 10 | `400` | `{ "code": "match_unsupported" }` |
 | Players with no link on your connection, all of them named | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
 | Players still in another match on your connection, all of them named | `423` | `{ "code": "player_busy", "players": ["emb1_..."] }` |
-| The key already made a different set (other players, length or starting wins), or a close named it | `409` | `{ "code": "key_reused" }` |
+| The key already made a different set (other players, length or starting wins), made its match over a day ago, or a close named it | `409` | `{ "code": "key_reused" }` |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
 Players are named exactly as you sent them, P1 first.
 
 ## Match close
 
-When you no longer need a match, close it:
+When you no longer need a match, close it by the `Idempotency-Key` you
+created it under, whether or not you had the creation's answer:
 
 ```http
 POST /v1/blumint/matches/close
@@ -145,29 +149,27 @@ Authorization: Bearer <credential>
 ```
 
 ```json
-{ "matchId": "emt_...", "reason": "decided" }
+{ "idempotencyKey": "tA1b2-round-1-match-1", "reason": "decided" }
 ```
 
-or, when you never had the creation's answer, by its key:
+The match that key made ends, its players are free, and nothing more is
+posted for it. Every reason closes the match, `decided`, `replaced`,
+`removed` and `hostOverride` as well as one the bridge does not know; it is
+kept for the log. A match that already ended, and a second close, answer
+`200` too. The close also closes the key: every later creation under it
+answers `409 key_reused`, also when the bridge never made a match under it,
+so a creation still on its way makes nothing.
 
-```json
-{ "idempotencyKey": "tA1b2-round-1-match-1", "reason": "removed" }
-```
-
-The match ends, its players are free, and nothing more is posted for it.
-Every reason closes the match, `decided`, `replaced`, `removed` and
-`hostOverride` as well as one the bridge does not know; it is kept for the
-log. A match that already ended, and a second close, answer `200` too. A key
-close ends the match that key made and closes the key: every later creation
-under it answers `409 key_reused`, also when the bridge never made a match
-under it, so a creation still on its way makes nothing. The close's own
-`Idempotency-Key` is not read.
+The bridge keeps a match's key for as long as it keeps the match, so a close
+finds the match however long ago you created it. A key that made no match is
+kept for a day: a day after its last refused creation, or after its close.
+The close's own `Idempotency-Key` is not read.
 
 | Situation | Status | Body |
 |---|---|---|
-| Closed, or already ended | `200` | `{ "closed": true }` |
-| A `matchId` the bridge did not make for your connection | `404` | `{ "code": "unknown_match" }` |
-| Both `matchId` and `idempotencyKey`, or neither; `reason` missing, empty or longer than 64 characters | `400` | `{ "code": "invalid_request" }` |
+| Closed, or already ended; or the key made no match, its creations refused | `200` | `{ "closed": true }` |
+| A key the bridge holds nothing under for your connection; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
+| No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 characters; `reason` missing, empty or longer than 64 characters | `400` | `{ "code": "invalid_request" }` |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
 ## Reports
