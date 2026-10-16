@@ -261,6 +261,48 @@ static void TestUpdaterArguments() {
     CHECK(last==1000&&InstallerBarPosition(UpdateStage::Downloading,5,10,1000)==0&&InstallerStepOf(UpdateStage::Extracting)<0);
     CHECK(InstallerStepOf(UpdateStage::Replacing)==3&&std::string(InstallerSteps[3].nameKey)=="update.stage.replacing");
 }
+// Glyph and flag art is allowed by a strict pattern as well as by name, so a
+// later version can add a file there without this build refusing its update.
+static void ArtPatterns() {
+    std::string error;
+    using sf4e::package::IsAllowed;
+    for (const auto* path : {L"assets\\input\\a.png", L"assets\\input\\xbox_future-2.png", L"assets\\flags\\flags.json", L"assets\\flags\\regions_2.png", L"assets\\flags\\-.json"})
+        CHECK(IsAllowed(path));
+    const std::wstring longest(64, L'a'), overlong(65, L'a');
+    CHECK(IsAllowed((L"assets\\input\\"+longest+L".png").c_str()) && !IsAllowed((L"assets\\input\\"+overlong+L".png").c_str()));
+    CHECK(IsAllowed((L"assets\\flags\\"+longest+L".json").c_str()) && !IsAllowed((L"assets\\flags\\"+overlong+L".json").c_str()));
+    for (const auto* path : {L"assets\\input\\X.png", L"assets\\input\\x.PNG", L"Assets\\input\\x.png", L"assets\\Input\\x.png",
+            L"assets\\input\\x.json", L"assets\\input\\x.jpg", L"assets\\input\\x.png.exe", L"assets\\input\\x.dll", L"assets\\input\\x",
+            L"assets\\input\\.png", L"assets\\input\\", L"assets\\input\\x .png", L"assets\\input\\x.png ", L"assets\\input\\x.png.",
+            L"assets\\input\\sub\\x.png", L"assets\\input\\..\\x.png", L"assets\\input\\..png", L"assets\\input\\x..png",
+            L"assets\\input\\x.png:stream", L"assets\\input\\x.png::$DATA", L"assets\\input\\x:y.png",
+            L"assets/input/x.png", L"assets\\input/x.png", L"\\assets\\input\\x.png", L"assets\\brand\\x.png", L"assets\\x.png",
+            L"assets\\flags\\x.txt", L"assets\\flags\\X.json", L"assets\\flags\\sub\\x.json", L"assets\\selection\\x.png"})
+        CHECK(!IsAllowed(path));
+    // A listed name keeps its own spelling; the pattern only adds names.
+    CHECK(IsAllowed(L"assets\\input\\License.txt") && IsAllowed(L"assets\\flags\\LICENSE") && !IsAllowed(L"assets\\input\\License.txt.png.exe"));
+    CHECK(sf4e::package::IsListed(L"assets\\input\\xbox_lb.png") && !sf4e::package::IsListed(L"assets\\input\\a.png"));
+}
+// Packaging copies only what PackageInventory.inc names, so art in the source
+// tree it misses never ships (57 controller glyphs once did not). Every file in
+// these art folders is listed, and every listed one is there.
+static void SourceArtListed() {
+    std::string error;
+    const auto repo=fs::path(__FILE__).parent_path().parent_path().parent_path();
+    for (const auto* folder : {L"input", L"flags", L"brand"}) {
+        CHECK(fs::is_directory(repo/L"assets"/folder));
+        for (const auto& entry : fs::directory_iterator(repo/L"assets"/folder)) {
+            const auto relative=(fs::path(L"assets")/folder/entry.path().filename()).wstring();
+            // The SVG masters the brand art is drawn from; the build installs only the PNG.
+            if (relative==L"assets\\brand\\source" && entry.is_directory()) continue;
+            if (!entry.is_regular_file() || !sf4e::package::IsListed(relative.c_str())) { std::wcerr << L"Not in PackageInventory.inc: " << relative << L'\n'; std::exit(1); }
+        }
+    }
+    for (const auto* path : sf4e::package::Allowed) {
+        const std::wstring listed(path);
+        if (listed.rfind(L"assets\\",0)==0 && listed.rfind(L"assets\\selection\\",0)!=0 && !fs::is_regular_file(repo/listed)) { std::wcerr << L"Listed but not in the source tree: " << listed << L'\n'; std::exit(1); }
+    }
+}
 int wmain(int argc, wchar_t** argv) {
     std::string error;
     if (argc == 3 && std::wstring(argv[1]) == L"--validate") {
@@ -292,6 +334,8 @@ int wmain(int argc, wchar_t** argv) {
         return 0;
     }
     TestUpdaterArguments();
+    ArtPatterns();
+    SourceArtListed();
     const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
@@ -472,6 +516,8 @@ int wmain(int argc, wchar_t** argv) {
     // an accepted name that no package shipped is not an update's to take.
     Write(install/L"docs\\TRAINING_LAB.md","player-edited");
     Write(install/L"assets\\selection\\horror-sources.json","player-art");
+    // The same for glyph and flag art at a name the pattern accepts.
+    Write(install/L"assets\\input\\my_glyph.png","player-art"); Write(install/L"assets\\flags\\my-flags.json","player-art");
     Write(install/L"my-replay.bin","user");
     const auto older=root/L"older"; fs::create_directories(older);
     std::vector<std::wstring> olderRequired;
@@ -512,12 +558,21 @@ int wmain(int argc, wchar_t** argv) {
     // A bare CR ends a line for other readers: one inside a comment would hide
     // the declaration after it, so it is refused.
     CHECK(rewritten(netLine,"// note\r"+netLine) && error.find("inventory")!=std::string::npos);
+    // A glyph a later version adds, which neither this build's list nor the
+    // package's own inventory names, is accepted by pattern when its manifest
+    // covers it; a name outside the pattern is not.
+    const auto future=root/L"future"; fs::copy(staging,future,fs::copy_options::recursive);
+    Write(future/L"assets\\input\\future_glyph.png","later"); Write(future/L"assets\\flags\\regions.json","later"); Manifest(future);
+    CHECK(sf4e::launcher::ValidatePackageFolder(future,error));
+    fs::remove(future/L"assets\\input\\future_glyph.png"); Write(future/L"assets\\input\\Future.png","later"); Manifest(future);
+    CHECK(!sf4e::launcher::ValidatePackageFolder(future,error) && error=="Unexpected package file");
     CHECK(sf4e::launcher::InstallPackage(older,install,error));
     CHECK(Read(install/L"Launcher.exe")=="older" && Read(install/L"dxwrapper.dll")=="older-display-wrapper");
     CHECK(!fs::exists(install/L"docs\\TRAINING_LAB.md") && !fs::exists(install/L"assets\\selection\\sources.json") && !fs::exists(install/L"docs"));
     CHECK(!fs::exists(install/L"ember-discord.exe") && !fs::exists(install/L"notices\\Discord-SDK.txt"));
     CHECK(Read(install/L"my-replay.bin")=="user" && Read(install/L"d3d9.dll")=="user-owned-proxy");
     CHECK(Read(install/L"assets\\selection\\horror-sources.json")=="player-art");
+    CHECK(Read(install/L"assets\\input\\my_glyph.png")=="player-art" && Read(install/L"assets\\flags\\my-flags.json")=="player-art");
     bool editKept=false;
     for (const auto& item : fs::recursive_directory_iterator(install/L".ember-update-backups"))
         if (item.path().filename()==L"TRAINING_LAB.md") editKept = Read(item.path())=="player-edited";
@@ -527,6 +582,7 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(Read(install/L"Launcher.exe")=="new" && !fs::exists(install/L"dxwrapper.dll") && Read(install/L"docs\\TRAINING_LAB.md")=="new");
     CHECK(Read(install/L"assets\\selection\\horror-sources.json")=="player-art");
+    CHECK(Read(install/L"assets\\input\\my_glyph.png")=="player-art" && Read(install/L"assets\\flags\\my-flags.json")=="player-art");
     // An installed manifest that is there but cannot be read stops the
     // update before anything changes: replacing it would lose for good which
     // files this folder owns.
@@ -939,6 +995,10 @@ int wmain(int argc, wchar_t** argv) {
     // names goes, a photograph at an allowed path that no package shipped stays.
     Write(install/L"assets\\selection\\RYU\\costume-0\\color-0-cutout.png","shipped-cutout");
     Write(install/L"assets\\selection\\RYU\\costume-0\\color-0.jpg","player-photo");
+    // Glyph and flag art too: a listed glyph goes with no manifest naming it,
+    // one only the manifest names goes, and my_glyph.png above stays.
+    CHECK(fs::is_regular_file(install/L"assets\\input\\xbox_lb.png"));
+    Write(install/L"assets\\flags\\regions.png","added-by-update");
     Write(install/L"dxwrapper.dll","obsolete-again");
     Write(install/L".ember-update-transaction-v1.json.failed","set-aside-journal");
     // A file only the installed version's manifest names: the helper setup kept
@@ -946,7 +1006,8 @@ int wmain(int argc, wchar_t** argv) {
     Write(install/L"from-another-version.dll","named-by-manifest");
     Write(install/L"MANIFEST.txt",(Sha256("named-by-manifest")+"  from-another-version.dll\n"+
         Sha256("added-by-update")+"  assets\\selection\\sources.json\n"+
-        Sha256("shipped-cutout")+"  assets\\selection\\RYU\\costume-0\\color-0-cutout.png\n").c_str());
+        Sha256("shipped-cutout")+"  assets\\selection\\RYU\\costume-0\\color-0-cutout.png\n"+
+        Sha256("added-by-update")+"  assets\\flags\\regions.png\n").c_str());
     // A name that only starts like the updater's own is the player's.
     Write(install/L".ember-update-backups-notes.txt","player");
     Write(root/L"outside\\TRAINING_LAB.md","outside");
@@ -974,6 +1035,8 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!fs::exists(install/L"Launcher.exe") && !fs::exists(install/L"notices") && !fs::exists(install/L"dxwrapper.dll"));
     CHECK(!fs::exists(install/L"assets\\selection\\sources.json") && Read(install/L"assets\\selection\\my-mod.png")=="player");
     CHECK(!fs::exists(install/L"assets\\selection\\RYU\\costume-0\\color-0-cutout.png") && Read(install/L"assets\\selection\\RYU\\costume-0\\color-0.jpg")=="player-photo");
+    CHECK(!fs::exists(install/L"assets\\input\\xbox_lb.png") && !fs::exists(install/L"assets\\flags\\regions.png") && !fs::exists(install/L"assets\\flags\\flags.png"));
+    CHECK(Read(install/L"assets\\input\\my_glyph.png")=="player-art" && Read(install/L"assets\\flags\\my-flags.json")=="player-art");
     CHECK(!fs::exists(install/L".ember-update-backups") && !fs::exists(install/L".ember-update.lock"));
     CHECK(!fs::exists(install/L".ember-update-transaction-v1.json.failed") && Read(install/L".ember-update-transaction-v1.json.new")=="user-journal-name");
     CHECK(Read(install/L"my-replay.bin")=="user" && Read(install/L"d3d9.dll")=="user-owned-proxy");

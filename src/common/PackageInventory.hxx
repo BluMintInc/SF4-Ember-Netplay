@@ -29,10 +29,35 @@ static const wchar_t* const Obsolete[] = {
 #undef SF4E_PACKAGE_OPTIONAL
 #undef SF4E_PACKAGE_OBSOLETE
 };
-inline bool IsAllowed(const wchar_t* path) {
-    if (!path || !*path || wcsstr(path, L"..") || wcschr(path, L':') || *path == L'\\' || *path == L'/') return false;
-    if (selection::IsSelectionAssetPath(path)) return true;
+// A path this build's inventory names one by one.
+inline bool IsListed(const wchar_t* path) {
+    if (!path) return false;
     for (const auto* allowed : Allowed) if (_wcsicmp(path, allowed) == 0) return true;
     return false;
+}
+// Glyph and flag art is also allowed by pattern, so a file a later version adds
+// there never makes this build refuse that version's update: assets\input\<name>.png
+// or assets\flags\<name>.png|.json, <name> 1-64 of [a-z0-9_-], nothing deeper.
+// Like selection art, a file there is Ember's only when a manifest or the list
+// above names it; otherwise it is the player's.
+inline bool IsArtAssetPath(const wchar_t* path) {
+    struct Folder { const wchar_t* root; const wchar_t* extensions[2]; };
+    static const Folder folders[] = { {L"assets\\input\\", {L".png", nullptr}}, {L"assets\\flags\\", {L".png", L".json"}} };
+    if (!path) return false;
+    for (const auto& folder : folders) {
+        const size_t prefix = wcslen(folder.root);
+        if (wcsncmp(path, folder.root, prefix) != 0) continue;
+        const wchar_t* name = path + prefix;
+        size_t length = 0;
+        for (wchar_t c = name[0]; (c >= L'a' && c <= L'z') || (c >= L'0' && c <= L'9') || c == L'_' || c == L'-'; c = name[++length]) {}
+        if (length == 0 || length > 64) return false;
+        for (const auto* extension : folder.extensions) if (extension && wcscmp(name + length, extension) == 0) return true;
+        return false;
+    }
+    return false;
+}
+inline bool IsAllowed(const wchar_t* path) {
+    if (!path || !*path || wcsstr(path, L"..") || wcschr(path, L':') || *path == L'\\' || *path == L'/') return false;
+    return selection::IsSelectionAssetPath(path) || IsArtAssetPath(path) || IsListed(path);
 }
 } }
