@@ -128,7 +128,8 @@ seconds) are on `GET /v1/matches/{id}` and in the players' assignments, and
 creation, a day unless the operator changed it, and again that long after each
 game that starts or is decided. On a BluMint connection games do not move it,
 so a match ends `match_expiry_hours` after its creation however far it was
-played. A provider cannot choose it per match yet.
+played, and never later than 24 hours after it, whatever `match_expiry_hours`
+says. A provider cannot choose it per match yet.
 
 Once `expires_at` has passed, the bridge's maintenance pass (every ten
 seconds) moves the match to the terminal state `expired`, frees its players,
@@ -285,7 +286,7 @@ the wins so far and `retryable: true`, which BluMint answers by asking for
 the set again with those wins as `startingWins`. BluMint has no review step,
 so a match that would go to `needs_review` (the two games disagree, a report
 never arrives, a player's link ends) is cancelled instead. A match nobody
-plays expires after a day and is an `abort` with `retryable: false`, so
+plays expires after a day at most and is an `abort` with `retryable: false`, so
 BluMint's host takes it. Posts need BluMint's API key for the connection in
 the integration secrets; a match that ends before the key is there is posted
 once it is. Posts are retried for a day; the match's

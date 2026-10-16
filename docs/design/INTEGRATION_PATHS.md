@@ -137,8 +137,10 @@ game, a correction), `expires_at` becomes the later of itself and that moment
 plus `expiry_secs`. So a set the players are working through is cut off only
 after a whole lifetime without a game, even when an organizer decides a held
 game after the old deadline. A BluMint connection's matches keep the deadline
-they were made with (`Policy::fixed_lifetime`): BluMint frees a player held by
-a match it could not close only for 24 hours after the match was made. The maintenance pass moves a match to the terminal
+they were made with (`Policy::fixed_lifetime`), and their lifetime is the
+lesser of `match_expiry_hours` and 24 hours (`BLUMINT_MATCH_LIFETIME_SECS`):
+BluMint frees a player held by a match it could not close only for 24 hours
+after the match was made. The maintenance pass moves a match to the terminal
 state `expired` when `expires_at` has passed, it is not `needs_review`, it has
 no open game (`permitted` or `review` attempt) and no live provisioning lease.
 The match then follows the cancellation path: revision bumped, its

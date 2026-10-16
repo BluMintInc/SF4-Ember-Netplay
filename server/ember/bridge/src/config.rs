@@ -237,11 +237,17 @@ pub struct Policy {
     /// (BluMint, `delivery::progress`).
     pub reports_progress: bool,
     /// A quiet match expires a lifetime after it was made, however it has
-    /// been played, rather than a lifetime after its last game. BluMint
-    /// frees a player held by a match it could not close only for that
-    /// long after the match was made.
+    /// been played, rather than a lifetime after its last game, and that
+    /// lifetime is at most `BLUMINT_MATCH_LIFETIME_SECS`.
     pub fixed_lifetime: bool,
 }
+
+/// The longest a match on a `Policy::fixed_lifetime` connection lives,
+/// whatever `match_expiry_hours` says. BluMint frees a player held by a match
+/// it could not close only for 24 hours after the match was made, so a match
+/// still open past that would keep its players busy while BluMint counts them
+/// free to be disqualified.
+pub const BLUMINT_MATCH_LIFETIME_SECS: u64 = 24 * 60 * 60;
 
 impl Policy {
     pub fn of(kind: &str, disputes: Disputes) -> Self {

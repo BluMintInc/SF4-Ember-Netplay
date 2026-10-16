@@ -3,14 +3,16 @@
 //! quiet match lives (`expiry_secs`). Creating the match, issuing a permit and
 //! settling a game (`extend`, called inside those transactions) each set the
 //! deadline to now plus that lifetime, except on a BluMint connection, whose
-//! matches keep the deadline they were made with. The snapshot, the
-//! assignment list and the sweep all read `expires_at` as it is.
+//! matches keep the deadline they were made with, at most a day after their
+//! creation. The snapshot, the assignment list and the sweep all read
+//! `expires_at` as it is.
 use ember_protocol::{event::Kind, matches::MatchState};
 use rusqlite::{Transaction, params};
 use serde_json::json;
 
 use crate::{
     audit::audit,
+    config::{BLUMINT_MATCH_LIFETIME_SECS, Policy},
     ctx::Ctx,
     error::{ApiFailure, Result},
     routes::{
@@ -27,9 +29,17 @@ pub const EXPIRED_LISTED_SECS: u64 = 24 * 60 * 60;
 
 /// How long a new match lives while quiet. A match nobody plays expires. A
 /// lobby or bracket set ends with its lobby or tournament instead (a bracket
-/// waits on its sets), so it has no expiry.
-pub fn lifetime(ctx: &Ctx, is_set: bool) -> Option<u64> {
-    (!is_set).then(|| ctx.config.match_expiry_secs())
+/// waits on its sets), so it has no expiry. A connection whose matches keep
+/// their first deadline caps it at `BLUMINT_MATCH_LIFETIME_SECS`.
+pub fn lifetime(ctx: &Ctx, is_set: bool, policy: Policy) -> Option<u64> {
+    let secs = ctx.config.match_expiry_secs();
+    (!is_set).then(|| {
+        if policy.fixed_lifetime {
+            secs.min(BLUMINT_MATCH_LIFETIME_SECS)
+        } else {
+            secs
+        }
+    })
 }
 
 /// Game activity: moves the match's deadline to a whole lifetime from now, so
