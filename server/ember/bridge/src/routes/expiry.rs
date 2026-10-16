@@ -48,14 +48,14 @@ pub fn lifetime(ctx: &Ctx, is_set: bool, policy: Policy) -> Option<u64> {
 /// voided game or a correction). Never moves a deadline earlier, and never
 /// moves one on a connection whose matches keep their first deadline
 /// (`Policy::fixed_lifetime`).
-pub fn extend(tx: &Transaction<'_>, now: u64, connection_id: &str, match_id: &str) -> Result<()> {
-    if policy::of(tx, connection_id)?.fixed_lifetime {
+pub fn extend(tx: &Transaction<'_>, now: u64, found: &Match) -> Result<()> {
+    if policy::of(tx, &found.connection_id)?.fixed_lifetime {
         return Ok(());
     }
     tx.execute(
         "UPDATE matches SET expires_at = MAX(expires_at, ?1 + expiry_secs)
          WHERE id = ?2 AND expiry_secs IS NOT NULL",
-        params![now, match_id],
+        params![now, found.id],
     )?;
     Ok(())
 }

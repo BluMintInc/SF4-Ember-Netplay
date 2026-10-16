@@ -11,6 +11,7 @@
 //! report that late would claim a set is still on.
 use std::collections::BTreeMap;
 
+use ember_protocol::{api::ErrorCode, matches::MatchState};
 use rusqlite::{Transaction, params};
 use serde_json::json;
 
@@ -18,20 +19,88 @@ use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
-    error::Result,
-    routes::{blumint, ledger::load, policy},
+    error::{ApiFailure, Result},
+    routes::{
+        blumint,
+        ledger::{Match, load},
+        policy,
+    },
 };
 
 /// The `games_played` of a set's status report.
 pub const STARTED: u64 = 0;
 
-/// Queues a report on a set in play: its status (`STARTED`), or its score
-/// after `games_played` games won.
-pub fn queue(tx: &Transaction<'_>, match_id: &str, games_played: u64) -> Result<()> {
+/// The match's game `seq` was permitted. A platform that hears sets in play
+/// is told the set has begun at its first.
+pub fn game_started(tx: &Transaction<'_>, found: &Match, seq: u64) -> Result<()> {
+    if seq == 1 && policy::of(tx, &found.connection_id)?.reports_progress {
+        tx.execute(
+            "INSERT OR IGNORE INTO blumint_progress (match_id, games_played, state) VALUES (?1, ?2, 'queued')",
+            params![found.id, STARTED],
+        )?;
+    }
+    Ok(())
+}
+
+/// A game of the match settled, outside a correction, leaving `wins` after
+/// `games_won` games won in the match. One that raised the score without
+/// ending the set is reported; the game that ends it is the result. A void
+/// lowers the count, so a later game can bring back a count already queued
+/// or sent: that report is sent again, with the score as it then stands.
+pub fn game_settled(
+    tx: &Transaction<'_>,
+    found: &Match,
+    wins_before: [u8; 2],
+    wins: [u8; 2],
+    next: MatchState,
+    games_won: u64,
+) -> Result<()> {
+    let raised = wins != wins_before && (0..2).all(|slot| wins[slot] >= wins_before[slot]);
+    if found.state == MatchState::Completed
+        || next != MatchState::BetweenGames
+        || !raised
+        || !policy::of(tx, &found.connection_id)?.reports_progress
+    {
+        return Ok(());
+    }
+    // `attempts` is kept, so a lease of the report taken before it came back
+    // cannot record its outcome on the new one.
     tx.execute(
-        "INSERT OR IGNORE INTO blumint_progress (match_id, games_played, state) VALUES (?1, ?2, 'queued')",
-        params![match_id, games_played],
+        "INSERT INTO blumint_progress (match_id, games_played, state) VALUES (?1, ?2, 'queued')
+         ON CONFLICT (match_id, games_played) DO UPDATE SET state = 'queued', next_at = 0, first_at = NULL",
+        params![found.id, games_won],
     )?;
+    Ok(())
+}
+
+/// Refuses a change that lowers a team's wins once a progress report on the
+/// match has been sent. BluMint keeps the wins a report gave a team and
+/// refuses any later report below them (`invalid_wins`), the result and an
+/// abort included, so the set could never be reported again.
+pub fn keep_reported_wins(
+    tx: &Transaction<'_>,
+    found: &Match,
+    wins_before: [u8; 2],
+    wins: [u8; 2],
+) -> Result<()> {
+    if (0..2).all(|slot| wins[slot] >= wins_before[slot])
+        || !policy::of(tx, &found.connection_id)?.reports_progress
+    {
+        return Ok(());
+    }
+    // Sent at least once, whatever its state since: a report the next lease
+    // marked not_required may still have reached BluMint.
+    let sent: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM blumint_progress WHERE match_id = ?1 AND games_played != ?2 AND attempts > 0)",
+        params![found.id, STARTED],
+        |row| row.get(0),
+    )?;
+    if sent {
+        return Err(ApiFailure::new(
+            ErrorCode::LeaseConflict,
+            "The set's score has been sent to the tournament platform, so a game it counts cannot be voided.",
+        ));
+    }
     Ok(())
 }
 

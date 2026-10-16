@@ -480,6 +480,81 @@ async fn a_progress_report_follows_each_game_that_does_not_end_the_set() {
     );
 }
 
+// BluMint keeps the wins a progress report gave a team and refuses any later
+// report below them, the result included. So once one has been sent, a game
+// it may count cannot be voided, mid-set or in a correction.
+#[tokio::test]
+async fn a_game_blumint_has_been_told_of_cannot_be_voided() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    assert_eq!(void_last(&f, &id, "void-1").await, StatusCode::CONFLICT);
+    assert_eq!(match_state(&f, &id).await, "between_games");
+    win(&f, &id, 1, "game-2").await;
+    assert_eq!(
+        reports(&f, &id).await,
+        vec![progressed(&f, &id, [1, 0]), progressed(&f, &id, [1, 1])]
+    );
+    win(&f, &id, 1, "game-3").await;
+    assert_eq!(
+        reports(&f, &id).await,
+        vec![
+            progressed(&f, &id, [1, 0]),
+            progressed(&f, &id, [1, 1]),
+            result(&f, &id, [1, 2]),
+        ]
+    );
+
+    // A completed set whose result is still to be sent, with 1-0 and 1-1
+    // sent: voiding Sam's game would send 2-0 over the 1 BluMint gave him.
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    ember_bridge::deliver_results(&keyed).await;
+    win(&f, &id, 1, "game-2").await;
+    ember_bridge::deliver_results(&keyed).await;
+    win(&f, &id, 0, "game-3").await;
+    assert_eq!(match_state(&f, &id).await, "completed");
+    assert_eq!(void_game(&f, &id, 1, "void-1").await, StatusCode::CONFLICT);
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(
+        submitted(&f),
+        vec![
+            progressed(&f, &id, [1, 0]),
+            progressed(&f, &id, [1, 1]),
+            result(&f, &id, [2, 1]),
+        ]
+    );
+}
+
+// A game voided before any report on it was sent can still be voided, and
+// its report goes out with the score as it then stands. The next game won
+// brings that report's count back, so it is sent again with the new score.
+#[tokio::test]
+async fn a_report_whose_count_comes_back_after_a_void_is_sent_again() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 3).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(void_last(&f, &id, "void-1").await, StatusCode::CREATED);
+    ember_bridge::deliver_results(&keyed).await;
+    win(&f, &id, 1, "game-2").await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(
+        submitted(&f),
+        vec![progressed(&f, &id, [0, 0]), progressed(&f, &id, [0, 1])]
+    );
+    assert_eq!(progress(&f, &id).await, vec![(1, "delivered".into())]);
+}
+
 // A report still waiting when the set ends is never sent: it would tell
 // BluMint a finished set is still on, and the result has the final score.
 #[tokio::test]

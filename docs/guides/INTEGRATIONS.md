@@ -292,7 +292,9 @@ the integration secrets; a match that ends before the key is there is posted
 once it is. Posts are retried for a day; the match's
 `provider_delivery_state` says how its result went. BluMint takes one result
 per match, so once the bridge starts posting it (`delivering`) an organizer
-can no longer correct it. A closed match is sent nothing more. `ember-bridge
+can no longer correct it. BluMint also refuses a report below the wins an
+earlier one gave a team, so once a `progress` report has been posted an
+organizer can no longer void a game of the set. A closed match is sent nothing more. `ember-bridge
 blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.

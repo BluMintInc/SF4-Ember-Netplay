@@ -36,7 +36,6 @@ use crate::{
     routes::{
         expiry,
         ledger::{Match, Participant, bump, load, match_event, participants},
-        policy,
         sessions::{self, Target},
     },
     util::new_id,
@@ -720,15 +719,10 @@ fn issue(
         "DELETE FROM attempt_preparations WHERE match_id = ?1",
         [match_id],
     )?;
-    // The set's first game: a platform that hears sets in play is told it
-    // has begun.
-    if seq == 1 && policy::of(tx, &fighter.found.connection_id)?.reports_progress {
-        progress::queue(tx, match_id, progress::STARTED)?;
-    }
+    progress::game_started(tx, &fighter.found, seq)?;
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
-    // A game starting is activity: the match gets a whole lifetime from now,
-    // unless its connection keeps the first deadline.
-    expiry::extend(tx, ctx.now, &fighter.found.connection_id, match_id)?;
+    // A game starting is activity, which moves the match's deadline.
+    expiry::extend(tx, ctx.now, &fighter.found)?;
     match_event(
         tx,
         ctx,

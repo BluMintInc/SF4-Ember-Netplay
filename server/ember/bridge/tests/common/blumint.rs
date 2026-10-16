@@ -15,7 +15,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::post,
 };
-use ember_bridge::{config, integrations::Secrets};
+use ember_bridge::{AppState, Keys, config, integrations::Secrets};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 use zeroize::Zeroizing;
@@ -313,6 +313,44 @@ pub async fn void_last(f: &Fixture, id: &str, key: &str) -> StatusCode {
     results::void_last(&f.bridge, &f.provider, &f.organizer, id, key)
         .await
         .0
+}
+
+/// The organizer voids the match's `nth` accepted game, first game 0.
+pub async fn void_game(f: &Fixture, id: &str, nth: usize, key: &str) -> StatusCode {
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    let attempt = found["attempts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|attempt| attempt["state"] == "accepted")
+        .nth(nth)
+        .unwrap()["attempt_id"]
+        .clone();
+    f.bridge
+        .post_keyed(
+            &f.organizer,
+            &format!("/v1/matches/{id}/adjudications"),
+            json!({ "kind": "void_game", "attempt_id": attempt, "reason": "Wrong game", "expected_revision": found["revision"] }),
+            Some(key),
+        )
+        .await
+        .0
+}
+
+/// A bridge on the fixture's database with BluMint's key, for a test whose
+/// own bridge has none, so only the delivery passes it runs send.
+pub fn keyed_state(f: &Fixture) -> AppState {
+    let state = f.bridge.state();
+    AppState::new(
+        (*state.config).clone(),
+        Keys::generate(),
+        keyed(),
+        state.db.clone(),
+        f.bridge.clock.clone(),
+    )
 }
 
 /// The match's state, as the bridge's own match route reads it.
