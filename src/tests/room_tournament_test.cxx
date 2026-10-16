@@ -791,6 +791,33 @@ static void TestACasualGameDelaysTheFirstBinding() {
 	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
 }
 
+// A locked room still admits its bound fighters, so one who drops comes back
+// to the set, whether the lock came before the binding or after it.
+static void TestALockedMatchRoomAdmitsItsFighters() {
+	for (const bool lockFirst : {true, false}) {
+		RoomAuthority authority("Match", 8, 1);
+		authority.AdvanceTime(1000);
+		const MemberId a = JoinAs(authority, "A", EndpointA, true);
+		const auto applyLock = [&] {
+			Action lock = TableAction(authority, a, 0, ActionKind::Lock);
+			lock.locked = true;
+			CHECK(authority.Apply(a, lock).accepted);
+		};
+		if (lockFirst) applyLock();
+		CHECK(authority.BindTournament(Binding()).accepted);
+		if (!lockFirst) applyLock();
+		CHECK(authority.SnapshotView().locked);
+		MemberId b = JoinAs(authority, "B", EndpointB);
+		CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+		PlayBoundGame(authority, a, b, MatchResult::P1Win);
+		CHECK(authority.Leave(b).accepted);
+		b = JoinAs(authority, "B", EndpointB);
+		CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+		CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+		CHECK(!JoinAs(authority, "C", EndpointC));
+	}
+}
+
 // Casual rooms are unchanged: Ready starts the game with no permit.
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
@@ -829,6 +856,7 @@ int main() {
 	TestStartingWins();
 	TestLeavingKeepsThePlayedScore();
 	TestACasualGameDelaysTheFirstBinding();
+	TestALockedMatchRoomAdmitsItsFighters();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");
 	return failures ? 1 : 0;
