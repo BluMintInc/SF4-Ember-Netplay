@@ -115,6 +115,21 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
         create(&f, "create-1", 1).await,
         (StatusCode::OK, created.clone())
     );
+    // Each registration issues BluMint a new credential, and the key belongs
+    // to the connection, so a replay under the new credential answers the
+    // same match.
+    let fresh = f.bridge.provider(CONNECTION).await;
+    assert_eq!(
+        f.bridge
+            .post_keyed(
+                &fresh,
+                "/v1/blumint/matches",
+                request(&f, 1),
+                Some("create-1")
+            )
+            .await,
+        (StatusCode::OK, created.clone())
+    );
     let mut renamed = request(&f, 1);
     renamed["teams"][0]["name"] = json!("kate (sub)");
     assert_eq!(
@@ -221,17 +236,22 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
             ),
         ]
     );
-    let authentication = &urls[0].2;
-    assert_eq!(
-        authentication["config"],
-        json!({ "location": "header", "key": "Authorization", "valuePrefix": "Bearer " })
-    );
-    // BluMint calls back with the credential it was handed, as its secret.
-    assert!(authentication.get("apiKey").is_none(), "{authentication}");
-    let token = authentication["secret"].as_str().unwrap();
+    // BluMint stores a credential per route, so every row carries the same
+    // working one, as its secret and never as `apiKey`.
+    let token = urls[0].2["secret"].as_str().unwrap().to_owned();
+    for (path, _, authentication) in &urls {
+        assert_eq!(
+            authentication,
+            &json!({
+                "config": { "location": "header", "key": "Authorization", "valuePrefix": "Bearer " },
+                "secret": token,
+            }),
+            "{path}"
+        );
+    }
     let (status, _) = f
         .bridge
-        .post(token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))
+        .post(&token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))
         .await;
     assert_eq!(status, StatusCode::OK);
     // A connection that is not BluMint's is refused.
@@ -401,7 +421,6 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
         .await
         .unwrap();
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    lookup(&f, json!({ "discord": ["99"] })).await;
     let (_, created) = create(&f, "set-1", 1).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
     let against_lou = |first: &Player, second: &Player| {
@@ -409,6 +428,17 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
         body["teams"] = json!([team("one", first.id()), team("two", second.id())]);
         body
     };
+    // A player to look up again is named before a busy one, so BluMint looks
+    // them up at once rather than holding the match first.
+    let (status, refused) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::BAD_REQUEST,
+            json!({ "code": "player_unlinked", "players": [lou.id()] })
+        )
+    );
+    lookup(&f, json!({ "discord": ["99"] })).await;
     let (status, refused) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
     assert_eq!(
         (status, refused),
@@ -443,10 +473,13 @@ async fn a_closed_match_sends_nothing() {
     let id = created["matchId"].as_str().unwrap().to_owned();
     win(&f, &id, 0, "game-1").await;
     assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    let mut revisions = Vec::new();
     for _ in 0..2 {
         let (status, closed) = close(&f, json!({ "matchId": id, "reason": "decided" })).await;
         assert_eq!(status, StatusCode::OK, "{closed}");
+        revisions.push(status_revision(&f, &id).await);
     }
+    assert_eq!(revisions[0], revisions[1]);
     assert_eq!(match_state(&f, &id).await, "cancelled");
     assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
     assert_eq!(
@@ -493,13 +526,20 @@ async fn a_closed_match_sends_nothing() {
 
     // BluMint never had the answer, so it names the creation's key: the
     // match made under it closes, and the key makes no match again.
+    // The key is the connection's, so a credential from a later
+    // registration closes it too.
     let (_, created) = create(&f, "set-4", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
-    let (status, closed) = close(
-        &f,
-        json!({ "idempotencyKey": "set-4", "reason": "removed" }),
-    )
-    .await;
+    let fresh = f.bridge.provider(CONNECTION).await;
+    let (status, closed) = f
+        .bridge
+        .post_keyed(
+            &fresh,
+            "/v1/blumint/matches/close",
+            json!({ "idempotencyKey": "set-4", "reason": "removed" }),
+            Some("close-set-4"),
+        )
+        .await;
     assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(match_state(&f, &id).await, "cancelled");
     assert_eq!(
@@ -550,4 +590,52 @@ async fn a_closed_match_sends_nothing() {
             "{body}"
         );
     }
+}
+
+// A close names only a match the bridge made for BluMint's connection: one
+// another connection made is unknown to it, and goes on.
+#[tokio::test]
+async fn a_close_naming_another_connections_match_ends_nothing() {
+    let f = fixture().await;
+    let (provider, direct) = direct_match(&f).await;
+    let (_, found) = f
+        .bridge
+        .get(&provider, &format!("/v1/matches/{direct}"))
+        .await;
+    assert_eq!(
+        close(&f, json!({ "matchId": direct, "reason": "decided" })).await,
+        (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
+    );
+    let (_, after) = f
+        .bridge
+        .get(&provider, &format!("/v1/matches/{direct}"))
+        .await;
+    assert_eq!(
+        (&after["state"], &after["revision"]),
+        (&found["state"], &found["revision"])
+    );
+}
+
+// A match that has ended answers a close with 200 and stays as it is: a
+// completed set whose result BluMint has not taken yet is still sent it.
+#[tokio::test]
+async fn closing_a_match_that_has_ended_changes_nothing() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 1).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.blumint.lock().unwrap().fail = 1;
+    win(&f, &id, 0, "game-1").await;
+    results::until(&f.bridge, &id, |(state, attempts)| {
+        state == "retrying" && attempts == 1
+    })
+    .await;
+    let before = status_revision(&f, &id).await;
+    let (status, closed) = close(&f, json!({ "matchId": id, "reason": "decided" })).await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &id).await, "completed");
+    assert_eq!(status_revision(&f, &id).await, before);
+    f.bridge.clock.advance(11);
+    results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
+    assert_eq!(submitted(&f), vec![result(&f, &id, [1, 0])]);
 }
