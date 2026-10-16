@@ -303,6 +303,14 @@ Once all three are registered it revokes the callback credential an earlier
 registration handed over; one that fails partway leaves it in place.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.
 
+A match BluMint asks for again from a score carries `starting_wins` in its
+`match.completed` data, P1 first, and leaves it out at 0-0. Its `scores`
+count those wins, so each player's wins are their starting wins plus the
+games they won in this match, and `accepted_attempt_ids` lists only the
+games played in it. EMBER-TB-001's `MatchCompletedData` schema does not list
+the field, so a subscriber that validates events against
+`docs/design/identity-bridge/schemas/core.schema.json` must allow it.
+
 A `blumint` connection makes matches only through BluMint's create
 callback; the generic match, lobby and tournament routes refuse it, so every
 match on it is one BluMint knows.
