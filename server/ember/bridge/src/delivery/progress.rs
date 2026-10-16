@@ -30,10 +30,11 @@ use crate::{
 /// The `games_played` of a set's status report.
 pub const STARTED: u64 = 0;
 
-/// The match's game `seq` was permitted. A platform that hears sets in play
-/// is told the set has begun at its first.
-pub fn game_started(tx: &Transaction<'_>, found: &Match, seq: u64) -> Result<()> {
-    if seq == 1 && policy::of(tx, &found.connection_id)?.reports_progress {
+/// A game of the match was permitted. A platform that hears sets in play is
+/// told the set has begun, once per match, whatever games an organizer
+/// recorded before the fighters' first.
+pub fn game_started(tx: &Transaction<'_>, found: &Match) -> Result<()> {
+    if policy::of(tx, &found.connection_id)?.reports_progress {
         tx.execute(
             "INSERT OR IGNORE INTO blumint_progress (match_id, games_played, state) VALUES (?1, ?2, 'queued')",
             params![found.id, STARTED],

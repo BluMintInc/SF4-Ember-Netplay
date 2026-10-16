@@ -173,7 +173,7 @@ The bridge posts to `https://staging.blumint.io/api/tournaments/match/submit`
 with BluMint's API key. Every report names each player by the Ember ID you
 sent, and its `wins` count the `startingWins` the match was created with.
 
-When the set's first game starts, once:
+When the players start their first game of the set, once:
 
 ```json
 { "mode": "status", "matchId": "emt_...", "status": "running", "players": [
