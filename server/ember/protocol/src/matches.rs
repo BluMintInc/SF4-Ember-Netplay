@@ -268,7 +268,9 @@ pub struct MatchCompleted {
     pub starting_wins: [u8; 2],
 }
 
-fn starts_at_zero(wins: &[u8; 2]) -> bool {
+/// Whether a set starts from 0-0, which leaves `starting_wins` out of its
+/// wire form.
+pub(crate) fn starts_at_zero(wins: &[u8; 2]) -> bool {
     *wins == [0, 0]
 }
 
