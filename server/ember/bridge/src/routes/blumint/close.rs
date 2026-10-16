@@ -9,7 +9,7 @@
 //! that key is closed, and the key refuses any creation from then on, since
 //! one still on its way would make a match nobody plays or closes.
 use axum::{extract::State, http::HeaderMap, response::Response};
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::Transaction;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -20,6 +20,7 @@ use crate::{
     ctx::Ctx,
     http::ok,
     routes::{
+        idempotency,
         ledger::{Match, load},
         matches::cancel_and_release,
     },
@@ -31,9 +32,6 @@ const MAX_MATCH_ID: usize = 256;
 const MAX_KEY: usize = 128;
 /// Longest reason the bridge keeps. BluMint's are short words.
 const MAX_REASON: usize = 64;
-/// What a closed key stores in place of a creation's digest. No digest is
-/// this, so every creation under the key meets `key_reused`.
-const CLOSED: &str = "closed-by-blumint";
 
 #[derive(Deserialize)]
 struct CloseRequest {
@@ -95,31 +93,10 @@ fn close_key(
     key: &str,
 ) -> std::result::Result<Option<Match>, BluMintRefusal> {
     let actor = key_owner(connection_id);
-    let made: Option<Vec<u8>> = tx
-        .query_row(
-            "SELECT response FROM idempotency_records
-             WHERE actor = ?1 AND method = 'POST' AND path = ?2 AND idempotency_key = ?3",
-            params![actor, MATCHES_PATH, key],
-            |row| row.get(0),
-        )
-        .optional()?;
-    tx.execute(
-        "INSERT INTO idempotency_records (actor, method, path, idempotency_key, command_digest, status, response, created_at)
-         VALUES (?1, 'POST', ?2, ?3, ?4, 409, ?5, ?6)
-         ON CONFLICT (actor, method, path, idempotency_key) DO UPDATE SET
-           command_digest = excluded.command_digest, status = excluded.status,
-           response = excluded.response, created_at = excluded.created_at",
-        params![
-            actor,
-            MATCHES_PATH,
-            key,
-            CLOSED,
-            json!({ "code": "key_reused" }).to_string().into_bytes(),
-            ctx.now
-        ],
-    )?;
+    let made = idempotency::stored(tx, &actor, MATCHES_PATH, key)?;
+    idempotency::refuse(tx, &actor, MATCHES_PATH, key, ctx.now)?;
     let match_id = made
-        .and_then(|response| serde_json::from_slice::<Value>(&response).ok())
+        .and_then(|made| serde_json::from_slice::<Value>(&made.body).ok())
         .and_then(|response| response["matchId"].as_str().map(str::to_owned));
     Ok(match match_id {
         Some(id) => load(tx, &id)?.filter(|found| found.connection_id == connection_id),
