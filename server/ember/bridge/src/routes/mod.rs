@@ -29,7 +29,7 @@ use axum::{
 };
 use rusqlite::params;
 
-use crate::{AppState, ctx::Ctx, linking, mock};
+use crate::{AppState, ctx::Ctx, delivery, linking, mock};
 
 /// Form bodies (mock pages only); JSON routes cap their own bodies.
 const FORM_LIMIT: usize = 16 * 1024;
@@ -172,7 +172,8 @@ pub async fn maintenance(state: AppState) {
 }
 
 /// Expires link intents, holds games whose reports did not arrive, expires
-/// matches nobody played, and removes stale challenges, sessions and replay records. Durable domain
+/// matches nobody played, observes the fighters whose claims lapsed, and
+/// removes stale challenges, sessions and replay records. Durable domain
 /// records (links, matches, attempts, reports, events) stay.
 pub async fn maintenance_once(state: &AppState) {
     let now = state.now();
@@ -183,6 +184,7 @@ pub async fn maintenance_once(state: &AppState) {
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
             expiry::expire_stale(tx, &ctx)?;
+            delivery::status::observe_lapsed(tx, now)?;
             linking::expire(tx, now)?;
             discord::expire(tx, now)?;
             tx.execute(

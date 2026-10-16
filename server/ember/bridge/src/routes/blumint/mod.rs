@@ -13,7 +13,8 @@
 //!
 //! The bridge reports each match to BluMint once BluMint's API key for the
 //! connection is configured (`report`): its status each time a player
-//! arrives, a game starts or a game ends (`delivery::status`), its score
+//! arrives or leaves, a game starts, or a game ends with another to come
+//! (`delivery::status`), its score
 //! after each game that does not end it (`delivery::progress`), then its
 //! result, or an abort for a match that ended without one
 //! (`delivery::results`). A match whose result the two games disputed is

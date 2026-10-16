@@ -1,8 +1,9 @@
 //! BluMint's status report on a match (`routes::blumint::status`): whether
 //! its fighters' first game has started, and each player's presence. It is
-//! observed whenever the match's revision moves and whenever a fighter claims
-//! it, and sent each time it changes: as each player arrives, as each game
-//! starts, and as each game ends and the next waits.
+//! observed whenever the match's revision moves, whenever a fighter claims
+//! it and whenever a fighter's claim lapses, and sent each time it changes:
+//! as each player arrives or leaves, as each game starts, and as each game
+//! ends and the next waits.
 //!
 //! A match keeps one report, its latest. Each change moves the report's
 //! `revision` and queues it again, so a report that waited is sent as it
@@ -10,6 +11,7 @@
 //! is sent once the match has ended: its result or abort says how it ended.
 use std::collections::BTreeMap;
 
+use ember_protocol::play::LEASE_SECS;
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Value, json};
 
@@ -29,7 +31,7 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
     if found.state.is_terminal() || !policy::of(tx, &found.connection_id)?.reports_progress {
         return Ok(());
     }
-    let status = blumint::status(tx, &found)?;
+    let status = blumint::status(tx, &found, now)?;
     let last: Option<String> = tx
         .query_row(
             "SELECT body FROM blumint_status WHERE match_id = ?1",
@@ -52,6 +54,24 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
              state = 'queued', next_at = 0, attempts = 0, first_at = NULL",
         params![match_id, status.to_string(), now],
     )?;
+    Ok(())
+}
+
+/// Observes each open match a fighter's claim has lapsed on: nothing else
+/// happens when an Ember stops claiming, so the maintenance pass notices it
+/// leave. A match whose status already says so is unchanged.
+pub fn observe_lapsed(tx: &Transaction<'_>, now: u64) -> Result<()> {
+    let ids = tx
+        .prepare(
+            "SELECT DISTINCT c.match_id FROM match_claims c JOIN matches m ON m.id = c.match_id
+             WHERE c.claimed_at + ?1 <= ?2
+               AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')",
+        )?
+        .query_map(params![LEASE_SECS, now], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for id in ids {
+        observe(tx, &id, now)?;
+    }
     Ok(())
 }
 
