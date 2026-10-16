@@ -245,10 +245,11 @@ pub struct Policy {
 }
 
 /// The longest a match on a `Policy::capped_lifetime` connection lives,
-/// whatever `match_expiry_hours` says. BluMint frees a player held by a match
-/// it could not close only for 24 hours after the match was made, so a match
-/// still open past that would keep its players busy while BluMint counts them
-/// free to be disqualified.
+/// whatever `match_expiry_hours` says. BluMint excuses a player kept busy by a
+/// match it could not close only for a bounded window: this cap, plus its own
+/// create retry span and a minute for this bridge's maintenance sweep. A match
+/// still open past the cap would keep its players busy after BluMint counts
+/// them free to be disqualified.
 pub const BLUMINT_MATCH_LIFETIME_SECS: u64 = 24 * 60 * 60;
 
 impl Policy {
