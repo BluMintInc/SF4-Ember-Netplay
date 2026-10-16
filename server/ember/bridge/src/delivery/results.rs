@@ -36,14 +36,26 @@ use crate::{
 };
 
 /// BluMint's submit endpoint for one connection, with BluMint's API key for
-/// it. Results and the reports on a set in play (`delivery::progress`) both
-/// go there.
+/// it. Results, the reports on a set in play (`delivery::progress`) and the
+/// status of a match (`delivery::status`) all go there.
 pub struct BluMint {
     submit_url: String,
     key: Zeroizing<String>,
 }
 
 impl BluMint {
+    /// The endpoint of every configured BluMint connection that can be sent
+    /// to, by connection.
+    pub fn destinations(state: &AppState) -> BTreeMap<String, Self> {
+        state
+            .config
+            .tenants
+            .iter()
+            .flat_map(|tenant| &tenant.connections)
+            .filter_map(|connection| Some((connection.id.clone(), Self::of(state, connection)?)))
+            .collect()
+    }
+
     /// The endpoint of an enabled BluMint connection whose key is configured.
     pub fn of(state: &AppState, connection: &Connection) -> Option<Self> {
         (connection.enabled && connection.is_blumint()).then_some(())?;

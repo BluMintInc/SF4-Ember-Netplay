@@ -246,10 +246,82 @@ pub async fn progress(f: &Fixture, id: &str) -> Vec<(u64, String)> {
         .unwrap()
 }
 
+/// The match's status report as the bridge keeps it: its revision and its
+/// delivery state.
+pub async fn status_row(f: &Fixture, id: &str) -> Option<(u64, String)> {
+    let id = id.to_owned();
+    f.bridge
+        .state()
+        .db
+        .read(move |tx| {
+            use rusqlite::OptionalExtension;
+            Ok(tx
+                .query_row(
+                    "SELECT revision, state FROM blumint_status WHERE match_id = ?1",
+                    [&id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?)
+        })
+        .await
+        .unwrap()
+}
+
 /// Runs delivery passes until no report on the match waits to be sent now,
-/// for at most five seconds, and returns what BluMint was sent for it. The
-/// bridge's own workers run alongside; any of them may send.
+/// for at most five seconds, and returns what BluMint was sent for it other
+/// than its status. The bridge's own workers run alongside; any of them may
+/// send.
 pub async fn reports(f: &Fixture, id: &str) -> Vec<Json> {
+    settle(f, id).await;
+    sent_for(f, id, |body| body["mode"] != "status")
+}
+
+/// The status reports BluMint was sent for the match so far, in the order
+/// they arrived.
+pub fn statuses(f: &Fixture, id: &str) -> Vec<Json> {
+    sent_for(f, id, |body| body["mode"] == "status")
+}
+
+/// A status report on the match without the time it was observed, which
+/// follows the test clock, and that time.
+pub fn untimed(mut status: Json) -> (Json, String) {
+    let at = status
+        .as_object_mut()
+        .and_then(|body| body.remove("observedAt"))
+        .and_then(|at| at.as_str().map(str::to_owned))
+        .unwrap_or_default();
+    (status, at)
+}
+
+/// The status report of the match's `revision`, with Kate's and Sam's
+/// presence.
+pub fn status(f: &Fixture, id: &str, revision: u64, status: &str, presence: [&str; 2]) -> Json {
+    json!({
+        "mode": "status",
+        "matchId": id,
+        "revision": revision,
+        "status": status,
+        "players": [
+            { "inGameId": f.kate.id(), "status": presence[0] },
+            { "inGameId": f.sam.id(), "status": presence[1] },
+        ],
+    })
+}
+
+fn sent_for(f: &Fixture, id: &str, keep: impl Fn(&Json) -> bool) -> Vec<Json> {
+    let received = f.blumint.lock().unwrap();
+    received
+        .calls
+        .iter()
+        .filter(|(path, key, body)| {
+            path == "/api/tournaments/match/submit" && key == "bm-key" && body["matchId"] == id
+        })
+        .map(|(_, _, body)| body.clone())
+        .filter(keep)
+        .collect()
+}
+
+async fn settle(f: &Fixture, id: &str) {
     for _ in 0..250 {
         let (match_id, now) = (id.to_owned(), f.bridge.clock.now());
         let due: bool = f
@@ -261,6 +333,9 @@ pub async fn reports(f: &Fixture, id: &str) -> Vec<Json> {
                     "SELECT EXISTS (SELECT 1 FROM blumint_progress p JOIN matches m ON m.id = p.match_id
                        WHERE p.match_id = ?1 AND m.state NOT IN ('completed', 'cancelled', 'expired')
                          AND (p.state IN ('queued', 'delivering') OR (p.state = 'retrying' AND p.next_at <= ?2)))
+                     OR EXISTS (SELECT 1 FROM blumint_status s JOIN matches m ON m.id = s.match_id
+                       WHERE s.match_id = ?1 AND m.state NOT IN ('completed', 'cancelled', 'expired')
+                         AND (s.state IN ('queued', 'delivering') OR (s.state = 'retrying' AND s.next_at <= ?2)))
                      OR EXISTS (SELECT 1 FROM matches WHERE id = ?1 AND state IN ('completed', 'cancelled', 'expired')
                          AND (delivery_state IN ('queued', 'delivering')
                            OR (delivery_state = 'retrying' AND delivery_next_at <= ?2)))",
@@ -271,10 +346,7 @@ pub async fn reports(f: &Fixture, id: &str) -> Vec<Json> {
             .await
             .unwrap();
         if !due {
-            return submitted(f)
-                .into_iter()
-                .filter(|body| body["matchId"] == id)
-                .collect();
+            return;
         }
         ember_bridge::deliver_results(f.bridge.state()).await;
         tokio::time::sleep(Duration::from_millis(20)).await;
@@ -295,12 +367,16 @@ pub fn restart(f: &Fixture, id: &str, reason: &str, wins: [u8; 2]) -> Json {
     json!({ "mode": "abort", "matchId": id, "reason": reason, "retryable": true, "teams": teams(f, wins) })
 }
 
+/// Every report BluMint was sent other than a status, which `statuses`
+/// reads.
 pub fn submitted(f: &Fixture) -> Vec<Json> {
     let received = f.blumint.lock().unwrap();
     received
         .calls
         .iter()
-        .filter(|(path, key, _)| path == "/api/tournaments/match/submit" && key == "bm-key")
+        .filter(|(path, key, body)| {
+            path == "/api/tournaments/match/submit" && key == "bm-key" && body["mode"] != "status"
+        })
         .map(|(_, _, body)| body.clone())
         .collect()
 }

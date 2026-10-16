@@ -12,9 +12,10 @@
 //! - match close (`close`): BluMint no longer needs a match, which ends it.
 //!
 //! The bridge reports each match to BluMint once BluMint's API key for the
-//! connection is configured (`report`): when the set's first game starts and
-//! its score after each game that does not end it (`delivery::progress`),
-//! then its result, or an abort for a match that ended without one
+//! connection is configured (`report`): its status each time a player
+//! arrives, a game starts or a game ends (`delivery::status`), its score
+//! after each game that does not end it (`delivery::progress`), then its
+//! result, or an abort for a match that ended without one
 //! (`delivery::results`). A match whose result the two games disputed is
 //! cancelled where it would wait for review (`matches::needs_review`), since
 //! BluMint has no organizer review, and its abort lets BluMint ask for the
@@ -37,7 +38,7 @@ pub use close::close;
 pub use create::create;
 pub use refusal::BluMintRefusal;
 use refusal::outcome;
-pub use report::{progress, started, submission};
+pub use report::{progress, status, status_report, submission, unopened_status};
 
 use crate::{
     AppState, auth,

@@ -30,7 +30,7 @@ use crate::{
     AppState,
     auth::{self, Player},
     ctx::Ctx,
-    delivery::progress,
+    delivery::status,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json as respond},
     routes::{
@@ -318,7 +318,7 @@ fn claim(
     ember_id: &EmberId,
     command: &Claim,
 ) -> Result<ClaimAnswer> {
-    let mut fighter = fighter(tx, match_id, ember_id)?;
+    let fighter = fighter(tx, match_id, ember_id)?;
     finished(&fighter.found)?;
     let other = claims(tx, match_id)?
         .into_iter()
@@ -339,6 +339,22 @@ fn claim(
          ON CONFLICT (match_id, ember_id) DO UPDATE SET endpoint_id = ?3, helper_instance_id = ?4, build_id = ?5, claimed_at = ?6",
         params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now],
     )?;
+    let answer = seat(tx, ctx, match_id, ember_id, fighter)?;
+    // Only the first claim moves the match's revision, so the other
+    // fighter's arrival is observed here.
+    status::observe(tx, match_id, ctx.now)?;
+    Ok(answer)
+}
+
+/// What a fighter whose claim was taken is to do: join the room, wait for
+/// its host, or host it.
+fn seat(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    match_id: &str,
+    ember_id: &EmberId,
+    mut fighter: Fighter,
+) -> Result<ClaimAnswer> {
     let claimed = claims(tx, match_id)?;
     let current = room(tx, match_id)?;
     if current.room_id.is_some() {
@@ -719,7 +735,6 @@ fn issue(
         "DELETE FROM attempt_preparations WHERE match_id = ?1",
         [match_id],
     )?;
-    progress::game_started(tx, &fighter.found)?;
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
     // A game starting is activity, which moves the match's deadline.
     expiry::extend(tx, ctx.now, &fighter.found)?;

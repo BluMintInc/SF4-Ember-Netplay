@@ -123,6 +123,10 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
             state.clone(),
             delivery::progress::Progress::new(&state),
         )),
+        tokio::spawn(delivery::run(
+            state.clone(),
+            delivery::status::Status::new(&state),
+        )),
     ];
     if routes::rooms::enabled(&state) {
         workers.push(tokio::spawn(routes::rooms::poll_forever(state.clone())));
@@ -150,10 +154,11 @@ pub async fn poll_rooms(state: &AppState) {
 }
 
 /// One pass of sending finished matches' results to their platforms, and
-/// BluMint's reports on sets in play; tests call it.
+/// BluMint's reports on sets in play and on matches' status; tests call it.
 pub async fn deliver_results(state: &AppState) {
     delivery::pass(state, &Arc::new(delivery::results::Results::new(state))).await;
     delivery::pass(state, &Arc::new(delivery::progress::Progress::new(state))).await;
+    delivery::pass(state, &Arc::new(delivery::status::Status::new(state))).await;
 }
 
 /// Tells BluMint where the connection's endpoints are (`routes::blumint`).

@@ -1,10 +1,13 @@
 //! What the bridge reports to BluMint about a match, at
-//! `/tournaments/match/submit`: that its first game started, its score after
-//! each game that did not end it, its result once the set is won, or an abort
-//! when it ended without one. Every report names each player by the Ember ID
-//! BluMint sent and carries every team's wins so far, so a game an abort
-//! overtook is never lost.
-use ember_protocol::{event::Kind, matches::MatchState};
+//! `/tournaments/match/submit`: its status and each player's presence, its
+//! score after each game that did not end it, its result once the set is
+//! won, or an abort when it ended without one. Every report names each
+//! player by the Ember ID BluMint sent, and every report on the score carries
+//! every team's wins so far, so a game an abort overtook is never lost.
+use ember_protocol::{
+    event::{Kind, rfc3339},
+    matches::MatchState,
+};
 use rusqlite::{OptionalExtension, Transaction};
 use serde_json::{Value, json};
 
@@ -40,20 +43,53 @@ pub fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> 
     Ok(Some(body))
 }
 
-/// The status of a set whose first game has started, with each player's
-/// presence (`delivery::progress`).
-pub fn started(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
+/// A match's status (`delivery::status`): `pending` until its fighters'
+/// first game starts and `running` from then on, whatever games an organizer
+/// recorded, with each player's presence.
+pub fn status(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
+    let started: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM attempts WHERE match_id = ?1 AND source = 'player_agreement')",
+        [&found.id],
+        |row| row.get(0),
+    )?;
     let mut players = Vec::new();
     for player in participants(tx, &found.id, found.generation)? {
-        let claimed: bool = tx.query_row(
+        let opened: bool = tx.query_row(
             "SELECT EXISTS (SELECT 1 FROM match_claims WHERE match_id = ?1 AND ember_id = ?2)",
             rusqlite::params![found.id, player.ember_id.as_str()],
             |row| row.get(0),
         )?;
         players
-            .push(json!({ "inGameId": player.ember_id, "status": presence(found.state, claimed) }));
+            .push(json!({ "inGameId": player.ember_id, "status": presence(found.state, opened) }));
     }
-    Ok(json!({ "mode": "status", "matchId": found.id, "status": "running", "players": players }))
+    Ok(status_of(started, players))
+}
+
+/// The status of a match nobody has opened and no game has started on.
+pub fn unopened_status(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
+    let players = participants(tx, &found.id, found.generation)?
+        .into_iter()
+        .map(
+            |player| json!({ "inGameId": player.ember_id, "status": presence(found.state, false) }),
+        )
+        .collect();
+    Ok(status_of(false, players))
+}
+
+fn status_of(started: bool, players: Vec<Value>) -> Value {
+    json!({ "status": if started { "running" } else { "pending" }, "players": players })
+}
+
+/// The report of `status`, the match's `revision`th, observed at
+/// `observed_at`. The revision rises with each change, so BluMint can drop a
+/// report that reaches it after a later one.
+pub fn status_report(match_id: &str, status: &Value, revision: u64, observed_at: u64) -> Value {
+    let mut body = status.clone();
+    body["mode"] = json!("status");
+    body["matchId"] = json!(match_id);
+    body["revision"] = json!(revision);
+    body["observedAt"] = json!(rfc3339(observed_at));
+    body
 }
 
 /// The score of a set still being played (`delivery::progress`).
@@ -61,14 +97,15 @@ pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
 }
 
-/// A player is present once their Ember claimed the match, and ready once the
-/// room both fighters sit in is bound (from `ready` on).
-fn presence(state: MatchState, claimed: bool) -> &'static str {
-    use MatchState::*;
-    match (claimed, state) {
+/// A player is present once their Ember claimed the match, and ready while a
+/// game of the match is on, from its permit until it is decided. A game is prepared only once
+/// both fighters press Ready, so before that the bridge cannot tell which of
+/// two present players is waiting on the other: both read as not ready.
+fn presence(state: MatchState, opened: bool) -> &'static str {
+    match (opened, state) {
         (false, _) => "absent",
-        (true, Created | AwaitingPlayers | Provisioning) => "present-not-ready",
-        (true, _) => "present-ready",
+        (true, MatchState::Running | MatchState::AwaitingReports) => "present-ready",
+        (true, _) => "present-not-ready",
     }
 }
 
@@ -114,18 +151,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_player_is_present_once_their_ember_claimed_and_ready_once_the_room_is_bound() {
-        assert_eq!(presence(MatchState::Running, false), "absent");
-        assert_eq!(
-            presence(MatchState::AwaitingPlayers, true),
-            "present-not-ready"
-        );
-        assert_eq!(
-            presence(MatchState::Provisioning, true),
-            "present-not-ready"
-        );
-        assert_eq!(presence(MatchState::Ready, true), "present-ready");
-        assert_eq!(presence(MatchState::Completed, true), "present-ready");
+    fn a_player_is_present_once_their_ember_opened_and_ready_while_a_game_is_on() {
+        use MatchState::*;
+        for state in [AwaitingPlayers, Running, BetweenGames] {
+            assert_eq!(presence(state, false), "absent", "{state:?}");
+        }
+        for state in [
+            AwaitingPlayers,
+            Provisioning,
+            Ready,
+            BetweenGames,
+            NeedsReview,
+        ] {
+            assert_eq!(presence(state, true), "present-not-ready", "{state:?}");
+        }
+        for state in [Running, AwaitingReports] {
+            assert_eq!(presence(state, true), "present-ready", "{state:?}");
+        }
     }
 
     #[test]

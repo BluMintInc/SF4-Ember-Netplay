@@ -1,0 +1,207 @@
+//! BluMint's status report on a match (`routes::blumint::status`): whether
+//! its fighters' first game has started, and each player's presence. It is
+//! observed whenever the match's revision moves and whenever a fighter claims
+//! it, and sent each time it changes: as each player arrives, as each game
+//! starts, and as each game ends and the next waits.
+//!
+//! A match keeps one report, its latest. Each change moves the report's
+//! `revision` and queues it again, so a report that waited is sent as it
+//! stands, and BluMint drops one that reaches it after a later one. Nothing
+//! is sent once the match has ended: its result or abort says how it ended.
+use std::collections::BTreeMap;
+
+use rusqlite::{OptionalExtension, Transaction, params};
+use serde_json::{Value, json};
+
+use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
+use crate::{
+    AppState,
+    audit::audit,
+    error::{ApiFailure, Result},
+    routes::{blumint, ledger::load, policy},
+};
+
+/// Observes the match's status, and queues it to be sent when it differs
+/// from the one last observed. A match nobody has opened and no game has
+/// started on has nothing to say yet.
+pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
+    let found = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
+    if found.state.is_terminal() || !policy::of(tx, &found.connection_id)?.reports_progress {
+        return Ok(());
+    }
+    let status = blumint::status(tx, &found)?;
+    let last: Option<String> = tx
+        .query_row(
+            "SELECT body FROM blumint_status WHERE match_id = ?1",
+            [match_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let last = match last {
+        Some(text) => serde_json::from_str(&text).map_err(|_| ApiFailure::unavailable())?,
+        None => blumint::unopened_status(tx, &found)?,
+    };
+    if status == last {
+        return Ok(());
+    }
+    // `attempts` restarts with the revision: a lease of an earlier revision
+    // is told apart by its revision, not its attempt.
+    tx.execute(
+        "INSERT INTO blumint_status (match_id, revision, body, observed_at, state) VALUES (?1, 1, ?2, ?3, 'queued')
+         ON CONFLICT (match_id) DO UPDATE SET revision = revision + 1, body = ?2, observed_at = ?3,
+             state = 'queued', next_at = 0, attempts = 0, first_at = NULL",
+        params![match_id, status.to_string(), now],
+    )?;
+    Ok(())
+}
+
+/// The status queue (a `delivery::Queue`).
+pub struct Status {
+    destinations: BTreeMap<String, BluMint>,
+}
+
+impl Status {
+    pub fn new(state: &AppState) -> Self {
+        Self {
+            destinations: BluMint::destinations(state),
+        }
+    }
+}
+
+/// A revision of a match's status, as it was leased.
+pub struct Due {
+    match_id: String,
+    connection_id: String,
+    revision: u64,
+    body: Value,
+}
+
+impl Queue for Status {
+    type Item = Due;
+
+    fn lease(&self, tx: &Transaction<'_>, now: u64, until: u64) -> Result<Vec<Leased<Due>>> {
+        tx.execute(
+            "UPDATE blumint_status SET state = 'not_required'
+             WHERE state IN ('queued', 'retrying', 'delivering')
+               AND EXISTS (SELECT 1 FROM matches m WHERE m.id = blumint_status.match_id
+                             AND m.state IN ('completed', 'cancelled', 'failed', 'expired'))",
+            [],
+        )?;
+        let connections: Vec<&String> = self.destinations.keys().collect();
+        let rows = tx
+            .prepare(
+                "SELECT s.match_id, m.connection_id, s.revision, s.body, s.observed_at, s.attempts, s.first_at
+                 FROM blumint_status s JOIN matches m ON m.id = s.match_id
+                   JOIN provider_connections c ON c.id = m.connection_id
+                 WHERE s.state IN ('queued', 'retrying', 'delivering') AND s.next_at <= ?1
+                   AND m.connection_id IN (SELECT value FROM json_each(?2)) AND c.enabled = 1
+                 ORDER BY s.next_at, s.match_id LIMIT ?3",
+            )?
+            .query_map(params![now, json!(connections).to_string(), BATCH], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, u64>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, u64>(4)?,
+                    row.get::<_, u32>(5)?,
+                    row.get::<_, Option<u64>>(6)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut leased = Vec::with_capacity(rows.len());
+        for (match_id, connection_id, revision, body, observed_at, attempts, first_at) in rows {
+            let status = serde_json::from_str(&body).map_err(|_| ApiFailure::unavailable())?;
+            let attempt = attempts + 1;
+            tx.execute(
+                "UPDATE blumint_status SET state = 'delivering', next_at = ?1, attempts = ?2
+                 WHERE match_id = ?3",
+                params![until, attempt, match_id],
+            )?;
+            leased.push(Leased {
+                item: Due {
+                    body: blumint::status_report(&match_id, &status, revision, observed_at),
+                    match_id,
+                    connection_id,
+                    revision,
+                },
+                attempt,
+                first_attempt_at: first_at,
+            });
+        }
+        Ok(leased)
+    }
+
+    async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
+        let Some(destination) = self.destinations.get(&item.connection_id) else {
+            return Outcome::Cancelled;
+        };
+        let id = item.match_id.clone();
+        let open = state
+            .db
+            .read(move |tx| match load(tx, &id)? {
+                Some(found) if !found.state.is_terminal() => {
+                    policy::enabled(tx, &found.connection_id)
+                }
+                _ => Ok(false),
+            })
+            .await;
+        match open {
+            // The match ended since the lease, and the next lease marks the
+            // report not required; or its connection was disabled, and it is
+            // sent once it is enabled again.
+            Ok(false) => return Outcome::Cancelled,
+            Ok(true) => {}
+            Err(_) => {
+                return Outcome::Retry {
+                    error: "database unavailable".into(),
+                    retry_after: None,
+                };
+            }
+        }
+        match destination.post(item.body.to_string().into_bytes()).await {
+            // BluMint asks a partner to keep sending a status it does not
+            // know the match for yet.
+            Ok(answered) if answered.status == 404 => Outcome::Retry {
+                error: "http 404".into(),
+                retry_after: answered.retry_after,
+            },
+            Ok(answered) => BluMint::outcome(&answered),
+            Err(outcome) => outcome,
+        }
+    }
+
+    fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
+        let (state, next, error) = match &record.settled {
+            Settled::Delivered => ("delivered", record.at, None),
+            Settled::Retry { at, error } => ("retrying", *at, Some(error.as_str())),
+            Settled::Refused(error) | Settled::Expired(error) => {
+                ("failed", record.at, Some(error.as_str()))
+            }
+        };
+        let changed = tx.execute(
+            "UPDATE blumint_status SET state = ?1, next_at = ?2, first_at = COALESCE(first_at, ?3)
+             WHERE match_id = ?4 AND revision = ?5 AND state = 'delivering' AND attempts = ?6",
+            params![
+                state,
+                next,
+                record.first_attempt_at,
+                leased.item.match_id,
+                leased.item.revision,
+                leased.attempt
+            ],
+        )?;
+        if changed == 1 {
+            audit(
+                tx,
+                record.at,
+                ("bridge", "blumint".into()),
+                "blumint.status",
+                &leased.item.match_id,
+                state,
+                error,
+            )?;
+        }
+        Ok(())
+    }
+}
