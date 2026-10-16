@@ -238,6 +238,45 @@ mod tests {
     }
 
     #[test]
+    fn blumint_matches_open_before_the_lifetime_cap_end_a_day_after_creation() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..17]).unwrap();
+        // A game at hour 20 moved each deadline to hour 44.
+        let late = 1000 + 44 * 3600;
+        connection
+            .execute_batch(&format!(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('bm', 't', 'blumint', 'staging', 'BluMint', 1), ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at, expires_at, expiry_secs)
+                   VALUES ('emt_open', 't', 'bm', 'open', '', 3, 1, 'between_games', 2, '{{}}', '', '{{}}', 'queued', 1000, 73000, {late}, 86400),
+                          ('emt_short', 't', 'bm', 'short', '', 1, 1, 'awaiting_players', 2, '{{}}', '', '{{}}', 'queued', 1000, 1000, 1000 + 3600, 3600),
+                          ('emt_done', 't', 'bm', 'done', '', 4, 1, 'completed', 2, '{{}}', '', '{{}}', 'queued', 1000, 73000, {late}, 86400),
+                          ('emt_direct', 't', 'c', 'direct', '', 3, 1, 'between_games', 2, '{{}}', '', '{{}}', 'not_required', 1000, 73000, {late}, 86400);"
+            ))
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let expires = |id: &str| -> (i64, i64, [i64; 2]) {
+            connection
+                .query_row(
+                    "SELECT expires_at, expiry_secs, base_p1, base_p2 FROM matches WHERE id = ?1",
+                    [id],
+                    |row| Ok((row.get(0)?, row.get(1)?, [row.get(2)?, row.get(3)?])),
+                )
+                .unwrap()
+        };
+        assert_eq!(expires("emt_open"), (1000 + 86400, 86400, [0, 0]));
+        assert_eq!(expires("emt_short"), (1000 + 3600, 3600, [0, 0]));
+        assert_eq!(expires("emt_done"), (late, 86400, [0, 0]));
+        assert_eq!(expires("emt_direct"), (late, 86400, [0, 0]));
+    }
+
+    #[test]
     fn removals_from_before_withdrawals_were_recorded_still_hold() {
         let mut connection = Connection::open_in_memory().unwrap();
         connection
