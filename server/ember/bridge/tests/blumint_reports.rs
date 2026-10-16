@@ -640,6 +640,42 @@ async fn a_sets_first_game_posts_one_running_status() {
     );
 }
 
+// A game an organizer recorded before the fighters played is not the set's
+// first permitted game, and BluMint still hears the set has begun when it is.
+#[tokio::test]
+async fn the_first_permit_after_an_organizers_game_posts_the_running_status() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let started = |id: &str| {
+        json!({
+            "mode": "status",
+            "matchId": id,
+            "status": "running",
+            "players": [
+                { "inGameId": f.kate.id(), "status": "present-ready" },
+                { "inGameId": f.sam.id(), "status": "present-ready" },
+            ],
+        })
+    };
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    draw(&f, &id, "game-1").await;
+    let binding = bound(&f, &id).await;
+    permit(&f, &id, &binding, 1).await;
+    assert_eq!(reports(&f, &id).await, vec![started(&id)]);
+    close(&f, json!({ "matchId": id, "reason": "removed" })).await;
+
+    let (_, created) = create(&f, "set-2", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-2").await;
+    let binding = bound(&f, &id).await;
+    permit(&f, &id, &binding, 1).await;
+    assert_eq!(
+        reports(&f, &id).await,
+        vec![progressed(&f, &id, [1, 0]), started(&id)]
+    );
+}
+
 // How the bridge reads each of BluMint's answers to a report: BluMint
 // already having it is as good as delivered, a match it is not ready for
 // waits as long as it asks, its own failure is tried again, and a match it

@@ -719,7 +719,7 @@ fn issue(
         "DELETE FROM attempt_preparations WHERE match_id = ?1",
         [match_id],
     )?;
-    progress::game_started(tx, &fighter.found, seq)?;
+    progress::game_started(tx, &fighter.found)?;
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
     // A game starting is activity, which moves the match's deadline.
     expiry::extend(tx, ctx.now, &fighter.found)?;
