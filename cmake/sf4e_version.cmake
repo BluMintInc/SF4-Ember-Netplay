@@ -24,6 +24,10 @@ function(sf4e_configure_windows_version target file_description original_filenam
     @ONLY
   )
   target_sources("${target}" PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/${target}.rc")
+  # The resource compiler's dependency scan follows #include only, not the
+  # ICON line, so a new ember.ico would otherwise leave the old icon embedded.
+  set_property(SOURCE "${CMAKE_CURRENT_BINARY_DIR}/generated/${target}.rc"
+    APPEND PROPERTY OBJECT_DEPENDS "${SF4E_BRAND_SOURCE_DIR}/src/ui/ember.ico")
 endfunction()
 
 function(sf4e_embed_manifest target manifest_filename)
