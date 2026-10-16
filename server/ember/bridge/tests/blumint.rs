@@ -242,6 +242,63 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
     );
 }
 
+// BluMint keeps one credential per route, so once a registration has handed
+// every route a new one, the one an earlier registration handed over calls
+// nothing. A registration that fails partway leaves every credential working,
+// since BluMint may hold either on each route.
+#[tokio::test]
+async fn a_new_registration_retires_the_credential_an_earlier_one_handed_over() {
+    let f = fixture().await;
+    let secret = || {
+        f.blumint.lock().unwrap().calls.last().unwrap().2["authentication"]["secret"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let f = &f;
+    let calls_with = |token: String| async move {
+        f.bridge
+            .post(&token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))
+            .await
+            .0
+    };
+    // BluMint's close route is not there yet.
+    f.blumint
+        .lock()
+        .unwrap()
+        .answers
+        .extend([(200, None), (200, None), (404, None)]);
+    assert!(
+        ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+            .await
+            .is_err()
+    );
+    let first = secret();
+    assert_eq!(calls_with(first.clone()).await, StatusCode::OK);
+    ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+        .await
+        .unwrap();
+    let second = secret();
+    assert_ne!(first, second);
+    assert_eq!(calls_with(first).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(calls_with(second.clone()).await, StatusCode::OK);
+    f.blumint
+        .lock()
+        .unwrap()
+        .answers
+        .extend([(200, None), (503, None)]);
+    assert!(
+        ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+            .await
+            .is_err()
+    );
+    let third = secret();
+    assert_eq!(calls_with(second).await, StatusCode::OK);
+    assert_eq!(calls_with(third).await, StatusCode::OK);
+    // The test's own provider credential is not BluMint's callback one.
+    assert_eq!(calls_with(f.provider.clone()).await, StatusCode::OK);
+}
+
 // BluMint looks up every player a refusal names and asks again, so a
 // creation with two players it must look up again names both at once.
 #[tokio::test]
@@ -396,6 +453,33 @@ async fn a_closed_match_sends_nothing() {
         results::delivery(&f.bridge, &id).await,
         ("not_required".into(), 0)
     );
+    // The log names the credential that closed it.
+    let closed_by: Vec<(String, String)> = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx
+                .prepare("SELECT actor_class, actor_id FROM audit_entries WHERE action = 'blumint.close'")?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+        .await
+        .unwrap();
+    let provider: String = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx.query_row(
+                "SELECT id FROM service_credentials WHERE connection_id = ?1 AND label = 'test provider'",
+                [CONNECTION],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(closed_by, vec![("service".to_owned(), provider)]);
 
     // Whatever the reason, the match closes.
     for (key, reason) in [("set-2", "hostOverride"), ("set-3", "a reason from later")] {

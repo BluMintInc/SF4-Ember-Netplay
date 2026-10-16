@@ -13,9 +13,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{
-    BluMintBody, BluMintRefusal, MATCHES_PATH, connection, create::key_owner, outcome, parse,
-};
+use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, caller, create::key_owner, outcome, parse};
 use crate::{
     AppState,
     audit::audit,
@@ -56,7 +54,7 @@ pub async fn close(
     headers: HeaderMap,
     body: BluMintBody,
 ) -> std::result::Result<Response, BluMintRefusal> {
-    let connection_id = connection(&state, &headers).await?;
+    let (connection_id, credential) = caller(&state, &headers).await?;
     let request: CloseRequest = parse(&body?)?;
     if request.reason.is_empty() || request.reason.len() > MAX_REASON {
         return Err(BluMintRefusal::InvalidRequest);
@@ -79,7 +77,7 @@ pub async fn close(
                     _ => return Err(BluMintRefusal::InvalidRequest),
                 };
                 if let Some(found) = found {
-                    end(tx, &ctx, &found, &reason)?;
+                    end(tx, &ctx, &credential, &found, &reason)?;
                 }
                 Ok(())
             })
@@ -129,11 +127,12 @@ fn close_key(
     })
 }
 
-/// Ends a match BluMint closed, unless it already ended, and sends BluMint
-/// nothing more for it.
+/// Ends a match BluMint closed with `credential`, unless it already ended,
+/// and sends BluMint nothing more for it.
 fn end(
     tx: &Transaction<'_>,
     ctx: &Ctx,
+    credential: &str,
     found: &Match,
     reason: &str,
 ) -> std::result::Result<(), BluMintRefusal> {
@@ -153,7 +152,7 @@ fn end(
     audit(
         tx,
         ctx.now,
-        ("bridge", "blumint".into()),
+        ("service", credential.to_owned()),
         "blumint.close",
         &found.id,
         "ok",

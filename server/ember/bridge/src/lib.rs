@@ -220,6 +220,20 @@ pub async fn issue_credential(
     tenant: Option<&str>,
     label: &str,
 ) -> Result<String, error::ApiFailure> {
+    Ok(
+        issue_identified_credential(state, connection, tenant, label)
+            .await?
+            .1,
+    )
+}
+
+/// `issue_credential`, returning the credential's id with its token.
+pub(crate) async fn issue_identified_credential(
+    state: &AppState,
+    connection: Option<&str>,
+    tenant: Option<&str>,
+    label: &str,
+) -> Result<(String, String), error::ApiFailure> {
     let (tenant_id, connection_id, role) = match (connection, tenant) {
         (Some(connection), None) => {
             let (tenant, _) = state
@@ -319,26 +333,37 @@ pub async fn revoke_credential(state: &AppState, id: &str) -> Result<bool, error
                 None => Err(error::ApiFailure::invalid("unknown credential")),
                 Some(Some(_)) => Ok(false),
                 Some(None) => {
-                    tx.execute(
-                        "UPDATE service_credentials SET revoked_at = ?1 WHERE id = ?2",
-                        rusqlite::params![now, id],
-                    )?;
-                    tx.execute(
-                        "UPDATE delivery_outbox SET state = 'cancelled' WHERE state = 'pending'
-                           AND subscription_id IN (SELECT id FROM webhook_subscriptions WHERE owner_credential = ?1)",
-                        [&id],
-                    )?;
-                    tx.execute(
-                        "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = COALESCE(disabled_at, ?1),
-                            secret_sealed = x'', previous_secret_sealed = NULL, previous_expires_at = NULL
-                         WHERE owner_credential = ?2",
-                        rusqlite::params![now, id],
-                    )?;
+                    revoke_in(tx, &id, now)?;
                     Ok(true)
                 }
             }
         })
         .await
+}
+
+/// Revokes the unrevoked credential `id` inside `tx`, as `revoke_credential`
+/// describes.
+pub(crate) fn revoke_in(
+    tx: &rusqlite::Transaction<'_>,
+    id: &str,
+    now: u64,
+) -> Result<(), error::ApiFailure> {
+    tx.execute(
+        "UPDATE service_credentials SET revoked_at = ?1 WHERE id = ?2",
+        rusqlite::params![now, id],
+    )?;
+    tx.execute(
+        "UPDATE delivery_outbox SET state = 'cancelled' WHERE state = 'pending'
+           AND subscription_id IN (SELECT id FROM webhook_subscriptions WHERE owner_credential = ?1)",
+        [id],
+    )?;
+    tx.execute(
+        "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = COALESCE(disabled_at, ?1),
+            secret_sealed = x'', previous_secret_sealed = NULL, previous_expires_at = NULL
+         WHERE owner_credential = ?2",
+        rusqlite::params![now, id],
+    )?;
+    Ok(())
 }
 
 /// rustls uses ring, the provider iroh already ships, rather than aws-lc.

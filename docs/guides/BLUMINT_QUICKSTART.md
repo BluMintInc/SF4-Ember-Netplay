@@ -28,7 +28,10 @@ Ember ID for.
 `ember-bridge blumint-register` calls `setLookupPlayer`, `match/setCreate`
 and `match/setClose`, registering the three callback URLs with a new
 credential as `authentication.secret`. BluMint calls them with
-`Authorization: Bearer <credential the bridge issued>`. There is nothing for
+`Authorization: Bearer <credential the bridge issued>`. Once all three calls
+succeed, the bridge revokes the callback credential any earlier registration
+handed over; a registration that fails partway revokes nothing, and running
+it again finishes the change. There is nothing for
 BluMint to configure for those callbacks. Reports use BluMint's API key, sent
 as `x-api-key`; it is separate from the callback credential.
 
