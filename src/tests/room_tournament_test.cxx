@@ -723,7 +723,6 @@ static void TestStartingWins() {
 	CHECK(!other.BindTournament(won).accepted && !other.SnapshotView().tournament.Active());
 }
 
-// Casual rooms are unchanged: Ready starts the game with no permit.
 // A bound table plays one set, so a fighter who drops mid-set rejoins at the
 // score played. The bridge's own count stays the set's score of record; the
 // room shows the set as it stands. A set from 0-0 starts there even when a
@@ -760,6 +759,7 @@ static void TestLeavingKeepsThePlayedScore() {
 	CHECK(table.lastSet.score[0] == 1 && table.lastSet.score[1] == 2 && table.lastSet.winnerSeat == 1);
 }
 
+// Casual rooms are unchanged: Ready starts the game with no permit.
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
 	const MemberId host = Join(authority, 0, true);
