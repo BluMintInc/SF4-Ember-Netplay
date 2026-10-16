@@ -72,6 +72,10 @@ std::atomic<bool> watching{false};
 // The frames the meter keeps, as the Frame data page chose (SetMeterHistory).
 std::atomic<int> meterHistory{static_cast<int>(MeterHistory)};
 std::atomic<bool> meterContinuous{false};
+// Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
+void ApplyMeterSettings() {
+    meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
+}
 bool matchShown = false;
 ConfirmedSamples confirmed;
 // A Practice room's match. It has no shared checkpoint: the
@@ -484,7 +488,7 @@ void AfterUpdate(Native* system) {
         // Recorded for the facing the input was prepared with, then the new positions.
         if (commitInput) session.Commit(output);
         FollowPositions(system);
-        meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
+        ApplyMeterSettings();
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
         // The dummy is free again: it may reply, and it may change its stance.
         // Its stun is timed, so the reply's motion can go in before the free
@@ -554,6 +558,7 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const 
     // frames shows no startup in a match; the file read does not belong in a
     // rollback frame. Load it at battle start if it is missed.
     auto fighters = ReadFighters(system, false);
+    ApplyMeterSettings();
     if (inputs) for (int side = 0; side < 2; ++side) fighters[side].input = inputs[side] & FightButtons;
     // A spectator plays confirmed inputs only and has no save frame to name one by.
     if (stateFrame <= 0) meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
