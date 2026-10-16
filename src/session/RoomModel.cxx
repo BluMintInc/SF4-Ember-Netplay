@@ -604,11 +604,9 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			table.resultPending = false;
 			resultReporter_[table.id] = 0;
 			resultPendingSince_[table.id] = 0;
-			// A bound set goes back to the score it started from, not 0-0, so a
-			// fighter who drops before its first game rejoins at that score.
-			const bool bound = BoundTable(table);
-			table.score[0] = bound ? snapshot_.tournament.startingWins[0] : 0;
-			table.score[1] = bound ? snapshot_.tournament.startingWins[1] : 0;
+			// A bound table plays one set, so a fighter who drops rejoins at the
+			// score it has played to. Only a casual table starts over.
+			if (!BoundTable(table)) table.score[0] = table.score[1] = 0;
 			if (live) CloseLiveGeneration(table);
 			KeepStreak(table);
 			// A departed seat always leaves a vacancy. Clear the transient phase
