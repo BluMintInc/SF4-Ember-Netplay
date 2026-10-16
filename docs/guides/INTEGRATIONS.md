@@ -126,10 +126,9 @@ A match does not wait forever. Its `created_at` and `expires_at` (unix
 seconds) are on `GET /v1/matches/{id}` and in the players' assignments, and
 `expires_at` is the match's current deadline: `match_expiry_hours` after
 creation, a day unless the operator changed it, and again that long after each
-game that starts or is decided. On a BluMint connection games do not move it,
-so a match ends `match_expiry_hours` after its creation however far it was
-played, and never later than 24 hours after it, whatever `match_expiry_hours`
-says. A provider cannot choose it per match yet.
+game that starts or is decided. On a BluMint connection games move it the
+same way, but never past 24 hours after the match's creation, whatever
+`match_expiry_hours` says. A provider cannot choose it per match yet.
 
 Once `expires_at` has passed, the bridge's maintenance pass (every ten
 seconds) moves the match to the terminal state `expired`, frees its players,
@@ -147,8 +146,8 @@ A match is only expired when nothing is happening in it:
   started, or settled by agreeing reports, an organizer's result, a voided game
   or a correction), so `expires_at` moves to a full lifetime after each of those
   and a set being played is never cut off, even when an organizer decides a
-  held game after the old deadline (on a BluMint connection, see above, the
-  deadline stays where it was made);
+  held game after the old deadline (on a BluMint connection, see above, never
+  past a day after creation);
 - a match waiting for an organizer in `needs_review` never expires, since a
   person owns it;
 - lobby and tournament sets never expire (their `expires_at` is null); they

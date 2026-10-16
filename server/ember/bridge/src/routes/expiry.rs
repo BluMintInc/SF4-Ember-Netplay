@@ -2,10 +2,9 @@
 //! plays"). A match stores its current deadline (`expires_at`) and how long a
 //! quiet match lives (`expiry_secs`). Creating the match, issuing a permit and
 //! settling a game (`extend`, called inside those transactions) each set the
-//! deadline to now plus that lifetime, except on a BluMint connection, whose
-//! matches keep the deadline they were made with, at most a day after their
-//! creation. The snapshot, the assignment list and the sweep all read
-//! `expires_at` as it is.
+//! deadline to now plus that lifetime. On a BluMint connection the deadline
+//! never passes `BLUMINT_MATCH_LIFETIME_SECS` after the match's creation. The
+//! snapshot, the assignment list and the sweep all read `expires_at` as it is.
 use ember_protocol::{event::Kind, matches::MatchState};
 use rusqlite::{Transaction, params};
 use serde_json::json;
@@ -29,12 +28,12 @@ pub const EXPIRED_LISTED_SECS: u64 = 24 * 60 * 60;
 
 /// How long a new match lives while quiet. A match nobody plays expires. A
 /// lobby or bracket set ends with its lobby or tournament instead (a bracket
-/// waits on its sets), so it has no expiry. A connection whose matches keep
-/// their first deadline caps it at `BLUMINT_MATCH_LIFETIME_SECS`.
+/// waits on its sets), so it has no expiry. A connection whose matches have
+/// a capped lifetime caps it at `BLUMINT_MATCH_LIFETIME_SECS`.
 pub fn lifetime(ctx: &Ctx, is_set: bool, policy: Policy) -> Option<u64> {
     let secs = ctx.config.match_expiry_secs();
     (!is_set).then(|| {
-        if policy.fixed_lifetime {
+        if policy.capped_lifetime {
             secs.min(BLUMINT_MATCH_LIFETIME_SECS)
         } else {
             secs
@@ -45,18 +44,23 @@ pub fn lifetime(ctx: &Ctx, is_set: bool, policy: Policy) -> Option<u64> {
 /// Game activity: moves the match's deadline to a whole lifetime from now, so
 /// a set the players are working through is never cut off. Called inside the
 /// transaction that issues a permit or settles a game (a result, an abort, a
-/// voided game or a correction). Never moves a deadline earlier, and never
-/// moves one on a connection whose matches keep their first deadline
-/// (`Policy::fixed_lifetime`).
+/// voided game or a correction). Never moves a deadline earlier, and on a
+/// connection whose matches have a capped lifetime (`Policy::capped_lifetime`)
+/// never past `BLUMINT_MATCH_LIFETIME_SECS` after the match's creation.
 pub fn extend(tx: &Transaction<'_>, now: u64, found: &Match) -> Result<()> {
-    if policy::of(tx, &found.connection_id)?.fixed_lifetime {
-        return Ok(());
+    if policy::of(tx, &found.connection_id)?.capped_lifetime {
+        tx.execute(
+            "UPDATE matches SET expires_at = MAX(expires_at, MIN(?1 + expiry_secs, created_at + ?3))
+             WHERE id = ?2 AND expiry_secs IS NOT NULL",
+            params![now, found.id, BLUMINT_MATCH_LIFETIME_SECS],
+        )?;
+    } else {
+        tx.execute(
+            "UPDATE matches SET expires_at = MAX(expires_at, ?1 + expiry_secs)
+             WHERE id = ?2 AND expiry_secs IS NOT NULL",
+            params![now, found.id],
+        )?;
     }
-    tx.execute(
-        "UPDATE matches SET expires_at = MAX(expires_at, ?1 + expiry_secs)
-         WHERE id = ?2 AND expiry_secs IS NOT NULL",
-        params![now, found.id],
-    )?;
     Ok(())
 }
 
