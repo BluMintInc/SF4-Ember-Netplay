@@ -105,7 +105,11 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     install_crypto_provider();
     let address = listener.local_addr()?;
     let app = routes::router(state.clone());
+    let (resumed, serving) = tokio::sync::oneshot::channel();
     let server = tokio::spawn(async move {
+        // No claim is read before the restart is recorded, or the time the
+        // bridge was down would count against it.
+        let _ = serving.await;
         let _ = axum::serve(
             listener,
             app.into_make_service_with_connect_info::<SocketAddr>(),
@@ -114,7 +118,7 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     });
     let mut workers = vec![
         tokio::spawn(delivery::run(state.clone(), delivery::webhooks::Webhooks)),
-        tokio::spawn(routes::maintenance(state.clone())),
+        tokio::spawn(routes::maintenance(state.clone(), resumed)),
         tokio::spawn(delivery::run(
             state.clone(),
             delivery::results::Results::new(&state),

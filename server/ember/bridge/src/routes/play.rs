@@ -349,6 +349,12 @@ fn claim(
          ON CONFLICT (match_id, ember_id) DO UPDATE SET endpoint_id = ?3, helper_instance_id = ?4, build_id = ?5, claimed_at = ?6",
         params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now],
     )?;
+    // A claim taken ends an earlier refusal: from now on the fighter is
+    // present while they keep claiming, like the other.
+    tx.execute(
+        "DELETE FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2",
+        params![match_id, ember_id.as_str()],
+    )?;
     let answer = seat(tx, ctx, match_id, ember_id, fighter)?;
     // Only the first claim moves the match's revision, so the other
     // fighter's arrival is observed here.

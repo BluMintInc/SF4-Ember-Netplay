@@ -7,11 +7,11 @@
 use ember_protocol::{
     event::{Kind, rfc3339},
     matches::MatchState,
-    play::LEASE_SECS,
 };
 use rusqlite::{OptionalExtension, Transaction};
 use serde_json::{Value, json};
 
+use super::liveness::Liveness;
 use crate::{
     error::Result,
     routes::ledger::{Match, participants, scores},
@@ -53,14 +53,16 @@ pub fn status(tx: &Transaction<'_>, found: &Match, now: u64) -> Result<Value> {
         [&found.id],
         |row| row.get(0),
     )?;
+    let liveness = Liveness::of(tx)?;
     let mut players = Vec::new();
     for player in participants(tx, &found.id, found.generation)? {
-        let connected: bool = tx.query_row(
-            "SELECT EXISTS (SELECT 1 FROM match_claims WHERE match_id = ?1 AND ember_id = ?2 AND claimed_at + ?3 > ?4)
-                 OR EXISTS (SELECT 1 FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2)",
-            rusqlite::params![found.id, player.ember_id.as_str(), LEASE_SECS, now],
-            |row| row.get(0),
-        )?;
+        let ember_id = player.ember_id.as_str();
+        let connected = liveness.claiming(tx, &found.id, ember_id, now)?
+            || tx.query_row(
+                "SELECT EXISTS (SELECT 1 FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2)",
+                [found.id.as_str(), ember_id],
+                |row| row.get(0),
+            )?;
         players.push(
             json!({ "inGameId": player.ember_id, "status": presence(found.state, connected) }),
         );
@@ -100,11 +102,10 @@ pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
 }
 
-/// A player is present while their Ember is connected to the match: it
-/// claims the match again every few seconds while open, so a claim older
-/// than `LEASE_SECS` means it left. A claim refused for its build stays
-/// present, since that Ember stops claiming and the mismatch is the two
-/// fighters' builds. A player is ready while a game of the match is on, from
+/// A player is present while their Ember is connected to the match
+/// (`liveness`). A player refused for their build stays present until a
+/// claim of theirs is taken, whether or not they stay: that Ember stops
+/// claiming, and the mismatch is the two fighters' builds. A player is ready while a game of the match is on, from
 /// its permit until it is decided. A game is prepared only once both
 /// fighters press Ready, so before that the bridge cannot tell which of two
 /// present players is waiting on the other: both read as not ready.

@@ -749,10 +749,12 @@ async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
 }
 
 // A player is present only while their Ember is connected to the match. It
-// claims the match again every ten seconds while open, so a claim older than
-// the claim lease means it left: the maintenance pass sees the claim lapse
+// claims the match again ten seconds after each answer while open, so a
+// claim a minute old means it left: the maintenance pass sees the claim lapse
 // and BluMint hears the player is absent, whether or not the other one is
-// still there. Claiming again brings them back.
+// still there. A late claim, as one the helper gave up on and retried is,
+// keeps them present, whoever observes the match meanwhile. Claiming again
+// brings them back.
 #[tokio::test]
 async fn a_player_whose_ember_stops_claiming_reads_as_absent() {
     let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
@@ -768,11 +770,12 @@ async fn a_player_whose_ember_stops_claiming_reads_as_absent() {
     ember_bridge::deliver_results(&keyed).await;
 
     // Kate keeps claiming; Sam stops, and his claim lapses after its lease.
-    f.bridge.clock.advance(20);
-    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
-    f.bridge.clock.advance(9);
-    ember_bridge::maintain(f.bridge.state()).await;
-    ember_bridge::deliver_results(&keyed).await;
+    for wait in [20, 20, 19] {
+        f.bridge.clock.advance(wait);
+        claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+        ember_bridge::maintain(f.bridge.state()).await;
+        ember_bridge::deliver_results(&keyed).await;
+    }
     assert_eq!(statuses(&f, &id).len(), 2);
     f.bridge.clock.advance(1);
     ember_bridge::maintain(f.bridge.state()).await;
@@ -782,7 +785,7 @@ async fn a_player_whose_ember_stops_claiming_reads_as_absent() {
     claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
     ember_bridge::deliver_results(&keyed).await;
     // Then both leave.
-    f.bridge.clock.advance(31);
+    f.bridge.clock.advance(61);
     ember_bridge::maintain(f.bridge.state()).await;
     ember_bridge::deliver_results(&keyed).await;
     ember_bridge::maintain(f.bridge.state()).await;
@@ -799,14 +802,102 @@ async fn a_player_whose_ember_stops_claiming_reads_as_absent() {
             status(&f, &id, 5, "pending", [ABSENT, ABSENT]),
         ]
     );
-    let observed = [start, start, start + 30, start + 35, start + 66];
+    let observed = [start, start, start + 60, start + 65, start + 126];
     assert_eq!(times, observed.map(ember_protocol::event::rfc3339));
+}
+
+// The bridge hears no claims while it is down, so a claim live when it
+// stopped is not counted lapsed for that time: once it starts again, each
+// fighter has a lease to claim again in. A claim that lapsed before it
+// stopped stays lapsed.
+#[tokio::test]
+async fn a_restart_does_not_read_a_connected_player_as_absent() {
+    let mut f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.bridge.clock.freeze();
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    // Sam leaves; Kate stays.
+    for _ in 0..2 {
+        f.bridge.clock.advance(30);
+        claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    }
+    f.bridge.clock.advance(1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(statuses(&f, &id).len(), 3);
+
+    // The bridge is down for a minute and a half, and sweeps as it starts.
+    f.bridge.clock.advance(90);
+    f.bridge.restart(Secrets::default()).await;
+    let keyed = keyed_state(&f);
+    ember_bridge::maintain(f.bridge.state()).await;
+    ember_bridge::deliver_results(&keyed).await;
+    f.bridge.clock.advance(5);
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+
+    assert_eq!(
+        sent_statuses(&f, &id),
+        vec![
+            status(&f, &id, 1, "pending", [NOT_READY, ABSENT]),
+            status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+            status(&f, &id, 3, "pending", [NOT_READY, ABSENT]),
+        ]
+    );
+}
+
+// Every observer reads the clock before it waits for the database, so a
+// claim can commit after a maintenance pass that read a later time. The
+// status it observes is the pass's: a fighter the pass saw lapse stays
+// absent, and the time observed never goes back.
+#[tokio::test]
+async fn a_late_commit_does_not_bring_back_a_lapsed_player() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.bridge.clock.freeze();
+    let start = f.bridge.clock.now();
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+    for _ in 0..2 {
+        f.bridge.clock.advance(30);
+        claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    }
+    ember_bridge::maintain(f.bridge.state()).await;
+    // Kate's next claim read the clock a second before the pass did.
+    f.bridge.clock.advance(-1);
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    ember_bridge::deliver_results(&keyed).await;
+
+    let (sent, times) = sent_statuses_at(&f, &id);
+    assert_eq!(
+        sent,
+        vec![
+            status(&f, &id, 2, "pending", [NOT_READY, NOT_READY]),
+            status(&f, &id, 3, "pending", [NOT_READY, ABSENT]),
+        ]
+    );
+    assert_eq!(
+        times,
+        [start, start + 60].map(ember_protocol::event::rfc3339)
+    );
 }
 
 // A fighter whose build differs from the one the other fighter claimed with
 // cannot play the match on it, but they did open it: BluMint hears they are
-// present, not that they never came. Claiming again on the same build as the
-// other fighter changes nothing BluMint hears.
+// present, not that they never came, and the bridge cannot tell whether they
+// stay, since their Ember stops claiming. Claiming again on the same build as
+// the other fighter changes nothing BluMint hears, and from then on they are
+// present while they keep claiming, like the other.
 #[tokio::test]
 async fn a_player_refused_for_their_build_reads_as_present() {
     let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
@@ -814,6 +905,8 @@ async fn a_player_refused_for_their_build_reads_as_present() {
     let keyed = keyed_state(&f);
     let (_, created) = create(&f, "set-1", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
+    f.bridge.clock.freeze();
+    let start = f.bridge.clock.now();
     claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
     let (status_code, refused) = claim(&f, &f.sam, &id, &endpoint(&f.sam), "build-2").await;
     assert_eq!(
@@ -822,13 +915,32 @@ async fn a_player_refused_for_their_build_reads_as_present() {
         "{refused}"
     );
     ember_bridge::deliver_results(&keyed).await;
-    let expected = vec![status(&f, &id, 2, "pending", [NOT_READY, NOT_READY])];
+    let mut expected = vec![status(&f, &id, 2, "pending", [NOT_READY, NOT_READY])];
+    assert_eq!(sent_statuses(&f, &id), expected);
+    for _ in 0..2 {
+        f.bridge.clock.advance(30);
+        claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    }
+    f.bridge.clock.advance(1);
+    ember_bridge::maintain(f.bridge.state()).await;
+    ember_bridge::deliver_results(&keyed).await;
     assert_eq!(sent_statuses(&f, &id), expected);
 
     let (status_code, _) = claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
     assert_eq!(status_code, StatusCode::OK);
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(sent_statuses(&f, &id), expected);
+    // Sam then leaves.
+    for _ in 0..2 {
+        f.bridge.clock.advance(30);
+        claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    }
+    ember_bridge::maintain(f.bridge.state()).await;
+    ember_bridge::deliver_results(&keyed).await;
+    expected.push(status(&f, &id, 3, "pending", [NOT_READY, ABSENT]));
+    let (sent, times) = sent_statuses_at(&f, &id);
+    assert_eq!(sent, expected);
+    assert_eq!(times[1], ember_protocol::event::rfc3339(start + 121));
 }
 
 // A status still waiting when the match ends is never sent, and the match's
