@@ -150,6 +150,9 @@ A match is only expired when nothing is happening in it:
   past a day after creation);
 - a match waiting for an organizer in `needs_review` never expires, since a
   person owns it;
+- a BluMint match expires 24 hours after its creation whatever is happening
+  in it, and a game still open then is called off, since BluMint counts its
+  players free from then;
 - lobby and tournament sets never expire (their `expires_at` is null); they
   end with their lobby or bracket.
 

@@ -143,7 +143,9 @@ past 24 hours after creation (`BLUMINT_MATCH_LIFETIME_SECS`): BluMint frees a
 player held by a match it could not close only for 24 hours after the match
 was made. The maintenance pass moves a match to the terminal
 state `expired` when `expires_at` has passed, it is not `needs_review`, it has
-no open game (`permitted` or `review` attempt) and no live provisioning lease.
+no open game (`permitted` or `review` attempt) and no live provisioning lease,
+or, for a match with a capped lifetime, once its cap has passed whatever is
+open; its open game is then aborted.
 The match then follows the cancellation path: revision bumped, its
 players freed, `match.expired` emitted (`match_id`, `match_revision`, `state`,
 `reason: "not_played"`, `expires_at`). It is never `cancelled`, and a platform
