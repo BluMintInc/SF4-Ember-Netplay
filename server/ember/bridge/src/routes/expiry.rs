@@ -11,7 +11,7 @@ use serde_json::json;
 
 use crate::{
     audit::audit,
-    config::{BLUMINT_MATCH_LIFETIME_SECS, Policy},
+    config::{BLUMINT, BLUMINT_MATCH_LIFETIME_SECS, Policy},
     ctx::Ctx,
     error::{ApiFailure, Result},
     routes::{
@@ -70,17 +70,27 @@ pub fn extend(tx: &Transaction<'_>, now: u64, found: &Match) -> Result<()> {
 /// review (`needs_review`) never does. It ends as `expired`, not `cancelled`,
 /// so a platform does not read it as a request to play it again, and its
 /// players are free as after a cancellation.
+///
+/// A match with a capped lifetime expires at its cap whatever is happening
+/// in it, its open game called off: its platform counts its players free
+/// from then, and a game or a claim renewing its lease would otherwise hold
+/// them past it.
 pub fn expire_stale(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
+    // `c.kind = ?3` is the kind `Policy::of` gives a capped lifetime.
     let ids = tx
         .prepare(
-            "SELECT m.id FROM matches m
+            "SELECT m.id FROM matches m JOIN provider_connections c ON c.id = m.connection_id
              WHERE m.expires_at IS NOT NULL AND m.expires_at <= ?1
                AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired', 'needs_review')
-               AND NOT EXISTS (SELECT 1 FROM attempts a WHERE a.match_id = m.id AND a.state IN ('permitted', 'review'))
-               AND NOT EXISTS (SELECT 1 FROM match_rooms r WHERE r.match_id = m.id AND r.lease_expires_at > ?1)
+               AND ((NOT EXISTS (SELECT 1 FROM attempts a WHERE a.match_id = m.id AND a.state IN ('permitted', 'review'))
+                     AND NOT EXISTS (SELECT 1 FROM match_rooms r WHERE r.match_id = m.id AND r.lease_expires_at > ?1))
+                 OR (c.kind = ?3 AND m.created_at + ?4 <= ?1))
              ORDER BY m.expires_at, m.id LIMIT ?2",
         )?
-        .query_map(params![ctx.now, EXPIRE_BATCH], |row| row.get::<_, String>(0))?
+        .query_map(
+            params![ctx.now, EXPIRE_BATCH, BLUMINT, BLUMINT_MATCH_LIFETIME_SECS],
+            |row| row.get::<_, String>(0),
+        )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
         let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
@@ -90,6 +100,12 @@ pub fn expire_stale(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
 }
 
 fn expire_and_release(tx: &Transaction<'_>, ctx: &Ctx, found: &Match) -> Result<()> {
+    // Only a match at its cap has one; reports that come later are kept as
+    // evidence only, as after a cancellation.
+    tx.execute(
+        "UPDATE attempts SET state = 'aborted' WHERE match_id = ?1 AND state IN ('permitted', 'review')",
+        [&found.id],
+    )?;
     let revision = bump(tx, found, MatchState::Expired, ctx.now)?;
     let expires_at: u64 = tx.query_row(
         "SELECT expires_at FROM matches WHERE id = ?1",

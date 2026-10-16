@@ -445,6 +445,32 @@ async fn a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry() {
     assert_eq!(lifetime(&found), 48 * HOUR, "{found}");
 }
 
+// A day after its creation a BluMint match ends even with a game open, since
+// BluMint counts its players free from then: the game is called off, and the
+// players can be matched again.
+#[tokio::test]
+async fn a_game_open_at_a_blumint_matchs_cap_does_not_hold_its_players() {
+    let mut f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.bridge.clock.advance(24 * 60 * 60 - 60);
+    f.bridge.open_session(&mut f.kate).await;
+    f.bridge.open_session(&mut f.sam).await;
+    let binding = bound(&f, &id).await;
+    permit(&f, &id, &binding, 1).await;
+    f.bridge.clock.advance(80);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "expired");
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(found["attempts"][0]["state"], "aborted", "{found}");
+    let (status, next) = create(&f, "set-2", 2).await;
+    assert_eq!(status, StatusCode::OK, "{next}");
+}
+
 // BluMint shows a set's score as it is played, so each game won that does not
 // end the set is reported; the game that ends it is the result, and a game
 // that changes no score is not reported.
