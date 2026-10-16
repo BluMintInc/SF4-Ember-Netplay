@@ -734,6 +734,34 @@ async fn a_status_is_sent_again_until_a_later_one_replaces_it() {
     assert_eq!(status_row(&f, &id).await, Some((3, "delivered".into())));
 }
 
+// A fighter whose build differs from the one the other fighter claimed with
+// cannot play the match on it, but they did open it: BluMint hears they are
+// present, not that they never came. Claiming again on the same build as the
+// other fighter changes nothing BluMint hears.
+#[tokio::test]
+async fn a_player_refused_for_their_build_reads_as_present() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    claim(&f, &f.kate, &id, &endpoint(&f.kate), BUILD).await;
+    let (status_code, refused) = claim(&f, &f.sam, &id, &endpoint(&f.sam), "build-2").await;
+    assert_eq!(
+        (status_code, refused["error"]["code"].as_str()),
+        (StatusCode::UNPROCESSABLE_ENTITY, Some("incompatible_build")),
+        "{refused}"
+    );
+    ember_bridge::deliver_results(&keyed).await;
+    let expected = vec![status(&f, &id, 2, "pending", [NOT_READY, NOT_READY])];
+    assert_eq!(sent_statuses(&f, &id), expected);
+
+    let (status_code, _) = claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
+    assert_eq!(status_code, StatusCode::OK);
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(sent_statuses(&f, &id), expected);
+}
+
 // A status still waiting when the match ends is never sent, and the match's
 // end sends none: the result or abort says how it ended.
 #[tokio::test]

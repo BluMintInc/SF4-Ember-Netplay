@@ -55,7 +55,8 @@ pub fn status(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     let mut players = Vec::new();
     for player in participants(tx, &found.id, found.generation)? {
         let opened: bool = tx.query_row(
-            "SELECT EXISTS (SELECT 1 FROM match_claims WHERE match_id = ?1 AND ember_id = ?2)",
+            "SELECT EXISTS (SELECT 1 FROM match_claims WHERE match_id = ?1 AND ember_id = ?2)
+                 OR EXISTS (SELECT 1 FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2)",
             rusqlite::params![found.id, player.ember_id.as_str()],
             |row| row.get(0),
         )?;
@@ -97,8 +98,9 @@ pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
     Ok(json!({ "mode": "progress", "matchId": found.id, "teams": teams(tx, found)? }))
 }
 
-/// A player is present once their Ember claimed the match, and ready while a
-/// game of the match is on, from its permit until it is decided. A game is prepared only once
+/// A player is present once their Ember opened the match, whether its claim
+/// was taken or refused for its build, and ready while a game of the match
+/// is on, from its permit until it is decided. A game is prepared only once
 /// both fighters press Ready, so before that the bridge cannot tell which of
 /// two present players is waiting on the other: both read as not ready.
 fn presence(state: MatchState, opened: bool) -> &'static str {
