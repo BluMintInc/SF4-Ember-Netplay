@@ -109,8 +109,8 @@ The answer:
 Send the returned `matchUrl` to both players. It is the same for both and
 safe to send in your messages: only the two assigned Ember IDs can play the
 match, and anyone else's Ember finds no such match. The link itself does not
-expire, but a match nobody plays does: 24 hours after you created it the
-bridge ends it (see "Reports").
+expire, but a match nobody plays does: the bridge ends it 24 hours after you
+created it at the latest (see "Reports").
 
 Every request under one `Idempotency-Key` answers the match that key made,
 even after the match has ended, for a day. A renamed team or changed
@@ -212,13 +212,13 @@ with the wins so far:
 | The two games disagree about a game, or one never reports it | `disputed` | `true` |
 | Neither game reported a game, or a player's link ended | `insufficientPlayers` | `true` |
 | Called off another way, such as by the bridge's operator | `serverFailure` | `true` |
-| Still open 24 hours after its creation, with no game being played | `insufficientPlayers` | `false` |
+| Still open when it expires, 24 hours after its creation at the latest, with no game being played | `insufficientPlayers` | `false` |
 
 BluMint has no review step, so a match that would wait for one is ended and
 posted as a retryable abort, and you ask for the set again under a new key
 with `startingWins`. A match nobody played is not worth asking for again, so
 its host takes it. A set with games already recorded ends the same way:
-games played do not move the 24 hours, since you free a player held by a
+games played do not move its expiry, since you free a player held by a
 match you could not close only for 24 hours after it was made. A game in
 progress at that time is played out first.
 
