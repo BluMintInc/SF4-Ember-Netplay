@@ -97,13 +97,12 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     // Spectators, team names, match settings and identities from other
     // sign-in methods are BluMint's own, and do not change the match.
     let mut body = request(&f, 1);
-    body["spectators"] =
-        json!([{ "identities": [ { "source": "partner", "inGameId": "emb1_watcher" } ] }]);
+    body["spectators"] = json!([{ "identities": [ { "inGameId": "emb1_watcher" } ] }]);
     body["matchSettings"] = json!({ "gravity": 1.1 });
     body["teams"][0]["players"][0]["identities"]
         .as_array_mut()
         .unwrap()
-        .push(json!({ "source": "discord", "inGameId": KATE }));
+        .push(json!({ "provider": "discord", "inGameId": KATE }));
     let (status, created) = create_with(&f, "create-1", body).await;
     assert_eq!(status, StatusCode::OK, "{created}");
     let id = created["matchId"].as_str().unwrap().to_owned();
@@ -359,10 +358,10 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
     doubled["teams"][0]["players"][0]["identities"]
         .as_array_mut()
         .unwrap()
-        .push(json!({ "source": "partner", "inGameId": f.sam.id() }));
+        .push(json!({ "inGameId": f.sam.id() }));
     let mut nameless = request(&f, 2);
     nameless["teams"][1]["players"][0]["identities"] =
-        json!([{ "source": "discord", "inGameId": SAM }]);
+        json!([{ "provider": "discord", "inGameId": SAM }]);
     // The host's match settings are free-form, so a body can outgrow the
     // bridge's cap.
     let mut oversized = request(&f, 2);

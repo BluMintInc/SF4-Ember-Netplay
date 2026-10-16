@@ -290,7 +290,7 @@ pub async fn blumint_match(
     one: &str,
     two: &str,
 ) -> (StatusCode, Json) {
-    let team = |id: &str| json!({ "players": [ { "identities": [ { "source": "partner", "inGameId": id } ] } ] });
+    let team = |id: &str| json!({ "players": [ { "identities": [ { "inGameId": id } ] } ] });
     bridge
         .post_keyed(
             provider,

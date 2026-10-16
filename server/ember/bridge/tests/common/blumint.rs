@@ -190,7 +190,7 @@ pub async fn lookup(f: &Fixture, body: Json) -> Json {
 
 /// One team of one player, known to BluMint by the Ember ID its lookup found.
 pub fn team(name: &str, ember_id: impl serde::Serialize) -> Json {
-    json!({ "name": name, "players": [ { "identities": [ { "source": "partner", "inGameId": ember_id } ] } ] })
+    json!({ "name": name, "players": [ { "identities": [ { "inGameId": ember_id } ] } ] })
 }
 
 /// BluMint's request for a set of Kate against Sam, first to `games_to_win`.
