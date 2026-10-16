@@ -759,6 +759,38 @@ static void TestLeavingKeepsThePlayedScore() {
 	CHECK(table.lastSet.score[0] == 1 && table.lastSet.score[1] == 2 && table.lastSet.winnerSeat == 1);
 }
 
+// A casual game still under way when the binding first arrives is not the
+// set's: the binding waits for it to end, so its result is not added to the
+// set's starting score, and is accepted once it has.
+static void TestACasualGameDelaysTheFirstBinding() {
+	RoomAuthority authority("Match", 8, 1);
+	authority.AdvanceTime(1000);
+	const MemberId a = JoinAs(authority, "A", EndpointA, true);
+	const MemberId b = JoinAs(authority, "B", EndpointB);
+	for (const auto member : {a, b})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	ReadyBoth(authority);
+	auto carried = Binding();
+	carried.startingWins = {1, 0};
+	auto refused = authority.BindTournament(carried);
+	CHECK(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	refused = authority.BindTournament(carried);
+	CHECK(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
+	const auto casual = authority.SnapshotView().tables[0].matchGeneration;
+	CHECK(authority.EndMatch(0, casual, MatchResult::P1Win).accepted);
+	for (const auto member : authority.TerminalMembers(0, casual)) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = casual;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+	CHECK(authority.BindTournament(carried).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	CHECK(authority.SnapshotView().tables[0].lastSet.generation == 0);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+}
+
 // Casual rooms are unchanged: Ready starts the game with no permit.
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
@@ -796,6 +828,7 @@ int main() {
 	TestPracticeRoomsTakeNoBinding();
 	TestStartingWins();
 	TestLeavingKeepsThePlayedScore();
+	TestACasualGameDelaysTheFirstBinding();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");
 	return failures ? 1 : 0;
