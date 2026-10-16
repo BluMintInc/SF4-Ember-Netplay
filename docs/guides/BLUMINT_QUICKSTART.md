@@ -176,13 +176,35 @@ The bridge posts to `https://staging.blumint.io/api/tournaments/match/submit`
 with BluMint's API key. Every report names each player by the Ember ID you
 sent, and its `wins` count the `startingWins` the match was created with.
 
-When the players start their first game of the set, once:
+A `status` report each time the match's status changes: as each player
+opens the match in Ember, as each game starts, and as each game ends with
+another to come. A match nobody has opened has none.
 
 ```json
-{ "mode": "status", "matchId": "emt_...", "status": "running", "players": [
+{ "mode": "status", "matchId": "emt_...", "status": "running",
+  "revision": 3, "observedAt": "2026-10-16T18:04:12Z", "players": [
   { "inGameId": "emb1_...", "status": "present-ready" },
   { "inGameId": "emb1_...", "status": "present-ready" } ] }
 ```
+
+`status` is `pending` until the players' first game starts and `running`
+from then on, whatever games an organizer recorded. Each player is:
+
+| `status` | When |
+|---|---|
+| `absent` | Their Ember has not opened the match |
+| `present-not-ready` | They opened it, and no game is being played: before the first, between games, or refused because their Ember build differs from their opponent's |
+| `present-ready` | A game is being played, from its start until both games report it |
+
+Ember cannot say which present player is not ready. A game starts only once
+both players press Ready, and the bridge hears of neither press before then,
+so a player waiting for an opponent who never presses Ready reads
+`present-not-ready`, the same as that opponent.
+
+`revision` is an integer that rises with each change on the match, and
+`observedAt` is when the bridge saw it. A report that waited is sent as the
+status then stands, so keep the one with the highest `revision` and drop one
+that arrives after it. Nothing is sent once the match has ended.
 
 After each game won that does not end the set:
 
@@ -236,7 +258,7 @@ which is called off.
 | `503 match_not_ready` with `Retry-After` | tries again, no sooner than `Retry-After` |
 | `500`, another `5xx`, `429`, a timeout or no connection | tries again |
 | `401` or `403` (a key you rotated, or bound to no game) | tries again, so the reports go out once the key is fixed |
-| `404 unknown_match` | stops, except for the first-game status, which it tries again |
+| `404 unknown_match` | stops, except for a status, which it tries again |
 | Another `4xx` | stops |
 
 The bridge tries again on a schedule from a second to an hour, for a day.
@@ -270,7 +292,8 @@ so BluMint never receives a second, different result for a match.
 1. **Field names.** BluMint sends each player's Ember ID as an identity's
    `inGameId`, and reads it there in every report.
 2. **Status.** BluMint never calls a status URL. The bridge registers none,
-   and posts a `status` report when a set's first game starts.
+   and posts a `status` report each time a player arrives or a game starts
+   or ends (see Reports).
 3. **Restarts.** A match that ended without a result is an abort with
    `retryable`. BluMint asks for the set again under a new key after a
    retryable one, carrying `startingWins`.
