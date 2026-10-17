@@ -271,18 +271,22 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     } else {
         "not_required"
     };
+    let policy = policy::of(tx, new.connection_id)?;
     let lifetime = expiry::lifetime(
         ctx,
         new.lobby_id.is_some() || new.tournament_id.is_some(),
-        policy::of(tx, new.connection_id)?,
+        policy,
     );
     let expires_at = lifetime.map(|secs| ctx.now + secs);
+    let ends_by = lifetime
+        .and(policy.max_lifetime_secs)
+        .map(|cap| ctx.now + cap);
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, base_p1, base_p2)
+            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, base_p1, base_p2, ends_by)
          VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15,
-            ?16, ?17)",
+            ?16, ?17, ?18)",
         params![
             id,
             new.tenant_id,
@@ -300,7 +304,8 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             expires_at,
             lifetime,
             new.starting_wins[0],
-            new.starting_wins[1]
+            new.starting_wins[1],
+            ends_by
         ],
     )?;
     for participant in new.participants {

@@ -754,7 +754,7 @@ fn issue(
     )?;
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
     // A game starting is activity, which moves the match's deadline.
-    expiry::extend(tx, ctx.now, &fighter.found)?;
+    expiry::extend(tx, ctx.now, &fighter.found.id)?;
     match_event(
         tx,
         ctx,
