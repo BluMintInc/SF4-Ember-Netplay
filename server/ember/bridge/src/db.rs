@@ -36,19 +36,20 @@ const MIGRATIONS: &[(i64, &str)] = &[
         include_str!("../migrations/016_discord_confirm_owner.sql"),
     ),
     (17, include_str!("../migrations/017_creator_region.sql")),
-    (18, include_str!("../migrations/018_blumint_progress.sql")),
+    (18, include_str!("../migrations/018_room_own_delay.sql")),
+    (19, include_str!("../migrations/019_blumint_progress.sql")),
     (
-        19,
-        include_str!("../migrations/019_match_starting_wins.sql"),
+        20,
+        include_str!("../migrations/020_match_starting_wins.sql"),
     ),
-    (20, include_str!("../migrations/020_blumint_status.sql")),
+    (21, include_str!("../migrations/021_blumint_status.sql")),
     (
-        21,
-        include_str!("../migrations/021_match_claim_refusals.sql"),
+        22,
+        include_str!("../migrations/022_match_claim_refusals.sql"),
     ),
-    (22, include_str!("../migrations/022_claim_liveness.sql")),
-    (23, include_str!("../migrations/023_blumint_keys.sql")),
-    (24, include_str!("../migrations/024_claim_ready.sql")),
+    (23, include_str!("../migrations/023_claim_liveness.sql")),
+    (24, include_str!("../migrations/024_blumint_keys.sql")),
+    (25, include_str!("../migrations/025_claim_ready.sql")),
 ];
 
 #[derive(Clone)]
@@ -301,7 +302,7 @@ mod tests {
         connection
             .pragma_update(None, "foreign_keys", "ON")
             .unwrap();
-        migrate(&mut connection, &MIGRATIONS[..22]).unwrap();
+        migrate(&mut connection, &MIGRATIONS[..23]).unwrap();
         // emt_kept's answer is still stored; emt_gone's was removed after a
         // day; emt_shut's was replaced when BluMint closed its key; another
         // connection's answer names emt_other, which is not BluMint's.
