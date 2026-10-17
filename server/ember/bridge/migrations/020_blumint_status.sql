@@ -5,7 +5,7 @@
 -- that arrives after a later one. Once the match has ended it is
 -- not_required: the result or abort says how it ended.
 CREATE TABLE blumint_status (
-    match_id TEXT PRIMARY KEY REFERENCES matches (id),
+    match_id TEXT PRIMARY KEY REFERENCES matches(id),
     revision INTEGER NOT NULL,
     body TEXT NOT NULL,
     observed_at INTEGER NOT NULL,
@@ -17,6 +17,3 @@ CREATE TABLE blumint_status (
 );
 CREATE INDEX blumint_status_due ON blumint_status (state, next_at);
 
--- The first game's status was a progress row, games_played 0; it is the
--- status row now.
-DELETE FROM blumint_progress WHERE games_played = 0;
