@@ -22,11 +22,6 @@ use crate::{
 /// own game settings, results by two-player agreement or organizer review.
 pub const PROFILE: &str = "ember-room-v1";
 pub const VERSION: u8 = 1;
-/// The version of a binding whose set does not start at 0-0
-/// (`Binding::starting_wins`). A binding that starts at 0-0 stays `VERSION`,
-/// byte for byte, so a helper that predates starting wins plays every such
-/// set, and refuses this version rather than seat a set at the wrong score.
-pub const BINDING_BASE_VERSION: u8 = 2;
 /// How long a permit may wait for its game to start (spec 15.3).
 pub const PERMIT_START_SECS: u64 = 120;
 /// A provisioning lease, renewed by claiming again (spec 14.1).
@@ -182,27 +177,17 @@ pub struct Binding {
     pub issued_at: u64,
     /// Games each slot has already won when the set starts, P1 first: a set
     /// its platform asked for again after it was cut short carries on from
-    /// its score. Left out at 0-0.
+    /// its score. Left out at 0-0, so such a binding is the bytes a helper
+    /// that predates the field accepts; that helper refuses one carrying it
+    /// as an unknown field rather than seat the set at 0-0.
     #[serde(default, skip_serializing_if = "starts_at_zero")]
     pub starting_wins: [u8; 2],
 }
 
 impl Binding {
-    /// The version a binding with these starting wins carries.
-    pub fn version_for(starting_wins: [u8; 2]) -> u8 {
-        if starts_at_zero(&starting_wins) {
-            VERSION
-        } else {
-            BINDING_BASE_VERSION
-        }
-    }
-
     pub fn check(&self) -> Result<()> {
         let fields = [
-            (
-                self.version == Self::version_for(self.starting_wins),
-                "version",
-            ),
+            (self.version == VERSION, "version"),
             (
                 self.starting_wins
                     .iter()
@@ -639,8 +624,7 @@ mod tests {
 
     // A set that starts at 0-0, a set asked for again after a reset among
     // them, keeps the binding every released helper accepts, byte for byte.
-    // One that carries on from a score is a version those helpers refuse,
-    // rather than seat it at 0-0.
+    // One that carries on from a score names it, under the same version.
     #[test]
     fn a_binding_names_its_starting_wins_only_when_the_set_does_not_start_at_zero() {
         let (a, b) = (key(1), key(2));
@@ -679,23 +663,17 @@ mod tests {
         assert_eq!(read.starting_wins, [0, 0]);
         assert_eq!(json::to_value(&read).unwrap(), at_zero);
         assert!(binding.check().is_ok());
-        assert_eq!(Binding::version_for([0, 0]), VERSION);
 
         binding.starting_wins = [1, 0];
-        assert_eq!(binding.check(), Err(Error::InvalidField("version")));
-        binding.version = Binding::version_for(binding.starting_wins);
-        assert_eq!(binding.version, BINDING_BASE_VERSION);
         assert!(binding.check().is_ok());
         let carried = serde_json::to_value(&binding).unwrap();
         assert_eq!(carried["starting_wins"], serde_json::json!([1, 0]));
-        assert_eq!(carried["version"], 2);
+        assert_eq!(carried["version"], 1);
         let signed = binding.sign(&key(9), "k1").unwrap();
         assert_eq!(signed.verify(&key(9).public_key(), "k1").unwrap(), &binding);
 
         binding.starting_wins = [0, 2];
         assert_eq!(binding.check(), Err(Error::InvalidField("starting_wins")));
-        binding.starting_wins = [0, 0];
-        assert_eq!(binding.check(), Err(Error::InvalidField("version")));
     }
 
     #[test]

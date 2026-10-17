@@ -228,7 +228,7 @@ fn binding(
     let [p1, p2] = [&fighter.roster[0].ember_id, &fighter.roster[1].ember_id];
     let starting_wins = fighter.found.starting_wins;
     let binding = Binding {
-        version: Binding::version_for(starting_wins),
+        version: play::VERSION,
         bridge_id: ctx.config.bridge_id.clone(),
         match_id: fighter.found.id.clone(),
         assignment_generation: Counter(fighter.found.generation),
