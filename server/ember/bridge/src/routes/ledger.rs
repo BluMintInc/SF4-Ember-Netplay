@@ -318,7 +318,7 @@ pub fn settle(
     progress::keep_reported_wins(tx, found, wins_before, wins)?;
     let revision = bump(tx, found, next, ctx.now)?;
     // A decided game is activity, which moves the match's deadline.
-    expiry::extend(tx, ctx.now, found)?;
+    expiry::extend(tx, ctx.now, &found.id)?;
     progress::game_settled(tx, found, wins_before, wins, next, accepted.len() as u64)?;
     // The reopened match now holds its players; the ones a bracket
     // correction released from later sets can be picked up elsewhere.

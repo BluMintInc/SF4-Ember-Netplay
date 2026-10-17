@@ -235,16 +235,16 @@ pub struct Policy {
     /// The platform hears how a set stands while it is played: its status
     /// as each player arrives or leaves, as each game starts and as each game
     /// ends with another to come (`delivery::status`), and its score after
-    /// each game that does not end
-    /// it (`delivery::progress`). BluMint.
+    /// each game that does not end it (`delivery::progress`). BluMint.
     pub reports_progress: bool,
-    /// A match lives at most `BLUMINT_MATCH_LIFETIME_SECS` after it was made,
-    /// however it is played: games move its deadline as on any connection,
-    /// but never past that.
-    pub capped_lifetime: bool,
+    /// The longest a match lives after it was made, however it is played:
+    /// games move its deadline as on any connection, but never past that
+    /// (`matches.ends_by`). None when only `match_expiry_hours` applies.
+    /// BluMint's is `BLUMINT_MATCH_LIFETIME_SECS`.
+    pub max_lifetime_secs: Option<u64>,
 }
 
-/// The longest a match on a `Policy::capped_lifetime` connection lives,
+/// The longest a match on a BluMint connection lives,
 /// whatever `match_expiry_hours` says. BluMint excuses a player kept busy by a
 /// match it could not close only for a bounded window: this cap, plus its own
 /// create retry span and a minute for this bridge's maintenance sweep. A match
@@ -258,7 +258,7 @@ impl Policy {
             own_api_only: kind == BLUMINT,
             reviews_disputes: disputes == Disputes::Review,
             reports_progress: kind == BLUMINT,
-            capped_lifetime: kind == BLUMINT,
+            max_lifetime_secs: (kind == BLUMINT).then_some(BLUMINT_MATCH_LIFETIME_SECS),
         }
     }
 }

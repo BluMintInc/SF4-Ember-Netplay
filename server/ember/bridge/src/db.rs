@@ -269,19 +269,27 @@ mod tests {
             ))
             .unwrap();
         migrate(&mut connection, MIGRATIONS).unwrap();
-        let expires = |id: &str| -> (i64, i64, [i64; 2]) {
+        let expires = |id: &str| -> (i64, i64, [i64; 2], Option<i64>) {
             connection
                 .query_row(
-                    "SELECT expires_at, expiry_secs, base_p1, base_p2 FROM matches WHERE id = ?1",
+                    "SELECT expires_at, expiry_secs, base_p1, base_p2, ends_by FROM matches WHERE id = ?1",
                     [id],
-                    |row| Ok((row.get(0)?, row.get(1)?, [row.get(2)?, row.get(3)?])),
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            [row.get(2)?, row.get(3)?],
+                            row.get(4)?,
+                        ))
+                    },
                 )
                 .unwrap()
         };
-        assert_eq!(expires("emt_open"), (1000 + 86400, 86400, [0, 0]));
-        assert_eq!(expires("emt_short"), (1000 + 3600, 3600, [0, 0]));
-        assert_eq!(expires("emt_done"), (late, 86400, [0, 0]));
-        assert_eq!(expires("emt_direct"), (late, 86400, [0, 0]));
+        let capped = Some(1000 + 86400);
+        assert_eq!(expires("emt_open"), (1000 + 86400, 86400, [0, 0], capped));
+        assert_eq!(expires("emt_short"), (1000 + 3600, 3600, [0, 0], capped));
+        assert_eq!(expires("emt_done"), (late, 86400, [0, 0], None));
+        assert_eq!(expires("emt_direct"), (late, 86400, [0, 0], None));
     }
 
     #[test]

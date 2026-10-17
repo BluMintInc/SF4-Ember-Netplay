@@ -6,12 +6,18 @@
 ALTER TABLE matches ADD COLUMN base_p1 INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE matches ADD COLUMN base_p2 INTEGER NOT NULL DEFAULT 0;
 
+-- The latest a match lives to, whatever is played in it: its creation plus
+-- its platform's cap (Policy::max_lifetime_secs). NULL when only its
+-- expiry_secs applies.
+ALTER TABLE matches ADD COLUMN ends_by INTEGER;
+
 -- BluMint matches still open from before their lifetime was capped end as a
 -- new one would: at most a day after their creation, whatever games moved
 -- their deadline. 86400 is BLUMINT_MATCH_LIFETIME_SECS.
 UPDATE matches
    SET expires_at = MIN(expires_at, created_at + 86400),
-       expiry_secs = MIN(expiry_secs, 86400)
+       expiry_secs = MIN(expiry_secs, 86400),
+       ends_by = created_at + 86400
  WHERE expires_at IS NOT NULL
    AND state NOT IN ('completed', 'cancelled', 'failed', 'expired')
    AND connection_id IN (SELECT id FROM provider_connections WHERE kind = 'blumint');
