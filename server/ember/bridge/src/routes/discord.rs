@@ -44,7 +44,7 @@ use serde_json::json;
 
 use crate::{
     AppState, auth,
-    config::Discord,
+    config::{Config, Discord, Disputes},
     ctx::Ctx,
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
@@ -248,13 +248,11 @@ enum Stored {
 
 /// `GET /v1/discord/callback`: Discord's answer, in the player's browser.
 /// The page says what happened, or asks before connecting an account that
-/// is not this Ember ID's yet; the player goes back to their tournament site.
+/// is not this Ember ID's yet; the player goes back to the site that sent
+/// them.
 pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer>) -> Response {
     let Ok(discord) = enabled(&state).cloned() else {
-        return finished(
-            "Discord sign-in is off",
-            "This Ember service does not offer Discord sign-in.",
-        );
+        return off();
     };
     // Only a sign-in Ember is waiting for reaches Discord, and only for the
     // first answer that claims it; another answer for it is turned away. The
@@ -283,7 +281,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             let _ = state.db.write(move |tx| take(tx, &hash, now)).await;
             return finished(
                 "Not connected",
-                "Discord did not connect the account. Choose Connect Discord in Ember to try again.",
+                "Discord did not connect your account. Choose Connect Discord in Ember to try again.",
             );
         }
     };
@@ -291,7 +289,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
         let _ = state.db.write(move |tx| take(tx, &hash, now)).await;
         return finished(
             "Discord did not answer",
-            "Discord did not confirm the account. Choose Connect Discord in Ember to try again.",
+            "Discord did not confirm your account. Choose Connect Discord in Ember to try again.",
         );
     };
     let shown = user.username.clone();
@@ -353,10 +351,11 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             Ok(Stored::Connected(ember_id))
         })
         .await;
+    let sites = Sites::of(&state.config);
     match stored {
         Ok(Stored::Connected(ember_id)) => {
             state.committed();
-            connected(&shown, &ember_id)
+            connected(&sites, &shown, &ember_id)
         }
         Ok(Stored::Asking {
             from,
@@ -367,8 +366,8 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             state.committed();
             let replaced = replaced.as_deref();
             match from {
-                Some(from) => moving(&confirmation, &shown, &from, &to, replaced),
-                None => connecting(&confirmation, &shown, &to, replaced),
+                Some(from) => moving(&sites, &confirmation, &shown, &from, &to, replaced),
+                None => connecting(&sites, &confirmation, &shown, &to, replaced),
             }
         }
         Ok(Stored::Gone) => not_waiting(),
@@ -395,10 +394,7 @@ enum Decided {
 /// done.
 pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer>) -> Response {
     if enabled(&state).is_err() {
-        return finished(
-            "Discord sign-in is off",
-            "This Ember service does not offer Discord sign-in.",
-        );
+        return off();
     }
     let moves = match answer.choice.as_str() {
         "move" | "connect" => true,
@@ -452,8 +448,8 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
             state.committed();
             return finished(
                 "Not connected",
-                "This Discord account was connected to an Ember ID after this page asked, so nothing changed. \
-                 Choose Connect Discord in Ember again if you want it there.",
+                "Your Discord account was connected to an Ember ID after this page asked, so nothing changed. \
+                 To connect it here, choose Connect Discord in Ember again.",
             );
         }
         Ok(None) => return not_waiting(),
@@ -461,14 +457,14 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
     };
     state.committed();
     if moves {
-        connected(&username, &ember_id)
+        connected(&Sites::of(&state.config), &username, &ember_id)
     } else if refused {
         finished(
             "Not connected",
             &format!(
-                "Discord account <strong>{}</strong> was not connected to any Ember ID. \
-                 If you did not choose Connect Discord in Ember, someone may have sent you that link: \
-                 do not sign in from it again. You can close this tab.",
+                "Your Discord account <strong>{}</strong> was not connected to any Ember ID. \
+                 If you did not choose Connect Discord in Ember, someone may have sent you that link, \
+                 so do not sign in from it again. You can close this tab.",
                 html(&username)
             ),
         )
@@ -476,7 +472,7 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
         finished(
             "Nothing moved",
             &format!(
-                "Discord account <strong>{}</strong> stays connected to its other Ember ID. \
+                "Your Discord account <strong>{}</strong> stays connected to your other Ember ID. \
                  You can close this tab.",
                 html(&username)
             ),
@@ -522,27 +518,98 @@ fn fingerprint(ember_id: &str) -> String {
         .unwrap_or_default()
 }
 
-fn connected(username: &str, ember_id: &str) -> Response {
+/// The sites that find players by Discord account on this bridge, named as
+/// each tenant names itself, for the pages to tell the player who finds them.
+struct Sites {
+    /// Each site's name, already escaped for the page, and whether it starts
+    /// a match that ended with a player's links again from the games already
+    /// won (`Disputes::Restart`) rather than hand it to an organizer.
+    named: Vec<(String, bool)>,
+}
+
+impl Sites {
+    fn of(config: &Config) -> Self {
+        let mut named: Vec<(String, bool)> = Vec::new();
+        for tenant in &config.tenants {
+            for connection in &tenant.connections {
+                let site = (
+                    html(&tenant.name),
+                    connection.disputes() == Disputes::Restart,
+                );
+                if connection.enabled && connection.discord_lookup() && !named.contains(&site) {
+                    named.push(site);
+                }
+            }
+        }
+        Self { named }
+    }
+
+    /// The sites whose `restarts` is as asked, as "A", "A and B" or "A, B and
+    /// C", or None when there are none.
+    fn listed(&self, restarts: Option<bool>) -> Option<String> {
+        let mut names: Vec<&str> = Vec::new();
+        for (name, restart) in &self.named {
+            if restarts.is_none_or(|wanted| wanted == *restart) && !names.contains(&name.as_str()) {
+                names.push(name);
+            }
+        }
+        let (last, rest) = names.split_last()?;
+        Some(match rest {
+            [] => (*last).to_owned(),
+            _ => format!("{} and {last}", rest.join(", ")),
+        })
+    }
+
+    /// Who finds the player by their Discord account.
+    fn finders(&self) -> String {
+        self.listed(None)
+            .unwrap_or_else(|| "Tournament sites that use this Ember service".into())
+    }
+
+    /// Where the player goes back to.
+    fn back(&self) -> String {
+        match &self.named[..] {
+            [(name, _)] => name.clone(),
+            _ => "the tournament site you came from".into(),
+        }
+    }
+
+    /// What happens to a tournament match the player's links ended.
+    fn after_ending(&self) -> String {
+        let restarting = self.listed(Some(true)).map(|names| {
+            format!(" {names} will start the match again from the games already won.")
+        });
+        let reviewing = self
+            .listed(Some(false))
+            .map(|names| format!(" At {names}, an organizer decides how it goes on."));
+        restarting.into_iter().chain(reviewing).collect()
+    }
+}
+
+fn connected(sites: &Sites, username: &str, ember_id: &str) -> Response {
     finished(
         "Discord connected",
         &format!(
-            "Discord account <strong>{}</strong> is now connected to Ember ID <strong>{}</strong>. \
-             Tournament sites that use this Ember service can find your Ember ID from this Discord account. \
-             You can close this tab and go back to your tournament site; Ember shows the connection too.",
+            "Your Discord account <strong>{}</strong> is connected to your Ember ID <strong>{}</strong>. \
+             {} can now find you by this Discord account. \
+             You can close this tab and go back to {}. Ember shows the connection too.",
             html(username),
-            html(&fingerprint(ember_id))
+            html(&fingerprint(ember_id)),
+            sites.finders(),
+            sites.back()
         ),
     )
 }
 
 /// What connecting an account to `to` does to the account `to` has now, if
-/// any: it is disconnected, and its links end as a moved account's do.
-fn replacing(to: &str, replaced: Option<&str>) -> String {
+/// any: it is disconnected, and its links end as a moved account's do, with
+/// `after` saying what then happens to their matches.
+fn replacing(to: &str, replaced: Option<&str>, after: &str) -> String {
     replaced.map_or_else(String::new, |replaced| {
         format!(
             "<p>Ember ID <strong>{to}</strong> is connected to Discord account <strong>{}</strong> now. \
-             That account is disconnected, and the tournament links it made end too, \
-             along with any tournament match <strong>{to}</strong> is playing through them.</p>",
+             Connecting this one disconnects it, and its tournament links end too, \
+             along with any tournament match you are playing through them.{after}</p>",
             html(replaced)
         )
     })
@@ -551,6 +618,7 @@ fn replacing(to: &str, replaced: Option<&str>) -> String {
 /// Asks before moving the account from Ember ID `from` to `to`. The form
 /// carries the question's confirmation secret, which only this page has.
 fn moving(
+    sites: &Sites,
     confirmation: &str,
     username: &str,
     from: &str,
@@ -562,17 +630,18 @@ fn moving(
         html(&fingerprint(from)),
         html(&fingerprint(to)),
     );
-    let replacing = replacing(&to, replaced);
+    let (finders, after_ending) = (sites.finders(), sites.after_ending());
+    let replacing = replacing(&to, replaced, "");
     page(
         "Move this Discord account?",
         &format!(
             "<h1>Move this Discord account?</h1>\
-             <p>Discord account <strong>{username}</strong> is connected to another Ember ID, <strong>{from}</strong>. \
+             <p>Your Discord account <strong>{username}</strong> is connected to another Ember ID, <strong>{from}</strong>. \
              Moving it connects it to Ember ID <strong>{to}</strong> instead.</p>\
-             <div class=\"box warn\"><p>Tournament sites will find <strong>{to}</strong> from this Discord account, \
-             and the tournament links it made for <strong>{from}</strong> end. \
-             A tournament match <strong>{from}</strong> is playing ends with them, and a game in progress does not count. \
-             The tournament site starts the match again from the games already won.</p>{replacing}\
+             <div class=\"box warn\"><p>{finders} will then find <strong>{to}</strong> by this Discord account, \
+             and your tournament links on <strong>{from}</strong> end. \
+             Any tournament match you are playing on <strong>{from}</strong> ends with them, \
+             and a game in progress does not count.{after_ending}</p>{replacing}\
              <p>Move it only if both Ember IDs are yours, for example on a new PC.</p></div>\
              <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
              <button name=\"choice\" value=\"move\">Move it to {to}</button>\
@@ -586,18 +655,29 @@ fn moving(
 /// Asks before connecting an account no Ember ID has to `to`, naming it so
 /// the player can compare it with the one their Ember shows. The form
 /// carries the question's confirmation secret, which only this page has.
-fn connecting(confirmation: &str, username: &str, to: &str, replaced: Option<&str>) -> Response {
+fn connecting(
+    sites: &Sites,
+    confirmation: &str,
+    username: &str,
+    to: &str,
+    replaced: Option<&str>,
+) -> Response {
     let (username, to) = (html(username), html(&fingerprint(to)));
-    let replacing = replacing(&to, replaced);
+    let finders = sites.finders();
+    let after = format!(
+        " A game in progress does not count.{}",
+        sites.after_ending()
+    );
+    let replacing = replacing(&to, replaced, &after);
     page(
         "Connect this Discord account?",
         &format!(
             "<h1>Connect this Discord account?</h1>\
-             <p>This connects Discord account <strong>{username}</strong> to Ember ID <strong>{to}</strong>. \
-             Tournament sites that use this Ember service will find that Ember ID from this Discord account.</p>\
+             <p>This connects your Discord account <strong>{username}</strong> to Ember ID <strong>{to}</strong>. \
+             {finders} can then find you by this Discord account.</p>\
              {replacing}<div class=\"box warn\"><p>Check that <strong>{to}</strong> is the Ember ID your Ember shows. \
-             If you did not choose Connect Discord in Ember just now, someone else may have sent you this link: \
-             choose This wasn't me.</p></div>\
+             If you did not choose Connect Discord in Ember just now, someone else may have sent you this link, \
+             so choose This wasn't me.</p></div>\
              <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
              <button name=\"choice\" value=\"connect\">Connect it to {to}</button>\
              <button name=\"choice\" value=\"refuse\">This wasn't me</button></form>",
@@ -607,10 +687,17 @@ fn connecting(confirmation: &str, username: &str, to: &str, replaced: Option<&st
     )
 }
 
+fn off() -> Response {
+    finished(
+        "Discord sign-in is off",
+        "This Ember service does not offer Discord sign-in, so you cannot connect Discord here.",
+    )
+}
+
 fn not_saved() -> Response {
     finished(
         "Not connected",
-        "The Ember service could not save the account. Try again later.",
+        "Ember could not save your Discord account. Try again later.",
     )
 }
 
@@ -630,7 +717,7 @@ fn take(tx: &Transaction<'_>, hash: &[u8; 32], now: u64) -> Result<Option<String
 fn not_waiting() -> Response {
     finished(
         "Sign-in expired",
-        "This Discord sign-in is not one Ember is waiting for, or it took longer than ten minutes. Choose Connect Discord in Ember again.",
+        "Ember is not waiting for this Discord sign-in, or it took longer than ten minutes. Choose Connect Discord in Ember again.",
     )
 }
 

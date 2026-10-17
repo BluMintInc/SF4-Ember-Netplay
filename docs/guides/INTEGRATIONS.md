@@ -228,7 +228,12 @@ offered by the page `https://embernetplay.link/start#<bridge_id>`, opens
 Ember's Connect Discord screen for that bridge. At an idle menu it creates the
 Ember ID if needed, trusts Ember's own bridge unless the player removed it,
 and opens Discord's page by itself; a link that arrives during play asks
-first.
+first. A platform may add its own name after the bridge ID
+(`/start#<bridge_id>/<name>`, such as `/BluMint`), which the page shows the
+player as the site that finds them; the page checks only that the name is
+plain text, and keeps only the bridge ID in its address and in the link it
+copies. The bridge's Discord pages name the sites that find players by
+Discord account by their tenants' `name`.
 Where the browser cannot open Ember, the player pastes the page's link into
 Connect Discord (Paste link) instead. The link names a bridge only; Ember
 never trusts one by itself. The sign-in:

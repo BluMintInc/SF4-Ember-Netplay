@@ -213,7 +213,7 @@ async fn a_platforms_links_follow_the_discord_account() {
     let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
     let replacing = |name: &str| {
         format!(
-            "connected to Discord account <strong>{name}</strong> now. That account is disconnected"
+            "connected to Discord account <strong>{name}</strong> now. Connecting this one disconnects it"
         )
     };
     assert!(
@@ -458,14 +458,17 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     let kept = vec![(one_id.clone(), format!("discord:{KATE}"))];
 
     // Signing in from the second Ember ID moves nothing yet: the page names
-    // both Ember IDs and what moving ends.
+    // both Ember IDs and what moving ends, and names the site that finds
+    // players by Discord account as the tenant names itself.
     let state = start(&bridge, &two).await;
     let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
     assert!(
         page.contains("Move this Discord account?")
             && page.contains(&one.id().fingerprint())
             && page.contains(&two.id().fingerprint())
-            && page.contains("links it made"),
+            && page.contains("BluMint will then find")
+            && page.contains("your tournament links on")
+            && page.contains("BluMint will start the match again from the games already won."),
         "{page}"
     );
     assert_eq!(account(&bridge, &one).await["user_id"], KATE);
@@ -520,7 +523,9 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     // Moving it does what the page said, once.
     let page = decide(&bridge, &asked, "move").await;
     assert!(
-        page.contains("Discord connected") && page.contains(&two.id().fingerprint()),
+        page.contains("Discord connected")
+            && page.contains(&two.id().fingerprint())
+            && page.contains("go back to BluMint."),
         "{page}"
     );
     assert!(
