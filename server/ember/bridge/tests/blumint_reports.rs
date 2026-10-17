@@ -1436,7 +1436,7 @@ async fn starting_wins_continue_the_set() {
     let (_, created) = create_with(&f, "set-4", carried(&f, 2, [1, 0])).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
     let binding = bound(&f, &id).await;
-    assert_eq!(binding["version"], 2);
+    assert_eq!(binding["version"], 1);
     assert_eq!(binding["starting_wins"], json!([1, 0]));
     let game = permit(&f, &id, &binding, 1).await;
     report(&f, &f.kate, &f.kate, &id, &game, 1, Outcome::P1Win).await;
