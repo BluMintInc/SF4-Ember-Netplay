@@ -574,14 +574,23 @@ impl Sites {
         }
     }
 
-    /// What happens to a tournament match the player's links ended.
+    /// What happens to a tournament match the player's links ended, and to
+    /// its game in progress. A restarting site's match ends, the game with
+    /// it; a reviewing site's may instead wait for an organizer, who may
+    /// count the game (`matches::on_unlink`).
     fn after_ending(&self) -> String {
         let restarting = self.listed(Some(true)).map(|names| {
-            format!(" {names} will start the match again from the games already won.")
+            format!(
+                " At {names}, the match ends and a game in progress does not count. \
+                 {names} will start the match again from the games already won."
+            )
         });
-        let reviewing = self
-            .listed(Some(false))
-            .map(|names| format!(" At {names}, an organizer decides how it goes on."));
+        let reviewing = self.listed(Some(false)).map(|names| {
+            format!(
+                " At {names}, the match may wait for an organizer, who decides how it goes on, \
+                 a game in progress included."
+            )
+        });
         restarting.into_iter().chain(reviewing).collect()
     }
 }
@@ -609,7 +618,7 @@ fn replacing(to: &str, replaced: Option<&str>, after: &str) -> String {
         format!(
             "<p>Ember ID <strong>{to}</strong> is connected to Discord account <strong>{}</strong> now. \
              Connecting this one disconnects it, and its tournament links end too, \
-             along with any tournament match you are playing through them.{after}</p>",
+             which stops any tournament match you are playing through them.{after}</p>",
             html(replaced)
         )
     })
@@ -640,8 +649,7 @@ fn moving(
              Moving it connects it to Ember ID <strong>{to}</strong> instead.</p>\
              <div class=\"box warn\"><p>{finders} will then find <strong>{to}</strong> by this Discord account, \
              and your tournament links on <strong>{from}</strong> end. \
-             Any tournament match you are playing on <strong>{from}</strong> ends with them, \
-             and a game in progress does not count.{after_ending}</p>{replacing}\
+             That stops any tournament match you are playing on <strong>{from}</strong>.{after_ending}</p>{replacing}\
              <p>Move it only if both Ember IDs are yours, for example on a new PC.</p></div>\
              <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
              <button name=\"choice\" value=\"move\">Move it to {to}</button>\
@@ -664,11 +672,7 @@ fn connecting(
 ) -> Response {
     let (username, to) = (html(username), html(&fingerprint(to)));
     let finders = sites.finders();
-    let after = format!(
-        " A game in progress does not count.{}",
-        sites.after_ending()
-    );
-    let replacing = replacing(&to, replaced, &after);
+    let replacing = replacing(&to, replaced, &sites.after_ending());
     page(
         "Connect this Discord account?",
         &format!(
