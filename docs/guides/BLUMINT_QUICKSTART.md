@@ -9,11 +9,13 @@ them in.
 
 ## What you get
 
-BluMint has two bridges, each with its own BluMint connection (tenant
-`blumint`, kind `blumint`), credentials and registration: production for
-BluMint's production, and staging for BluMint staging and its testers.
+BluMint is to have two bridges, each with its own BluMint connection
+(tenant `blumint`, kind `blumint`), credentials and registration: production
+for BluMint's production, and staging for BluMint staging and its testers.
+Neither is set up yet (see Not built yet): the table gives the addresses
+each will have.
 
-| | Production | Staging |
+| | Production (planned) | Staging (planned) |
 |---|---|---|
 | Bridge | `https://bridge.embernetplay.link` | `https://bridge-staging.embernetplay.link` |
 | Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` | `brg_...`, to be filled in once the staging bridge is up |
@@ -33,8 +35,14 @@ first otherwise. BluMint shows it to a registering user that lookup finds no
 Ember ID for. The `/BluMint` after the bridge ID is the name the page uses
 for you when it speaks to the player, as in "BluMint finds you by your
 Discord account"; without it the page says "the tournament you signed up
-for". The bridge's own Discord pages take the name from your tenant's `name`
-in the bridge's configuration.
+for". The page shows only a name of 1 to 40 letters, digits, spaces and
+`.`, `'`, `&` or `-`, starting with a letter or digit, and silently drops
+any other, so `BluMint (staging)` would show as "the tournament you signed
+up for". A player can paste either link, with the name or without, into
+Ember's **Paste link**; an Ember from before it read the name takes only the
+link without it, as the page's **Copy link** gives it. The bridge's own
+Discord pages take the name from your tenant's `name` in the bridge's
+configuration.
 
 `ember-bridge blumint-register` calls `setLookupPlayer`, `match/setCreate`
 and `match/setClose`, registering the three callback URLs with a new
@@ -179,7 +187,9 @@ posted for it. Every reason closes the match, `decided`, `replaced`,
 kept for the log. A match that already ended answers `200` too, and a second
 close answers what the first did. The close also closes the key: every later
 creation under it answers `409 key_reused`, also when the bridge never made
-a match under it, so a creation still on its way makes nothing.
+a match under it, so a creation still on its way makes nothing. A creation
+the bridge would refuse anyway, such as an invalid body or a set longer than
+Ember plays, still answers that refusal (`400`).
 
 The bridge keeps a match's key for as long as it keeps the match, so a close
 finds the match however long ago you created it. A key that made no match is
@@ -189,7 +199,7 @@ The close's own `Idempotency-Key` is not read.
 | Situation | Status | Body |
 |---|---|---|
 | Closed, or already ended; or the key made no match, its creations refused | `200` | `{ "closed": true }` |
-| A key the bridge holds nothing under for your connection, on every close of it; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
+| A key the bridge holds nothing under for your connection, on every close of it, a creation refused after the first close included; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
 | No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 characters; `reason` missing, empty or longer than 64 characters | `400` | `{ "code": "invalid_request" }` |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
@@ -306,13 +316,24 @@ so BluMint never receives a second, different result for a match.
 
 ## Testing on staging
 
-1. **On BluMint:** use Discord player lookup for the test tournament. The
-   three callbacks are registered. Create matches with the Ember IDs returned
-   by lookup and send players the returned `matchUrl`.
-2. **Connect Discord:** start Ember and open the connect page, or use
-   **Online play > Ember ID > Discord** from Home. Sign in with the same
-   Discord account used on BluMint, then return to BluMint to register again.
-3. **Play:** assigned matches appear automatically, with a notice and a
+These steps need the staging bridge, which is not up yet (see Not built
+yet).
+
+1. **On BluMint:** use Discord player lookup for the test tournament, once
+   Ember has registered the three callbacks on the staging bridge. Create
+   matches with the Ember IDs returned by lookup and send players the
+   returned `matchUrl`.
+2. **Trust the staging bridge:** in Ember, choose **Online play > Ember ID >
+   Linked accounts**, enter `https://bridge-staging.embernetplay.link` under
+   **Add a service**, choose **Look up service**, then **Trust** it. Ember
+   trusts only its own bridge by itself.
+3. **Connect Discord:** open the staging connect page (`https://embernetplay.link/start#<staging bridge ID>/BluMint`)
+   and choose its button, or paste its link into **Online play > Ember ID >
+   Discord > Paste link**. Not the **Discord** row by itself: that connects
+   Discord on the production bridge, where BluMint staging's lookup finds
+   nobody. Sign in with the same Discord account used on BluMint, then
+   return to BluMint to register again.
+4. **Play:** assigned matches appear automatically, with a notice and a
    **Tournament matches** row on Home, and a list under
    **Online play > Ember ID > Tournament matches**. Players can also paste
    the `matchUrl` there. Open the assigned match and press **Play**. Check
@@ -320,6 +341,13 @@ so BluMint never receives a second, different result for a match.
 
 ## Not built yet
 
+- **Production.** `https://bridge.embernetplay.link` serves only BluMint
+  staging today: its one BluMint connection, `blumint-partner-staging`, has
+  environment `staging` and reports to `https://staging.blumint.io/api`. A
+  production connection reporting to `https://app.blumint.com/api` is not
+  deployed or registered, so BluMint production cannot call it yet.
+- **The staging bridge.** `https://bridge-staging.embernetplay.link` is not
+  up, and its bridge ID, connection and registration do not exist yet.
 - **Tested on real hardware.** Automated tests cover tournament play, but a
   two-PC match on real hardware has not been done yet.
 - **Watching.** `spectators` is sent and not read yet; the listed staff
