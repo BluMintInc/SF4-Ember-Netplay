@@ -195,7 +195,7 @@ from then on, whatever games an organizer recorded. Each player is:
 
 | `status` | When |
 |---|---|
-| `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for a minute |
+| `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for 136 seconds |
 | `present-not-ready` | Their Ember is connected to it and they have not pressed Ready for the next game, or took it back or left their seat; or it was refused because its build differs from their opponent's |
 | `present-ready` | They pressed Ready for the next game, or a game is being played, from its start until both games report it |
 
@@ -211,7 +211,7 @@ player reads `present-not-ready` until a game starts.
 A refused Ember stops claiming the match, so the bridge cannot tell whether
 that player stays: they read `present-not-ready` for the rest of the match,
 until they open it again on their opponent's build. Time the bridge itself
-is down does not count toward the minute.
+is down does not count toward those 136 seconds.
 
 `revision` is an integer that rises with each change on the match, and
 `observedAt` is when the bridge saw it. A report that waited is sent as the

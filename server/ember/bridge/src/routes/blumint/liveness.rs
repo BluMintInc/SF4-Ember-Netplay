@@ -7,12 +7,24 @@ use rusqlite::{OptionalExtension, Transaction, named_params};
 
 use crate::error::Result;
 
-/// How long a claim keeps its fighter present. A claim the helper gives up
-/// on can take two 15-second requests (its challenge, then the claim) before
-/// the retry 5 seconds later, after the 10-second wait: 45 seconds, and a
-/// session renewal adds a request. Presence does not use the room's claim
-/// lease (`play::LEASE_SECS`), which a single late claim outlasts.
-pub const LEASE_SECS: u64 = 60;
+/// The helper's timeout on each request (`sf4-net`'s tournament `Client`).
+const REQUEST_SECS: u64 = 15;
+/// The game's wait after a claim's answer (`TournamentPlay.hxx`
+/// `ClaimIntervalMs`), and after a failed claim (`RetryMs`).
+const CLAIM_INTERVAL_SECS: u64 = 10;
+const RETRY_SECS: u64 = 5;
+
+/// How long a claim keeps its fighter present: the longest a connected
+/// helper takes to commit its next claim when one fails. The answer can take
+/// a request to arrive; the next claim waits `CLAIM_INTERVAL_SECS`, then can
+/// send five requests before it gives up (a session renewal's challenge and
+/// session, the capabilities read, the claim's challenge and the claim); the
+/// retry waits `RETRY_SECS` and sends two (its challenge and claim) before it
+/// commits. A second more covers a claim stamped with its whole second.
+/// Presence does not use the room's claim lease (`play::LEASE_SECS`), which a
+/// single late claim outlasts.
+pub const LEASE_SECS: u64 =
+    REQUEST_SECS + CLAIM_INTERVAL_SECS + 5 * REQUEST_SECS + RETRY_SECS + 2 * REQUEST_SECS + 1;
 
 /// When claim `c` lapses: a lease after it was made, or after the bridge
 /// started again for a claim still live when it stopped.
@@ -109,13 +121,34 @@ impl Liveness {
     }
 }
 
-/// Records that the bridge starts again at `now`, before it serves: it heard
-/// no claims since its last sweep. A bridge that never swept has no claims.
-pub fn resume(tx: &Transaction<'_>, now: u64) -> Result<()> {
+/// The latest time a stopped bridge is known to have been running: its last
+/// sweep, claim or observed status, never after `now`. `None` for a bridge
+/// that never swept, which has no claims.
+pub fn last_alive(tx: &Transaction<'_>, now: u64) -> Result<Option<u64>> {
+    Ok(tx
+        .query_row(
+            "SELECT MIN(?1, MAX(swept_at,
+                 COALESCE((SELECT MAX(claimed_at) FROM match_claims), 0),
+                 COALESCE((SELECT MAX(observed_at) FROM blumint_status), 0)))
+             FROM bridge_liveness WHERE id = 1 AND swept_at IS NOT NULL",
+            [now],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// Records that the bridge starts again at `now`, before it serves, having
+/// last run at `last` and swept up to it: it heard no claims in between, so a
+/// claim live at `last` gets a lease from `now`. While the span of the
+/// restart before is still extending its claims at `last`, that span is kept,
+/// so a claim live through both stops is extended through both.
+pub fn resume(tx: &Transaction<'_>, last: u64, now: u64) -> Result<()> {
     tx.execute(
-        "UPDATE bridge_liveness SET down_since = swept_at, resumed_at = ?1
+        "UPDATE bridge_liveness
+         SET down_since = CASE WHEN resumed_at + :lease > :last THEN down_since ELSE :last END,
+             resumed_at = :now
          WHERE id = 1 AND swept_at IS NOT NULL",
-        [now],
+        named_params! { ":lease": LEASE_SECS, ":last": last, ":now": now },
     )?;
     Ok(())
 }
