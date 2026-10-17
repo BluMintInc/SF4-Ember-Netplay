@@ -713,10 +713,11 @@ async fn a_status_follows_each_change_of_presence() {
 // the match's table, and claims again at once when that changes, so BluMint
 // can tell the player who stalls from the one waiting on them. Each change
 // is the status's next revision; a claim that changes nothing sends nothing.
-// A game's end leaves each fighter's Ready as their Ember last said: the room
-// clears both seats when a game is played, and each Ember says so, but a game
-// called off because one fighter took Ready back leaves the other Ready, and
-// they read so. An Ember too old to say reads not ready until a game starts.
+// A decided game takes back both fighters' Ready as it settles, since the room
+// clears both seats when a game is played, before each Ember's claim says so.
+// A game called off because one fighter took Ready back leaves the other
+// Ready, as their Ember last said, and they read so. An Ember too old to say
+// reads not ready until a game starts.
 #[tokio::test]
 async fn a_player_reads_ready_once_their_ember_says_they_pressed_ready() {
     let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
@@ -780,12 +781,47 @@ async fn a_player_reads_ready_once_their_ember_says_they_pressed_ready() {
             status(&f, &id, 5, "pending", [NOT_READY, READY]),
             status(&f, &id, 6, "pending", [READY, READY]),
             status(&f, &id, 7, "running", [READY, READY]),
-            status(&f, &id, 8, "running", [NOT_READY, READY]),
-            status(&f, &id, 9, "running", [NOT_READY, NOT_READY]),
-            status(&f, &id, 10, "running", [READY, NOT_READY]),
-            status(&f, &id, 11, "running", [READY, READY]),
-            status(&f, &id, 12, "running", [READY, NOT_READY]),
+            status(&f, &id, 8, "running", [NOT_READY, NOT_READY]),
+            status(&f, &id, 9, "running", [READY, NOT_READY]),
+            status(&f, &id, 10, "running", [READY, READY]),
+            status(&f, &id, 11, "running", [READY, NOT_READY]),
         ]
+    );
+}
+
+// A fighter who presses Ready for the next game before this one is decided
+// stays Ready once it is, while the other's Ready from before the game ended
+// is taken back without waiting for their Ember's claim.
+#[tokio::test]
+async fn a_ready_pressed_after_a_game_ended_outlasts_its_result() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let keyed = keyed_state(&f);
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.bridge.clock.freeze();
+    let binding = bound(&f, &id).await;
+    for who in [&f.kate, &f.sam] {
+        claim_ready(&f, who, &id, true).await;
+    }
+    let first = permit(&f, &id, &binding, 1).await;
+    f.bridge.clock.advance(1);
+    report(&f, &f.kate, &f.kate, &id, &first, 1, Outcome::P1Win).await;
+    f.bridge.clock.advance(1);
+    claim_ready(&f, &f.kate, &id, true).await;
+    report(&f, &f.sam, &f.sam, &id, &first, 2, Outcome::P1Win).await;
+    ember_bridge::deliver_results(&keyed).await;
+    let sent = sent_statuses(&f, &id);
+    let last = sent.last().unwrap();
+    assert_eq!(
+        last["players"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|player| player["status"].clone())
+            .collect::<Vec<_>>(),
+        vec![json!(READY), json!(NOT_READY)],
+        "{sent:?}"
     );
 }
 

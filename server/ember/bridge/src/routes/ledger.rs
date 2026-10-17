@@ -172,13 +172,29 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     if changed != 1 {
         return Err(stale(found.revision));
     }
-    // A claim's `ready` is left as the fighter last said, also when a game
-    // ends: the room does not always clear both seats (one fighter taking
-    // Ready back calls the game off for both), and a fighter may press Ready
-    // for the next game before this one is decided. Each Ember claims a
-    // change of its own seat's Ready within seconds.
+    // A claim's `ready` is otherwise left as the fighter last said
+    // (`unready_before`). Each Ember claims a change of its own seat's Ready
+    // within seconds.
     status::observe(tx, &found.id, now)?;
     Ok(revision)
+}
+
+/// Takes back the Ready of every claim on the match from no later than the
+/// first report of `attempt_id`, a game just decided. The room clears both
+/// seats when it ends a decided game, before either fighter reports it, so
+/// such a Ready is from before the game ended, and the Ember's own claim
+/// saying so may still be on its way. A later claim stays as it is: a fighter
+/// may press Ready for the next game before this one is decided. A called-off
+/// game does not come here, since the room then leaves Ready to the fighter
+/// who did not take it back.
+pub fn unready_before(tx: &Transaction<'_>, match_id: &str, attempt_id: &str) -> Result<()> {
+    tx.execute(
+        "UPDATE match_claims SET ready = 0
+         WHERE match_id = ?1 AND ready = 1
+           AND claimed_at <= (SELECT MIN(received_at) FROM game_reports WHERE attempt_id = ?2)",
+        params![match_id, attempt_id],
+    )?;
+    Ok(())
 }
 
 pub fn match_event(
