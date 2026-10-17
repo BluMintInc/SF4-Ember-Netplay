@@ -21,8 +21,9 @@
 //! (`delivery::results`). A match whose result the two games disputed is
 //! cancelled where it would wait for review (`matches::needs_review`), since
 //! BluMint has no organizer review, and its abort lets BluMint ask for the
-//! set again. A match nobody played expires (`expiry::expire_stale`) and is
-//! sent as an abort BluMint must not retry, so its host takes the match.
+//! set again. A match that expires (`expiry::expire_stale`), a lifetime
+//! after its last game or 24 hours after its creation, is sent as an abort
+//! BluMint must not retry, so its host takes the match.
 //! `register` tells BluMint where the three endpoints are.
 mod close;
 mod create;

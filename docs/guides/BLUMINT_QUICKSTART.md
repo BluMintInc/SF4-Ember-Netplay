@@ -163,6 +163,7 @@ free.
 | Players with no link on your connection, all of them named | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
 | Players still in another match on your connection, all of them named | `423` | `{ "code": "player_busy", "players": ["emb1_..."] }` |
 | The key already made a different set (other players, length or starting wins), made its match over a day ago, or a close named it | `409` | `{ "code": "key_reused" }` |
+| The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
 Players are named exactly as you sent them, P1 first.
@@ -200,7 +201,8 @@ The close's own `Idempotency-Key` is not read.
 |---|---|---|
 | Closed, or already ended; or the key made no match, its creations refused | `200` | `{ "closed": true }` |
 | A key the bridge holds nothing under for your connection, on every close of it, a creation refused after the first close included; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
-| No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 characters; `reason` missing, empty or longer than 64 characters | `400` | `{ "code": "invalid_request" }` |
+| No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 bytes; `reason` missing, empty or longer than 64 bytes | `400` | `{ "code": "invalid_request" }` |
+| The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
 ## Reports
@@ -231,7 +233,7 @@ from then on, whatever games an organizer recorded. Each player is:
 | `status` | When |
 |---|---|
 | `absent` | Their Ember is not connected to the match: it has not opened it, or stopped claiming it for 136 seconds |
-| `present-not-ready` | Their Ember is connected to it and they have not pressed Ready for the next game, or took it back or left their seat; or it was refused because its build differs from their opponent's |
+| `present-not-ready` | Their Ember is connected to it and they have not pressed Ready for the next game, or took it back or left their seat; or it was refused because its build differs from their opponent's. Never while a game is being played |
 | `present-ready` | They pressed Ready for the next game, or a game is being played, from its start until both games report it |
 
 Each player's Ember says whether they have pressed Ready every time it
@@ -246,7 +248,8 @@ until a game starts.
 
 A refused Ember stops claiming the match, so the bridge cannot tell whether
 that player stays: they read `present-not-ready` for the rest of the match,
-until they open it again on their opponent's build. Time the bridge itself
+until they open it again on their opponent's build, except while a game is
+being played, when they read `present-ready` like every present player. Time the bridge itself
 is down does not count toward those 136 seconds.
 
 `revision` is an integer that rises with each change on the match, and
@@ -272,10 +275,11 @@ When the set is won, here by the first team's third game:
 ```
 
 A draw or an abort both games agree on changes no score and posts nothing.
-An organizer voiding a game lowers the score and posts nothing, so once a
-progress report on the set has gone out the bridge refuses to void any game
-of it: you refuse a report below the wins an earlier one gave a team, and
-the set could never be reported again. When a match ends without a result,
+An organizer voiding a game lowers the score. The void posts nothing
+itself, but a progress report still waiting to be sent goes out with the
+lowered score. Once the bridge has tried to send a progress report on the
+set, it refuses to void any game of it: you refuse a report below the wins
+an earlier one gave a team, and the set could never be reported again. When a match ends without a result,
 the bridge posts an abort with the wins so far:
 
 ```json
@@ -293,7 +297,7 @@ the bridge posts an abort with the wins so far:
 
 BluMint has no review step, so a match that would wait for one is ended and
 posted as a retryable abort, and you ask for the set again under a new key
-with `startingWins`. A match nobody played is not worth asking for again, so
+with `startingWins`. A match that expired is not worth asking for again, so
 its host takes it. Each game started or decided gives the match another
 lifetime from then, but never past 24 hours after its creation, since you
 free a player held by a match you could not close only for 24 hours after

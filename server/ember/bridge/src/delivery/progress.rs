@@ -58,8 +58,8 @@ pub fn game_settled(
     Ok(())
 }
 
-/// Refuses a change that lowers a team's wins once a progress report on the
-/// match has been sent. BluMint keeps the wins a report gave a team and
+/// Refuses a change that lowers a team's wins once the bridge has tried to
+/// send a progress report on the match. BluMint keeps the wins a report gave a team and
 /// refuses any later report below them (`invalid_wins`), the result and an
 /// abort included, so the set could never be reported again.
 pub fn keep_reported_wins(

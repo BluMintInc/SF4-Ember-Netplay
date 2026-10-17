@@ -29,8 +29,9 @@ pub fn submission(tx: &Transaction<'_>, found: &Match) -> Result<Option<Value>> 
             "reason": abort_reason(&cancel_reason(tx, &found.id)?),
             "retryable": true,
         }),
-        // Nobody played it: a new match would wait the same way, so the
-        // match goes to BluMint's host.
+        // It went a lifetime with no game being played, or reached the 24
+        // hours a BluMint match lives, played or not, so it is not asked for
+        // again: the match goes to BluMint's host with its wins.
         MatchState::Expired => json!({
             "mode": "abort",
             "reason": "insufficientPlayers",
@@ -109,7 +110,8 @@ pub fn progress(tx: &Transaction<'_>, found: &Match) -> Result<Value> {
 /// pressed Ready at the match's table. A player refused for their build
 /// stays present, not ready, until a claim of theirs is taken, whether or not
 /// they stay: that Ember stops claiming, and the mismatch is the two
-/// fighters' builds.
+/// fighters' builds. While a game is on they read ready, as every present
+/// player does (`presence`).
 #[derive(Clone, Copy)]
 enum Seen {
     Absent,
