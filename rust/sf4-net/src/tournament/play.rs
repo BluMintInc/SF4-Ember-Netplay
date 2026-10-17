@@ -204,26 +204,46 @@ pub async fn claim_match(
     client::with_session(shared, bridge_id, |bridge, token| {
         let claim = claim.clone();
         async move {
-            // A claim without `ready` reads not ready on every bridge, so
-            // only a Ready fighter's claim needs the bridge to read it.
-            let says_ready = ready && reads_ready(shared, &bridge, match_id).await?;
-            let claim = Claim {
-                ready: says_ready.then_some(true),
-                ..claim
-            };
-            let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
             let path = format!("/v1/matches/{match_id}/claims");
-            let sent = proven(shared, &bridge, &token, Action::MatchClaim, &path, command).await;
-            if sent.is_err() && says_ready {
-                unlearn_ready(shared, match_id)?;
-            }
-            let value = sent?;
+            let value = send_claim(shared, &bridge, match_id, claim, ready, |command| {
+                proven(shared, &bridge, &token, Action::MatchClaim, &path, command)
+            })
+            .await?;
             let answer: ClaimAnswer = serde_json::from_value(value)
                 .map_err(|_| Failure::new("bridge_invalid_response"))?;
             present(shared, &bridge, match_id, answer).await
         }
     })
     .await
+}
+
+/// Sends `claim` through `send`, carrying `ready` when the fighter is Ready
+/// and the bridge reads it. A claim without `ready` reads not ready on every
+/// bridge, so only a Ready fighter's claim needs the bridge to read it, and
+/// one carrying it that fails forgets that the bridge does (`unlearn_ready`).
+async fn send_claim<F, Sent>(
+    shared: &Arc<Shared>,
+    bridge: &Approved,
+    match_id: &str,
+    claim: Claim,
+    ready: bool,
+    send: F,
+) -> Result<Value, Failure>
+where
+    F: FnOnce(Value) -> Sent,
+    Sent: std::future::Future<Output = Result<Value, Failure>>,
+{
+    let says_ready = ready && reads_ready(shared, bridge, match_id).await?;
+    let claim = Claim {
+        ready: says_ready.then_some(true),
+        ..claim
+    };
+    let command = serde_json::to_value(&claim).map_err(|_| Failure::new("internal"))?;
+    let sent = send(command).await;
+    if sent.is_err() && says_ready {
+        unlearn_ready(shared, match_id)?;
+    }
+    sent
 }
 
 fn play_state(shared: &Shared) -> Result<std::sync::MutexGuard<'_, State>, Failure> {
@@ -665,10 +685,55 @@ mod tests {
         set(0);
         assert!(reads().await.unwrap());
         assert_eq!(count(), 4);
-        unlearn_ready(&shared, "emt_x").unwrap();
+
+        // The claims themselves: a Ready claim to a bridge known to read
+        // `ready` carries it without asking again; once one carrying it
+        // fails, the next asks again and, the bridge put back, sends none.
+        let claim = Claim {
+            endpoint_id: "a".repeat(64),
+            helper_instance_id: "ins_test".into(),
+            build_id: "b1".into(),
+            ready: None,
+        };
+        let sent = std::sync::Mutex::new(Vec::new());
+        let send = |fails: bool| {
+            let sent = &sent;
+            move |command: Value| async move {
+                sent.lock().unwrap().push(command.get("ready").cloned());
+                if fails {
+                    Err(Failure::new("bridge_unavailable"))
+                } else {
+                    Ok(json!({}))
+                }
+            }
+        };
+        let claimed = |ready: bool, fails: bool| {
+            send_claim(&shared, &bridge, "emt_x", claim.clone(), ready, send(fails))
+        };
+        assert!(claimed(true, false).await.is_ok());
+        assert!(claimed(true, true).await.is_err());
+        assert_eq!(count(), 4);
         set(1);
-        assert!(!reads().await.unwrap());
+        assert!(claimed(true, false).await.is_ok());
         assert_eq!(count(), 5);
+        // A claim that is not Ready asks nothing, and its failure forgets nothing.
+        set(2);
+        assert!(claimed(true, false).await.is_ok());
+        assert!(claimed(false, true).await.is_err());
+        set(0);
+        assert!(claimed(true, false).await.is_ok());
+        assert_eq!(count(), 6);
+        assert_eq!(
+            *sent.lock().unwrap(),
+            vec![
+                Some(json!(true)),
+                Some(json!(true)),
+                None,
+                Some(json!(true)),
+                None,
+                Some(json!(true)),
+            ]
+        );
         let _ = std::fs::remove_dir_all(dir);
     }
 
