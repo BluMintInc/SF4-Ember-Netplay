@@ -118,6 +118,33 @@ pub async fn bridge_with_discord() -> Bridge {
 
 /// A bridge configured for Discord and BluMint, with these secrets.
 pub async fn bridge_with_discord_secret(secrets: Secrets) -> Bridge {
+    bridge_with_discord_sites(secrets, Vec::new()).await
+}
+
+/// A site that finds players by Discord account and hands a disputed match
+/// to its organizer, as a connection's disputes are by default.
+pub fn reviewing_site(name: &str) -> config::Tenant {
+    config::Tenant {
+        id: "cup".into(),
+        name: name.into(),
+        connections: vec![config::Connection {
+            id: "cup-site".into(),
+            kind: "direct".into(),
+            environment: "staging".into(),
+            display_name: format!("{name} (test)"),
+            enabled: true,
+            api_base: None,
+            discord_lookup: true,
+            disputes: None,
+            results_url: None,
+            rooms: None,
+        }],
+    }
+}
+
+/// A bridge configured for Discord and BluMint, with these secrets, and
+/// these other tenants.
+pub async fn bridge_with_discord_sites(secrets: Secrets, others: Vec<config::Tenant>) -> Bridge {
     let api_base = fake_discord().await;
     Bridge::start_with(
         |config| {
@@ -142,6 +169,7 @@ pub async fn bridge_with_discord_secret(secrets: Secrets) -> Bridge {
                     rooms: None,
                 }],
             });
+            config.tenants.extend(others);
         },
         secrets,
     )

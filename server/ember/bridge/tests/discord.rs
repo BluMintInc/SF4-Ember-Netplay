@@ -542,6 +542,36 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     );
 }
 
+// A site that hands a disputed match to its organizer may keep the match
+// and count its game in progress, so the move page tells its players only
+// BluMint's match ends without that game.
+#[tokio::test]
+async fn the_move_page_says_what_each_site_does_with_a_stopped_match() {
+    let bridge = bridge_with_discord_sites(
+        Secrets {
+            discord_client_secret: Some(zeroize::Zeroizing::new("test-secret".into())),
+            ..Default::default()
+        },
+        vec![reviewing_site("Ember Cup")],
+    )
+    .await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect(&bridge, &one, "kate").await;
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(
+        page.contains("BluMint and Ember Cup will then find")
+            && page.contains("That stops any tournament match you are playing on")
+            && page.contains("At BluMint, the match ends and a game in progress does not count.")
+            && page.contains(
+                "At Ember Cup, the match may wait for an organizer, who decides how it goes on, \
+                 a game in progress included."
+            )
+            && page.matches("does not count").count() == 1,
+        "{page}"
+    );
+}
+
 #[tokio::test]
 async fn a_move_waiting_for_its_answer_can_end() {
     let bridge = bridge_with_discord().await;
