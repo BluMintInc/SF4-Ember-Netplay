@@ -571,8 +571,8 @@ async fn a_closed_match_sends_nothing() {
     );
     // A key the bridge holds nothing under is unknown, and is closed too.
     // Asking again, as BluMint does when the first answer is lost, answers
-    // the same.
-    for _ in 0..2 {
+    // the same, also after a creation the bridge refuses arrives between.
+    for refused_between in [true, false] {
         assert_eq!(
             close(
                 &f,
@@ -581,6 +581,15 @@ async fn a_closed_match_sends_nothing() {
             .await,
             (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
         );
+        if refused_between {
+            assert_eq!(
+                create(&f, "set-6", 11).await,
+                (
+                    StatusCode::BAD_REQUEST,
+                    json!({ "code": "match_unsupported" })
+                )
+            );
+        }
     }
     // A known key's repeated close answers `200` each time.
     let (status, closed) = close(
