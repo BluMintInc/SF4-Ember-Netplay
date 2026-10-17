@@ -56,14 +56,7 @@ async fn a_result_is_final_once_it_is_being_sent() {
     win(&f, &id, 1, "game-2").await;
 
     // Once the bridge starts sending the result, it stands, sent or not.
-    let state = f.bridge.state();
-    let keyed = AppState::new(
-        (*state.config).clone(),
-        Keys::generate(),
-        keyed(),
-        state.db.clone(),
-        f.bridge.clock.clone(),
-    );
+    let keyed = keyed_state(&f);
     f.blumint.lock().unwrap().fail = 1;
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(
@@ -93,16 +86,7 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
     let first = created["matchId"].as_str().unwrap().to_owned();
     // Kate won a game before it was called off; the abort keeps it.
     win(&f, &first, 0, "game-1").await;
-    let (status, _) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            &format!("/v1/matches/{first}/cancel"),
-            json!({ "reason": "No show", "expected_revision": status_revision(&f, &first).await }),
-            Some("cancel-1"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK);
+    cancel(&f, &first, "cancel-1").await;
 
     // A match that would wait for an organizer's review has none at BluMint:
     // removing Sam's link cancels it here and frees its players.
@@ -136,14 +120,7 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
     // Without the key nothing is sent; with it, both restarts are.
     ember_bridge::deliver_results(f.bridge.state()).await;
     assert!(submitted(&f).is_empty());
-    let state = f.bridge.state();
-    let with_key = AppState::new(
-        (*state.config).clone(),
-        Keys::generate(),
-        keyed(),
-        state.db.clone(),
-        f.bridge.clock.clone(),
-    );
+    let with_key = keyed_state(&f);
     ember_bridge::deliver_results(&with_key).await;
     let mut sent = submitted(&f);
     sent.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
@@ -286,16 +263,7 @@ async fn a_disabled_connection_sends_nothing_until_enabled_again() {
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "create-1", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
-    let (status, _) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            &format!("/v1/matches/{id}/cancel"),
-            json!({ "reason": "No show", "expected_revision": status_revision(&f, &id).await }),
-            Some("cancel-1"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK);
+    cancel(&f, &id, "cancel-1").await;
     // A bridge with the key, configured with the connection enabled or not.
     let keyed_state = |enabled: bool| {
         let state = f.bridge.state();
@@ -643,14 +611,7 @@ async fn a_report_on_a_set_that_has_ended_is_not_sent() {
     win(&f, &id, 0, "game-1").await;
     win(&f, &id, 0, "game-2").await;
     assert_eq!(progress(&f, &id).await.len(), 1);
-    let state = f.bridge.state();
-    let keyed = AppState::new(
-        (*state.config).clone(),
-        Keys::generate(),
-        keyed(),
-        state.db.clone(),
-        f.bridge.clock.clone(),
-    );
+    let keyed = keyed_state(&f);
     ember_bridge::deliver_results(&keyed).await;
     ember_bridge::deliver_results(&keyed).await;
     assert_eq!(submitted(&f), vec![result(&f, &id, [2, 0])]);
