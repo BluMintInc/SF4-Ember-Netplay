@@ -25,6 +25,9 @@ use super::{Bridge, Player, play::Table, results};
 pub const KATE: &str = "274220342558756145";
 pub const SAM: &str = "1725265127372152396";
 pub const CONNECTION: &str = "blumint-test";
+/// A second BluMint connection in the same tenant, for a test that adds it
+/// (`second_connection`). BluMint has no key for it, so it is sent nothing.
+pub const OTHER: &str = "blumint-other";
 
 /// What the stand-in BluMint was sent, how many calls to refuse with 500
 /// first (unrecorded, as if BluMint fell over), and the statuses to answer
@@ -130,7 +133,8 @@ pub async fn fixture_with(secrets: Secrets, match_expiry_hours: u64) -> Fixture 
     fixture_adjusted(secrets, match_expiry_hours, |_| {}).await
 }
 
-/// `fixture_with`, its configuration changed by `adjust` first.
+/// `fixture_with`, its configuration changed by `adjust` once the BluMint
+/// tenant is in it.
 pub async fn fixture_adjusted(
     secrets: Secrets,
     match_expiry_hours: u64,
@@ -139,24 +143,13 @@ pub async fn fixture_adjusted(
     let (api_base, blumint) = fake_blumint().await;
     let bridge = Bridge::start_with(
         |config| {
-            adjust(config);
             config.match_expiry_hours = match_expiry_hours;
             config.tenants.push(config::Tenant {
                 id: "bm".into(),
                 name: "BluMint".into(),
-                connections: vec![config::Connection {
-                    id: CONNECTION.into(),
-                    kind: "blumint".into(),
-                    environment: "staging".into(),
-                    display_name: "BluMint (test)".into(),
-                    enabled: true,
-                    api_base: Some(api_base),
-                    discord_lookup: false,
-                    disputes: None,
-                    results_url: None,
-                    rooms: None,
-                }],
+                connections: vec![connection(CONNECTION, Some(api_base))],
             });
+            adjust(config);
         },
         secrets,
     )
@@ -215,6 +208,31 @@ pub async fn discord_player(f: &Fixture, byte: u8, user_id: &str, name: &str) ->
         .await
         .unwrap();
     player
+}
+
+fn connection(id: &str, api_base: Option<String>) -> config::Connection {
+    config::Connection {
+        id: id.into(),
+        kind: "blumint".into(),
+        environment: "staging".into(),
+        display_name: "BluMint (test)".into(),
+        enabled: true,
+        api_base,
+        discord_lookup: false,
+        disputes: None,
+        results_url: None,
+        rooms: None,
+    }
+}
+
+/// Adds `OTHER` to the BluMint tenant (`fixture_adjusted`).
+pub fn second_connection(config: &mut config::Config) {
+    let tenant = config
+        .tenants
+        .iter_mut()
+        .find(|tenant| tenant.id == "bm")
+        .unwrap();
+    tenant.connections.push(connection(OTHER, None));
 }
 
 pub async fn lookup(f: &Fixture, body: Json) -> Json {

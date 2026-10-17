@@ -704,32 +704,70 @@ async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
     assert_eq!(matches(&f).await, 1);
 }
 
-// A close names only a key BluMint's connection created under: another
-// connection's key is unknown to it, and that connection's match goes on.
+// A close names only a key its own connection created under. Two BluMint
+// connections of one tenant (staging and production, say) can send the same
+// key: a close from one ends nothing the other made or refused under it, and
+// each connection's key makes and closes only its own match.
 #[tokio::test]
 async fn a_close_naming_another_connections_key_ends_nothing() {
-    let f = fixture().await;
-    let (provider, direct) = direct_match(&f).await;
-    let (_, found) = f
+    let f = fixture_adjusted(
+        keyed(),
+        config::DEFAULT_MATCH_EXPIRY_HOURS,
+        second_connection,
+    )
+    .await;
+    let other = f.bridge.provider(OTHER).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (status, found) = f
         .bridge
-        .get(&provider, &format!("/v1/matches/{direct}"))
-        .await;
-    assert_eq!(
-        close(
-            &f,
-            json!({ "idempotencyKey": "direct-1", "reason": "decided" })
+        .post(
+            &other,
+            "/v1/blumint/lookup",
+            json!({ "discord": [KATE, SAM] }),
         )
-        .await,
-        (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
-    );
-    let (_, after) = f
-        .bridge
-        .get(&provider, &format!("/v1/matches/{direct}"))
         .await;
-    assert_eq!(
-        (&after["state"], &after["revision"]),
-        (&found["state"], &found["revision"])
-    );
+    assert_eq!(status, StatusCode::OK, "{found}");
+    let (status, made) = f
+        .bridge
+        .post_keyed(&other, "/v1/blumint/matches", request(&f, 2), Some("set-1"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{made}");
+    let theirs = made["matchId"].as_str().unwrap().to_owned();
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &other,
+            "/v1/blumint/matches",
+            request(&f, 11),
+            Some("set-2"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let state = async || {
+        let (_, found) = f.bridge.get(&other, &format!("/v1/matches/{theirs}")).await;
+        (found["state"].clone(), found["revision"].clone())
+    };
+    let before = state().await;
+
+    for key in ["set-1", "set-2"] {
+        assert_eq!(
+            close(&f, json!({ "idempotencyKey": key, "reason": "decided" })).await,
+            (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" })),
+            "{key}"
+        );
+    }
+    assert_eq!(state().await, before);
+    let (status, created) = create(&f, "set-3", 2).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    let ours = created["matchId"].as_str().unwrap().to_owned();
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-3", "reason": "decided" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &ours).await, "cancelled");
+    assert_eq!(state().await, before);
 }
 
 // A match that has ended answers a close with 200 and stays as it is: a
