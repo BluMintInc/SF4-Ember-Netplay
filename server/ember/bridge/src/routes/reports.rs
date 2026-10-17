@@ -27,7 +27,9 @@ use crate::{
     error::{ApiFailure, Result},
     http::{Body, json as respond},
     routes::{
-        ledger::{Cause, Match, bump, load, match_event, participants, scores, settle},
+        ledger::{
+            Cause, Match, bump, load, match_event, participants, scores, settle, unready_before,
+        },
         matches,
         play::{self, fighter},
     },
@@ -291,6 +293,7 @@ fn decide(
             "UPDATE attempts SET state = 'accepted', outcome = ?1 WHERE id = ?2 AND state = 'permitted'",
             params![outcome_name(result), attempt_id],
         )?;
+        unready_before(tx, &current.id, attempt_id)?;
         let winner = match result {
             Outcome::P1Win => Some(roster[0].ember_id.clone()),
             Outcome::P2Win => Some(roster[1].ember_id.clone()),

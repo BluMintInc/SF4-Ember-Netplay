@@ -31,7 +31,7 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         expiry::{self, EXPIRED_LISTED_SECS},
-        ledger::{Cause, Match, bump, load, match_event, release, settle, stale},
+        ledger::{Cause, Match, bump, load, match_event, release, settle, stale, unready_before},
         lobbies, policy,
     },
     tournament,
@@ -773,6 +773,7 @@ fn apply_adjudication(
                         "UPDATE attempts SET state = 'accepted', outcome = ?1, adjudication_id = ?2 WHERE id = ?3",
                         params![outcome, adjudication_id, open_id],
                     )?;
+                    unready_before(tx, &found.id, &open_id)?;
                     (open_id, seq)
                 }
                 (Some(_), _) => {
