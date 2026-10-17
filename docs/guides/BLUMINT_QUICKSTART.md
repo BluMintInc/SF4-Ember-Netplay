@@ -18,12 +18,16 @@ them in.
 | Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` |
 | Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` |
 | Match close | `POST https://bridge.embernetplay.link/v1/blumint/matches/close` |
-| Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6` |
+| Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/BluMint` |
 
 The connect page opens Ember's Connect Discord screen
 (`ember://discord/connect?bridge=...`) on Windows, and shows how to get Ember
 first otherwise. BluMint shows it to a registering user that lookup finds no
-Ember ID for.
+Ember ID for. The `/BluMint` after the bridge ID is the name the page uses
+for you when it speaks to the player, as in "BluMint finds you by your
+Discord account"; without it the page says "the tournament you signed up
+for". The bridge's own Discord pages take the name from your tenant's `name`
+in the bridge's configuration.
 
 `ember-bridge blumint-register` calls `setLookupPlayer`, `match/setCreate`
 and `match/setClose`, registering the three callback URLs with a new
