@@ -76,15 +76,18 @@ pub fn stored(
 
 /// What a refused key stores in place of a request's digest. No digest is
 /// this, so every later request under the key meets `IdempotencyConflict`.
-const REFUSED: &str = "refused";
+pub const REFUSED: &str = "refused";
 
 /// Refuses every later request under `key` for `actor` on `path`, replacing
-/// whatever answer it stored.
+/// whatever answer it stored. `mark` stands in for the digest: `REFUSED`, or
+/// a route's own mark, never a digest (43 base64url characters), when the
+/// route must tell its refusals apart on a repeat.
 pub fn refuse(
     tx: &Transaction<'_>,
     actor: &str,
     path: &str,
     key: &str,
+    mark: &str,
     now: u64,
 ) -> rusqlite::Result<()> {
     tx.execute(
@@ -97,7 +100,7 @@ pub fn refuse(
             actor,
             path,
             key,
-            REFUSED,
+            mark,
             serde_json::json!({ "code": "idempotency_conflict" }).to_string().into_bytes(),
             now
         ],

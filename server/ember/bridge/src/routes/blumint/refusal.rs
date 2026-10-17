@@ -30,7 +30,8 @@ pub enum BluMintRefusal {
     /// under the same key until they are free.
     PlayerBusy(Vec<EmberId>),
     /// A close names a key the bridge holds nothing under for this
-    /// connection: no match, no refused creation and no earlier close.
+    /// connection: no match, no refused creation and no earlier close of a
+    /// key it held something under. A repeat of that close answers the same.
     /// BluMint closes only keys it sent the bridge, so this is a defect for
     /// someone to look at, and BluMint's host takes the match.
     UnknownMatch,
