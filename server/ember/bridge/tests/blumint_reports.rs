@@ -700,8 +700,10 @@ async fn a_status_follows_each_change_of_presence() {
 // the match's table, and claims again at once when that changes, so BluMint
 // can tell the player who stalls from the one waiting on them. Each change
 // is the status's next revision; a claim that changes nothing sends nothing.
-// A game's end takes both fighters' Ready back, as the room does. An Ember
-// too old to say reads not ready until a game starts.
+// A game's end leaves each fighter's Ready as their Ember last said: the room
+// clears both seats when a game is played, and each Ember says so, but a game
+// called off because one fighter took Ready back leaves the other Ready, and
+// they read so. An Ember too old to say reads not ready until a game starts.
 #[tokio::test]
 async fn a_player_reads_ready_once_their_ember_says_they_pressed_ready() {
     let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
@@ -730,11 +732,31 @@ async fn a_player_reads_ready_once_their_ember_says_they_pressed_ready() {
     report(&f, &f.kate, &f.kate, &id, &first, 1, Outcome::P1Win).await;
     report(&f, &f.sam, &f.sam, &id, &first, 2, Outcome::P1Win).await;
     ember_bridge::deliver_results(&keyed).await;
+    // The game's end clears both seats at the table, and each Ember says so.
     // An older Ember's claim between games still says nothing.
+    for who in [&f.kate, &f.sam] {
+        claim_ready(&f, who, &id, false).await;
+        ember_bridge::deliver_results(&keyed).await;
+    }
     claim(&f, &f.sam, &id, &endpoint(&f.sam), BUILD).await;
     ember_bridge::deliver_results(&keyed).await;
-    claim_ready(&f, &f.sam, &id, true).await;
+    // Both press Ready, and Sam takes it back once the game is permitted,
+    // which calls it off: both report it cancelled. Kate is still Ready.
+    for who in [&f.kate, &f.sam] {
+        claim_ready(&f, who, &id, true).await;
+        ember_bridge::deliver_results(&keyed).await;
+    }
+    let second = permit(&f, &id, &binding, 2).await;
+    claim_ready(&f, &f.sam, &id, false).await;
     ember_bridge::deliver_results(&keyed).await;
+    report(&f, &f.kate, &f.kate, &id, &second, 3, Outcome::Cancel).await;
+    report(&f, &f.sam, &f.sam, &id, &second, 4, Outcome::Cancel).await;
+    ember_bridge::deliver_results(&keyed).await;
+    let (_, decided) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(decided["state"], "between_games", "{decided}");
 
     assert_eq!(
         sent_statuses(&f, &id),
@@ -745,8 +767,11 @@ async fn a_player_reads_ready_once_their_ember_says_they_pressed_ready() {
             status(&f, &id, 5, "pending", [NOT_READY, READY]),
             status(&f, &id, 6, "pending", [READY, READY]),
             status(&f, &id, 7, "running", [READY, READY]),
-            status(&f, &id, 8, "running", [NOT_READY, NOT_READY]),
-            status(&f, &id, 9, "running", [NOT_READY, READY]),
+            status(&f, &id, 8, "running", [NOT_READY, READY]),
+            status(&f, &id, 9, "running", [NOT_READY, NOT_READY]),
+            status(&f, &id, 10, "running", [READY, NOT_READY]),
+            status(&f, &id, 11, "running", [READY, READY]),
+            status(&f, &id, 12, "running", [READY, NOT_READY]),
         ]
     );
 }

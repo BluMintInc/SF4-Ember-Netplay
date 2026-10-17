@@ -172,16 +172,11 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     if changed != 1 {
         return Err(stale(found.revision));
     }
-    // A game's end clears both fighters' Ready at the table, so it clears
-    // what their claims said too, until each claims again.
-    let underway =
-        |state: MatchState| matches!(state, MatchState::Running | MatchState::AwaitingReports);
-    if underway(found.state) && !underway(state) {
-        tx.execute(
-            "UPDATE match_claims SET ready = 0 WHERE match_id = ?1",
-            [&found.id],
-        )?;
-    }
+    // A claim's `ready` is left as the fighter last said, also when a game
+    // ends: the room does not always clear both seats (one fighter taking
+    // Ready back calls the game off for both), and a fighter may press Ready
+    // for the next game before this one is decided. Each Ember claims a
+    // change of its own seat's Ready within seconds.
     status::observe(tx, &found.id, now)?;
     Ok(revision)
 }
