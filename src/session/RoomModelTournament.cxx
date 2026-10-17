@@ -227,7 +227,7 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 	const bool starting = !current.Active();
 	Table& table = snapshot_.tables[TournamentTable];
 	// A casual game still under way at the table is not the set's, so the
-	// first binding waits for it to end; the claim offers it again.
+	// first binding waits for it to end; the state machine offers it again.
 	if (starting && (table.phase == TablePhase::Ready || table.phase == TablePhase::Playing ||
 		table.phase == TablePhase::Paused)) return Reject(RejectReason::WrongPhase);
 	current = binding;
