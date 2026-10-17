@@ -368,10 +368,10 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
     let mut nameless = request(&f, 2);
     nameless["teams"][1]["players"][0]["identities"] =
         json!([{ "provider": "discord", "inGameId": SAM }]);
-    // The host's match settings are free-form, so a body can outgrow the
-    // bridge's cap.
+    // The host's match settings are free-form, so a body can outgrow even
+    // the creation's own cap.
     let mut oversized = request(&f, 2);
-    oversized["matchSettings"] = json!({ "notes": "n".repeat(70 * 1024) });
+    oversized["matchSettings"] = json!({ "notes": "n".repeat(257 * 1024) });
     for (body, code) in [
         (pair, "match_unsupported"),
         (doubled, "invalid_request"),
@@ -402,6 +402,14 @@ async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
         )
     );
     assert_eq!(matches(&f).await, 0);
+
+    // Long match settings, past the 64 KiB a close may carry, still make a
+    // match.
+    let mut long = request(&f, 2);
+    long["matchSettings"] = json!({ "notes": "n".repeat(200 * 1024) });
+    let (status, created) = create_with(&f, "create-2", long).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(matches(&f).await, 1);
 }
 
 // BluMint holds a match whose player is still in another one, and asks again

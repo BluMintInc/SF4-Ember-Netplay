@@ -23,7 +23,7 @@ use crate::{
     audit::audit,
     ctx::Ctx,
     error::Result,
-    http::ok,
+    http::{GENERAL_BODY, ok},
     routes::{
         idempotency,
         ledger::{Match, load},
@@ -51,7 +51,7 @@ struct CloseRequest {
 pub async fn close(
     State(state): State<AppState>,
     headers: HeaderMap,
-    body: BluMintBody,
+    body: BluMintBody<GENERAL_BODY>,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let (connection_id, credential) = caller(&state, &headers).await?;
     let request: CloseRequest = parse(&body?)?;

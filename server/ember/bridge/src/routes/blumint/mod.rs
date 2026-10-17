@@ -68,16 +68,24 @@ pub fn api_base(connection: &Connection) -> &str {
     }
 }
 
+/// The largest match creation the bridge takes. BluMint passes the host's
+/// free-form `matchSettings` through, such as a long rules text the bridge
+/// never reads, so a creation gets four times the general cap. The body is
+/// read before the credential is checked, so the cap is also what any
+/// caller can make the bridge hold per request, which keeps it well short of
+/// a megabyte. A close and a lookup keep the general cap.
+pub const CREATE_BODY: usize = 256 * 1024;
+
 /// A creation or close body as the handler sees it. A body over the cap, or
 /// cut short, is then refused as `invalid_request` in BluMint's format, after
 /// authentication, rather than by the extractor in the bridge's envelope,
 /// which BluMint cannot read.
-type BluMintBody = std::result::Result<Body<GENERAL_BODY>, ApiFailure>;
+type BluMintBody<const N: usize> = std::result::Result<Body<N>, ApiFailure>;
 
 /// BluMint's bodies as plain JSON: its match settings carry decimals
 /// (`"gravity": 1.1`), which the bridge's strict profile refuses. The size cap
 /// still applies, and nothing here is signed or stored as sent.
-fn parse<T: serde::de::DeserializeOwned>(body: &Body<GENERAL_BODY>) -> Result<T> {
+fn parse<T: serde::de::DeserializeOwned, const N: usize>(body: &Body<N>) -> Result<T> {
     serde_json::from_slice(&body.0)
         .map_err(|_| ApiFailure::invalid("The request body is not the JSON BluMint documents."))
 }

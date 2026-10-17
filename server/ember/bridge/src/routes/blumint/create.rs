@@ -16,12 +16,14 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::{BluMintBody, BluMintRefusal, MATCHES_PATH, connection, keys, outcome, parse};
+use super::{
+    BluMintBody, BluMintRefusal, CREATE_BODY, MATCHES_PATH, connection, keys, outcome, parse,
+};
 use crate::{
     AppState,
     ctx::Ctx,
     error::ApiFailure,
-    http::{Body, GENERAL_BODY, idempotency_key},
+    http::{Body, idempotency_key},
     routes::matches::{NewMatch, busy, idempotent, insert_match, into_response},
 };
 
@@ -133,7 +135,7 @@ fn starting_wins(teams: [&Team; 2], games_to_win: u8) -> Result<[u8; 2], BluMint
 pub async fn create(
     State(state): State<AppState>,
     headers: HeaderMap,
-    body: BluMintBody,
+    body: BluMintBody<CREATE_BODY>,
 ) -> std::result::Result<Response, BluMintRefusal> {
     let connection_id = connection(&state, &headers).await?;
     let key = idempotency_key(&headers)?;
@@ -165,7 +167,7 @@ pub async fn create(
 }
 
 /// The set BluMint asks for, and the digest a key's requests are compared by.
-fn requested(body: &Body<GENERAL_BODY>) -> std::result::Result<(Set, String), BluMintRefusal> {
+fn requested(body: &Body<CREATE_BODY>) -> std::result::Result<(Set, String), BluMintRefusal> {
     let request: CreateRequest = parse(body)?;
     let [first, second] = request.teams.as_slice() else {
         return Err(BluMintRefusal::MatchUnsupported);
