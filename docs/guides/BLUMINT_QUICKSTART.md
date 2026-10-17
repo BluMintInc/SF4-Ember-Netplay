@@ -9,16 +9,23 @@ them in.
 
 ## What you get
 
-| | |
-|---|---|
-| Staging bridge | `https://bridge.embernetplay.link` |
-| Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` |
-| Your connection | `blumint-partner-staging` (tenant `blumint`, kind `blumint`) |
-| BluMint API | Game partner API 2.0.0 at `https://staging.blumint.io/api` |
-| Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` |
-| Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` |
-| Match close | `POST https://bridge.embernetplay.link/v1/blumint/matches/close` |
-| Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/BluMint` |
+BluMint has two bridges, each with its own BluMint connection (tenant
+`blumint`, kind `blumint`), credentials and registration: production for
+BluMint's production, and staging for BluMint staging and its testers.
+
+| | Production | Staging |
+|---|---|---|
+| Bridge | `https://bridge.embernetplay.link` | `https://bridge-staging.embernetplay.link` |
+| Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` | `brg_...`, to be filled in once the staging bridge is up |
+| BluMint API | Game partner API 2.0.0 at `https://app.blumint.com/api` | Game partner API 2.0.0 at `https://staging.blumint.io/api` |
+| Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` | `POST https://bridge-staging.embernetplay.link/v1/blumint/lookup` |
+| Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` | `POST https://bridge-staging.embernetplay.link/v1/blumint/matches` |
+| Match close | `POST https://bridge.embernetplay.link/v1/blumint/matches/close` | `POST https://bridge-staging.embernetplay.link/v1/blumint/matches/close` |
+| Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/BluMint` | `https://embernetplay.link/start#<staging bridge ID>/BluMint` |
+
+Production is Ember's own bridge, the one every Ember trusts by default, so
+players need nothing beyond Ember to use it. A tester's Ember has to trust
+the staging bridge before it can connect Discord or play there.
 
 The connect page opens Ember's Connect Discord screen
 (`ember://discord/connect?bridge=...`) on Windows, and shows how to get Ember
@@ -39,14 +46,14 @@ it again finishes the change. There is nothing for
 BluMint to configure for those callbacks. Reports use BluMint's API key, sent
 as `x-api-key`; it is separate from the callback credential.
 
-This is a staging service. Its data may be reset before production, and it
-carries no uptime promise yet.
+The staging bridge runs builds before they reach production, and its data
+may be reset.
 
 ## Player lookup
 
 Ember supports one sign-in method: **Discord**. A player connects their
 Discord account to their Ember ID once, from the home menu: **Online play**,
-**Ember ID**, then **Discord**. This uses Ember's own bridge, the staging
+**Ember ID**, then **Discord**. This uses Ember's own bridge, the production
 bridge above, by default. BluMint sends one Discord ID per call, when a player
 registers and before every match creation:
 
@@ -80,7 +87,8 @@ request reaches it, so a page left open then cannot finish it. Ember does
 not send a failed cancel again, so if it never arrives, the page can still
 finish the sign-in until it lapses ten minutes after it started.
 
-The bridge ID in the connect page's fragment is also the `bridge_id` in
+The bridge ID in the connect page's fragment is also the `bridge_id` in each
+bridge's `/.well-known/ember-bridge.json`, such as
 `https://bridge.embernetplay.link/.well-known/ember-bridge.json`.
 
 **Data use.** Ember uses and keeps the IDs BluMint sends, and the Ember IDs
@@ -187,8 +195,9 @@ The close's own `Idempotency-Key` is not read.
 
 ## Reports
 
-The bridge posts to `https://staging.blumint.io/api/tournaments/match/submit`
-with BluMint's API key. Every report names each player by the Ember ID you
+Each bridge posts to its BluMint API's `/tournaments/match/submit`, such as
+`https://staging.blumint.io/api/tournaments/match/submit` from the staging
+bridge, with that environment's BluMint API key. Every report names each player by the Ember ID you
 sent. Each team's `wins`, in a progress report, a result and an abort, is
 the set's running total after that game, counting the `startingWins` the
 match was created with, never that one game's outcome alone.
@@ -294,7 +303,7 @@ The bridge tries again on a schedule from a second to an hour, for a day.
 Once it starts posting a result, the result is final on the Ember side too,
 so BluMint never receives a second, different result for a match.
 
-## Testing on staging now
+## Testing on staging
 
 1. **On BluMint:** use Discord player lookup for the test tournament. The
    three callbacks are registered. Create matches with the Ember IDs returned
@@ -314,7 +323,6 @@ so BluMint never receives a second, different result for a match.
   two-PC match on real hardware has not been done yet.
 - **Watching.** `spectators` is sent and not read yet; the listed staff
   cannot watch a match through Ember.
-- **Production.** There is no production bridge yet.
 
 ## Answers from BluMint
 
