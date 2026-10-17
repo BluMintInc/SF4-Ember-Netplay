@@ -185,7 +185,9 @@ The close's own `Idempotency-Key` is not read.
 
 The bridge posts to `https://staging.blumint.io/api/tournaments/match/submit`
 with BluMint's API key. Every report names each player by the Ember ID you
-sent, and its `wins` count the `startingWins` the match was created with.
+sent. Each team's `wins`, in a progress report, a result and an abort, is
+the set's running total after that game, counting the `startingWins` the
+match was created with, never that one game's outcome alone.
 
 A `status` report each time the match's status changes: as each player
 opens the match in Ember or leaves it, presses Ready or takes it back, as
@@ -228,19 +230,20 @@ is down does not count toward those 136 seconds.
 status then stands, so keep the one with the highest `revision` and drop one
 that arrives after it. Nothing is sent once the match has ended.
 
-After each game won that does not end the set:
+After each game won that does not end the set. In a first to 3, once the
+first team has won two games and the second one:
 
 ```json
 { "mode": "progress", "matchId": "emt_...", "teams": [
-  { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 },
-  { "players": [ { "inGameId": "emb1_..." } ], "wins": 0 } ] }
+  { "players": [ { "inGameId": "emb1_..." } ], "wins": 2 },
+  { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 } ] }
 ```
 
-When the set is won:
+When the set is won, here by the first team's third game:
 
 ```json
 { "mode": "result", "matchId": "emt_...", "teams": [
-  { "players": [ { "inGameId": "emb1_..." } ], "wins": 2 },
+  { "players": [ { "inGameId": "emb1_..." } ], "wins": 3 },
   { "players": [ { "inGameId": "emb1_..." } ], "wins": 1 } ] }
 ```
 
