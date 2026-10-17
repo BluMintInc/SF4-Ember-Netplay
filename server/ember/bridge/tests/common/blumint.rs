@@ -192,6 +192,31 @@ pub async fn fixture_adjusted(
     }
 }
 
+/// Another player, with a session, whose Ember ID is connected to Discord
+/// account `user_id`, for a test that needs a second pair of fighters.
+pub async fn discord_player(f: &Fixture, byte: u8, user_id: &str, name: &str) -> Player {
+    let mut player = f.bridge.player(byte);
+    f.bridge.open_session(&mut player).await;
+    let (ember_id, user_id, name) = (
+        player.id().as_str().to_owned(),
+        user_id.to_owned(),
+        name.to_owned(),
+    );
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, 1)",
+                rusqlite::params![user_id, ember_id, name],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    player
+}
+
 pub async fn lookup(f: &Fixture, body: Json) -> Json {
     let (status, found) = f.bridge.post(&f.provider, "/v1/blumint/lookup", body).await;
     assert_eq!(status, StatusCode::OK, "{found}");

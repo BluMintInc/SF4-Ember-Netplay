@@ -38,7 +38,7 @@ use ember_protocol::EmberId;
 use rusqlite::params;
 use serde_json::{Value, json};
 
-pub use close::close;
+pub use close::{close, end_unkeyed};
 pub use create::create;
 pub use refusal::BluMintRefusal;
 use refusal::outcome;

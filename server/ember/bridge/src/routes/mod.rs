@@ -163,9 +163,22 @@ async fn access_log(request: Request, next: Next) -> Response {
     response
 }
 
-/// Records that the bridge starts again (`delivery::status::resume`), says
-/// so on `resumed`, then runs `maintenance_once` forever.
+/// Ends the open BluMint matches an older bridge made, which BluMint cannot
+/// close (`blumint::end_unkeyed`), records that the bridge starts again
+/// (`delivery::status::resume`), says so on `resumed`, then runs
+/// `maintenance_once` forever.
 pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<()>) {
+    let ctx = Ctx::of(&state);
+    match state
+        .db
+        .write(move |tx| blumint::end_unkeyed(tx, &ctx))
+        .await
+    {
+        Ok(()) => state.committed(),
+        Err(error) => {
+            eprintln!("maintenance: could not end the unkeyed BluMint matches: {error:?}")
+        }
+    }
     let now = state.now();
     match state
         .db

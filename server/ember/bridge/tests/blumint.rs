@@ -5,6 +5,7 @@
 mod common;
 
 use common::{Player, blumint::*, results};
+use ember_bridge::{config, integrations::Secrets};
 use reqwest::StatusCode;
 use serde_json::json;
 
@@ -744,4 +745,90 @@ async fn closing_a_match_that_has_ended_changes_nothing() {
     f.bridge.clock.advance(11);
     results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
     assert_eq!(submitted(&f), vec![result(&f, &id, [1, 0])]);
+}
+
+// A bridge from before closes by key named its BluMint matches by an ID of
+// its own, which no close can name. Each one still open when the bridge
+// starts again ends as a close ends it: its players are free, and BluMint is
+// sent nothing more for it, not even the score of a game it was not sent
+// yet. A match made under a key goes on.
+#[tokio::test]
+async fn an_upgrade_ends_the_matches_blumint_cannot_close() {
+    let mut f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    let lou = discord_player(&f, 3, "99", "lou").await;
+    let lee = discord_player(&f, 4, "98", "lee").await;
+    lookup(&f, json!({ "discord": [KATE, SAM, "99", "98"] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let old = created["matchId"].as_str().unwrap().to_owned();
+    let mut body = request(&f, 2);
+    body["teams"] = json!([team("lou", lou.id()), team("lee", lee.id())]);
+    let (_, created) = create_with(&f, "set-2", body).await;
+    let keyed = created["matchId"].as_str().unwrap().to_owned();
+    let id = old.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE matches SET external_match_id = 'blumint_old' WHERE id = ?1",
+                [&id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    win(&f, &old, 0, "game-1").await;
+    assert_eq!(progress(&f, &old).await, vec![(1, "queued".to_owned())]);
+    let before = (
+        match_state(&f, &keyed).await,
+        status_revision(&f, &keyed).await,
+    );
+
+    f.bridge.restart(Secrets::default()).await;
+    ember_bridge::deliver_results(&keyed_state(&f)).await;
+    assert_eq!(match_state(&f, &old).await, "cancelled");
+    assert_eq!(results::delivery(&f.bridge, &old).await.0, "not_required");
+    assert_eq!(
+        progress(&f, &old).await,
+        vec![(1, "not_required".to_owned())]
+    );
+    assert!(submitted(&f).is_empty(), "{:?}", submitted(&f));
+    let id = old.clone();
+    let recorded = f
+        .bridge
+        .state()
+        .db
+        .read(move |tx| {
+            let reasons = tx
+                .prepare(
+                    "SELECT json_extract(CAST(body AS TEXT), '$.data.reason') FROM events
+                     WHERE match_id = ?1 AND type LIKE '%.match.cancelled.v1'",
+                )?
+                .query_map([&id], |row| row.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let actor: (String, String) = tx.query_row(
+                "SELECT actor_class, actor_id FROM audit_entries WHERE action = 'blumint.close' AND target = ?1",
+                [&id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            Ok((reasons, actor))
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        recorded,
+        (
+            vec!["closed on upgrade: made before BluMint closed matches by key".to_owned()],
+            ("bridge".to_owned(), "upgrade".to_owned())
+        )
+    );
+    assert_eq!(
+        (
+            match_state(&f, &keyed).await,
+            status_revision(&f, &keyed).await
+        ),
+        before
+    );
+    let (status, next) = create(&f, "set-3", 2).await;
+    assert_eq!(status, StatusCode::OK, "{next}");
 }
