@@ -20,10 +20,7 @@ use crate::{
     audit::audit,
     error::{ApiFailure, Result},
     routes::{
-        blumint::{
-            self,
-            liveness::{self, Liveness},
-        },
+        blumint::{self, liveness},
         ledger::load,
         policy,
     },
@@ -88,7 +85,7 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
 /// maintenance pass notices it leave. A match whose status already says so
 /// is unchanged.
 pub fn observe_lapsed(tx: &Transaction<'_>, now: u64) -> Result<()> {
-    for id in Liveness::of(tx)?.sweep(tx, now)? {
+    for id in liveness::sweep(tx, now)? {
         observe(tx, &id, now)?;
     }
     Ok(())

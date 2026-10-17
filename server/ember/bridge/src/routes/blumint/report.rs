@@ -11,7 +11,7 @@ use ember_protocol::{
 use rusqlite::{OptionalExtension, Transaction};
 use serde_json::{Value, json};
 
-use super::liveness::Liveness;
+use super::liveness;
 use crate::{
     error::Result,
     routes::ledger::{Match, participants, scores},
@@ -53,11 +53,10 @@ pub fn status(tx: &Transaction<'_>, found: &Match, now: u64) -> Result<Value> {
         [&found.id],
         |row| row.get(0),
     )?;
-    let liveness = Liveness::of(tx)?;
     let mut players = Vec::new();
     for player in participants(tx, &found.id, found.generation)? {
         let ember_id = player.ember_id.as_str();
-        let claim = liveness.claim(tx, &found.id, ember_id, now)?;
+        let claim = liveness::claim(tx, &found.id, ember_id, now)?;
         let refused: bool = tx.query_row(
             "SELECT EXISTS (SELECT 1 FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2)",
             [found.id.as_str(), ember_id],
