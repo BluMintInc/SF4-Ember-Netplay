@@ -250,6 +250,32 @@ mod tests {
     }
 
     #[test]
+    fn rooms_from_before_their_own_delay_existed_keep_the_shared_delay() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..17]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                   VALUES ('old', 'Old room', 8, 'build', 'emb_old', 1000);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let own_delay = |id: &str| -> i64 {
+            connection
+                .query_row(
+                    "SELECT own_delay FROM rooms WHERE room_id = ?1",
+                    [id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert_eq!(own_delay("old"), 0);
+    }
+
+    #[test]
     fn blumint_matches_open_before_the_lifetime_cap_end_a_day_after_creation() {
         let mut connection = Connection::open_in_memory().unwrap();
         connection
