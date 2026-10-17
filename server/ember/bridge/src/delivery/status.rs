@@ -20,11 +20,17 @@ use crate::{
     audit::audit,
     error::{ApiFailure, Result},
     routes::{
-        blumint::{self, liveness::Liveness},
+        blumint::{
+            self,
+            liveness::{self, Liveness},
+        },
         ledger::load,
         policy,
     },
 };
+
+/// The longest a writer's clock read can trail an earlier commit (`observe`).
+const MAX_COMMIT_WAIT_SECS: u64 = 10;
 
 /// Observes the match's status, and queues it to be sent when it differs
 /// from the one last observed. A match nobody has opened and no game has
@@ -44,8 +50,20 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
     // A writer reads the clock before it waits for the database, so one
     // that commits later can carry an earlier time. The status is never
     // observed before the last one was, or a claim seen lapsed would read
-    // live again.
-    let now = last.as_ref().map_or(now, |(_, at)| now.max(*at));
+    // live again. A last observation further ahead than any such wait is the
+    // clock stepping back, and is not followed, or every claim would read
+    // lapsed until the clock caught up.
+    let now = match &last {
+        Some((_, at)) if *at > now + MAX_COMMIT_WAIT_SECS => {
+            eprintln!(
+                "status: {match_id} was last observed at {at}, {}s after now; the clock went back",
+                at - now
+            );
+            now
+        }
+        Some((_, at)) => now.max(*at),
+        None => now,
+    };
     let status = blumint::status(tx, &found, now)?;
     let last = match last {
         Some((text, _)) => serde_json::from_str(&text).map_err(|_| ApiFailure::unavailable())?,
@@ -74,6 +92,17 @@ pub fn observe_lapsed(tx: &Transaction<'_>, now: u64) -> Result<()> {
         observe(tx, &id, now)?;
     }
     Ok(())
+}
+
+/// Records that the bridge starts again at `now`, before it serves. It first
+/// runs the pass it missed at the last moment it ran, so a claim that lapsed
+/// after the last pass is swept as it was then, and is never extended.
+pub fn resume(tx: &Transaction<'_>, now: u64) -> Result<()> {
+    let Some(last) = liveness::last_alive(tx, now)? else {
+        return Ok(());
+    };
+    observe_lapsed(tx, last)?;
+    liveness::resume(tx, last, now)
 }
 
 /// The status queue (a `delivery::Queue`).

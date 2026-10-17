@@ -163,16 +163,17 @@ async fn access_log(request: Request, next: Next) -> Response {
     response
 }
 
-/// Records that the bridge starts again (`blumint::liveness::resume`), says
+/// Records that the bridge starts again (`delivery::status::resume`), says
 /// so on `resumed`, then runs `maintenance_once` forever.
 pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<()>) {
     let now = state.now();
-    if let Err(error) = state
+    match state
         .db
-        .write(move |tx| blumint::liveness::resume(tx, now))
+        .write(move |tx| delivery::status::resume(tx, now))
         .await
     {
-        eprintln!("maintenance: could not record the restart: {error:?}");
+        Ok(()) => state.committed(),
+        Err(error) => eprintln!("maintenance: could not record the restart: {error:?}"),
     }
     let _ = resumed.send(());
     loop {
