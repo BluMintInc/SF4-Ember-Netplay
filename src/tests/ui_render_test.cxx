@@ -9,6 +9,7 @@
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
+#include "ui_render_prompt_assets.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
 #include <windows.h>
@@ -230,7 +231,7 @@ void RequireAtlasWithinBudget(const char* what, float dpi) {
 // must keep the active catalog and the language picker in all three sizes.
 void RequireAtlasCoverage(sf4e::loc::Locale locale, float dpi) {
     using namespace sf4e;
-    std::string text = loc::DisplayText(locale);
+    std::string text = loc::InterfaceText(locale);
     for (int i = 0; i < static_cast<int>(loc::Locale::Count); ++i)
         text += loc::NativeName(static_cast<loc::Locale>(i));
     ImFontGlyphRangesBuilder characters;
@@ -333,6 +334,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_public_rooms.hxx"
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
+#include "ui_render_latency.hxx"
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
 #include "ui_render_training_room.hxx"
@@ -341,6 +343,11 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_updates.hxx"
 #include "ui_render_replay_controls.hxx"
 #include "ui_render_reports.hxx"
+#include "ui_render_prompts.hxx"
+#include "ui_render_controllers.hxx"
+#include "ui_render_button_layout.hxx"
+#include "ui_render_pad_setup.hxx"
+#include "ui_render_flags.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -498,9 +505,6 @@ int main(int argc, char** argv) {
                 art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
             Require(art->MenuBackdrop().texture!=0,"Ember background failed to load");
-            const char* promptAssets[]={"xbox_button_color_a","xbox_button_color_b","xbox_button_color_x","xbox_button_color_y",
-                "xbox_lb","xbox_rb","xbox_lt","xbox_rt","xbox_dpad","xbox_dpad_horizontal","keyboard_enter","keyboard_escape",
-                "keyboard_arrows_all","keyboard_arrows_horizontal","generic_button_circle_fill","xbox_button_back","xbox_button_start"};
             for(const auto* prompt:promptAssets){
                 const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
                 while(!art->InputPrompt(prompt).texture&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
@@ -529,10 +533,11 @@ int main(int argc, char** argv) {
         // row a translation needs shortened, with the locale and size it hit.
         std::string probeContext;
         std::set<std::string> overflows;
-        sf4e::ui::SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){
+        const sf4e::ui::MenuTextProbe overflowProbe=[&](const char* id,float text,float interior,float width,float available){
             if(text>interior+.5f)overflows.insert(probeContext+" row "+id+": text height "+std::to_string(static_cast<int>(text))+" exceeds padded row "+std::to_string(static_cast<int>(interior)));
             if(width>available+.5f)overflows.insert(probeContext+" row "+id+": label width "+std::to_string(static_cast<int>(width))+" exceeds "+std::to_string(static_cast<int>(available)));
-        });
+        };
+        sf4e::ui::SetMenuTextProbe(overflowProbe);
 
         // A negative locale is the pseudo catalog.
         struct LocalePass { std::string name; int locale; };
@@ -554,12 +559,14 @@ int main(int argc, char** argv) {
             ApplicationShell shell;ShellView view;bool open=true;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
+            {selection::Pick hint;hint.fighter=1;hint.costume=1;hint.color=11;hint.ultra=2;
+             view.hintFighter="Ken";view.hintAppearance=ShortAppearanceLabel(hint);view.hintUltra=ShortUltraLabel(hint.ultra);}
             FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
             const selection::InstalledContent* selectorContent=nullptr;
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
             training::View training;training.available=training.ready=training.checkpoint=true;training.generation=static_cast<unsigned>(size.w+size.dpi*100);
-            training.lengths[0]=120;
+            training.lengths[0]=120;training.lengths[2]=45;training.on[0]=true;training.playable=training.replyable=1u; // Slot 1 on, slot 3 off.
             training::FrameMeter meter;std::array<training::FighterSample,2> fighters;
             for(int f=0;f<120;++f){
                 for(int p=0;p<2;++p){auto& s=fighters[p];s.valid=true;s.timeScale=1;s.status=p?(f<40?0:f<65?22:0):(f<30?0:f<70?16:0);
@@ -604,7 +611,8 @@ int main(int argc, char** argv) {
                     else if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
-                        if(mode==9)DrawMatchPracticeNotice();
+                        if(mode==9)DrawMatchKeysNotice({"training.match.checkpoint_disabled","training.match.end_hint"});
+                        if(mode==10)DrawMatchKeysNotice({"runtime.watching_hint"});
                     }
                     if(overlayTooltip) {
                         ImGui::Begin("Open window tooltip");ImGui::TextUnformatted("Detail");
@@ -658,11 +666,31 @@ int main(int argc, char** argv) {
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            ShootButtonPrompts(shell,view,mode,draw,page);
+            ShootControllers(shell,view,draw,page);
+            ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
-            page("home");
+            // Fighter select's hint is two lines: each label over its value.
+            {
+                page("home");
+                for(int i=0;i<8&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+                std::vector<MenuEntry> homeRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
+                std::set<std::string> drawn;
+                SetMenuTextProbe([&](const char* id,float text,float interior,float width,float available){drawn.insert(id);overflowProbe(id,text,interior,width,available);});
+                draw("home-selection");
+                SetMenuTextProbe(overflowProbe);SetMenuEntriesProbe({});
+                const auto row=std::find_if(homeRows.begin(),homeRows.end(),[](const MenuEntry& e){return e.id=="selection";});
+                Require(shell.Navigation().Focus()=="selection"&&row!=homeRows.end()&&row->columns.size()==3&&
+                    row->columns[0].first==loc::T("selection.fighter")&&row->columns[0].second=="Ken"&&
+                    row->columns[1].second==view.hintAppearance&&row->columns[2].second==view.hintUltra,"Fighter select's hint lost its columns");
+                // A window under 420 units tall keeps two lines (GameMenu::HomeLines) and the one-line detail.
+                const bool floors=size.h>=420*size.dpi;
+                for(int i=0;i<3;++i)Require(floors==(drawn.count("home-hint/"+std::to_string(i))&&drawn.count("home-hint/"+std::to_string(i)+"-value")),
+                    floors?"Home did not draw Fighter select's labels over their values":"A short Home drew Fighter select's columns");
+            }
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw("home-last-row");
             // Real editor activation and cancellation through the same input snapshot.
@@ -678,7 +706,15 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
             draw(nullptr,MenuInput::Back,1);draw();
-            view.error="The helper stopped responding. Ember is restarting it.";page("home");draw("home-status");view.error.clear();
+            std::string controllerStatus;Tone controllerTone=Tone::Neutral;
+            SetMenuStatusProbe([&](const char* status,Tone tone){controllerStatus=status;controllerTone=tone;});
+            view.padHint=loc::Tf("controller.using_for_now","Saved pad","Other pad");page("home");
+            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Provisional controller hint did not reach Home's status");
+            view.error="The helper stopped responding. Ember is restarting it.";draw("home-status");
+            Require(controllerStatus==view.error&&controllerTone==Tone::Error,"Controller hint replaced a Home error");
+            view.error.clear();view.padHint=loc::Tf("controller.connected_adopted","Saved pad");draw("controller-restored");
+            Require(controllerStatus==view.padHint&&controllerTone==Tone::Neutral,"Restored controller hint did not reach Home's status");
+            view.padHint.clear();SetMenuStatusProbe({});
             view.inputCapture=input::Capture::ReleaseAll;draw("controller-assignment");view.inputCapture=input::Capture::Idle;
             view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
             page("main-character");
@@ -748,8 +784,11 @@ int main(int argc, char** argv) {
                 view.room.members.push_back(m);}
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
+            ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
+            ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");
@@ -817,7 +856,7 @@ int main(int argc, char** argv) {
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
             // The same table in a Practice room (ui_render_training_room.hxx).
-            CheckPracticeRoomRules(view,draw);
+            CheckPracticeRoomRules(view,draw,page);
             // The opponent's new fighter: a line on the table card, with no modal.
             view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
             const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
@@ -829,6 +868,8 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;view.practiceFight=true;
             view.room.practice=true;page("room");draw("room-practice-fight");view.room.practice=false;
             view.practiceFight=false;view.session.match=netplay::MatchState::None;view.room.tables[0].phase=room::TablePhase::Waiting;
+            // An Own delay room: the table card says so beside the rules, and its page reads the player's own delay.
+            view.room.delayPolicy=room::DelayPolicy::Own;page("room");draw("room-own-delay");page("room-table");draw("table-own-delay");view.room.delayPolicy=room::DelayPolicy::Shared;
             view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
@@ -848,6 +889,14 @@ int main(int argc, char** argv) {
             view.room.tables[0].p1=5;view.room.tables[0].spectators={1};
             view.room.members[0].seat=-1;view.room.members[0].spectatorLocked=true;
             draw("table-spectator-locked");
+            // Ember over the game it watches: Stop watching on the board.
+            {const auto phase=view.room.tables[0].phase;const auto match=view.session.match;const auto generation=view.room.tables[0].matchGeneration;
+             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
+             view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");
+             view.watchedPicture=ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
+             {auto* pip=FindWindow("Watched game");Require(pip&&pip->LastFrameActive==ImGui::GetFrameCount()&&pip->Pos.y<size.h*.2f&&pip->Pos.x+pip->Size.x<=size.w+1,"The watched game's picture is not in the top right corner");
+              Require(!(pip->Flags&ImGuiWindowFlags_NoMouseInputs)&&(pip->Flags&ImGuiWindowFlags_NoNav)==ImGuiWindowFlags_NoNav,"The watched game's picture lets the pointer through to the rows it hides, or takes navigation");}view.watchedPicture={};page("room-table");
+             view.watchedGame={};view.session.match=match;view.room.tables[0].phase=phase;view.room.tables[0].matchGeneration=generation;}
             // The start held for this locked-in spectator: the card and the
             // lock-in row say the game waits for them.
             {
@@ -980,6 +1029,7 @@ int main(int argc, char** argv) {
                 ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
+                view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
                 {
                     // Home leads with a tournament match ready to play; Ember ID itself is
@@ -1010,11 +1060,14 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            // A Practice match's notice: no shared reset there, and how a fighter ends the game.
-            mode=9;draw("match-practice-notice");
-            const auto* practiceNotice=FindWindow("Match practice keys");
-            Require(WindowDrawn("Match practice keys")&&practiceNotice->Pos.x>=0&&practiceNotice->Pos.x+practiceNotice->Size.x<=size.w&&
-                practiceNotice->Pos.y+practiceNotice->Size.y<=size.h,"The Practice match notice left the screen");
+            // The keys over a fight Ember opens over: a Practice match's (no shared reset there, and how a
+            // fighter ends the game), then a watched game's first seconds (how a spectator leaves it).
+            for(const int keys:{9,10}){
+                mode=keys;draw(keys==9?"match-practice-notice":"match-watching-notice");
+                const auto* notice=FindWindow(MatchKeysWindow);
+                Require(WindowDrawn(MatchKeysWindow)&&notice->Pos.x>=0&&notice->Pos.x+notice->Size.x<=size.w&&
+                    notice->Pos.y+notice->Size.y<=size.h,"A match keys notice left the screen");
+            }
             // The crash report's offer (ui_render_reports.hxx), then the launch window and the updater (ui_render_updates.hxx).
             mode=4;ShootCrashReportOffer(recoveryMenu,recoveryState,recoveryReport,recoveryMessage,draw);
             ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);
@@ -1025,6 +1078,7 @@ int main(int argc, char** argv) {
             ApplyTheme(size.dpi+.25f);ApplyTheme(size.dpi);renderer.Invalidate();
             Require(ImGui::GetStyle().WindowPadding.x==padding,"DPI scaling accumulated");draw();
             renderer.Invalidate();renderer.Resize(size.w,size.h);draw();
+            ShootButtonLayout(shell,view,draw,page);
             renderer.Shutdown();ImGui::DestroyContext();
         }
         }

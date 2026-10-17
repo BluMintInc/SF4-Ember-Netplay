@@ -27,9 +27,17 @@ struct Config {
 	std::string buildId, creator, bridgeId, ticketKey, ticketKid;
 	std::string helper; // UTF-8 path of sf4-net
 	std::uint16_t port = 0, coordinationPort = 0;
+	// Each fighter plays at their own input delay (room::DelayPolicy::Own),
+	// fixed for the room's life. The supervisor writes "own_delay": true only for
+	// such a room; a line without the key is the shared delay.
+	bool ownDelay = false;
 };
 // False with the offending field's name in `error`.
 bool ParseConfig(const std::string& line, Config& config, std::string& error);
+// Makes the room the configuration describes the server's server-owned room:
+// its name, capacity, public default rules and delay policy. False when the
+// server will not take it.
+bool EnableConfiguredRoom(SessionServer& server, const Config& config, std::uint64_t roomEpoch);
 
 // One line of the child protocol, without its newline.
 std::string HostedLine(const std::string& invitation, const std::string& region);

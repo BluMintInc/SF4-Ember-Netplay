@@ -274,3 +274,15 @@ close session unless deferred (10 s window) → free all used save states →
 original `CloseBattle`. Rematch: lobby `LobbyReset` → new ready cycle → new
 `StartGGPO` (closes any leftover session first, `CancelDeferredGgpoClose`).
 Training rooms are ordinary VS battles with rounds=99 / huge time limit.
+
+A spectator's own leave (Stop watching, Leave this game) is a local command,
+`RuntimeCommand::leaveWatchedGame`, naming the watched game by the table and
+generation the runtime entered (`WatchedGameNow`), never by the table's
+current generation. The game thread decides it when it runs, with
+`netplay::LeaveOfWatchedGame` (`LeaveWatchedGame`): once that view is gone
+nothing happens; once the room has finished the game (`EndView`, or its end
+event is in) nothing is sent and the rest of the stream is retired the way the
+spectator drain retires it (`RetireFinishedMatch`); otherwise it sends an
+`Unwatch` scoped to that generation and ends its view as `GgpoEnd::Leave`. That
+is not recorded as a stream failure and arms no lock release; the `Unwatch` has
+already ended the lock-in. A parked leave is decided again on retry.

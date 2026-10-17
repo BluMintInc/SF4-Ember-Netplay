@@ -21,11 +21,9 @@ BYTE* System_XInput::focusGate = nullptr;
 const int System::BUTTON_MAPPING_FIGHT = 0;
 const int System::BUTTON_MAPPING_MENU = 1;
 
-bool Pad::ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons, unsigned int* selectPhysical, unsigned int* backPhysical) {
+bool Pad::ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons) {
 	held = 0;
     if (physicalButtons) *physicalButtons = 0;
-    if (selectPhysical) *selectPhysical = 0;
-    if (backPhysical) *backPhysical = 0;
 	if (!sf4e::input::ControllerDevice{deviceType, deviceIndex}.Valid() ||
 		deviceType != (deviceIndex < 4 ? PADTYPE_XINPUT : PADTYPE_DIRECTINPUT)) return false;
 	auto* system = reinterpret_cast<const BYTE*>(System::staticMethods.GetSingleton());
@@ -40,22 +38,36 @@ bool Pad::ReadController(int deviceType, int deviceIndex, unsigned int& held, un
 	if (deviceIndex >= count || count > 12) return false;
 	const BYTE* entry = devices + 0xd14 + deviceIndex * 0x100;
 	if (*reinterpret_cast<const int*>(entry) != 1) return false;
-	const auto* begin = *reinterpret_cast<const BYTE* const*>(system + 0xd4);
-	const auto* end = *reinterpret_cast<const BYTE* const*>(system + 0xd8);
-	constexpr unsigned bindingStride = 0x27c;
-	if (!begin || reinterpret_cast<std::uintptr_t>(end) < reinterpret_cast<std::uintptr_t>(begin) ||
-		reinterpret_cast<std::uintptr_t>(end) - reinterpret_cast<std::uintptr_t>(begin) <
-			static_cast<unsigned>(deviceIndex + 1) * bindingStride) return false;
+    const auto* bindings = BindingRecords().FightTable(deviceIndex);
+    if (!bindings) return false;
 	// 00511E70 maps physical bit n through +17C in fight mode (+1FC in
 	// menu mode). Reading the fight table preserves LP/LK remapping without
 	// changing the game's active map, repeat timers, or device-in-use flags.
 	const auto physical = *reinterpret_cast<const std::uint32_t*>(entry + 0xc);
     if (physicalButtons) *physicalButtons = physical;
-	const auto* bindings = reinterpret_cast<const std::uint32_t*>(begin + deviceIndex * bindingStride + 0x17c);
 	held = sf4e::input::MapButtons(physical, bindings);
-    if(selectPhysical)*selectPhysical=sf4e::input::PhysicalBinding(0x10,bindings);
-    if(backPhysical)*backPhysical=sf4e::input::PhysicalBinding(0x40,bindings);
 	return true;
+}
+
+sf4e::input::MenuButtons Pad::MenuButtons(int deviceType, int deviceIndex, std::uint32_t boundConfirm, std::uint32_t boundBack) {
+    // The game's decide and cancel functions, System+0xCC and +0xD0 (getters
+    // 0x517210 and 0x517220). Nothing in this build changes them, but its own
+    // prompt code (0x6503F0) allows a swap, so they are read, not assumed.
+    auto* system = reinterpret_cast<const BYTE*>(System::staticMethods.GetSingleton());
+    const std::uint32_t confirm = system ? *reinterpret_cast<const std::uint32_t*>(system + 0xcc) : 0;
+    const std::uint32_t back = system ? *reinterpret_cast<const std::uint32_t*>(system + 0xd0) : 0;
+    const auto records = BindingRecords();
+    const bool valid = sf4e::input::ControllerDevice{deviceType, deviceIndex}.Valid() &&
+        deviceType == (deviceIndex < 4 ? PADTYPE_XINPUT : PADTYPE_DIRECTINPUT);
+    const auto index = static_cast<unsigned>(deviceIndex);
+    return sf4e::input::ResolveMenuButtons(deviceType, valid ? records.MenuTable(index) : nullptr, valid ? records.FightTable(index) : nullptr,
+        confirm, back, boundConfirm, boundBack);
+}
+
+sf4e::gamepads::PadBindingRecords Pad::BindingRecords() {
+    auto* system = reinterpret_cast<BYTE*>(System::staticMethods.GetSingleton());
+    if (!system) return {};
+    return {*reinterpret_cast<void**>(system + 0xD4), *reinterpret_cast<void**>(system + 0xD8)};
 }
 
 void Pad::Locate(HMODULE peRoot) {
@@ -84,6 +96,7 @@ void System::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.SetActiveButtonMapping) = (PVOID)(peRootOffset + 0x110170);
 	*(PVOID*)(&publicMethods.CaptureNextMatchingPadToSide) = (PVOID)(peRootOffset + 0x111110);
 	*(PVOID*)(&publicMethods.ClearInputs) = (PVOID)(peRootOffset + 0x1100e0);
+	*(PVOID*)(&publicMethods.LoadButtonConfig) = (PVOID)(peRootOffset + 0x11bc30);
 	focusGate = (BYTE*)(peRootOffset + 0x1121ad);
 
 	staticMethods.GetSingleton = (System * (*)())(peRootOffset + 0x119480);
@@ -110,6 +123,7 @@ void System_RawInput::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.SetDeviceInUse) = (PVOID)(peRootOffset + 0x2e1310);
 	*(PVOID*)(&publicMethods.ClearKeys) = (PVOID)(peRootOffset + 0x2df8e0);
 	*(PVOID*)(&publicMethods.Update) = (PVOID)(peRootOffset + 0x2dfa00);
+	*(PVOID*)(&publicMethods.ScanDevices) = (PVOID)(peRootOffset + 0x2e0150);
 	staticMethods.GetSingleton = (System_RawInput * (*)())(peRootOffset + 0x2e00e0);
 }
 

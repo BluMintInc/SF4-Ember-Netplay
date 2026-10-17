@@ -37,6 +37,8 @@ namespace sf4e {
 			if (!selection::ValidStage(match.stageID)) return MatchProblem::Stage;
 			for (const auto& chara : match.chara)
 				if (!selection::Valid(selection::FromNative(chara), lobby.editionSelect)) return MatchProblem::Fighter;
+			for (const auto delay : match.inputDelay)
+				if (delay > InputDelayWireCeiling) return MatchProblem::Delay;
 			return MatchProblem::None;
 		}
 

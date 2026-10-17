@@ -4,7 +4,12 @@
 // fixtures. Two members run a connection check and start a match (the helpers'
 // game link reaches Ready; no GGPO session is created), then report its result.
 //
-//   PublicRoomHostTest <sf4-net.exe> <sf4e-room-host.exe> <room_ticket.exe> [--kill-host | --full-room | --refusal-negatives | --remote <invitation>]
+//   PublicRoomHostTest <sf4-net.exe> <sf4e-room-host.exe> <room_ticket.exe> [--kill-host | --full-room | --refusal-negatives | --own-delay | --remote <invitation>]
+//
+// --own-delay: the room host is configured with own_delay, so the room's snapshot
+// and status line say so, and a match between fighters who chose 1 and 4 frames
+// gives each seat its own delay. (The default run plays the same choices in a
+// room with the shared delay and finds both seats at 4.)
 //
 // --kill-host: a short second scenario. One member joins, the room host is
 // killed, and the member's side is printed until its room ends.
@@ -383,19 +388,23 @@ bool Probe(Player& from, Player& to, std::uint64_t request, std::string& detail)
 	return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
 }
 
-// A and B, seated at table 0, ready up; the authority grants the match and the
-// two helpers link directly. Then both report the result and acknowledge it.
-void PlayMatch(Player& a, Player& b) {
+// A and B, seated at table 0, ready up, with input delays of `delayA` and
+// `delayB`; the authority grants the match and the two helpers link directly.
+// Each fighter's native projection then holds the delay the room's policy
+// gives each seat: the higher of the two in both seats, or each their own.
+// Then both report the result and acknowledge it.
+void PlayMatch(Player& a, Player& b, int delayA = 2, int delayB = 2, room::DelayPolicy policy = room::DelayPolicy::Shared) {
 	using Phase = session::IrohMatchSession::Phase;
 	std::string detail;
 	Step("A's connection check to B completes", Probe(a, b, 1, detail), detail);
 	Step("B's connection check to A completes", Probe(b, a, 1, detail), detail);
 	a.match.reset(new session::IrohMatchSession(*a.peer.client, a.peer.room));
 	b.match.reset(new session::IrohMatchSession(*b.peer.client, b.peer.room));
-	room::Action ready; ready.kind = room::ActionKind::Ready; ready.table = 0; ready.inputDelay = 2;
+	room::Action ready; ready.kind = room::ActionKind::Ready; ready.table = 0;
 	const auto readied = [&](Player& player) {
 		std::uint64_t id = 0;
 		bool accepted = false;
+		ready.inputDelay = static_cast<std::uint8_t>(&player == &a ? delayA : delayB);
 		return SendAction(player, ready, &id) && WaitFor([&]() {
 			SessionClient::ActionReply reply;
 			while (player.peer.client->TakeActionReply(reply)) if (reply.actionId == id) accepted = reply.accepted;
@@ -412,6 +421,14 @@ void PlayMatch(Player& a, Player& b) {
 		" generation " + std::to_string(a.match->Generation()) + " routes " + aLink.route + " , " + bLink.route +
 		(a.match->Error().empty() ? "" : " A: " + a.match->Error()) + (b.match->Error().empty() ? "" : " B: " + b.match->Error()));
 	if (!startedMatch) { Dump(a); Dump(b); return; }
+	const auto seats = policy == room::DelayPolicy::Own ? std::array<int, 2>{delayA, delayB}
+		: std::array<int, 2>{(std::max)(delayA, delayB), (std::max)(delayA, delayB)};
+	for (Player* player : {&a, &b}) {
+		const auto& delays = player->peer.client->_matchData.inputDelay;
+		Step((player->label + "'s game gets the delays the room's policy gives the two seats").c_str(),
+			delays[0] == seats[0] && delays[1] == seats[1],
+			"seats " + std::to_string(delays[0]) + "/" + std::to_string(delays[1]) + ", expected " + std::to_string(seats[0]) + "/" + std::to_string(seats[1]));
+	}
 	if (!remoteHost) Step("status shows 1 table playing", WaitFor([&]() { return host->Status().value("tables_playing", 0) == 1; }, 10000));
 
 	const auto generation = a.match->Generation();
@@ -528,6 +545,39 @@ int FullRoomScenario(const std::wstring& roomHostPath, const json& config, const
 	return failures ? 1 : 0;
 }
 
+// A room for each player's own input delay: the supervisor's configuration line
+// carries own_delay, the room's snapshot and status line say so, and a match
+// between fighters who chose 1 and 4 frames gives each seat its own.
+int OwnDelayScenario(const std::wstring& roomHostPath, const json& config, const std::string& bridgeSeed, const std::string& kid) {
+	RoomHostChild child;
+	host = &child;
+	json ownConfig = config;
+	ownConfig["own_delay"] = true;
+	CHECK(child.Start(roomHostPath, ownConfig.dump()));
+	const bool hosted = WaitFor([&]() { return !child.Hosted().is_null() || !child.Running(); }, 30000) && !child.Hosted().is_null();
+	Step("room host with own_delay reports hosted", hosted);
+	if (!hosted) return 1;
+	Step("its status line says own_delay", WaitFor([&]() { return child.Status().value("details", json::object()).value("own_delay", false); }, 10000));
+	auto a = StartPlayer("Alice", Seed('a'));
+	Step("A joins with a ticket", JoinRoom(*a, bridgeSeed, kid));
+	auto b = StartPlayer("Bob", Seed('b'));
+	Step("B joins with a ticket", JoinRoom(*b, bridgeSeed, kid));
+	Step("both see an own-delay room of 2 members", WaitFor([&]() { return a->View().members.size() == 2 && b->View().members.size() == 2; }, 15000) &&
+		a->View().delayPolicy == room::DelayPolicy::Own && b->View().delayPolicy == room::DelayPolicy::Own);
+	room::Action queue; queue.kind = room::ActionKind::Queue; queue.table = 0;
+	const auto seated = [&](Player& player) {
+		const auto* member = room::FindMember(player.View(), player.View().localMember);
+		return member && member->table == 0 && member->seat >= 0;
+	};
+	Step("A and B take the seats of table 0", SendAction(*a, queue) && WaitFor([&]() { return seated(*a); }, 15000) &&
+		SendAction(*b, queue) && WaitFor([&]() { return seated(*b) && a->View().tables[0].p1 && a->View().tables[0].p2; }, 15000));
+	PlayMatch(*a, *b, 1, 4, room::DelayPolicy::Own);
+	Step("the room is still an own-delay room after the match", a->View().delayPolicy == room::DelayPolicy::Own);
+	StopPlayer(b);
+	StopPlayer(a);
+	return failures ? 1 : 0;
+}
+
 // Fourth scenario: a join that fails for a reason other than a refusal is not
 // taken for one. The invitation is a room host's that has since been killed:
 // its endpoint is real and the relay is the real one, but nothing answers.
@@ -602,7 +652,7 @@ int RemoteScenario(const std::string& invitation, const std::string& bridgeSeed,
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
 	CHECK(argc == 4 || (argc == 5 && (std::wstring(argv[4]) == L"--kill-host" || std::wstring(argv[4]) == L"--full-room" ||
-		std::wstring(argv[4]) == L"--refusal-negatives")) || (argc == 6 && std::wstring(argv[4]) == L"--remote"));
+		std::wstring(argv[4]) == L"--refusal-negatives" || std::wstring(argv[4]) == L"--own-delay")) || (argc == 6 && std::wstring(argv[4]) == L"--remote"));
 	if (argc == 5 && std::wstring(argv[4]) == L"--full-room") globalTimeoutMs = 900000;
 	helperPath = argv[1];
 	const std::wstring roomHostPath = argv[2];
@@ -638,10 +688,11 @@ int wmain(int argc, wchar_t** argv) {
 		fullConfig["capacity"] = room::MaximumMembers;
 		const int code = mode == L"--full-room" ? FullRoomScenario(roomHostPath, fullConfig, bridgeSeed, kid)
 			: mode == L"--refusal-negatives" ? RefusalNegativesScenario(roomHostPath, config, bridgeSeed, kid)
+			: mode == L"--own-delay" ? OwnDelayScenario(roomHostPath, config, bridgeSeed, kid)
 			: KillHostScenario(roomHostPath, config, bridgeSeed, kid);
 		finished = true;
 		std::cout << (code ? "FAILED" : "PASSED") << (mode == L"--full-room" ? " full-room scenario" :
-			mode == L"--refusal-negatives" ? " refusal-negatives scenario" : " kill-host scenario") << std::endl;
+			mode == L"--refusal-negatives" ? " refusal-negatives scenario" : mode == L"--own-delay" ? " own-delay scenario" : " kill-host scenario") << std::endl;
 		return code;
 	}
 	CHECK(child.Start(roomHostPath, config.dump()));
@@ -696,7 +747,7 @@ int wmain(int argc, wchar_t** argv) {
 	Step("A and B take the seats of table 0", SendAction(*a, queue) && WaitFor([&]() { return seated(*a); }, 15000) &&
 		SendAction(*b, queue) && WaitFor([&]() { return seated(*b) && a->View().tables[0].p1 && a->View().tables[0].p2; }, 15000));
 
-	PlayMatch(*a, *b);
+	PlayMatch(*a, *b, 1, 4);
 
 	room::Action kick; kick.kind = room::ActionKind::Kick; kick.target = b->View().localMember;
 	const auto kickStarted = GetTickCount64();

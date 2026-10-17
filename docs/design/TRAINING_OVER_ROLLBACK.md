@@ -174,7 +174,7 @@ rollback state, so it cannot save or restore a match's position.
   the game plays a frame, as it did before, so the game never sees them.
   In any other match the inputs are left alone.
 - The match HUD says shared save and reset are not available
-  (`DrawMatchPracticeNotice`).
+  (`DrawMatchKeysNotice`).
 - The Practice match's refill/no-knockout rule and confirmed-frame meter
   remain separate from offline dummy and checkpoint mutations.
 

@@ -87,6 +87,9 @@ msgstr "Das Spiel würde diese Dateien statt der im Ember-Ordner laden. Eine alt
 msgid "launcher.game_wrong_dll"
 msgstr "Das Spiel hielt vor dem Ember-Start an, weil einer geladenen DLL eine Funktion fehlt. Meist liegt eine GGPO.dll, spdlog.dll, fmt.dll oder zlib1.dll einer anderen Mod oder älteren Installation neben SSFIV.exe. Verschieben Sie solche Dateien und versuchen Sie es erneut. Falls dort keine liegt, senden Sie das Launcher-Log (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows hat eine Datei des Spiels blockiert, bevor Ember starten konnte (App-Steuerung). Die intelligente App-Steuerung kann kein einzelnes Programm zulassen: Ist sie in der Windows-Sicherheit aktiv, läuft Ember erst, wenn sie ausgeschaltet ist. Auf einem PC, den eine Organisation verwaltet, bitte deren Administrator, Ember zuzulassen."
+
 msgid "recovery.window"
 msgstr "Ember-Starthilfe"
 
@@ -198,6 +201,24 @@ msgstr "SF4 starten"
 msgid "updates.start_game_detail"
 msgstr "Updater schließen und SF4 mit Ember starten."
 
+msgid "updates.launch_heading"
+msgstr "Update verfügbar"
+
+msgid "updates.launch_text"
+msgstr "Version {0} ist verfügbar. Installiert ist {1}. Jetzt aktualisieren schließt das Spiel und installiert die neue Version."
+
+msgid "updates.launch_now"
+msgstr "Jetzt aktualisieren"
+
+msgid "updates.launch_later"
+msgstr "Später"
+
+msgid "updates.launch_skip"
+msgstr "Diese Version überspringen"
+
+msgid "updates.offer_changed"
+msgstr "Das Update hat sich geändert, seit Sie es gewählt haben. Prüfen Sie die Version unten, bevor Sie installieren."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Schließen bricht den laufenden Vorgang ab."
 
@@ -283,17 +304,77 @@ msgstr "Im Browser geöffnet. Wechseln Sie dorthin, um dem Server beizutreten."
 msgid "services.community_failed"
 msgstr "Browser konnte nicht öffnen. Beitreten unter {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Steam-Profil wird im Browser geöffnet..."
+
+msgid "services.steam_profile_opened"
+msgstr "Im Browser geöffnet."
+
+msgid "services.steam_profile_failed"
+msgstr "Browser konnte nicht geöffnet werden."
+
 msgid "settings.language"
 msgstr "Sprache"
 
 msgid "settings.language.detail"
 msgstr "Zum Wählen aus der Liste auswählen oder mit Links/Rechts wechseln. Automatisch folgt erst der Spielsprache, dann der Windows-Sprache."
 
+msgid "settings.country"
+msgstr "Land"
+
+msgid "settings.country_detail"
+msgstr "Die Flagge neben Ihrem Namen in Räumen und auf Ihrer Spielerkarte. Räume, denen Sie ab jetzt beitreten, zeigen sie."
+
+msgid "settings.country.automatic"
+msgstr "Automatisch"
+
+msgid "settings.country.automatic_value"
+msgstr "Automatisch ({0})"
+
+msgid "settings.country.hidden"
+msgstr "Ausgeblendet"
+
+msgid "settings.country.current"
+msgstr "Aktuell"
+
+msgid "country.search"
+msgstr "Suchen"
+
+msgid "country.search_value"
+msgstr "Suchen: {0}"
+
+msgid "country.search_detail"
+msgstr "Geben Sie einen Teil eines Ländernamens ein, um die Liste einzugrenzen. Ein getippter Buchstabe springt außerdem zu den Ländern, die damit beginnen, und Links und Rechts wechseln zwischen den Buchstaben."
+
+msgid "country.automatic_detail"
+msgstr "Folgt der in Windows eingestellten Region: {0}."
+
+msgid "country.automatic_none"
+msgstr "Windows nennt keine Region, für die Ember eine Flagge hat, daher wird keine Flagge gezeigt."
+
+msgid "country.hidden_detail"
+msgstr "Neben Ihrem Namen wird keine Flagge gezeigt."
+
+msgid "country.choose_detail"
+msgstr "Diese Flagge neben Ihrem Namen zeigen."
+
+msgid "country.none"
+msgstr "Kein Land passt"
+
+msgid "country.none_detail"
+msgstr "Ändern Sie die Suche, um mehr Länder zu sehen."
+
 msgid "settings.language.system_with"
 msgstr "Automatisch: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Sprachauswahl konnte nicht gespeichert werden. Sie gilt noch für diese Sitzung."
+
+msgid "settings.update_check"
+msgstr "Beim Start auf Updates prüfen"
+
+msgid "settings.update_check_detail"
+msgstr "Sucht beim Start des Spiels nach einer neuen Version, höchstens alle 6 Stunden. Es fragt nach, bevor etwas geändert wird."
 
 msgid "menu.edit_detail"
 msgstr "Zum Bearbeiten wählen. Tippen oder einfügen; Enter bestätigt, Zurück bricht ab."
@@ -619,6 +700,27 @@ msgstr "Zum aktuellen Raum zurückkehren."
 msgid "home.fighter_select"
 msgstr "Charakterauswahl"
 
+msgid "home.selection_costume_color"
+msgstr "Kleidung, Farbe"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, Farbe {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Double"
+
 msgid "home.selection_locked"
 msgstr "Kehren Sie für den Auswahlstatus zu Ihrem Tisch zurück."
 
@@ -687,6 +789,12 @@ msgstr "Zugeschaute Matches speichern"
 
 msgid "replays.save_watched_detail"
 msgstr "Speichert auch Kämpfe, denen du als Zuschauer zusiehst. Aus speichert nur Kämpfe, die du selbst spielst."
+
+msgid "settings.watched_picture"
+msgstr "Zugeschautes Spiel in der Ecke"
+
+msgid "settings.watched_picture_detail"
+msgstr "Öffnest du Embers Menü über einem Spiel, dem du zuschaust, erscheint es klein oben rechts über einem deckenden Menü statt abgedunkelt dahinter."
 
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"
@@ -858,6 +966,12 @@ msgstr "Hauptcharakter"
 msgid "profile.main_character_detail"
 msgstr "{0}. Für Ihre Spielerkarte, unabhängig von der Auswahl im Kampf."
 
+msgid "profile.share_steam"
+msgstr "Mein Steam-Profil anzeigen"
+
+msgid "profile.share_steam_detail"
+msgstr "Raummitglieder können Ihr Steam-Profil über den Mitglieder-Bildschirm öffnen. Gilt ab dem nächsten Raumbeitritt."
+
 msgid "profile.record"
 msgstr "Siege / Niederlagen"
 
@@ -1002,11 +1116,7 @@ msgstr "Schnellere Anzeige (1 Frame weniger)"
 msgid "player.faster_display_detail"
 msgstr "Das Spiel zeigt jeden Frame, sobald er fertig ist, statt einen Frame später. Schalten Sie es aus, wenn das Spiel auf diesem PC unter 60 fps fällt. Es betrifft nur diesen PC: Der andere Spieler muss es nicht einschalten. Änderungen gelten ab dem nächsten Spielstart."
 
-msgid "player.native_menus"
-msgstr "Native Menüs öffnen"
 
-msgid "player.native_menus_detail"
-msgstr "Ember wird geschlossen. Wählen Sie im Spielmenü OPTIONEN, um die Kampftasten zu belegen."
 
 msgid "settings.interface_title"
 msgstr "OBERFLÄCHE"
@@ -1076,6 +1186,9 @@ msgstr "Oben links"
 
 msgid "hud_position.top_right"
 msgstr "Oben rechts"
+
+msgid "hud_position.top_center"
+msgstr "Oben Mitte"
 
 msgid "settings.edge_spacing"
 msgstr "Abstand zum Rand"
@@ -1156,7 +1269,7 @@ msgid "about.controls"
 msgstr "Steuerung"
 
 msgid "about.controls_detail"
-msgstr "Xbox-Controller: A wählt aus, B geht zurück, unabhängig von der Kampfbelegung. Andere Controller: das zugewiesene LP wählt aus, LK geht zurück. Tastatur: Pfeiltasten, Enter und Escape. Das D-pad bewegt; Links und Rechts ändern einen Wert. Zurück auf der Startseite blendet Ember aus. F10, oder Start am Controller, öffnet es wieder im Hauptmenü des Spiels.\n\nIn einem Raum wählen Sie mit A auf einem Tisch einen Platz, A auf Ihrem eigenen Platz setzt Sie auf Bereit und B verlässt Ihren Platz oder die Warteliste. Am Xbox-Controller öffnet X Kämpfer, Y Optionen und View Chat; erneutes Drücken führt zurück in den Raum.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Am Controller: View oder Select halten und Start drücken."
+msgstr "Xbox: A wählt aus und B geht zurück. PlayStation: Kreuz wählt aus und Kreis geht zurück. Switch: B wählt aus und A geht zurück, wie in den Menüs des Spiels. Ein in Ember eingerichteter Controller: Die für Leichter Tritt gewählte Taste wählt aus, die für Mittlerer Tritt geht zurück, unabhängig von der Tastenbelegung. Tastatur: Pfeile, Enter und Escape. Das Steuerkreuz bewegt; Links und Rechts ändern einen Wert. Zurück auf Home blendet Ember aus. F10 oder Start am Controller öffnet es wieder im Hauptmenü des Spiels.\n\nIm Raum lässt dich A auf einem Tisch einen Platz wählen, A auf deinem eigenen Platz meldet dich bereit und B verlässt deinen Platz oder die Warteschlange (auf anderen Controllern die Tasten an denselben Positionen). Auf Xbox öffnet X Kämpfer, Y Optionen und View Chat; erneut drücken kehrt zum Raum zurück. PlayStation nutzt Quadrat, Dreieck und Share oder Create; Switch nutzt Y, X und Minus.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Halte am Controller View (Share, Create oder Minus) und drücke Start."
 
 msgid "about.controls_keyboard"
 msgstr "Auf der Tastatur wählt auch die Leertaste und Rücktaste geht ebenfalls zurück. Im Raum öffnet F den Kämpfer, T die Optionen und C den Chat. Escape geht immer zurück, auch auf dem eigenen Platz; Entf verlässt deinen Platz oder die Warteschlange."
@@ -1267,7 +1380,7 @@ msgid "room.table_closed"
 msgstr "Tisch geschlossen"
 
 msgid "controller.disconnected"
-msgstr "Controller getrennt. Erneut verbinden oder zuweisen."
+msgstr "Controller getrennt. Verbinde ihn erneut oder wähle einen anderen unter Einstellungen > Spieler & Controller."
 
 msgid "controller.none"
 msgstr "Spielgerät wählen"
@@ -1277,6 +1390,12 @@ msgstr "Tastatur"
 
 msgid "controller.numbered"
 msgstr "Controller {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} ist nicht verbunden. Vorerst wird {1} verwendet."
+
+msgid "controller.connected_adopted"
+msgstr "{0} ist verbunden. Du spielst damit."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (getrennt)"
@@ -1334,6 +1453,15 @@ msgstr "Delay"
 
 msgid "match.spectating"
 msgstr "Zuschauer"
+
+msgid "match.behind"
+msgstr "Rückstand"
+
+msgid "match.delay_own"
+msgstr "Eigene"
+
+msgid "match.up_next"
+msgstr "Sie sind als Nächstes dran"
 
 msgid "match.preview_spacing"
 msgstr "{0} Abstand / Beispielwerte"
@@ -1491,14 +1619,11 @@ msgstr "Beim Aufstehen"
 msgid "training.reply.any"
 msgstr "Immer wenn er sich erholt"
 
-msgid "training.reply.slot"
-msgstr "Antwort-Slot"
+msgid "training.reply.recordings"
+msgstr "Aufnahmen"
 
-msgid "training.reply.slot.detail"
-msgstr "Die Dummy-Aufnahme, die als Antwort abgespielt wird, solange Antwortzüge leer ist, ab dem ersten Tastendruck."
-
-msgid "training.reply.slot_empty"
-msgstr "Slot {0} ist leer, der Dummy hat keine Antwort. Nehmen Sie ihn auf oder wählen Sie eine Aktion."
+msgid "training.reply.no_recordings_on"
+msgstr "Keine eingeschaltete Aufnahme taugt als Antwort"
 
 msgid "training.reply.chance"
 msgstr "Antwortchance"
@@ -1516,13 +1641,13 @@ msgid "training.reply.moves"
 msgstr "Antwortzüge"
 
 msgid "training.reply.moves.detail"
-msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. [1] hält eine Richtung bis zum nächsten Zug, [1]20f hält sie 20 Frames und 10f wartet: [1] > 3HP blockt unten, bis der Dummy frei ist, dann kommt 3HP. Leer nutzt den Antwort-Slot."
+msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. [1] hält eine Richtung bis zum nächsten Zug, [1]20f hält sie 20 Frames und 10f wartet: [1] > 3HP blockt unten, bis der Dummy frei ist, dann kommt 3HP. Leer antwortet mit einer eingeschalteten Aufnahme."
 
 msgid "training.reply.move"
 msgstr "Antwortvorlage"
 
 msgid "training.reply.move.detail"
-msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Antwort-Slot spielt die Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
+msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Aufnahmen antwortet mit einer eingeschalteten Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
 
 msgid "training.reply.custom"
 msgstr "Eigene"
@@ -1632,8 +1757,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / GEWÄHLT"
 
-msgid "training.recorded_frames"
-msgstr "{0} Frames aufgenommen. Gilt bis zum Kampfende."
+msgid "training.slot.detail"
+msgstr "{0} Frames aufgenommen. Auswählen schaltet den Slot ein oder aus: Abspielen und die Dummy-Antwort nutzen die eingeschalteten Slots. Die Slots bleiben bei diesem Dummy-Kämpfer, bis das Spiel beendet wird."
+
+msgid "training.slot.empty"
+msgstr "Leer"
+
+msgid "training.slot.empty_detail"
+msgstr "Nichts aufgenommen. Auswählen wählt diesen Slot für Aufnehmen."
 
 msgid "training.record"
 msgstr "Aufnehmen"
@@ -1641,26 +1772,38 @@ msgstr "Aufnehmen"
 msgid "training.record.overwrite"
 msgstr "Belegten Slot überschreiben und zum Training zurückkehren."
 
-msgid "training.record.detail"
-msgstr "P1-Steuerung als P2 aufnehmen und zum Training zurückkehren."
+msgid "training.record.choose"
+msgstr "Links und Rechts wählen den Slot für die Aufnahme; die Zeilen darunter nutzen ihn auch."
+
+msgid "training.record.standby_detail"
+msgstr "Bereitschaft: P1 steuert den Dummy, und das Training geht weiter. {0} oder {1} startet die Aufnahme, dasselbe erneut beendet sie."
 
 msgid "training.play"
 msgstr "Abspielen"
 
-msgid "training.play.detail"
-msgstr "Gewählten Slot abspielen und zum Training zurückkehren. Aufnahmen folgen der Seite, in die der Dummy blickt. Links und Rechts wählen, ob sie wiederholt wird."
+msgid "training.play.on_detail"
+msgstr "Einen eingeschalteten Slot in der Abspielreihenfolge abspielen und zum Training zurückkehren. Aufnahmen folgen der Seite, in die der Dummy blickt. Links und Rechts wählen, ob sie wiederholt wird; jede Wiederholung wählt neu."
+
+msgid "training.order"
+msgstr "Abspielreihenfolge"
+
+msgid "training.order.random"
+msgstr "Zufällig"
+
+msgid "training.order.in_order"
+msgstr "Der Reihe nach"
+
+msgid "training.order.detail"
+msgstr "Wie Abspielen und die Dummy-Antwort unter den eingeschalteten Slots wählen."
 
 msgid "training.play.once"
 msgstr "Einmal"
 
-msgid "training.slot_empty"
-msgstr "Dieser Slot ist leer."
+msgid "training.no_recordings_on"
+msgstr "Keine Aufnahme ist eingeschaltet"
 
 msgid "training.stop"
 msgstr "Stopp"
-
-msgid "training.stop.detail"
-msgstr "Aufnahme oder Wiedergabe stoppen."
 
 msgid "training.loop"
 msgstr "Endlosschleife"
@@ -1689,11 +1832,17 @@ msgstr "Messanzeige und beide Input-Verläufe löschen."
 msgid "training.practice_ready"
 msgstr "Training bereit"
 
+msgid "training.standby_status"
+msgstr "Bereitschaft: P1 steuert den Dummy. {0} oder {1} startet die Aufnahme."
+
+msgid "training.standby"
+msgstr "Bereitschaft"
+
 msgid "training.recording_suspended"
 msgstr "Aufnahme pausiert, solange die Steuerung geöffnet ist"
 
 msgid "training.playback_suspended"
-msgstr "Wiedergabe läuft; Aufnahme wartet, bis die Steuerung geschlossen ist"
+msgstr "Wiedergabe läuft"
 
 msgid "training.applying"
 msgstr "Befehl wird ausgeführt..."
@@ -1721,6 +1870,15 @@ msgstr "Treffer"
 
 msgid "training.meter.block"
 msgstr "Block"
+
+msgid "training.meter.focus_forward"
+msgstr "Fokus-Cancel, Dash vorwärts"
+
+msgid "training.meter.focus_back"
+msgstr "Fokus-Cancel, Dash rückwärts"
+
+msgid "training.meter.cancelled"
+msgstr "Abgebrochen"
 
 msgid "training.meter.whiff"
 msgstr "Verfehlt"
@@ -1755,11 +1913,47 @@ msgstr "Schräg"
 msgid "training.meter.style.flat"
 msgstr "Flach"
 
+msgid "training.meter.style.classic"
+msgstr "Klassisch"
+
 msgid "training.meter.frames_shown"
 msgstr "Gezeigte Frames"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Wie viele Frames die Balken auf gleicher Breite zeigen. Weniger machen jeden Frame breiter und leichter zu zählen; 120 zeigt den ganzen Verlauf. Ist das Meter angehalten, blättert das Mausrad über den Balken zurück."
+msgstr "Wie viele Frames die Balken auf gleicher Breite zeigen. Weniger machen jeden Frame breiter und leichter zu zählen. Ein längerer Schlagabtausch geht am linken Rand weiter. Ist das Meter angehalten, blättert das Mausrad über den Balken seitenweise zurück."
+
+msgid "training.meter.history"
+msgstr "Meter-Verlauf"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Wie lange die Anzeige das Geschehene behält. Während sie angehalten ist, blättert das Mausrad über den Balken seitenweise zurück; ein längerer Verlauf reicht bis zum Beginn einer langen Kombo."
+
+msgid "training.meter.after_pause"
+msgstr "Nach einer Pause"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Neu beginnen"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Fortsetzen"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Was die Anzeige tut, wenn sich nach einer Ruhephase beider Kämpfer wieder etwas bewegt. Neu beginnen leert die Balken für den neuen Schlagabtausch wie in Street Fighter 6. Fortsetzen macht nach dem letzten weiter, sodass der Verlauf mehrere zurückreicht."
+
+msgid "training.meter.scroll"
+msgstr "Anzeige scrollen"
+
+msgid "training.meter.scroll.pages"
+msgstr "Seiten"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Fließend"
+
+msgid "training.meter.scroll.detail"
+msgstr "Wie die Balken weiterlaufen. Seiten blättert eine ganze Seite um und beginnt wieder links. Fließend hält das neueste Frame am rechten Rand und schiebt weiter; das Mausrad über einer angehaltenen Anzeige geht zehn Frames pro Raste zurück."
 
 msgid "training.meter.hud_recovery"
 msgstr "Erholung im HUD"
@@ -1782,6 +1976,33 @@ msgstr "Kürzel im HUD"
 msgid "training.meter.hud_status"
 msgstr "Aufnahme im HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Eingaben im HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Stick"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Pfeile"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybrid"
+
+msgid "training.meter.classic_data"
+msgstr "Datenzeile im HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Eingabespuren"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6-Farben und Meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legende, Marker und Rand"
+
+msgid "training.meter.classic_slant"
+msgstr "Schräge Zellen"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zeigt diesen Teil des Trainings-HUD im Kampf. F5 blendet das ganze HUD aus."
 
@@ -1791,11 +2012,38 @@ msgstr "HUD-Größe"
 msgid "training.meter.hud_size.detail"
 msgstr "Legt die Größe von Text und Balken des Trainings-HUD fest. Auch die Oberflächengröße vergrößert es."
 
+msgid "training.meter.settings"
+msgstr "Anzeige-Einstellungen"
+
+msgid "training.meter.settings.detail"
+msgstr "Wo die Anzeige sitzt, wie weit sie zurückreicht und was sie nach einer Pause tut."
+
+msgid "training.meter.classic"
+msgstr "Klassische Anzeige"
+
+msgid "training.meter.classic.detail"
+msgstr "Die Balkenhöhe der klassischen Anzeige und ihre Teile."
+
+msgid "training.meter.position"
+msgstr "Anzeigeposition"
+
+msgid "training.meter.position.detail"
+msgstr "Wie weit unten die Anzeige sitzt, gemessen bis zu ihrer Unterkante. 82 % hält sie knapp über den Super-Leisten; kleinere Werte schieben sie nach oben."
+
+msgid "training.meter.bar_height"
+msgstr "Balkenhöhe"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Wie hoch die Balken der klassischen Anzeige sind."
+
 msgid "training.recovery_frames"
 msgstr "Erh. {0} F"
 
 msgid "training.recovery_unknown"
 msgstr "Erh. --"
+
+msgid "training.recovery_cancelled"
+msgstr "Erh. abgebrochen"
 
 msgid "training.neutral"
 msgstr "Neutral"
@@ -1841,6 +2089,12 @@ msgstr "Vorteil"
 
 msgid "training.last_advantage"
 msgstr "Letzter Vorteil"
+
+msgid "training.last_focus_forward"
+msgstr "Letzter Fokus-Cancel, Dash vorwärts"
+
+msgid "training.last_focus_back"
+msgstr "Letzter Fokus-Cancel, Dash rückwärts"
 
 msgid "selection.preview_unavailable"
 msgstr "Vorschau\nnicht verfügbar"
@@ -2144,11 +2398,8 @@ msgstr "Verbindung instabil. Spiel läuft mit Vorhersage."
 msgid "runtime.connection_restored"
 msgstr "Wieder verbunden."
 
-msgid "runtime.spectator_disconnected"
-msgstr "Zuschauer getrennt."
-
 msgid "runtime.spectator_stream_lost"
-msgstr "Zuschauerstream abgebrochen. Mit Zuschauen dem nächsten Kampf beitreten."
+msgstr "Der Zuschauerstream wurde unterbrochen. Das nächste Spiel an diesem Tisch sehen Sie."
 
 msgid "runtime.match_connection_lost"
 msgstr "Kampfverbindung verloren."
@@ -2158,6 +2409,12 @@ msgstr "Gegner getrennt. Kampf beendet."
 
 msgid "runtime.leaving_spectator"
 msgstr "Zuschauen beendet."
+
+msgid "runtime.spectator_sat_out"
+msgstr "Das Spiel begann, während Sie nicht im Hauptmenü waren. Das nächste sehen Sie."
+
+msgid "runtime.watching_hint"
+msgstr "Start oder F10 öffnet Ember, wo Zuschauen beenden Sie zum Raum zurückbringt."
 
 msgid "runtime.returning_room"
 msgstr "Zurück zum Raum."
@@ -2359,6 +2616,9 @@ msgstr " Ihr Platz wird frei."
 
 msgid "room.leave.queue"
 msgstr " Platz in der Warteschlange geht verloren."
+
+msgid "room.leave.watching"
+msgstr " Ihre Zuschaueransicht endet."
 
 msgid "room.leave.host"
 msgstr " Ein anderes Mitglied wird Host."
@@ -2655,7 +2915,7 @@ msgid "room.ready_up"
 msgstr "Bereit"
 
 msgid "room.selected_delay.detail"
-msgstr "0 bis 10 Frames wählen, unter 0 liegt Auto. 0 fügt keine Verzögerung hinzu und braucht einen stabilen, niedrigen Ping."
+msgstr "{0} bis {1} Frames wählen, unter 0 liegt Auto. 0 fügt keine Verzögerung hinzu und braucht einen stabilen, niedrigen Ping."
 
 msgid "room.selected_delay.locked"
 msgstr "Die gewählte Verzögerung ist für diesen Kampf gesperrt."
@@ -2751,11 +3011,29 @@ msgstr "Beendet diesen Übungskampf sofort für beide. Kein Ergebnis wird erfass
 msgid "room.leave_queue"
 msgstr "Warteliste verlassen"
 
+msgid "room.leave_queue.watching"
+msgstr " Sie sehen dieses Spiel weiter bis zum Ende."
+
 msgid "room.join_queue"
 msgstr "In Warteschlange"
 
 msgid "room.stop_watching"
 msgstr "Zuschauen beenden"
+
+msgid "room.stop_watching.detail"
+msgstr "Beendet das Zuschauen an diesem Tisch und bringt Sie zurück in den Raum. Die Spieler spielen weiter."
+
+msgid "room.stop_watching.finished"
+msgstr "Der Raum hat dieses Spiel bereits beendet. Beendet das Zuschauen beim Rest und bringt Sie zurück in den Raum."
+
+msgid "room.leave_game"
+msgstr "Dieses Spiel verlassen"
+
+msgid "room.leave_game.detail"
+msgstr "Beendet das Zuschauen bei diesem Spiel und bringt Sie zurück in den Raum. Ihr Platz in der Warteschlange bleibt erhalten, die Spieler spielen weiter."
+
+msgid "room.watching_ends"
+msgstr " Ihre Zuschaueransicht endet; die Spieler spielen weiter."
 
 msgid "room.watch_next"
 msgstr "Nächstes Spiel sehen"
@@ -2874,6 +3152,15 @@ msgstr "Host übertragen"
 msgid "room.transfer_host.detail"
 msgstr "{0} zum Raum-Host machen."
 
+msgid "room.steam_profile"
+msgstr "Steam-Profil"
+
+msgid "room.steam_profile.detail"
+msgstr "Steam-Profil dieses Mitglieds öffnen."
+
+msgid "room.steam_profile.none"
+msgstr "Dieses Mitglied hat kein Steam-Profil geteilt."
+
 msgid "room.compose_message"
 msgstr "Nachricht verfassen"
 
@@ -2970,6 +3257,12 @@ msgstr "Netzwerk konnte nicht starten. Offline-Spiel ist verfügbar."
 msgid "runtime.network_helper_unavailable"
 msgstr "Netzwerkhelfer nicht verfügbar (Fehler {0}). Offline-Spiel ist verfügbar."
 
+msgid "runtime.network_helper_missing"
+msgstr "Netzwerk konnte nicht starten: sf4-net.exe fehlt im Ember-Ordner. Sicherheitssoftware hat sie möglicherweise entfernt. Installiere Ember neu und erlaube den Ordner in deinem Virenschutz. Offline-Spiel ist verfügbar."
+
+msgid "runtime.network_helper_blocked"
+msgstr "Netzwerk konnte nicht starten: Sicherheitssoftware hat sf4-net.exe blockiert. Erlaube den Ember-Ordner in deinem Virenschutz und starte Ember neu. Offline-Spiel ist verfügbar."
+
 msgid "discord.connecting"
 msgstr "Verbindung zu Discord..."
 
@@ -2980,7 +3273,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Spielgerät getrennt. Verbinden Sie es vor dem nächsten Kampf erneut."
 
 msgid "runtime.match_input_blocked"
-msgstr "Kampfeingabe blockiert: {0} erneut verbinden. Hat sich der Slot geändert, kehren Sie in den Raum zurück und weisen Sie ihn neu zu."
+msgstr "{0} wurde getrennt. Dein Kämpfer erhält keine Eingaben, bis du ihn wieder verbindest."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Controller-Zuweisung für Kämpfe konnte nicht geprüft werden. Weisen Sie ihn erneut zu."
@@ -3014,6 +3307,9 @@ msgstr "Raumverbindung fehlgeschlagen. Raum wird geschlossen; unbestätigte Erge
 
 msgid "runtime.operation_busy"
 msgstr "Vorgang läuft. Erneut versuchen."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Steam-Profil konnte nicht geöffnet werden."
 
 msgid "discord.invitation_expired"
 msgstr "Discord-Einladung abgelaufen. Bitten Sie um eine neue."
@@ -3909,6 +4205,21 @@ msgstr "{0}, {1}     Warteschlange {2}     Zuschauer {3}"
 msgid "room.streak"
 msgstr "{0} Sätze in Folge"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Geschätzter Ping: etwa {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Ping wird gemessen..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping nicht verfügbar: noch keine Verbindung zu diesem Mitglied."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping pausiert, während dieses Mitglied spielt."
+
 msgid "screen.public_rooms"
 msgstr "Öffentliche Räume"
 
@@ -4586,3 +4897,1333 @@ msgstr "Immer senden ließ sich nicht einschalten, daher wurde dieser Bericht ni
 
 msgid "reports.automatic_unavailable"
 msgstr "Die automatischen Berichte für heute sind aufgebraucht oder der Verlauf ist unlesbar, daher wurde dieser Bericht nicht gesendet. Wählen Sie Diesen Bericht senden, um ihn aus der Vorschau zu senden."
+
+msgid "player.button_prompts"
+msgstr "Tastensymbole"
+
+msgid "player.button_prompts_detail"
+msgstr "Die Tastenbilder, die Ember zeigt. Automatisch passt sie an den Controller an, mit dem du spielst. Welche Taste was macht, bleibt gleich."
+
+msgid "player.prompts_auto"
+msgstr "Automatisch"
+
+
+msgid "controller.brand.stick"
+msgstr "Kampftasten"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} ist verbunden."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} ist verbunden. Du spielst mit der Tastatur; zum Wechseln nutze Controller wechseln unter Einstellungen > Spieler & Controller."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} ist verbunden. Öffne Ember, um seine Tasten einzurichten."
+
+msgid "controller.connected_full"
+msgstr "{0} ist verbunden, aber vier Controller werden bereits genutzt. Trenne einen, um diesen zu nutzen."
+
+msgid "controller.disconnected_named"
+msgstr "{0} wurde getrennt."
+
+msgid "controller.reconnected"
+msgstr "{0} ist wieder verbunden."
+
+msgid "controller.release_to_use"
+msgstr "Lass die Taste los, um mit {0} zu spielen."
+
+msgid "player.controllers"
+msgstr "Controller"
+
+msgid "player.controllers_value"
+msgstr "{0} verbunden"
+
+msgid "player.controllers_detail"
+msgstr "Du spielst mit {0}. Sieh alle verbundenen Controller, teste ihre Tasten und richte die ein, die Ember noch nicht kennt."
+
+
+
+msgid "player.game_reads"
+msgstr "Controller vom Spiel lesen lassen"
+
+msgid "player.game_reads_detail"
+msgstr "Aus: Ember liest alle Controller und das Spiel sieht jeden als Xbox-Controller. Ein: Das Spiel liest Controller selbst, wie ohne Ember; PlayStation- und Switch-Controller benötigen dann Steam Input. Änderungen gelten beim nächsten Spielstart."
+
+msgid "player.game_reads_pending"
+msgstr "Starte das Spiel neu, um dies anzuwenden."
+
+msgid "player.prompts_showing"
+msgstr "Es werden {0}-Tasten angezeigt."
+
+msgid "controllers.title"
+msgstr "CONTROLLER"
+
+msgid "controllers.unavailable"
+msgstr "Controller-Unterstützung ist aus"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember konnte seine Controller-Unterstützung nicht starten, daher liest das Spiel Controller diesmal selbst. Xbox-Controller funktionieren wie gewohnt; andere benötigen eventuell Steam Input. Details stehen in sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Das Spiel liest Controller"
+
+msgid "controllers.game_reads_detail"
+msgstr "Controller vom Spiel lesen lassen ist eingeschaltet, daher richtet Ember Controller weder ein noch testet es sie. Schalte es unter Spieler & Controller aus und starte das Spiel neu."
+
+msgid "controllers.none"
+msgstr "Keine Controller verbunden"
+
+msgid "controllers.none_detail"
+msgstr "Verbinde einen Controller und er erscheint hier. Die Tastatur funktioniert auch ohne."
+
+msgid "controllers.value_yours"
+msgstr "Deiner"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Nicht eingerichtet"
+
+msgid "controllers.value_full"
+msgstr "Nicht genutzt"
+
+msgid "controllers.value_absent"
+msgstr "Nicht verbunden"
+
+msgid "controllers.detail_yours"
+msgstr "Du spielst mit diesem Controller. Spielslot {0}. Drücke seine Tasten, um sie zu testen."
+
+msgid "controllers.detail_other"
+msgstr "Spielslot {0}. Drücke seine Tasten, um sie zu testen. Wähle ihn aus, um damit zu spielen oder seine Tasten einzurichten."
+
+msgid "controllers.detail_custom"
+msgstr "Nutzt deine gespeicherte Tastenbelegung."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input steuert diesen Controller, daher folgen seine Tasten deinen Steam-Einstellungen. Damit Ember ihn steuert, starte Ember außerhalb von Steam oder schalte Steam Input für Ultra Street Fighter IV in Steam aus."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember kennt die Tasten dieses Controllers noch nicht. Bis zur Einrichtung liest das Spiel ihn direkt und Embers Menüs nutzen die als Leichter Tritt und Mittlerer Tritt belegten Tasten. Wähle ihn zum Einrichten aus."
+
+msgid "controllers.detail_full"
+msgstr "Das Spiel hat Platz für vier Controller. Trenne einen anderen, um diesen zu nutzen."
+
+msgid "controllers.detail_absent"
+msgstr "Dein gespeicherter Controller. Verbinde ihn, um wieder damit zu spielen."
+
+msgid "controllers.detail_game_read"
+msgstr "Das Spiel liest diesen Controller selbst."
+
+msgid "controllers.steam_name"
+msgstr "Steam-Controller"
+
+msgid "controllers.test_heading"
+msgstr "Drücke Tasten, um sie zu testen"
+
+msgid "controllers.test_raw"
+msgstr "Gedrückt: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Gedrückt: nichts"
+
+msgid "controllers.choice_play"
+msgstr "Mit diesem Controller spielen"
+
+msgid "controllers.choice_play_detail"
+msgstr "Nutze ihn für Online-Spiele und Embers Menüs."
+
+msgid "controllers.choice_play_current"
+msgstr "Du spielst bereits mit diesem Controller."
+
+msgid "controllers.choice_setup"
+msgstr "Tasten einrichten"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Drücke jede Taste nacheinander, um Ember ihre Funktion mitzuteilen."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input legt die Tasten dieses Controllers fest."
+
+msgid "controllers.choice_forget"
+msgstr "Tastenbelegung vergessen"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Kehre zur Funktion dieses Controllers vor der Einrichtung zurück. Gilt beim nächsten Spielstart."
+
+msgid "controllers.now_playing"
+msgstr "Du spielst mit {0}."
+
+msgid "controllers.forgotten"
+msgstr "Tastenbelegung vergessen. Dies gilt beim nächsten Spielstart."
+
+msgid "pad_setup.input.button"
+msgstr "Taste {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Steuerkreuz oben"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Steuerkreuz rechts"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Steuerkreuz unten"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Steuerkreuz links"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Achse {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Achse {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Triggerachse {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controller getrennt. Verbinde ihn erneut oder verlasse den Raum, um einen anderen zu wählen."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} ist wieder da, aber in einem anderen Spielslot. Er funktioniert ab dem nächsten Spiel wieder."
+
+msgid "pad_setup.title"
+msgstr "CONTROLLER EINRICHTEN"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Neuer Controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember kennt die Tasten von {0} noch nicht. Drücke eine beliebige Taste darauf, um ihn jetzt einzurichten. Es dauert etwa eine Minute."
+
+msgid "pad_setup.not_now"
+msgstr "Nicht jetzt"
+
+msgid "pad_setup.step_count"
+msgstr "Schritt {0} von {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Oben"
+
+msgid "pad_setup.step.down"
+msgstr "Unten"
+
+msgid "pad_setup.step.left"
+msgstr "Links"
+
+msgid "pad_setup.step.right"
+msgstr "Rechts"
+
+msgid "pad_setup.step.lp"
+msgstr "Leichter Schlag"
+
+msgid "pad_setup.step.mp"
+msgstr "Mittlerer Schlag"
+
+msgid "pad_setup.step.hp"
+msgstr "Schwerer Schlag"
+
+msgid "pad_setup.step.lk"
+msgstr "Leichter Tritt"
+
+msgid "pad_setup.step.mk"
+msgstr "Mittlerer Tritt"
+
+msgid "pad_setup.step.hk"
+msgstr "Schwerer Tritt"
+
+msgid "pad_setup.step.3p"
+msgstr "Alle drei Schläge"
+
+msgid "pad_setup.step.3k"
+msgstr "Alle drei Tritte"
+
+msgid "pad_setup.step.ls"
+msgstr "Klick linker Stick"
+
+msgid "pad_setup.step.rs"
+msgstr "Klick rechter Stick"
+
+msgid "pad_setup.step.lx"
+msgstr "Linker Stick rechts"
+
+msgid "pad_setup.step.ly"
+msgstr "Linker Stick unten"
+
+msgid "pad_setup.step.rx"
+msgstr "Rechter Stick rechts"
+
+msgid "pad_setup.step.ry"
+msgstr "Rechter Stick unten"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Bewege den Stick oder drücke die Taste für diese Richtung und lasse dann los."
+
+msgid "pad_setup.press_button"
+msgstr "Drücke die gewünschte Taste für diese Aktion und lasse dann los."
+
+msgid "pad_setup.optional"
+msgstr "Wenn dein Controller dafür keine Taste hat, überspringe diesen Schritt."
+
+msgid "pad_setup.optional_stick"
+msgstr "Wenn dein Controller dafür keinen Stick hat, überspringe diesen Schritt."
+
+msgid "pad_setup.lk_selects"
+msgstr "Diese Taste wählt auch in Menüs aus."
+
+msgid "pad_setup.mk_backs"
+msgstr "Diese Taste geht auch in Menüs zurück."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Halte weiter gedrückt, um die Einrichtung abzubrechen."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Beliebige Taste halten: Abbrechen"
+
+msgid "pad_setup.back_step"
+msgstr "Einen Schritt zurück"
+
+msgid "pad_setup.skip"
+msgstr "Überspringen"
+
+msgid "pad_setup.required"
+msgstr "Diese Eingabe wird benötigt."
+
+msgid "pad_setup.conflict"
+msgstr "{0} ist bereits {1}. Drücke eine andere Eingabe."
+
+msgid "pad_setup.idle_hint"
+msgstr "Noch keine Eingabe. Halte eine beliebige Taste 3 Sekunden lang zum Abbrechen oder drücke Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller getrennt. Verbinde ihn innerhalb von {0} Sekunden erneut, um fortzufahren."
+
+msgid "pad_setup.skipped"
+msgstr "Übersprungen"
+
+msgid "pad_setup.summary_detail"
+msgstr "Drücke eine beliebige Taste, um ihren Schritt zu sehen. Hier wählt Leichter Tritt aus und Mittlerer Tritt geht zurück, wie in jedem Menü."
+
+msgid "pad_setup.redo_detail"
+msgstr "Auswählen, um diese Eingabe erneut festzulegen."
+
+msgid "pad_setup.save"
+msgstr "Speichern"
+
+msgid "pad_setup.save_detail"
+msgstr "Diese Einrichtung speichern und jetzt verwenden."
+
+msgid "pad_setup.start_over"
+msgstr "Neu beginnen"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Alle Schritte löschen und von vorn beginnen."
+
+msgid "pad_setup.cancel"
+msgstr "Einrichtung abbrechen"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Ohne Speichern verlassen."
+
+msgid "pad_setup.cancelled"
+msgstr "Einrichtung abgebrochen. Nichts wurde gespeichert."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller eingerichtet"
+
+msgid "pad_setup.saved"
+msgstr "{0} ist eingerichtet. Wähle Tastenbelegung, um die Angriffe seiner Tasten zu ändern."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember konnte diese Einrichtung nicht verwenden. Nichts wurde gespeichert. Details stehen in sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Einrichtung gestoppt, weil {0} getrennt wurde. Nichts wurde gespeichert."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Einrichtung gestoppt, weil eine Minute lang keine Eingabe erfolgte. Nichts wurde gespeichert."
+
+msgid "player.button_layout"
+msgstr "Tastenbelegung"
+
+msgid "player.button_layout_detail"
+msgstr "Wähle, welche Angriffe die Tasten von {0} ausführen. Für deinen Gegner ändert sich nichts."
+
+msgid "player.button_layout_setup"
+msgstr "Ember unterstützt {0} noch nicht. Wähle diese Zeile, um zuerst die Tasten einzurichten."
+
+msgid "player.button_layout_keyboard"
+msgstr "Tastenbelegungen sind für Controller. Für die Tastatur nutze die Tasteneinstellungen des Spiels."
+
+msgid "player.button_layout_game_reads"
+msgstr "Schalte Controller vom Spiel lesen lassen aus, um Tastenbelegungen zu nutzen. Bis dahin nutze die Tasteneinstellungen des Spiels."
+
+msgid "player.button_layout_failed"
+msgstr "Embers Controller-Unterstützung konnte diesmal nicht starten. Nutze die Tasteneinstellungen des Spiels."
+
+msgid "player.game_buttons"
+msgstr "Tasteneinstellungen des Spiels"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember schließt sich. Wähle im Spiel Optionen und dann die Controller-Einstellungen. Nutze sie für die Tastatur und Controller, die das Spiel selbst liest. Controller mit einer Ember-Tastenbelegung nutzen stattdessen diese. Das Spiel behält eine Belegung nur, wenn jede Aktion eine Taste hat."
+
+msgid "controllers.choice_layout"
+msgstr "Tastenbelegung"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Wähle, welche Angriffe die einzelnen Tasten ausführen."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Richte zuerst die Tasten ein."
+
+msgid "controllers.detail_layout"
+msgstr "Tastenbelegung: {0}."
+
+msgid "button_layout.title"
+msgstr "TASTENBELEGUNG"
+
+msgid "button_layout.button_title"
+msgstr "TASTE ÄNDERN"
+
+msgid "button_layout.test"
+msgstr "Teste deine Tasten"
+
+msgid "button_layout.test_detail"
+msgstr "Drücke Tasten auf {0}, um ihre Angriffe zu sehen. In dieser Zeile wirkt nur Zurück auf das Menü."
+
+msgid "button_layout.attacks"
+msgstr "Angriffe"
+
+msgid "button_layout.throw"
+msgstr "Wurf (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Fokusangriff (MP+MK)"
+
+msgid "button_layout.red_focus"
+msgstr "Roter Fokusangriff (LP+MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Wähle diese Zeile und drücke die gewünschte Taste für {0}. Hat eine andere Taste diesen Angriff, tauschen die beiden Tasten."
+
+msgid "button_layout.row_missing"
+msgstr "Keine Taste führt nur diesen Angriff aus. Du kannst ihn deshalb nicht einzeln ausführen."
+
+msgid "button_layout.no_button"
+msgstr "Keine Taste"
+
+msgid "button_layout.edit_button"
+msgstr "Einzelne Taste ändern"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Wähle diese Zeile und drücke eine Taste, um ihre Angriffe genau festzulegen. Jede Kombination ist möglich; du kannst die Taste auch ausschalten."
+
+msgid "button_layout.preset"
+msgstr "Vorlage"
+
+msgid "button_layout.preset_detail"
+msgstr "Wähle eine fertige Belegung. Standard entspricht der Belegung des Spiels."
+
+msgid "button_layout.custom"
+msgstr "Eigene"
+
+msgid "button_layout.game_layout"
+msgstr "Belegung des Spiels"
+
+msgid "button_layout.preset.default"
+msgstr "Standard"
+
+msgid "button_layout.preset.default_detail"
+msgstr "Die Belegung des Spiels. Geeignet für die meisten Controller und Sticks mit 8 Tasten."
+
+msgid "button_layout.preset.triggers"
+msgstr "Dreierangriffe auf Triggern"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Für Controller mit sechs Tasten. Starker Schlag auf der rechten Schultertaste, starker Tritt auf der linken. Alle drei Schläge auf dem linken Trigger, alle drei Tritte auf dem rechten."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Fokus und Wurf"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Wie Standard, aber die linke Schultertaste führt den Fokusangriff aus, der linke Trigger einen Wurf. Auf einem Stick mit 8 Tasten ist das die vierte Spalte. Alle drei Schläge und Tritte liegen auf den Stick-Klicks."
+
+msgid "button_layout.preset_applied"
+msgstr "Belegung auf {0} gesetzt."
+
+msgid "button_layout.remove"
+msgstr "Belegung des Spiels verwenden"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember ändert die Tasten dieses Controllers nicht mehr. Die Belegung aus den Tasteneinstellungen des Spiels gilt wieder."
+
+msgid "button_layout.removed"
+msgstr "Die Belegung des Spiels gilt wieder für diesen Controller."
+
+msgid "button_layout.press_for"
+msgstr "Drücke die Taste für {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Drücke die zu ändernde Taste"
+
+msgid "button_layout.waiting"
+msgstr "Drücke eine Taste..."
+
+msgid "button_layout.press_cancel"
+msgstr "Bewege den Stick oder drücke Start zum Abbrechen."
+
+msgid "button_layout.assigned"
+msgstr "{0} liegt jetzt auf {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} liegt jetzt auf {1}. {2} führt stattdessen {3} aus."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} liegt jetzt auf {1}. {2} führt jetzt nichts aus."
+
+msgid "button_layout.bit_detail"
+msgstr "Links oder Rechts schaltet {0} für diese Taste ein oder aus."
+
+msgid "button_layout.clear"
+msgstr "Keine Angriffe"
+
+msgid "button_layout.clear_detail"
+msgstr "Diese Taste führt im Kampf nichts aus."
+
+msgid "button_layout.button_does"
+msgstr "Im Kampf: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nichts"
+
+msgid "button_layout.absent"
+msgstr "Nicht verbunden"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} ist nicht verbunden. Die Belegung ist gespeichert. Verbinde den Controller, um sie zu ändern."
+
+msgid "button_layout.setup_first"
+msgstr "Zuerst Tasten einrichten"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Das Spiel liest {0} selbst, deshalb kann Ember seine Tasten noch nicht ändern. Richte ihn einmal ein, dann funktioniert er hier wie jeder andere Controller."
+
+msgid "button_layout.missing_heading"
+msgstr "Einige Angriffe haben keine Taste"
+
+msgid "button_layout.missing_text"
+msgstr "Diese Angriffe haben keine eigene Taste: {0}. Die Belegung ist gespeichert."
+
+msgid "button_layout.keep_editing"
+msgstr "Weiter bearbeiten"
+
+msgid "button_layout.leave"
+msgstr "Verlassen"
+
+msgid "button_layout.menu_confirm"
+msgstr "Menü bestätigen"
+
+msgid "button_layout.menu_back"
+msgstr "Menü zurück"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Auswählen, dann die Taste drücken, die in Embers Menüs bestätigt. Bis du eine wählst, ist es die Taste, mit der die Menüs des Spiels bestätigen."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Auswählen, dann die Taste drücken, die in Embers Menüs zurückgeht. Bis du eine wählst, ist es die Taste, mit der die Menüs des Spiels zurückgehen."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} ist bereits {1}. Wähle eine andere Taste."
+
+msgid "room.delay_policy"
+msgstr "Eingabeverzögerung im Raum"
+
+msgid "room.delay_policy.shared"
+msgstr "Für beide gleich"
+
+msgid "room.delay_policy.own"
+msgstr "Jeweils eigene"
+
+msgid "room.delay_policy.detail"
+msgstr "Für beide gleich: Jeder Kampf wird mit der höheren der beiden Verzögerungen gespielt. Jeweils eigene: Jeder Spieler spielt mit der von ihm gewählten Verzögerung, und der Rollback der Gegenseite gleicht den Unterschied aus. Das gilt, solange der Raum geöffnet ist."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, eigene Verzögerung"
+
+msgid "room.table_footer_own_delay"
+msgstr "Eigene Verzögerung"
+
+msgid "room.input_delay.own"
+msgstr "Ihre Verzögerung: {0}"
+
+msgid "public.own_delay"
+msgstr "Eigene Verzögerung"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Dieser Raumdienst kann noch keinen Raum mit der eigenen Verzögerung jedes Spielers erstellen. Wählen Sie Für beide gleich oder versuchen Sie es später erneut."
+
+#. Country names, generated by scripts/gen-countries.mjs from ICU. Do not edit by hand.
+
+msgid "country.AD"
+msgstr "Andorra"
+
+msgid "country.AE"
+msgstr "Vereinigte Arabische Emirate"
+
+msgid "country.AF"
+msgstr "Afghanistan"
+
+msgid "country.AG"
+msgstr "Antigua und Barbuda"
+
+msgid "country.AI"
+msgstr "Anguilla"
+
+msgid "country.AL"
+msgstr "Albanien"
+
+msgid "country.AM"
+msgstr "Armenien"
+
+msgid "country.AO"
+msgstr "Angola"
+
+msgid "country.AQ"
+msgstr "Antarktis"
+
+msgid "country.AR"
+msgstr "Argentinien"
+
+msgid "country.AS"
+msgstr "Amerikanisch-Samoa"
+
+msgid "country.AT"
+msgstr "Österreich"
+
+msgid "country.AU"
+msgstr "Australien"
+
+msgid "country.AW"
+msgstr "Aruba"
+
+msgid "country.AX"
+msgstr "Ålandinseln"
+
+msgid "country.AZ"
+msgstr "Aserbaidschan"
+
+msgid "country.BA"
+msgstr "Bosnien und Herzegowina"
+
+msgid "country.BB"
+msgstr "Barbados"
+
+msgid "country.BD"
+msgstr "Bangladesch"
+
+msgid "country.BE"
+msgstr "Belgien"
+
+msgid "country.BF"
+msgstr "Burkina Faso"
+
+msgid "country.BG"
+msgstr "Bulgarien"
+
+msgid "country.BH"
+msgstr "Bahrain"
+
+msgid "country.BI"
+msgstr "Burundi"
+
+msgid "country.BJ"
+msgstr "Benin"
+
+msgid "country.BL"
+msgstr "St. Barthélemy"
+
+msgid "country.BM"
+msgstr "Bermuda"
+
+msgid "country.BN"
+msgstr "Brunei Darussalam"
+
+msgid "country.BO"
+msgstr "Bolivien"
+
+msgid "country.BQ"
+msgstr "Karibische Niederlande"
+
+msgid "country.BR"
+msgstr "Brasilien"
+
+msgid "country.BS"
+msgstr "Bahamas"
+
+msgid "country.BT"
+msgstr "Bhutan"
+
+msgid "country.BV"
+msgstr "Bouvetinsel"
+
+msgid "country.BW"
+msgstr "Botsuana"
+
+msgid "country.BY"
+msgstr "Belarus"
+
+msgid "country.BZ"
+msgstr "Belize"
+
+msgid "country.CA"
+msgstr "Kanada"
+
+msgid "country.CC"
+msgstr "Kokosinseln"
+
+msgid "country.CD"
+msgstr "Kongo-Kinshasa"
+
+msgid "country.CF"
+msgstr "Zentralafrikanische Republik"
+
+msgid "country.CG"
+msgstr "Kongo-Brazzaville"
+
+msgid "country.CH"
+msgstr "Schweiz"
+
+msgid "country.CI"
+msgstr "Côte d’Ivoire"
+
+msgid "country.CK"
+msgstr "Cookinseln"
+
+msgid "country.CL"
+msgstr "Chile"
+
+msgid "country.CM"
+msgstr "Kamerun"
+
+msgid "country.CN"
+msgstr "China"
+
+msgid "country.CO"
+msgstr "Kolumbien"
+
+msgid "country.CR"
+msgstr "Costa Rica"
+
+msgid "country.CU"
+msgstr "Kuba"
+
+msgid "country.CV"
+msgstr "Cabo Verde"
+
+msgid "country.CW"
+msgstr "Curaçao"
+
+msgid "country.CX"
+msgstr "Weihnachtsinsel"
+
+msgid "country.CY"
+msgstr "Zypern"
+
+msgid "country.CZ"
+msgstr "Tschechien"
+
+msgid "country.DE"
+msgstr "Deutschland"
+
+msgid "country.DJ"
+msgstr "Dschibuti"
+
+msgid "country.DK"
+msgstr "Dänemark"
+
+msgid "country.DM"
+msgstr "Dominica"
+
+msgid "country.DO"
+msgstr "Dominikanische Republik"
+
+msgid "country.DZ"
+msgstr "Algerien"
+
+msgid "country.EC"
+msgstr "Ecuador"
+
+msgid "country.EE"
+msgstr "Estland"
+
+msgid "country.EG"
+msgstr "Ägypten"
+
+msgid "country.EH"
+msgstr "Westsahara"
+
+msgid "country.ER"
+msgstr "Eritrea"
+
+msgid "country.ES"
+msgstr "Spanien"
+
+msgid "country.ET"
+msgstr "Äthiopien"
+
+msgid "country.FI"
+msgstr "Finnland"
+
+msgid "country.FJ"
+msgstr "Fidschi"
+
+msgid "country.FK"
+msgstr "Falklandinseln"
+
+msgid "country.FM"
+msgstr "Mikronesien"
+
+msgid "country.FO"
+msgstr "Färöer"
+
+msgid "country.FR"
+msgstr "Frankreich"
+
+msgid "country.GA"
+msgstr "Gabun"
+
+msgid "country.GB"
+msgstr "Vereinigtes Königreich"
+
+msgid "country.GD"
+msgstr "Grenada"
+
+msgid "country.GE"
+msgstr "Georgien"
+
+msgid "country.GF"
+msgstr "Französisch-Guayana"
+
+msgid "country.GG"
+msgstr "Guernsey"
+
+msgid "country.GH"
+msgstr "Ghana"
+
+msgid "country.GI"
+msgstr "Gibraltar"
+
+msgid "country.GL"
+msgstr "Grönland"
+
+msgid "country.GM"
+msgstr "Gambia"
+
+msgid "country.GN"
+msgstr "Guinea"
+
+msgid "country.GP"
+msgstr "Guadeloupe"
+
+msgid "country.GQ"
+msgstr "Äquatorialguinea"
+
+msgid "country.GR"
+msgstr "Griechenland"
+
+msgid "country.GS"
+msgstr "Südgeorgien und die Südlichen Sandwichinseln"
+
+msgid "country.GT"
+msgstr "Guatemala"
+
+msgid "country.GU"
+msgstr "Guam"
+
+msgid "country.GW"
+msgstr "Guinea-Bissau"
+
+msgid "country.GY"
+msgstr "Guyana"
+
+msgid "country.HK"
+msgstr "Sonderverwaltungsregion Hongkong"
+
+msgid "country.HM"
+msgstr "Heard und McDonaldinseln"
+
+msgid "country.HN"
+msgstr "Honduras"
+
+msgid "country.HR"
+msgstr "Kroatien"
+
+msgid "country.HT"
+msgstr "Haiti"
+
+msgid "country.HU"
+msgstr "Ungarn"
+
+msgid "country.ID"
+msgstr "Indonesien"
+
+msgid "country.IE"
+msgstr "Irland"
+
+msgid "country.IL"
+msgstr "Israel"
+
+msgid "country.IM"
+msgstr "Isle of Man"
+
+msgid "country.IN"
+msgstr "Indien"
+
+msgid "country.IO"
+msgstr "Britisches Territorium im Indischen Ozean"
+
+msgid "country.IQ"
+msgstr "Irak"
+
+msgid "country.IR"
+msgstr "Iran"
+
+msgid "country.IS"
+msgstr "Island"
+
+msgid "country.IT"
+msgstr "Italien"
+
+msgid "country.JE"
+msgstr "Jersey"
+
+msgid "country.JM"
+msgstr "Jamaika"
+
+msgid "country.JO"
+msgstr "Jordanien"
+
+msgid "country.JP"
+msgstr "Japan"
+
+msgid "country.KE"
+msgstr "Kenia"
+
+msgid "country.KG"
+msgstr "Kirgisistan"
+
+msgid "country.KH"
+msgstr "Kambodscha"
+
+msgid "country.KI"
+msgstr "Kiribati"
+
+msgid "country.KM"
+msgstr "Komoren"
+
+msgid "country.KN"
+msgstr "St. Kitts und Nevis"
+
+msgid "country.KP"
+msgstr "Nordkorea"
+
+msgid "country.KR"
+msgstr "Südkorea"
+
+msgid "country.KW"
+msgstr "Kuwait"
+
+msgid "country.KY"
+msgstr "Kaimaninseln"
+
+msgid "country.KZ"
+msgstr "Kasachstan"
+
+msgid "country.LA"
+msgstr "Laos"
+
+msgid "country.LB"
+msgstr "Libanon"
+
+msgid "country.LC"
+msgstr "St. Lucia"
+
+msgid "country.LI"
+msgstr "Liechtenstein"
+
+msgid "country.LK"
+msgstr "Sri Lanka"
+
+msgid "country.LR"
+msgstr "Liberia"
+
+msgid "country.LS"
+msgstr "Lesotho"
+
+msgid "country.LT"
+msgstr "Litauen"
+
+msgid "country.LU"
+msgstr "Luxemburg"
+
+msgid "country.LV"
+msgstr "Lettland"
+
+msgid "country.LY"
+msgstr "Libyen"
+
+msgid "country.MA"
+msgstr "Marokko"
+
+msgid "country.MC"
+msgstr "Monaco"
+
+msgid "country.MD"
+msgstr "Republik Moldau"
+
+msgid "country.ME"
+msgstr "Montenegro"
+
+msgid "country.MF"
+msgstr "St. Martin"
+
+msgid "country.MG"
+msgstr "Madagaskar"
+
+msgid "country.MH"
+msgstr "Marshallinseln"
+
+msgid "country.MK"
+msgstr "Nordmazedonien"
+
+msgid "country.ML"
+msgstr "Mali"
+
+msgid "country.MM"
+msgstr "Myanmar"
+
+msgid "country.MN"
+msgstr "Mongolei"
+
+msgid "country.MO"
+msgstr "Sonderverwaltungsregion Macau"
+
+msgid "country.MP"
+msgstr "Nördliche Marianen"
+
+msgid "country.MQ"
+msgstr "Martinique"
+
+msgid "country.MR"
+msgstr "Mauretanien"
+
+msgid "country.MS"
+msgstr "Montserrat"
+
+msgid "country.MT"
+msgstr "Malta"
+
+msgid "country.MU"
+msgstr "Mauritius"
+
+msgid "country.MV"
+msgstr "Malediven"
+
+msgid "country.MW"
+msgstr "Malawi"
+
+msgid "country.MX"
+msgstr "Mexiko"
+
+msgid "country.MY"
+msgstr "Malaysia"
+
+msgid "country.MZ"
+msgstr "Mosambik"
+
+msgid "country.NA"
+msgstr "Namibia"
+
+msgid "country.NC"
+msgstr "Neukaledonien"
+
+msgid "country.NE"
+msgstr "Niger"
+
+msgid "country.NF"
+msgstr "Norfolkinsel"
+
+msgid "country.NG"
+msgstr "Nigeria"
+
+msgid "country.NI"
+msgstr "Nicaragua"
+
+msgid "country.NL"
+msgstr "Niederlande"
+
+msgid "country.NO"
+msgstr "Norwegen"
+
+msgid "country.NP"
+msgstr "Nepal"
+
+msgid "country.NR"
+msgstr "Nauru"
+
+msgid "country.NU"
+msgstr "Niue"
+
+msgid "country.NZ"
+msgstr "Neuseeland"
+
+msgid "country.OM"
+msgstr "Oman"
+
+msgid "country.PA"
+msgstr "Panama"
+
+msgid "country.PE"
+msgstr "Peru"
+
+msgid "country.PF"
+msgstr "Französisch-Polynesien"
+
+msgid "country.PG"
+msgstr "Papua-Neuguinea"
+
+msgid "country.PH"
+msgstr "Philippinen"
+
+msgid "country.PK"
+msgstr "Pakistan"
+
+msgid "country.PL"
+msgstr "Polen"
+
+msgid "country.PM"
+msgstr "St. Pierre und Miquelon"
+
+msgid "country.PN"
+msgstr "Pitcairninseln"
+
+msgid "country.PR"
+msgstr "Puerto Rico"
+
+msgid "country.PS"
+msgstr "Palästinensische Autonomiegebiete"
+
+msgid "country.PT"
+msgstr "Portugal"
+
+msgid "country.PW"
+msgstr "Palau"
+
+msgid "country.PY"
+msgstr "Paraguay"
+
+msgid "country.QA"
+msgstr "Katar"
+
+msgid "country.RE"
+msgstr "Réunion"
+
+msgid "country.RO"
+msgstr "Rumänien"
+
+msgid "country.RS"
+msgstr "Serbien"
+
+msgid "country.RU"
+msgstr "Russland"
+
+msgid "country.RW"
+msgstr "Ruanda"
+
+msgid "country.SA"
+msgstr "Saudi-Arabien"
+
+msgid "country.SB"
+msgstr "Salomonen"
+
+msgid "country.SC"
+msgstr "Seychellen"
+
+msgid "country.SD"
+msgstr "Sudan"
+
+msgid "country.SE"
+msgstr "Schweden"
+
+msgid "country.SG"
+msgstr "Singapur"
+
+msgid "country.SH"
+msgstr "St. Helena"
+
+msgid "country.SI"
+msgstr "Slowenien"
+
+msgid "country.SJ"
+msgstr "Spitzbergen und Jan Mayen"
+
+msgid "country.SK"
+msgstr "Slowakei"
+
+msgid "country.SL"
+msgstr "Sierra Leone"
+
+msgid "country.SM"
+msgstr "San Marino"
+
+msgid "country.SN"
+msgstr "Senegal"
+
+msgid "country.SO"
+msgstr "Somalia"
+
+msgid "country.SR"
+msgstr "Suriname"
+
+msgid "country.SS"
+msgstr "Südsudan"
+
+msgid "country.ST"
+msgstr "São Tomé und Príncipe"
+
+msgid "country.SV"
+msgstr "El Salvador"
+
+msgid "country.SX"
+msgstr "Sint Maarten"
+
+msgid "country.SY"
+msgstr "Syrien"
+
+msgid "country.SZ"
+msgstr "Eswatini"
+
+msgid "country.TC"
+msgstr "Turks- und Caicosinseln"
+
+msgid "country.TD"
+msgstr "Tschad"
+
+msgid "country.TF"
+msgstr "Französische Süd- und Antarktisgebiete"
+
+msgid "country.TG"
+msgstr "Togo"
+
+msgid "country.TH"
+msgstr "Thailand"
+
+msgid "country.TJ"
+msgstr "Tadschikistan"
+
+msgid "country.TK"
+msgstr "Tokelau"
+
+msgid "country.TL"
+msgstr "Timor-Leste"
+
+msgid "country.TM"
+msgstr "Turkmenistan"
+
+msgid "country.TN"
+msgstr "Tunesien"
+
+msgid "country.TO"
+msgstr "Tonga"
+
+msgid "country.TR"
+msgstr "Türkei"
+
+msgid "country.TT"
+msgstr "Trinidad und Tobago"
+
+msgid "country.TV"
+msgstr "Tuvalu"
+
+msgid "country.TW"
+msgstr "Taiwan"
+
+msgid "country.TZ"
+msgstr "Tansania"
+
+msgid "country.UA"
+msgstr "Ukraine"
+
+msgid "country.UG"
+msgstr "Uganda"
+
+msgid "country.UM"
+msgstr "Amerikanische Überseeinseln"
+
+msgid "country.US"
+msgstr "Vereinigte Staaten"
+
+msgid "country.UY"
+msgstr "Uruguay"
+
+msgid "country.UZ"
+msgstr "Usbekistan"
+
+msgid "country.VA"
+msgstr "Vatikanstadt"
+
+msgid "country.VC"
+msgstr "St. Vincent und die Grenadinen"
+
+msgid "country.VE"
+msgstr "Venezuela"
+
+msgid "country.VG"
+msgstr "Britische Jungferninseln"
+
+msgid "country.VI"
+msgstr "Amerikanische Jungferninseln"
+
+msgid "country.VN"
+msgstr "Vietnam"
+
+msgid "country.VU"
+msgstr "Vanuatu"
+
+msgid "country.WF"
+msgstr "Wallis und Futuna"
+
+msgid "country.WS"
+msgstr "Samoa"
+
+msgid "country.YE"
+msgstr "Jemen"
+
+msgid "country.YT"
+msgstr "Mayotte"
+
+msgid "country.ZA"
+msgstr "Südafrika"
+
+msgid "country.ZM"
+msgstr "Sambia"
+
+msgid "country.ZW"
+msgstr "Simbabwe"
+
+#. End of the generated country names.

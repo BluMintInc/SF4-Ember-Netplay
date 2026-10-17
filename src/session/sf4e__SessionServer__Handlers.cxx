@@ -53,8 +53,7 @@ void SessionServer::HandleSessionHello(session::Connection conn, const json& msg
 			SessionProtocol::SessionJoinRequest admission = hello.admission.get<SessionProtocol::SessionJoinRequest>();
 			if ((_roomAuthority && (!admission.customRooms || admission.roomProtocol != room::ProtocolVersion)) ||
 				(!_roomAuthority && admission.customRooms)) admissionResult = SessionProtocol::JR_REQUEST_INVALID;
-			else admissionResult = RegisterToWait(conn, admission.port, admission.sidecarHash, admission.username,
-				incoming.peerAddress, cidMsg.cid, admission.Profile());
+			else admissionResult = RegisterToWait(conn, cidMsg.cid, admission.Admission(incoming.peerAddress));
 			admitted = admissionResult == SessionProtocol::JOIN_OK;
 			if (admitted) EnableChatDelta(conn, admission.roomChatDelta);
 		} catch (const std::exception&) { admissionResult = SessionProtocol::JR_REQUEST_INVALID; }
@@ -212,6 +211,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		_serverOwnedLeftEmpty = _roomAuthority->ServerOwned() && _roomAuthority->SnapshotView().members.empty();
 		roomPeerIdentities.erase(leavingMember);
 		roomIncarnations.erase(leavingMember);
+		roomMemberRecords.erase(leavingMember);
 		roomSelectedTables.erase(conn);
 		roomMembers.erase(roomMember);
 		cidMap.erase(leavingConnection);
@@ -345,7 +345,7 @@ void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg,
 		return;
 	}
 
-	SessionProtocol::JoinResult joinResult = RegisterToWait(conn, request.port, request.sidecarHash, request.username, incoming.peerAddress, cid, request.Profile());
+	SessionProtocol::JoinResult joinResult = RegisterToWait(conn, cid, request.Admission(incoming.peerAddress));
 	if (joinResult != SessionProtocol::JOIN_OK) {
 		spdlog::info("Server: rejecting registration for reason {}", (int)joinResult);
 		SessionProtocol::SessionJoinReject reject;

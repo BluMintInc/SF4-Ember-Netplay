@@ -1,6 +1,7 @@
 // A member's word that they are in the game's Training mode: who may say it,
 // what it changes, how it travels, and when it ends. And a Practice room,
-// whose every game is a Practice match: fixed when the room is created.
+// whose every game is a Practice match, and a delay policy: both fixed when the
+// room is created.
 #include "../session/RoomModel.hxx"
 
 #include <algorithm>
@@ -17,7 +18,7 @@ struct Room {
 	RoomAuthority authority;
 	MemberId host = 0, p1 = 0, p2 = 0;
 
-	explicit Room(bool practice = false) : authority("Training flag", 8, 41, Rules(), practice) {
+	explicit Room(bool practice = false, DelayPolicy policy = DelayPolicy::Shared) : authority("Training flag", 8, 41, Rules(), practice, policy) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", 0, true);
 		p1 = Join("P1", 1); p2 = Join("P2", 2);
@@ -159,6 +160,46 @@ int main() {
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
 		CHECK(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().practice);
 		CHECK(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().practice);
+	}
+	{
+		// A delay policy: Shared unless the room is created Own, written on the wire
+		// only when Own, read as Shared when absent, and kept through a checkpoint.
+		Room plain;
+		CHECK(plain.authority.SnapshotView().delayPolicy == DelayPolicy::Shared);
+		CHECK(!nlohmann::json(plain.authority.SnapshotFor(plain.p2)).contains("delay"));
+		CHECK(!plain.authority.Checkpoint().at("snapshot").contains("delay"));
+		Room room(false, DelayPolicy::Own);
+		const nlohmann::json view = room.authority.SnapshotFor(room.p2);
+		CHECK(view.at("delay") == "own" && view.get<Snapshot>().delayPolicy == DelayPolicy::Own);
+		// A state written before the field existed reads as Shared, and so does an explicit "shared".
+		nlohmann::json older = view;
+		older.erase("delay");
+		CHECK(older.get<Snapshot>().delayPolicy == DelayPolicy::Shared);
+		older["delay"] = "shared";
+		CHECK(older.get<Snapshot>().delayPolicy == DelayPolicy::Shared);
+		for (const nlohmann::json& value : {nlohmann::json(1), nlohmann::json(true), nlohmann::json("mine"), nlohmann::json(nullptr), nlohmann::json::array()}) {
+			nlohmann::json bad = view;
+			bad["delay"] = value;
+			bool refused = false;
+			try { (void)bad.get<Snapshot>(); } catch (const std::exception&) { refused = true; }
+			CHECK(refused);
+		}
+		RoomAuthority restored("Restored");
+		CHECK(restored.RestoreCheckpoint(room.authority.Checkpoint()) && restored.SnapshotView().delayPolicy == DelayPolicy::Own);
+		// It is independent of Practice, and a public room (server owned) can be Own.
+		Room both(true, DelayPolicy::Own);
+		CHECK(both.authority.SnapshotView().practice && both.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		// Nothing played or done in the room changes it: the host's rules, a game, the host leaving.
+		auto set = room.Make(room.host, ActionKind::SetRules);
+		set.rules = room.authority.SnapshotView().tables[0].rules;
+		set.rules.roundTime = 60;
+		CHECK(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
+		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
+		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
+		CHECK(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		CHECK(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
 	}
 	{
 		// Practice match is no table rule: the "training" an older build's rules

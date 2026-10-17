@@ -87,6 +87,9 @@ msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een
 msgid "launcher.game_wrong_dll"
 msgstr "Het spel stopte voordat Ember kon starten: een geladen DLL mist een functie. Meestal staat er dan een GGPO.dll, spdlog.dll, fmt.dll of zlib1.dll van een andere mod of oude installatie naast SSFIV.exe. Verplaats zulke bestanden en probeer het opnieuw. Staan ze er niet, stuur dan het launcherlogboek (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows heeft een bestand van het spel geblokkeerd voordat Ember kon starten (app-beheer). Slim app-beheer kan geen enkel programma toestaan: staat het aan in Windows-beveiliging, dan werkt Ember pas als het uit staat. Op een pc die een organisatie beheert, vraag je de beheerder om Ember toe te staan."
+
 msgid "recovery.window"
 msgstr "Ember-herstel"
 
@@ -198,6 +201,24 @@ msgstr "SF4 starten"
 msgid "updates.start_game_detail"
 msgstr "Sluit de updater en start SF4 met Ember."
 
+msgid "updates.launch_heading"
+msgstr "Update beschikbaar"
+
+msgid "updates.launch_text"
+msgstr "Versie {0} is beschikbaar. Je hebt {1}. Nu updaten sluit het spel en installeert de update."
+
+msgid "updates.launch_now"
+msgstr "Nu updaten"
+
+msgid "updates.launch_later"
+msgstr "Later"
+
+msgid "updates.launch_skip"
+msgstr "Deze versie overslaan"
+
+msgid "updates.offer_changed"
+msgstr "De update is veranderd nadat je hem koos. Controleer de versie hieronder voordat je installeert."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Nu sluiten annuleert de lopende bewerking."
 
@@ -283,17 +304,77 @@ msgstr "Geopend in je browser. Ga erheen om lid te worden van de server."
 msgid "services.community_failed"
 msgstr "Kon geen browser openen. Ga naar {0} om lid te worden."
 
+msgid "services.opening_steam_profile"
+msgstr "Steam-profiel openen in je browser..."
+
+msgid "services.steam_profile_opened"
+msgstr "Geopend in je browser."
+
+msgid "services.steam_profile_failed"
+msgstr "Kon geen browser openen."
+
 msgid "settings.language"
 msgstr "Taal"
 
 msgid "settings.language.detail"
 msgstr "Kies om uit de lijst te kiezen, of wissel met Links/Rechts. Automatisch volgt de speltaal en daarna Windows."
 
+msgid "settings.country"
+msgstr "Land"
+
+msgid "settings.country_detail"
+msgstr "De vlag naast je naam in kamers en op je spelerskaart. Kamers waar je vanaf nu in gaat tonen hem."
+
+msgid "settings.country.automatic"
+msgstr "Automatisch"
+
+msgid "settings.country.automatic_value"
+msgstr "Automatisch ({0})"
+
+msgid "settings.country.hidden"
+msgstr "Verborgen"
+
+msgid "settings.country.current"
+msgstr "Huidig"
+
+msgid "country.search"
+msgstr "Zoeken"
+
+msgid "country.search_value"
+msgstr "Zoeken: {0}"
+
+msgid "country.search_detail"
+msgstr "Typ een deel van de naam van een land om de lijst te verkleinen. Een getypte letter gaat ook naar de landen die ermee beginnen, en Links en Rechts gaan van letter naar letter."
+
+msgid "country.automatic_detail"
+msgstr "Volgt de regio die in Windows is ingesteld: {0}."
+
+msgid "country.automatic_none"
+msgstr "Windows noemt geen regio waarvoor Ember een vlag heeft, dus er wordt geen vlag getoond."
+
+msgid "country.hidden_detail"
+msgstr "Naast je naam wordt geen vlag getoond."
+
+msgid "country.choose_detail"
+msgstr "Deze vlag naast je naam tonen."
+
+msgid "country.none"
+msgstr "Geen land komt overeen"
+
+msgid "country.none_detail"
+msgstr "Pas de zoekopdracht aan om meer landen te zien."
+
 msgid "settings.language.system_with"
 msgstr "Automatisch: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Je taalkeuze kon niet worden opgeslagen. Deze blijft tijdens deze sessie actief."
+
+msgid "settings.update_check"
+msgstr "Bij het starten op updates controleren"
+
+msgid "settings.update_check_detail"
+msgstr "Zoekt naar een nieuwe versie als het spel start, hoogstens elke 6 uur. Er wordt eerst gevraagd voordat iets verandert."
 
 msgid "menu.edit_detail"
 msgstr "Selecteer om te bewerken. Typ of plak, Enter bevestigt; Terug annuleert."
@@ -619,6 +700,27 @@ msgstr "Keer terug naar je huidige kamer."
 msgid "home.fighter_select"
 msgstr "Personage kiezen"
 
+msgid "home.selection_costume_color"
+msgstr "Outfit, kleur"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, kleur {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Double"
+
 msgid "home.selection_locked"
 msgstr "Ga terug naar je tafel voor de huidige keuzestatus."
 
@@ -687,6 +789,12 @@ msgstr "Matches waar je naar kijkt opslaan"
 
 msgid "replays.save_watched_detail"
 msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
+
+msgid "settings.watched_picture"
+msgstr "Bekeken spel in een hoek"
+
+msgid "settings.watched_picture_detail"
+msgstr "Met het menu van Ember open boven een spel dat je bekijkt, toont het spel klein rechtsboven over een dicht menu in plaats van gedimd erachter."
 
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"
@@ -858,6 +966,12 @@ msgstr "Hoofdpersonage"
 msgid "profile.main_character_detail"
 msgstr "{0}. Wordt gebruikt voor je spelerskaart, los van je keuze voor de match."
 
+msgid "profile.share_steam"
+msgstr "Mijn Steam-profiel tonen"
+
+msgid "profile.share_steam_detail"
+msgstr "Kamerleden kunnen je Steam-profiel openen vanaf het ledenscherm. Geldt vanaf de volgende keer dat je een kamer binnengaat."
+
 msgid "profile.record"
 msgstr "Winst- en verliesstand"
 
@@ -1002,11 +1116,7 @@ msgstr "Sneller beeld (1 frame minder)"
 msgid "player.faster_display_detail"
 msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
-msgid "player.native_menus"
-msgstr "Spelmenu's openen"
 
-msgid "player.native_menus_detail"
-msgstr "Ember wordt gesloten. Kies Opties in het spelmenu om de vechtknoppen in te stellen."
 
 msgid "settings.interface_title"
 msgstr "INTERFACE"
@@ -1076,6 +1186,9 @@ msgstr "Linksboven"
 
 msgid "hud_position.top_right"
 msgstr "Rechtsboven"
+
+msgid "hud_position.top_center"
+msgstr "Boven midden"
 
 msgid "settings.edge_spacing"
 msgstr "Ruimte tot rand"
@@ -1156,7 +1269,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Op een controller: houd View of Select vast en druk op Start."
+msgstr "Xbox: A selecteert en B gaat terug. PlayStation: Kruis selecteert en Cirkel gaat terug. Switch: B selecteert en A gaat terug, zoals in de menu's van het spel. Een in Ember ingestelde controller: De knop gekozen voor Lichte trap selecteert en die voor Middelzware trap gaat terug, ongeacht de knopindeling. Toetsenbord: pijlen, Enter en Escape. Het richtingspad beweegt; Links en Rechts veranderen een waarde. Teruggaan op Home verbergt Ember. F10, of Start op een controller, opent het weer in het hoofdmenu van het spel.\n\nIn een kamer laat A op een tafel je een plek kiezen, maakt A op je eigen plek je gereed en verlaat B je plek of de wachtrij (op andere controllers de knoppen op dezelfde posities). Op Xbox opent X Vechter, Y Opties en View Chat; druk nogmaals om terug te keren naar de kamer. PlayStation gebruikt Vierkant, Driehoek en Share of Create; Switch gebruikt Y, X en Minus.\n\nIn training opent F6 de bediening, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Houd op een controller View (Share, Create of Minus) vast en druk op Start."
 
 msgid "about.controls_keyboard"
 msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
@@ -1267,7 +1380,7 @@ msgid "room.table_closed"
 msgstr "Tafel gesloten"
 
 msgid "controller.disconnected"
-msgstr "Controller niet verbonden. Sluit hem opnieuw aan of wijs hem zelf toe."
+msgstr "Controller losgekoppeld. Verbind hem opnieuw of kies een andere in Instellingen > Speler en controller."
 
 msgid "controller.none"
 msgstr "Kies een spelcontroller"
@@ -1277,6 +1390,12 @@ msgstr "Toetsenbord"
 
 msgid "controller.numbered"
 msgstr "Controller {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} is niet verbonden. Je gebruikt voorlopig {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} is verbonden. Je speelt ermee."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (niet verbonden)"
@@ -1334,6 +1453,15 @@ msgstr "Vertraging"
 
 msgid "match.spectating"
 msgstr "Toeschouwen"
+
+msgid "match.behind"
+msgstr "Achter"
+
+msgid "match.delay_own"
+msgstr "Eigen"
+
+msgid "match.up_next"
+msgstr "Jij bent de volgende"
 
 msgid "match.preview_spacing"
 msgstr "{0} afstand / voorbeeldwaarden"
@@ -1491,14 +1619,11 @@ msgstr "Bij het opstaan"
 msgid "training.reply.any"
 msgstr "Telkens als hij herstelt"
 
-msgid "training.reply.slot"
-msgstr "Antwoordslot"
+msgid "training.reply.recordings"
+msgstr "Opnames"
 
-msgid "training.reply.slot.detail"
-msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk."
-
-msgid "training.reply.slot_empty"
-msgstr "Slot {0} is leeg, dus de dummy reageert niet. Neem het op of kies een actie."
+msgid "training.reply.no_recordings_on"
+msgstr "Geen opname die aan staat kan als antwoord dienen"
 
 msgid "training.reply.chance"
 msgstr "Antwoordkans"
@@ -1516,13 +1641,13 @@ msgid "training.reply.moves"
 msgstr "Antwoordmoves"
 
 msgid "training.reply.moves.detail"
-msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg gebruikt het antwoordslot."
+msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg antwoordt met een opname die aan staat."
 
 msgid "training.reply.move"
 msgstr "Antwoordvoorkeuze"
 
 msgid "training.reply.move.detail"
-msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Antwoordslot speelt de opname; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
+msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Opnames antwoordt met een opname die aan staat; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
 
 msgid "training.reply.custom"
 msgstr "Eigen"
@@ -1632,8 +1757,14 @@ msgstr "Slot {0}"
 msgid "training.slot_selected"
 msgstr "Slot {0} / GEKOZEN"
 
-msgid "training.recorded_frames"
-msgstr "{0} frames opgenomen. Opnamen blijven tot het einde van dit gevecht."
+msgid "training.slot.detail"
+msgstr "{0} opgenomen frames. Kiezen zet het slot aan of uit: Afspelen en het dummy-antwoord gebruiken de slots die aan staan. De slots blijven bij deze dummyvechter tot het spel sluit."
+
+msgid "training.slot.empty"
+msgstr "Leeg"
+
+msgid "training.slot.empty_detail"
+msgstr "Niets opgenomen. Kiezen kiest dit slot voor Opnemen."
 
 msgid "training.record"
 msgstr "Opnemen"
@@ -1641,26 +1772,38 @@ msgstr "Opnemen"
 msgid "training.record.overwrite"
 msgstr "Overschrijf dit bezette slot en ga terug naar training."
 
-msgid "training.record.detail"
-msgstr "Neem P1-besturing op als P2 en ga terug naar training."
+msgid "training.record.choose"
+msgstr "Links en rechts kiezen het slot om in op te nemen; de regels eronder gebruiken het ook."
+
+msgid "training.record.standby_detail"
+msgstr "Stand-by: P1 bestuurt de dummy en de training gaat verder. {0} of {1} start de opname, en hetzelfde nog eens stopt hem."
 
 msgid "training.play"
 msgstr "Afspelen"
 
-msgid "training.play.detail"
-msgstr "Speel het gekozen slot af en ga terug naar training. Opnames volgen de kant waar de dummy naar kijkt. Links en Rechts kiezen of het herhaalt."
+msgid "training.play.on_detail"
+msgstr "Speel een slot dat aan staat, gekozen in de afspeelvolgorde, en ga terug naar training. Opnames volgen de kant waar de dummy naar kijkt. Links en rechts kiezen of het herhaalt; elke herhaling kiest opnieuw."
+
+msgid "training.order"
+msgstr "Afspeelvolgorde"
+
+msgid "training.order.random"
+msgstr "Willekeurig"
+
+msgid "training.order.in_order"
+msgstr "Op volgorde"
+
+msgid "training.order.detail"
+msgstr "Hoe Afspelen en het dummy-antwoord kiezen uit de slots die aan staan."
 
 msgid "training.play.once"
 msgstr "Eén keer"
 
-msgid "training.slot_empty"
-msgstr "Dit slot is leeg."
+msgid "training.no_recordings_on"
+msgstr "Geen opname staat aan"
 
 msgid "training.stop"
 msgstr "Stoppen"
-
-msgid "training.stop.detail"
-msgstr "Stop opname of afspelen."
 
 msgid "training.loop"
 msgstr "Herhalen"
@@ -1689,11 +1832,17 @@ msgstr "Wis de meter en beide invoergeschiedenissen."
 msgid "training.practice_ready"
 msgstr "Training klaar"
 
+msgid "training.standby_status"
+msgstr "Stand-by: P1 bestuurt de dummy. {0} of {1} start de opname."
+
+msgid "training.standby"
+msgstr "Stand-by"
+
 msgid "training.recording_suspended"
 msgstr "Opname gepauzeerd zolang de besturing open is"
 
 msgid "training.playback_suspended"
-msgstr "Afspelen loopt; opnemen wacht tot de besturing dicht is"
+msgstr "Afspelen bezig"
 
 msgid "training.applying"
 msgstr "Opdracht uitvoeren..."
@@ -1721,6 +1870,15 @@ msgstr "Hit"
 
 msgid "training.meter.block"
 msgstr "Block"
+
+msgid "training.meter.focus_forward"
+msgstr "Focus-cancel, dash vooruit"
+
+msgid "training.meter.focus_back"
+msgstr "Focus-cancel, dash achteruit"
+
+msgid "training.meter.cancelled"
+msgstr "Geannuleerd"
 
 msgid "training.meter.whiff"
 msgstr "Mis"
@@ -1755,11 +1913,47 @@ msgstr "Schuin"
 msgid "training.meter.style.flat"
 msgstr "Vlak"
 
+msgid "training.meter.style.classic"
+msgstr "Klassiek"
+
 msgid "training.meter.frames_shown"
 msgstr "Getoonde frames"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen; 120 toont de hele geschiedenis. Als de meter stilstaat, scrolt het muiswiel boven de balken terug."
+msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen. Een langere uitwisseling gaat verder vanaf de linkerrand. Als de meter stilstaat, bladert het muiswiel boven de balken per pagina terug."
+
+msgid "training.meter.history"
+msgstr "Meter-geschiedenis"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Hoe lang de meter bijhoudt wat er gebeurde. Terwijl de meter vastgehouden wordt, bladert het muiswiel boven de balken er pagina per pagina door terug, dus een langere geschiedenis reikt tot het begin van een lange combo."
+
+msgid "training.meter.after_pause"
+msgstr "Na een pauze"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Opnieuw beginnen"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Doorgaan"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Wat de meter doet als er weer iets beweegt nadat beide vechters stil stonden. Opnieuw beginnen maakt de balken leeg voor de nieuwe uitwisseling, zoals Street Fighter 6. Doorgaan gaat verder na de vorige, zodat de geschiedenis door meerdere terugbladert."
+
+msgid "training.meter.scroll"
+msgstr "Meter scrollen"
+
+msgid "training.meter.scroll.pages"
+msgstr "Pagina's"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Vloeiend"
+
+msgid "training.meter.scroll.detail"
+msgstr "Hoe de balken verdergaan. Pagina's slaat een hele pagina om en begint weer links. Vloeiend houdt het nieuwste frame rechts en schuift door, en het muiswiel boven een vastgehouden meter gaat tien frames per tik terug."
 
 msgid "training.meter.hud_recovery"
 msgstr "Herstel op de HUD"
@@ -1782,6 +1976,33 @@ msgstr "Sneltoetsen op de HUD"
 msgid "training.meter.hud_status"
 msgstr "Opname op de HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Invoer op de HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Stick"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Pijlen"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybride"
+
+msgid "training.meter.classic_data"
+msgstr "Datalijn op HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Invoerbanen"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6-kleuren en meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, markeringen en rand"
+
+msgid "training.meter.classic_slant"
+msgstr "Schuine cellen"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."
 
@@ -1791,11 +2012,38 @@ msgstr "HUD-grootte"
 msgid "training.meter.hud_size.detail"
 msgstr "Stelt de grootte van de tekst en balken van de trainings-HUD in. Interfacegrootte maakt hem ook groter."
 
+msgid "training.meter.settings"
+msgstr "Meterinstellingen"
+
+msgid "training.meter.settings.detail"
+msgstr "Waar de meter staat, hoe ver hij terug bewaart en wat hij doet na een pauze."
+
+msgid "training.meter.classic"
+msgstr "Klassieke meter"
+
+msgid "training.meter.classic.detail"
+msgstr "De balkhoogte van de klassieke meter en zijn onderdelen."
+
+msgid "training.meter.position"
+msgstr "Meterpositie"
+
+msgid "training.meter.position.detail"
+msgstr "Hoe ver naar beneden de meter staat, gemeten tot de onderrand. 82% houdt hem net boven de supermeters; lagere getallen schuiven hem omhoog."
+
+msgid "training.meter.bar_height"
+msgstr "Balkhoogte"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Hoe hoog de balken van de klassieke meter zijn."
+
 msgid "training.recovery_frames"
 msgstr "Herst. {0} f"
 
 msgid "training.recovery_unknown"
 msgstr "Herst. --"
+
+msgid "training.recovery_cancelled"
+msgstr "Herst. geannuleerd"
 
 msgid "training.neutral"
 msgstr "Neutraal"
@@ -1841,6 +2089,12 @@ msgstr "Voordeel"
 
 msgid "training.last_advantage"
 msgstr "Laatste voordeel"
+
+msgid "training.last_focus_forward"
+msgstr "Laatste focus-cancel, dash vooruit"
+
+msgid "training.last_focus_back"
+msgstr "Laatste focus-cancel, dash achteruit"
 
 msgid "selection.preview_unavailable"
 msgstr "Voorbeeld\nniet beschikbaar"
@@ -2144,11 +2398,8 @@ msgstr "Verbinding instabiel. Spel draait op voorspelling."
 msgid "runtime.connection_restored"
 msgstr "Verbinding hersteld."
 
-msgid "runtime.spectator_disconnected"
-msgstr "Toeschouwer offline."
-
 msgid "runtime.spectator_stream_lost"
-msgstr "De toeschouwersstream is verbroken. Druk op Kijken voor de volgende match."
+msgstr "De toeschouwersstream is verbroken. Bij de volgende partij aan deze tafel kijk je weer mee."
 
 msgid "runtime.match_connection_lost"
 msgstr "De matchverbinding is verbroken."
@@ -2158,6 +2409,12 @@ msgstr "Tegenstander is offline gegaan. De match is voorbij."
 
 msgid "runtime.leaving_spectator"
 msgstr "Toeschouwersbeeld verlaten."
+
+msgid "runtime.spectator_sat_out"
+msgstr "De partij begon terwijl je niet in het hoofdmenu was. Bij de volgende kijk je mee."
+
+msgid "runtime.watching_hint"
+msgstr "Start of F10 opent Ember, waar Stoppen met kijken je terugbrengt naar de kamer."
 
 msgid "runtime.returning_room"
 msgstr "Terug naar de kamer."
@@ -2359,6 +2616,9 @@ msgstr " Je plek komt vrij."
 
 msgid "room.leave.queue"
 msgstr " Je verliest je plek in de wachtrij."
+
+msgid "room.leave.watching"
+msgstr " Je toeschouwersweergave stopt."
 
 msgid "room.leave.host"
 msgstr " Een ander lid wordt host."
@@ -2655,7 +2915,7 @@ msgid "room.ready_up"
 msgstr "Klaar melden"
 
 msgid "room.selected_delay.detail"
-msgstr "Stel in van 0 tot 10 frames, of ga onder 0 voor Auto. 0 voegt geen vertraging toe en vraagt een stabiele, lage ping."
+msgstr "Stel in van {0} tot {1} frames, of ga onder 0 voor Auto. 0 voegt geen vertraging toe en vraagt een stabiele, lage ping."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."
@@ -2751,11 +3011,29 @@ msgstr "Beëindigt deze oefenwedstrijd nu voor beide spelers. Geen uitslag. Beid
 msgid "room.leave_queue"
 msgstr "Wachtrij verlaten"
 
+msgid "room.leave_queue.watching"
+msgstr " Je blijft kijken tot deze partij is afgelopen."
+
 msgid "room.join_queue"
 msgstr "In wachtrij"
 
 msgid "room.stop_watching"
 msgstr "Stoppen met kijken"
+
+msgid "room.stop_watching.detail"
+msgstr "Stopt met kijken naar deze tafel en brengt je terug naar de kamer. De spelers blijven spelen."
+
+msgid "room.stop_watching.finished"
+msgstr "De kamer heeft deze partij al afgerond. Stopt met kijken naar de rest en brengt je terug naar de kamer."
+
+msgid "room.leave_game"
+msgstr "Deze partij verlaten"
+
+msgid "room.leave_game.detail"
+msgstr "Stopt met kijken naar deze partij en brengt je terug naar de kamer. Je houdt je plek in de wachtrij en de spelers blijven spelen."
+
+msgid "room.watching_ends"
+msgstr " Je toeschouwersweergave stopt; de spelers blijven spelen."
 
 msgid "room.watch_next"
 msgstr "Volgende kijken"
@@ -2874,6 +3152,15 @@ msgstr "Host overdragen"
 msgid "room.transfer_host.detail"
 msgstr "Maak {0} de host."
 
+msgid "room.steam_profile"
+msgstr "Steam-profiel"
+
+msgid "room.steam_profile.detail"
+msgstr "Open het Steam-profiel van dit lid."
+
+msgid "room.steam_profile.none"
+msgstr "Dit lid heeft geen Steam-profiel gedeeld."
+
 msgid "room.compose_message"
 msgstr "Bericht schrijven"
 
@@ -2970,6 +3257,12 @@ msgstr "Netwerk kon niet starten. Offline spelen kan nog wel."
 msgid "runtime.network_helper_unavailable"
 msgstr "Netwerkhelper niet beschikbaar (fout {0}). Offline spelen kan nog wel."
 
+msgid "runtime.network_helper_missing"
+msgstr "Netwerk kon niet starten: sf4-net.exe ontbreekt in de Ember-map. Beveiligingssoftware heeft het mogelijk verwijderd. Installeer Ember opnieuw en sta de map toe in je antivirus. Offline spelen kan nog wel."
+
+msgid "runtime.network_helper_blocked"
+msgstr "Netwerk kon niet starten: beveiligingssoftware heeft sf4-net.exe geblokkeerd. Sta de Ember-map toe in je antivirus en start Ember opnieuw. Offline spelen kan nog wel."
+
 msgid "discord.connecting"
 msgstr "Verbinden met Discord..."
 
@@ -2980,7 +3273,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Spelcontroller niet verbonden. Sluit hem opnieuw aan vóór de volgende match."
 
 msgid "runtime.match_input_blocked"
-msgstr "Matchinvoer geblokkeerd: sluit {0} opnieuw aan. Is de slot veranderd, ga dan terug naar de kamer om hem opnieuw toe te wijzen."
+msgstr "{0} is losgekoppeld. Je vechter krijgt geen invoer totdat je hem weer verbindt."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Kon de controllertoewijzing voor de match niet controleren. Wijs hem opnieuw toe en probeer het weer."
@@ -3014,6 +3307,9 @@ msgstr "Kamerverbinding mislukt. De kamer wordt gesloten; onbevestigde uitslagen
 
 msgid "runtime.operation_busy"
 msgstr "De bewerking is bezig. Probeer opnieuw."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Kon het Steam-profiel niet openen."
 
 msgid "discord.invitation_expired"
 msgstr "De Discord-uitnodiging is verlopen. Vraag om een nieuwe."
@@ -3909,6 +4205,21 @@ msgstr "{0}, {1}     Wachtrij {2}     Kijken {3}"
 msgid "room.streak"
 msgstr "{0} sets op rij"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Geschatte ping: ongeveer {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Ping meten..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping niet beschikbaar: nog geen verbinding met dit lid."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping gepauzeerd terwijl dit lid speelt."
+
 msgid "screen.public_rooms"
 msgstr "Openbare kamers"
 
@@ -4586,3 +4897,1333 @@ msgstr "Altijd versturen kon niet worden aangezet, dus dit rapport is niet verst
 
 msgid "reports.automatic_unavailable"
 msgstr "De automatische rapporten van vandaag zijn op, of het overzicht van verzonden rapporten is onleesbaar, dus dit rapport is niet verstuurd. Kies Dit rapport versturen om het vanuit het voorbeeld te versturen."
+
+msgid "player.button_prompts"
+msgstr "Knopsymbolen"
+
+msgid "player.button_prompts_detail"
+msgstr "De knopafbeeldingen die Ember toont. Automatisch past ze aan de controller aan waarmee je speelt. Wat elke knop doet, blijft hetzelfde."
+
+msgid "player.prompts_auto"
+msgstr "Automatisch"
+
+
+msgid "controller.brand.stick"
+msgstr "Gevechtsknoppen"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} is verbonden."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} is verbonden. Je speelt met het toetsenbord; gebruik Controller wijzigen in Instellingen > Speler en controller om te wisselen."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} is verbonden. Open Ember om de knoppen in te stellen."
+
+msgid "controller.connected_full"
+msgstr "{0} is verbonden, maar er zijn al vier controllers in gebruik. Koppel er één los om deze te gebruiken."
+
+msgid "controller.disconnected_named"
+msgstr "{0} is losgekoppeld."
+
+msgid "controller.reconnected"
+msgstr "{0} is opnieuw verbonden."
+
+msgid "controller.release_to_use"
+msgstr "Laat de knop los om met {0} te spelen."
+
+msgid "player.controllers"
+msgstr "Controllers"
+
+msgid "player.controllers_value"
+msgstr "{0} verbonden"
+
+msgid "player.controllers_detail"
+msgstr "Je speelt met {0}. Bekijk alle verbonden controllers, test hun knoppen en stel de controllers in die Ember nog niet kent."
+
+
+
+msgid "player.game_reads"
+msgstr "Laat het spel controllers lezen"
+
+msgid "player.game_reads_detail"
+msgstr "Uit: Ember leest alle controllers en het spel ziet ze elk als Xbox-controller. Aan: het spel leest controllers zelf, zoals zonder Ember; PlayStation- en Switch-controllers hebben dan Steam Input nodig. Wijzigingen gelden bij de volgende spelstart."
+
+msgid "player.game_reads_pending"
+msgstr "Start het spel opnieuw om dit toe te passen."
+
+msgid "player.prompts_showing"
+msgstr "{0}-knoppen worden getoond."
+
+msgid "controllers.title"
+msgstr "CONTROLLERS"
+
+msgid "controllers.unavailable"
+msgstr "Controllerondersteuning is uit"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember kon de controllerondersteuning niet starten, dus het spel leest controllers deze keer zelf. Xbox-controllers werken zoals gewoonlijk; andere hebben mogelijk Steam Input nodig. Details staan in sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Het spel leest controllers"
+
+msgid "controllers.game_reads_detail"
+msgstr "Laat het spel controllers lezen staat aan, dus Ember stelt controllers niet in en test ze niet. Zet het uit in Speler en controller en start het spel opnieuw."
+
+msgid "controllers.none"
+msgstr "Geen controllers verbonden"
+
+msgid "controllers.none_detail"
+msgstr "Verbind een controller en deze verschijnt hier. Het toetsenbord werkt ook zonder."
+
+msgid "controllers.value_yours"
+msgstr "Van jou"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Niet ingesteld"
+
+msgid "controllers.value_full"
+msgstr "Niet in gebruik"
+
+msgid "controllers.value_absent"
+msgstr "Niet verbonden"
+
+msgid "controllers.detail_yours"
+msgstr "Je speelt met deze controller. Spelslot {0}. Druk op de knoppen om ze te testen."
+
+msgid "controllers.detail_other"
+msgstr "Spelslot {0}. Druk op de knoppen om ze te testen. Selecteer om ermee te spelen of de knoppen in te stellen."
+
+msgid "controllers.detail_custom"
+msgstr "Gebruikt je opgeslagen knopinstelling."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input beheert deze controller, dus de knoppen volgen je Steam-instellingen. Start Ember buiten Steam of schakel Steam Input voor Ultra Street Fighter IV in Steam uit om Ember de controller te laten beheren."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember kent de knoppen van deze controller nog niet. Tot de instelling leest het spel hem rechtstreeks en gebruiken Embers menu's de knoppen die als Lichte trap en Middelzware trap zijn ingesteld. Selecteer om hem in te stellen."
+
+msgid "controllers.detail_full"
+msgstr "Het spel biedt ruimte voor vier controllers. Koppel een andere los om deze te gebruiken."
+
+msgid "controllers.detail_absent"
+msgstr "Je opgeslagen controller. Verbind hem om er weer mee te spelen."
+
+msgid "controllers.detail_game_read"
+msgstr "Het spel leest deze controller zelf."
+
+msgid "controllers.steam_name"
+msgstr "Steam-controller"
+
+msgid "controllers.test_heading"
+msgstr "Druk op knoppen om ze te testen"
+
+msgid "controllers.test_raw"
+msgstr "Ingedrukt: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Ingedrukt: niets"
+
+msgid "controllers.choice_play"
+msgstr "Speel met deze controller"
+
+msgid "controllers.choice_play_detail"
+msgstr "Gebruik hem voor online spelen en Embers menu's."
+
+msgid "controllers.choice_play_current"
+msgstr "Je speelt al met deze controller."
+
+msgid "controllers.choice_setup"
+msgstr "Knoppen instellen"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Druk elke knop om de beurt in om Ember te vertellen wat deze doet."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input stelt de knoppen van deze controller in."
+
+msgid "controllers.choice_forget"
+msgstr "Knopinstelling vergeten"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Ga terug naar hoe deze controller werkte voordat je hem instelde. Geldt bij de volgende spelstart."
+
+msgid "controllers.now_playing"
+msgstr "Je speelt met {0}."
+
+msgid "controllers.forgotten"
+msgstr "Knopinstelling vergeten. Dit geldt bij de volgende spelstart."
+
+msgid "pad_setup.input.button"
+msgstr "Knop {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Richtingspad omhoog"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Richtingspad rechts"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Richtingspad omlaag"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Richtingspad links"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "As {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "As {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Triggeras {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Controller losgekoppeld. Verbind hem opnieuw of verlaat de kamer om een andere te kiezen."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} is terug, maar in een ander spelslot. Hij werkt weer vanaf het volgende spel."
+
+msgid "pad_setup.title"
+msgstr "CONTROLLER INSTELLEN"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nieuwe controller"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember kent de knoppen van {0} nog niet. Druk op een knop van de controller om hem nu in te stellen. Dit duurt ongeveer een minuut."
+
+msgid "pad_setup.not_now"
+msgstr "Niet nu"
+
+msgid "pad_setup.step_count"
+msgstr "Stap {0} van {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Omhoog"
+
+msgid "pad_setup.step.down"
+msgstr "Omlaag"
+
+msgid "pad_setup.step.left"
+msgstr "Links"
+
+msgid "pad_setup.step.right"
+msgstr "Rechts"
+
+msgid "pad_setup.step.lp"
+msgstr "Lichte stoot"
+
+msgid "pad_setup.step.mp"
+msgstr "Middelzware stoot"
+
+msgid "pad_setup.step.hp"
+msgstr "Zware stoot"
+
+msgid "pad_setup.step.lk"
+msgstr "Lichte trap"
+
+msgid "pad_setup.step.mk"
+msgstr "Middelzware trap"
+
+msgid "pad_setup.step.hk"
+msgstr "Zware trap"
+
+msgid "pad_setup.step.3p"
+msgstr "Alle drie stoten"
+
+msgid "pad_setup.step.3k"
+msgstr "Alle drie trappen"
+
+msgid "pad_setup.step.ls"
+msgstr "Klik linkerstick"
+
+msgid "pad_setup.step.rs"
+msgstr "Klik rechterstick"
+
+msgid "pad_setup.step.lx"
+msgstr "Linkerstick naar rechts"
+
+msgid "pad_setup.step.ly"
+msgstr "Linkerstick omlaag"
+
+msgid "pad_setup.step.rx"
+msgstr "Rechterstick naar rechts"
+
+msgid "pad_setup.step.ry"
+msgstr "Rechterstick omlaag"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Beweeg de stick of druk op de knop voor deze richting en laat los."
+
+msgid "pad_setup.press_button"
+msgstr "Druk op de gewenste knop voor deze actie en laat los."
+
+msgid "pad_setup.optional"
+msgstr "Heeft je controller hiervoor geen knop, sla deze stap dan over."
+
+msgid "pad_setup.optional_stick"
+msgstr "Heeft je controller hiervoor geen stick, sla deze stap dan over."
+
+msgid "pad_setup.lk_selects"
+msgstr "Deze knop selecteert ook in menu's."
+
+msgid "pad_setup.mk_backs"
+msgstr "Deze knop gaat ook terug in menu's."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Blijf vasthouden om de instelling te annuleren."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Een knop vasthouden: annuleren"
+
+msgid "pad_setup.back_step"
+msgstr "Een stap terug"
+
+msgid "pad_setup.skip"
+msgstr "Overslaan"
+
+msgid "pad_setup.required"
+msgstr "Deze actie is nodig."
+
+msgid "pad_setup.conflict"
+msgstr "{0} is al {1}. Gebruik een andere invoer."
+
+msgid "pad_setup.idle_hint"
+msgstr "Nog niets ingedrukt. Houd een knop 3 seconden vast om te annuleren of druk op Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Controller losgekoppeld. Sluit hem binnen {0} seconden weer aan om door te gaan."
+
+msgid "pad_setup.skipped"
+msgstr "Overgeslagen"
+
+msgid "pad_setup.summary_detail"
+msgstr "Druk op een knop om de bijbehorende stap te zien. Hier selecteert Lichte trap en gaat Middelzware trap terug, zoals in elk menu."
+
+msgid "pad_setup.redo_detail"
+msgstr "Selecteer om deze invoer opnieuw in te stellen."
+
+msgid "pad_setup.save"
+msgstr "Opslaan"
+
+msgid "pad_setup.save_detail"
+msgstr "Sla deze instelling op en gebruik hem nu."
+
+msgid "pad_setup.start_over"
+msgstr "Opnieuw beginnen"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Wis alle stappen en begin opnieuw."
+
+msgid "pad_setup.cancel"
+msgstr "Instelling annuleren"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Verlaten zonder op te slaan."
+
+msgid "pad_setup.cancelled"
+msgstr "Instelling geannuleerd. Er is niets opgeslagen."
+
+msgid "pad_setup.saved_heading"
+msgstr "Controller ingesteld"
+
+msgid "pad_setup.saved"
+msgstr "{0} is ingesteld. Kies Knopindeling om de aanvallen van de knoppen te veranderen."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember kon deze instelling niet gebruiken. Er is niets opgeslagen. Details staan in sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Instelling gestopt omdat {0} is losgekoppeld. Er is niets opgeslagen."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Instelling gestopt omdat er een minuut niets is ingedrukt. Er is niets opgeslagen."
+
+msgid "player.button_layout"
+msgstr "Knopindeling"
+
+msgid "player.button_layout_detail"
+msgstr "Kies welke aanvallen de knoppen van {0} doen. Er verandert niets voor je tegenstander."
+
+msgid "player.button_layout_setup"
+msgstr "Ember ondersteunt {0} nog niet. Selecteer om eerst de knoppen in te stellen."
+
+msgid "player.button_layout_keyboard"
+msgstr "Knopindelingen zijn voor controllers. Gebruik voor het toetsenbord de knopinstellingen van het spel."
+
+msgid "player.button_layout_game_reads"
+msgstr "Zet Controllers door het spel laten lezen uit om knopindelingen te gebruiken. Gebruik tot die tijd de knopinstellingen van het spel."
+
+msgid "player.button_layout_failed"
+msgstr "Embers controllerondersteuning is deze keer niet gestart. Gebruik de knopinstellingen van het spel."
+
+msgid "player.game_buttons"
+msgstr "Knopinstellingen van het spel"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember sluit. Kies in het spel Opties en dan de controllerinstellingen. Gebruik deze voor het toetsenbord en controllers die het spel zelf leest. Een controller met een Ember-knopindeling gebruikt die indeling. Het spel bewaart een indeling alleen als elke actie een knop heeft."
+
+msgid "controllers.choice_layout"
+msgstr "Knopindeling"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Kies welke aanvallen elke knop doet."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Stel eerst de knoppen in."
+
+msgid "controllers.detail_layout"
+msgstr "Knopindeling: {0}."
+
+msgid "button_layout.title"
+msgstr "KNOPINDELING"
+
+msgid "button_layout.button_title"
+msgstr "KNOP WIJZIGEN"
+
+msgid "button_layout.test"
+msgstr "Probeer je knoppen"
+
+msgid "button_layout.test_detail"
+msgstr "Druk op de knoppen van {0} om hun aanvallen te zien. Op deze rij werkt alleen Terug in het menu."
+
+msgid "button_layout.attacks"
+msgstr "Aanvallen"
+
+msgid "button_layout.throw"
+msgstr "Worp (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Focusaanval (MP+MK)"
+
+msgid "button_layout.red_focus"
+msgstr "Rode focusaanval (LP+MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Selecteer en druk op de gewenste knop voor {0}. Als een andere knop deze aanval heeft, wisselen de twee knoppen."
+
+msgid "button_layout.row_missing"
+msgstr "Geen knop doet alleen deze aanval, dus je kunt hem niet afzonderlijk uitvoeren."
+
+msgid "button_layout.no_button"
+msgstr "Geen knop"
+
+msgid "button_layout.edit_button"
+msgstr "Eén knop wijzigen"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Selecteer en druk op een knop om precies de aanvallen te kiezen. Elke combinatie mag, of je kunt de knop uitschakelen."
+
+msgid "button_layout.preset"
+msgstr "Voorinstelling"
+
+msgid "button_layout.preset_detail"
+msgstr "Selecteer een kant-en-klare indeling. Standaard is de indeling van het spel."
+
+msgid "button_layout.custom"
+msgstr "Aangepast"
+
+msgid "button_layout.game_layout"
+msgstr "Indeling van het spel"
+
+msgid "button_layout.preset.default"
+msgstr "Standaard"
+
+msgid "button_layout.preset.default_detail"
+msgstr "De indeling van het spel. Geschikt voor de meeste controllers en sticks met 8 knoppen."
+
+msgid "button_layout.preset.triggers"
+msgstr "Drie aanvallen op triggers"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Voor controllers met zes knoppen. Zware stoot op de rechter schouderknop en zware trap op de linker. Alle drie stoten op de linker trigger, alle drie trappen op de rechter."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus en worp"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Als Standaard, maar de linker schouderknop doet de focusaanval en de linker trigger werpt. Op een stick met 8 knoppen is dit de vierde kolom. Alle drie stoten en trappen gaan naar de stickklikken."
+
+msgid "button_layout.preset_applied"
+msgstr "Indeling ingesteld op {0}."
+
+msgid "button_layout.remove"
+msgstr "Indeling van het spel gebruiken"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember wijzigt de knoppen van deze controller niet meer. De indeling uit de knopinstellingen van het spel geldt weer."
+
+msgid "button_layout.removed"
+msgstr "De indeling van het spel geldt weer voor deze controller."
+
+msgid "button_layout.press_for"
+msgstr "Druk op de knop voor {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Druk op de te wijzigen knop"
+
+msgid "button_layout.waiting"
+msgstr "Druk op een knop..."
+
+msgid "button_layout.press_cancel"
+msgstr "Beweeg de stick of druk op Start om te annuleren."
+
+msgid "button_layout.assigned"
+msgstr "{0} zit nu op {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} zit nu op {1}. {2} doet nu {3}."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} zit nu op {1}. {2} doet nu niets."
+
+msgid "button_layout.bit_detail"
+msgstr "Links of Rechts zet {0} voor deze knop aan of uit."
+
+msgid "button_layout.clear"
+msgstr "Geen aanvallen"
+
+msgid "button_layout.clear_detail"
+msgstr "Deze knop doet niets tijdens gevechten."
+
+msgid "button_layout.button_does"
+msgstr "Tijdens gevechten: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Niets"
+
+msgid "button_layout.absent"
+msgstr "Niet verbonden"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} is niet verbonden. De indeling is opgeslagen. Verbind de controller om die te wijzigen."
+
+msgid "button_layout.setup_first"
+msgstr "Stel eerst de knoppen in"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Het spel leest {0} zelf, dus Ember kan de knoppen nog niet wijzigen. Stel hem eenmalig in en hij werkt hier als elke andere controller."
+
+msgid "button_layout.missing_heading"
+msgstr "Sommige aanvallen hebben geen knop"
+
+msgid "button_layout.missing_text"
+msgstr "Deze aanvallen hebben geen eigen knop: {0}. De indeling is opgeslagen."
+
+msgid "button_layout.keep_editing"
+msgstr "Verder bewerken"
+
+msgid "button_layout.leave"
+msgstr "Verlaten"
+
+msgid "button_layout.menu_confirm"
+msgstr "Bevestigen in menu's"
+
+msgid "button_layout.menu_back"
+msgstr "Terug in menu's"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Selecteer en druk dan op de knop die bevestigt in de menu's van Ember. Tot je er een kiest, is het de knop waarmee de menu's van het spel bevestigen."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. Tot je er een kiest, is het de knop waarmee de menu's van het spel teruggaan."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} is al {1}. Kies een andere knop."
+
+msgid "room.delay_policy"
+msgstr "Invoervertraging in de kamer"
+
+msgid "room.delay_policy.shared"
+msgstr "Hetzelfde voor beiden"
+
+msgid "room.delay_policy.own"
+msgstr "Eigen per speler"
+
+msgid "room.delay_policy.detail"
+msgstr "Hetzelfde voor beiden: elke match wordt gespeeld met de hoogste van de twee vertragingen. Eigen per speler: elke speler speelt met de vertraging die hij koos, en de rollback aan de andere kant vangt het verschil op. Dit blijft zo zolang de kamer open is."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, eigen vertraging"
+
+msgid "room.table_footer_own_delay"
+msgstr "Eigen vertraging"
+
+msgid "room.input_delay.own"
+msgstr "Jouw vertraging: {0}"
+
+msgid "public.own_delay"
+msgstr "Eigen vertraging"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Deze kamerdienst kan nog geen kamer maken met de eigen vertraging van elke speler. Kies Hetzelfde voor beiden of probeer het later opnieuw."
+
+#. Country names, generated by scripts/gen-countries.mjs from ICU. Do not edit by hand.
+
+msgid "country.AD"
+msgstr "Andorra"
+
+msgid "country.AE"
+msgstr "Verenigde Arabische Emiraten"
+
+msgid "country.AF"
+msgstr "Afghanistan"
+
+msgid "country.AG"
+msgstr "Antigua en Barbuda"
+
+msgid "country.AI"
+msgstr "Anguilla"
+
+msgid "country.AL"
+msgstr "Albanië"
+
+msgid "country.AM"
+msgstr "Armenië"
+
+msgid "country.AO"
+msgstr "Angola"
+
+msgid "country.AQ"
+msgstr "Antarctica"
+
+msgid "country.AR"
+msgstr "Argentinië"
+
+msgid "country.AS"
+msgstr "Amerikaans-Samoa"
+
+msgid "country.AT"
+msgstr "Oostenrijk"
+
+msgid "country.AU"
+msgstr "Australië"
+
+msgid "country.AW"
+msgstr "Aruba"
+
+msgid "country.AX"
+msgstr "Åland"
+
+msgid "country.AZ"
+msgstr "Azerbeidzjan"
+
+msgid "country.BA"
+msgstr "Bosnië en Herzegovina"
+
+msgid "country.BB"
+msgstr "Barbados"
+
+msgid "country.BD"
+msgstr "Bangladesh"
+
+msgid "country.BE"
+msgstr "België"
+
+msgid "country.BF"
+msgstr "Burkina Faso"
+
+msgid "country.BG"
+msgstr "Bulgarije"
+
+msgid "country.BH"
+msgstr "Bahrein"
+
+msgid "country.BI"
+msgstr "Burundi"
+
+msgid "country.BJ"
+msgstr "Benin"
+
+msgid "country.BL"
+msgstr "Saint-Barthélemy"
+
+msgid "country.BM"
+msgstr "Bermuda"
+
+msgid "country.BN"
+msgstr "Brunei"
+
+msgid "country.BO"
+msgstr "Bolivia"
+
+msgid "country.BQ"
+msgstr "Caribisch Nederland"
+
+msgid "country.BR"
+msgstr "Brazilië"
+
+msgid "country.BS"
+msgstr "Bahama’s"
+
+msgid "country.BT"
+msgstr "Bhutan"
+
+msgid "country.BV"
+msgstr "Bouveteiland"
+
+msgid "country.BW"
+msgstr "Botswana"
+
+msgid "country.BY"
+msgstr "Belarus"
+
+msgid "country.BZ"
+msgstr "Belize"
+
+msgid "country.CA"
+msgstr "Canada"
+
+msgid "country.CC"
+msgstr "Cocoseilanden"
+
+msgid "country.CD"
+msgstr "Congo-Kinshasa"
+
+msgid "country.CF"
+msgstr "Centraal-Afrikaanse Republiek"
+
+msgid "country.CG"
+msgstr "Congo-Brazzaville"
+
+msgid "country.CH"
+msgstr "Zwitserland"
+
+msgid "country.CI"
+msgstr "Ivoorkust"
+
+msgid "country.CK"
+msgstr "Cookeilanden"
+
+msgid "country.CL"
+msgstr "Chili"
+
+msgid "country.CM"
+msgstr "Kameroen"
+
+msgid "country.CN"
+msgstr "China"
+
+msgid "country.CO"
+msgstr "Colombia"
+
+msgid "country.CR"
+msgstr "Costa Rica"
+
+msgid "country.CU"
+msgstr "Cuba"
+
+msgid "country.CV"
+msgstr "Kaapverdië"
+
+msgid "country.CW"
+msgstr "Curaçao"
+
+msgid "country.CX"
+msgstr "Christmaseiland"
+
+msgid "country.CY"
+msgstr "Cyprus"
+
+msgid "country.CZ"
+msgstr "Tsjechië"
+
+msgid "country.DE"
+msgstr "Duitsland"
+
+msgid "country.DJ"
+msgstr "Djibouti"
+
+msgid "country.DK"
+msgstr "Denemarken"
+
+msgid "country.DM"
+msgstr "Dominica"
+
+msgid "country.DO"
+msgstr "Dominicaanse Republiek"
+
+msgid "country.DZ"
+msgstr "Algerije"
+
+msgid "country.EC"
+msgstr "Ecuador"
+
+msgid "country.EE"
+msgstr "Estland"
+
+msgid "country.EG"
+msgstr "Egypte"
+
+msgid "country.EH"
+msgstr "Westelijke Sahara"
+
+msgid "country.ER"
+msgstr "Eritrea"
+
+msgid "country.ES"
+msgstr "Spanje"
+
+msgid "country.ET"
+msgstr "Ethiopië"
+
+msgid "country.FI"
+msgstr "Finland"
+
+msgid "country.FJ"
+msgstr "Fiji"
+
+msgid "country.FK"
+msgstr "Falklandeilanden"
+
+msgid "country.FM"
+msgstr "Micronesia"
+
+msgid "country.FO"
+msgstr "Faeröer"
+
+msgid "country.FR"
+msgstr "Frankrijk"
+
+msgid "country.GA"
+msgstr "Gabon"
+
+msgid "country.GB"
+msgstr "Verenigd Koninkrijk"
+
+msgid "country.GD"
+msgstr "Grenada"
+
+msgid "country.GE"
+msgstr "Georgië"
+
+msgid "country.GF"
+msgstr "Frans-Guyana"
+
+msgid "country.GG"
+msgstr "Guernsey"
+
+msgid "country.GH"
+msgstr "Ghana"
+
+msgid "country.GI"
+msgstr "Gibraltar"
+
+msgid "country.GL"
+msgstr "Groenland"
+
+msgid "country.GM"
+msgstr "Gambia"
+
+msgid "country.GN"
+msgstr "Guinee"
+
+msgid "country.GP"
+msgstr "Guadeloupe"
+
+msgid "country.GQ"
+msgstr "Equatoriaal-Guinea"
+
+msgid "country.GR"
+msgstr "Griekenland"
+
+msgid "country.GS"
+msgstr "Zuid-Georgia en Zuidelijke Sandwicheilanden"
+
+msgid "country.GT"
+msgstr "Guatemala"
+
+msgid "country.GU"
+msgstr "Guam"
+
+msgid "country.GW"
+msgstr "Guinee-Bissau"
+
+msgid "country.GY"
+msgstr "Guyana"
+
+msgid "country.HK"
+msgstr "Hongkong SAR van China"
+
+msgid "country.HM"
+msgstr "Heard en McDonaldeilanden"
+
+msgid "country.HN"
+msgstr "Honduras"
+
+msgid "country.HR"
+msgstr "Kroatië"
+
+msgid "country.HT"
+msgstr "Haïti"
+
+msgid "country.HU"
+msgstr "Hongarije"
+
+msgid "country.ID"
+msgstr "Indonesië"
+
+msgid "country.IE"
+msgstr "Ierland"
+
+msgid "country.IL"
+msgstr "Israël"
+
+msgid "country.IM"
+msgstr "Isle of Man"
+
+msgid "country.IN"
+msgstr "India"
+
+msgid "country.IO"
+msgstr "Brits Indische Oceaanterritorium"
+
+msgid "country.IQ"
+msgstr "Irak"
+
+msgid "country.IR"
+msgstr "Iran"
+
+msgid "country.IS"
+msgstr "IJsland"
+
+msgid "country.IT"
+msgstr "Italië"
+
+msgid "country.JE"
+msgstr "Jersey"
+
+msgid "country.JM"
+msgstr "Jamaica"
+
+msgid "country.JO"
+msgstr "Jordanië"
+
+msgid "country.JP"
+msgstr "Japan"
+
+msgid "country.KE"
+msgstr "Kenia"
+
+msgid "country.KG"
+msgstr "Kirgizië"
+
+msgid "country.KH"
+msgstr "Cambodja"
+
+msgid "country.KI"
+msgstr "Kiribati"
+
+msgid "country.KM"
+msgstr "Comoren"
+
+msgid "country.KN"
+msgstr "Saint Kitts en Nevis"
+
+msgid "country.KP"
+msgstr "Noord-Korea"
+
+msgid "country.KR"
+msgstr "Zuid-Korea"
+
+msgid "country.KW"
+msgstr "Koeweit"
+
+msgid "country.KY"
+msgstr "Kaaimaneilanden"
+
+msgid "country.KZ"
+msgstr "Kazachstan"
+
+msgid "country.LA"
+msgstr "Laos"
+
+msgid "country.LB"
+msgstr "Libanon"
+
+msgid "country.LC"
+msgstr "Saint Lucia"
+
+msgid "country.LI"
+msgstr "Liechtenstein"
+
+msgid "country.LK"
+msgstr "Sri Lanka"
+
+msgid "country.LR"
+msgstr "Liberia"
+
+msgid "country.LS"
+msgstr "Lesotho"
+
+msgid "country.LT"
+msgstr "Litouwen"
+
+msgid "country.LU"
+msgstr "Luxemburg"
+
+msgid "country.LV"
+msgstr "Letland"
+
+msgid "country.LY"
+msgstr "Libië"
+
+msgid "country.MA"
+msgstr "Marokko"
+
+msgid "country.MC"
+msgstr "Monaco"
+
+msgid "country.MD"
+msgstr "Moldavië"
+
+msgid "country.ME"
+msgstr "Montenegro"
+
+msgid "country.MF"
+msgstr "Saint-Martin"
+
+msgid "country.MG"
+msgstr "Madagaskar"
+
+msgid "country.MH"
+msgstr "Marshalleilanden"
+
+msgid "country.MK"
+msgstr "Noord-Macedonië"
+
+msgid "country.ML"
+msgstr "Mali"
+
+msgid "country.MM"
+msgstr "Myanmar (Birma)"
+
+msgid "country.MN"
+msgstr "Mongolië"
+
+msgid "country.MO"
+msgstr "Macau SAR van China"
+
+msgid "country.MP"
+msgstr "Noordelijke Marianen"
+
+msgid "country.MQ"
+msgstr "Martinique"
+
+msgid "country.MR"
+msgstr "Mauritanië"
+
+msgid "country.MS"
+msgstr "Montserrat"
+
+msgid "country.MT"
+msgstr "Malta"
+
+msgid "country.MU"
+msgstr "Mauritius"
+
+msgid "country.MV"
+msgstr "Maldiven"
+
+msgid "country.MW"
+msgstr "Malawi"
+
+msgid "country.MX"
+msgstr "Mexico"
+
+msgid "country.MY"
+msgstr "Maleisië"
+
+msgid "country.MZ"
+msgstr "Mozambique"
+
+msgid "country.NA"
+msgstr "Namibië"
+
+msgid "country.NC"
+msgstr "Nieuw-Caledonië"
+
+msgid "country.NE"
+msgstr "Niger"
+
+msgid "country.NF"
+msgstr "Norfolk"
+
+msgid "country.NG"
+msgstr "Nigeria"
+
+msgid "country.NI"
+msgstr "Nicaragua"
+
+msgid "country.NL"
+msgstr "Nederland"
+
+msgid "country.NO"
+msgstr "Noorwegen"
+
+msgid "country.NP"
+msgstr "Nepal"
+
+msgid "country.NR"
+msgstr "Nauru"
+
+msgid "country.NU"
+msgstr "Niue"
+
+msgid "country.NZ"
+msgstr "Nieuw-Zeeland"
+
+msgid "country.OM"
+msgstr "Oman"
+
+msgid "country.PA"
+msgstr "Panama"
+
+msgid "country.PE"
+msgstr "Peru"
+
+msgid "country.PF"
+msgstr "Frans-Polynesië"
+
+msgid "country.PG"
+msgstr "Papoea-Nieuw-Guinea"
+
+msgid "country.PH"
+msgstr "Filipijnen"
+
+msgid "country.PK"
+msgstr "Pakistan"
+
+msgid "country.PL"
+msgstr "Polen"
+
+msgid "country.PM"
+msgstr "Saint-Pierre en Miquelon"
+
+msgid "country.PN"
+msgstr "Pitcairneilanden"
+
+msgid "country.PR"
+msgstr "Puerto Rico"
+
+msgid "country.PS"
+msgstr "Palestijnse gebieden"
+
+msgid "country.PT"
+msgstr "Portugal"
+
+msgid "country.PW"
+msgstr "Palau"
+
+msgid "country.PY"
+msgstr "Paraguay"
+
+msgid "country.QA"
+msgstr "Qatar"
+
+msgid "country.RE"
+msgstr "Réunion"
+
+msgid "country.RO"
+msgstr "Roemenië"
+
+msgid "country.RS"
+msgstr "Servië"
+
+msgid "country.RU"
+msgstr "Rusland"
+
+msgid "country.RW"
+msgstr "Rwanda"
+
+msgid "country.SA"
+msgstr "Saoedi-Arabië"
+
+msgid "country.SB"
+msgstr "Salomonseilanden"
+
+msgid "country.SC"
+msgstr "Seychellen"
+
+msgid "country.SD"
+msgstr "Soedan"
+
+msgid "country.SE"
+msgstr "Zweden"
+
+msgid "country.SG"
+msgstr "Singapore"
+
+msgid "country.SH"
+msgstr "Sint-Helena"
+
+msgid "country.SI"
+msgstr "Slovenië"
+
+msgid "country.SJ"
+msgstr "Spitsbergen en Jan Mayen"
+
+msgid "country.SK"
+msgstr "Slowakije"
+
+msgid "country.SL"
+msgstr "Sierra Leone"
+
+msgid "country.SM"
+msgstr "San Marino"
+
+msgid "country.SN"
+msgstr "Senegal"
+
+msgid "country.SO"
+msgstr "Somalië"
+
+msgid "country.SR"
+msgstr "Suriname"
+
+msgid "country.SS"
+msgstr "Zuid-Soedan"
+
+msgid "country.ST"
+msgstr "Sao Tomé en Principe"
+
+msgid "country.SV"
+msgstr "El Salvador"
+
+msgid "country.SX"
+msgstr "Sint-Maarten"
+
+msgid "country.SY"
+msgstr "Syrië"
+
+msgid "country.SZ"
+msgstr "Eswatini"
+
+msgid "country.TC"
+msgstr "Turks- en Caicoseilanden"
+
+msgid "country.TD"
+msgstr "Tsjaad"
+
+msgid "country.TF"
+msgstr "Franse Gebieden in de zuidelijke Indische Oceaan"
+
+msgid "country.TG"
+msgstr "Togo"
+
+msgid "country.TH"
+msgstr "Thailand"
+
+msgid "country.TJ"
+msgstr "Tadzjikistan"
+
+msgid "country.TK"
+msgstr "Tokelau"
+
+msgid "country.TL"
+msgstr "Oost-Timor"
+
+msgid "country.TM"
+msgstr "Turkmenistan"
+
+msgid "country.TN"
+msgstr "Tunesië"
+
+msgid "country.TO"
+msgstr "Tonga"
+
+msgid "country.TR"
+msgstr "Turkije"
+
+msgid "country.TT"
+msgstr "Trinidad en Tobago"
+
+msgid "country.TV"
+msgstr "Tuvalu"
+
+msgid "country.TW"
+msgstr "Taiwan"
+
+msgid "country.TZ"
+msgstr "Tanzania"
+
+msgid "country.UA"
+msgstr "Oekraïne"
+
+msgid "country.UG"
+msgstr "Oeganda"
+
+msgid "country.UM"
+msgstr "Kleine afgelegen eilanden van de Verenigde Staten"
+
+msgid "country.US"
+msgstr "Verenigde Staten"
+
+msgid "country.UY"
+msgstr "Uruguay"
+
+msgid "country.UZ"
+msgstr "Oezbekistan"
+
+msgid "country.VA"
+msgstr "Vaticaanstad"
+
+msgid "country.VC"
+msgstr "Saint Vincent en de Grenadines"
+
+msgid "country.VE"
+msgstr "Venezuela"
+
+msgid "country.VG"
+msgstr "Britse Maagdeneilanden"
+
+msgid "country.VI"
+msgstr "Amerikaanse Maagdeneilanden"
+
+msgid "country.VN"
+msgstr "Vietnam"
+
+msgid "country.VU"
+msgstr "Vanuatu"
+
+msgid "country.WF"
+msgstr "Wallis en Futuna"
+
+msgid "country.WS"
+msgstr "Samoa"
+
+msgid "country.YE"
+msgstr "Jemen"
+
+msgid "country.YT"
+msgstr "Mayotte"
+
+msgid "country.ZA"
+msgstr "Zuid-Afrika"
+
+msgid "country.ZM"
+msgstr "Zambia"
+
+msgid "country.ZW"
+msgstr "Zimbabwe"
+
+#. End of the generated country names.

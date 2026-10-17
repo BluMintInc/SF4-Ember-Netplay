@@ -84,6 +84,29 @@ int main() {
     Write(mistyped / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"en\",\"hideGameSettingsCard\":\"yes\"}");
     CHECK(!GameSettingsCardHiddenIn(mistyped.wstring()) && LoadLanguagePreferenceFrom(mistyped.wstring()) == "en");
 
+    // The launch-time update check: on until turned off, never checked, nothing skipped; each field
+    // saves alone and keeps the rest of the file.
+    {
+        const auto updates = root / L"updates"; CHECK(std::filesystem::create_directory(updates));
+        auto fresh = LoadUpdatePreferencesFrom(updates.wstring());
+        CHECK(fresh.checkAtLaunch && fresh.lastCheck == 0 && fresh.skipped.empty());
+        CHECK(SaveLanguagePreferenceTo(updates.wstring(), "de", error));
+        CHECK(LoadUpdatePreferencesFrom(updates.wstring()).checkAtLaunch);
+        CHECK(SaveCheckUpdatesAtLaunchTo(updates.wstring(), false, error) && !LoadUpdatePreferencesFrom(updates.wstring()).checkAtLaunch);
+        CHECK(SaveLastUpdateCheckTo(updates.wstring(), 1760000000u, error) && SaveSkippedUpdateTo(updates.wstring(), "v1.3.0", error));
+        auto saved = LoadUpdatePreferencesFrom(updates.wstring());
+        CHECK(!saved.checkAtLaunch && saved.lastCheck == 1760000000u && saved.skipped == "v1.3.0" && LoadLanguagePreferenceFrom(updates.wstring()) == "de");
+        CHECK(SaveCheckUpdatesAtLaunchTo(updates.wstring(), true, error));
+        saved = LoadUpdatePreferencesFrom(updates.wstring());
+        CHECK(saved.checkAtLaunch && saved.lastCheck == 1760000000u && saved.skipped == "v1.3.0");
+        CHECK(SaveSkippedUpdateTo(updates.wstring(), "", error) && LoadUpdatePreferencesFrom(updates.wstring()).skipped.empty());
+        CHECK(!SaveSkippedUpdateTo(updates.wstring(), std::string(65, 'v'), error));
+        // A field of the wrong type reads as absent: on, never checked, nothing skipped.
+        Write(updates / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"en\",\"checkUpdatesAtLaunch\":\"no\",\"lastUpdateCheck\":-5,\"skippedUpdate\":7}");
+        fresh = LoadUpdatePreferencesFrom(updates.wstring());
+        CHECK(fresh.checkAtLaunch && fresh.lastCheck == 0 && fresh.skipped.empty());
+    }
+
     // The matches told share the file too: they keep the language and the card, and it keeps them.
     using sf4e::platform::AnnouncedMatch;
     CHECK(LoadAnnouncedMatchesFrom(root.wstring()).empty());

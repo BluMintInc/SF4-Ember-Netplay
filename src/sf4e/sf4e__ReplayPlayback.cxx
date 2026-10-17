@@ -211,6 +211,18 @@ bool sf4e::replayplayback::AfterUpdate(Dimps::Game::Battle::System* system) {
 	return seen.advanced;
 }
 
+bool sf4e::replayplayback::PlayedInputs(unsigned (&inputs)[2]) {
+	const auto lanes = s_lanes;
+	std::uint32_t frame = 0;
+	if (!lanes || !replaylane::PlayedFrame(s_view.cursor, frame)) return false;
+	for (int side = 0; side < 2; side++) {
+		replaylane::Row row;
+		if (!replaylane::Rows(*lanes, side, s_view.round, frame, &row, 1)) return false;
+		inputs[side] = replaylane::PadBits(row.held);
+	}
+	return true;
+}
+
 void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected) {
 	const bool listening = s_view.playback && !s_view.exporting;
 	if (listening && !s_deviceKnown) {

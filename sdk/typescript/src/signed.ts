@@ -141,6 +141,22 @@ export function counter(value: unknown): bigint | null {
   return parsed > 2n ** 64n - 1n ? null : parsed;
 }
 
+/**
+ * Whether `value` is a bare bridge origin: https, or http on loopback for local
+ * testing, with no path, query or credentials. Matches
+ * ember_protocol::encoding::check_origin with AllowLoopbackHttp.
+ */
+export function isBridgeOrigin(value: string): boolean {
+  let authority: string;
+  if (value.startsWith("https://")) authority = value.slice(8);
+  else if (value.startsWith("http://")) {
+    authority = value.slice(7);
+    const host = authority.replace(/:[0-9]+$/, "");
+    if (!["127.0.0.1", "[::1]", "localhost"].includes(host)) return false;
+  } else return false;
+  return authority.length > 0 && authority.length <= 259 && /^[A-Za-z0-9.:[\]-]+$/.test(authority);
+}
+
 function digest(value: Json | undefined): boolean {
   if (typeof value !== "string") return false;
   try {

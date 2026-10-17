@@ -91,6 +91,8 @@ void SessionServer::CaptureFrozenMember(room::MemberId member, const room::Snaps
 	frozen.data.authenticatedEndpoint = roomPeerIdentities.count(member) ? roomPeerIdentities.at(member) : frozen.endpoint.user;
 	frozen.incarnation = roomIncarnations.count(member) ? roomIncarnations.at(member) : 1;
 	frozen.data.incarnation = frozen.incarnation;
+	const auto record = roomMemberRecords.find(member);
+	if (record != roomMemberRecords.end()) frozen.data.latency = record->second.latency;
 	for (const auto& client : clients) {
 		const auto mapping = roomMembers.find(client.conn);
 		if (mapping != roomMembers.end() && mapping->second == member) {
@@ -239,6 +241,7 @@ int SessionServer::Step()
 				if (leave.accepted) {
 					// A rejected Leave keeps the member on the roster, which still reads its incarnation.
 					roomIncarnations.erase(departedMember);
+					roomMemberRecords.erase(departedMember);
 					// A dropped member may come back: this departure keeps the room's grace.
 					_serverOwnedLeftEmpty = false;
 					departureEvents.insert(departureEvents.end(), leave.events.begin(), leave.events.end());
@@ -455,6 +458,7 @@ int SessionServer::Close()
 	roomSelectedTables.clear();
 	roomPeerIdentities.clear();
 	roomIncarnations.clear();
+	roomMemberRecords.clear();
 	roomFrozenMembers.clear();
 	roomBannedIdentities.clear();
 	_departingConnections.clear();
@@ -489,13 +493,14 @@ void SessionServer::ResetLobbyForRematch()
 
 SessionProtocol::JoinResult SessionServer::RegisterToWait(
 	const session::Connection& conn,
-	const uint16_t& port,
-	const std::string& sidecarHash,
-	const std::string& name,
-	const std::string& peerAddr,
 	SessionProtocol::ConnectionID& cid,
-	const room::MemberProfile& profile
+	const SessionProtocol::AdmissionRequest& request
 ) {
+	const auto& port = request.port;
+	const auto& sidecarHash = request.sidecarHash;
+	const auto& name = request.username;
+	const auto& peerAddr = request.peerAddress;
+	const auto& profile = request.profile;
 	if (sidecarHash != _sidecarHash) {
 		return SessionProtocol::JR_HASH_INVALID;
 	}
@@ -562,9 +567,25 @@ SessionProtocol::JoinResult SessionServer::RegisterToWait(
 		newMember.data.roomMember = id;
 		newMember.data.authenticatedEndpoint = roomPeerIdentities.at(id);
 		newMember.data.incarnation = roomIncarnations.at(id);
+		newMember.data.latency = request.latency;
+		AdmitMemberRecord(id, newMember);
 	}
 	clients.push_back(std::move(newMember));
 	return SessionProtocol::JOIN_OK;
+}
+
+void SessionServer::AdmitMemberRecord(room::MemberId member, SessionMember& row) {
+	auto& route = row.data.latency;
+	const auto holds = [&](const sf4e::LatencyRoute& other) { return other.endpoint == route.endpoint; };
+	const bool taken = !route.Valid() ||
+		std::any_of(roomMemberRecords.begin(), roomMemberRecords.end(),
+			[&](const auto& record) { return record.first != member && holds(record.second.latency); }) ||
+		std::any_of(roomFrozenMembers.begin(), roomFrozenMembers.end(),
+			[&](const auto& frozen) { return holds(frozen.second.data.latency); }) ||
+		std::any_of(roomPeerIdentities.begin(), roomPeerIdentities.end(),
+			[&](const auto& identity) { return identity.second == route.endpoint; });
+	if (taken) route = {};
+	roomMemberRecords[member] = row.data;
 }
 
 void SessionServer::HandleResults(int loserIndex) {

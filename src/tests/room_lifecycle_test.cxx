@@ -1,5 +1,6 @@
 #include "room_authority_support.hxx"
 #include "../netplay/ParkedIntent.hxx"
+#include "../common/MatchTelemetry.hxx"
 
 static void TestQueueWatchAndReplay() {
 	RoomAuthority authority("Roster", 8, 1);
@@ -250,6 +251,36 @@ static void TestLeavingQueueEndsTheQueuedWatch() {
 	}
 }
 
+// A queued member watching the game it waits out leaves that game alone (Leave
+// this game: a generation-scoped Unwatch that keeps watching). It keeps its
+// queue place and its listing, and the next game takes it in again.
+static void TestQueuedWatcherLeavesOneGame() {
+	LiveTable live;
+	Action leave = TableAction(live.authority, live.q, 0, ActionKind::Unwatch);
+	leave.matchGeneration = live.generation;
+	leave.tableRevision = 0; // a generation-scoped action skips the table revision fence
+	leave.keepWatching = true;
+	CHECK(live.authority.Apply(live.q, leave).accepted);
+	CHECK(live.Has(live.table().queue, live.q) && live.Has(live.table().spectators, live.q));
+	CHECK(!WatchesByChoice(live.table(), live.q) && live.member(live.q).status == MemberStatus::Queued);
+	CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
+	for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
+	for (const auto member : {live.a, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
+	CHECK(live.authority.BeginMatch(0, live.a, live.b).accepted);
+	CHECK(live.Has(live.authority.MatchRoster(0), live.q) && live.Has(live.table().queue, live.q));
+}
+
+// A queued member's place, as a spectator's HUD shows it: from 1 for the next
+// to play; a seat is not a queue place.
+static void TestQueuePlaceCountsFromNext() {
+	LiveTable live;
+	CHECK(PlaceOf(live.authority.SnapshotView(), live.q).position == 1);
+	CHECK(live.Do(live.w, ActionKind::Queue).accepted);
+	const auto later = PlaceOf(live.authority.SnapshotView(), live.w);
+	CHECK(later.kind == Place::Kind::Queue && later.table == 0 && later.position == 2);
+	CHECK(PlaceOf(live.authority.SnapshotView(), live.a).position == 0);
+}
+
 // A spectator's HUD keeps the score the watched game started with, however far
 // the room has moved on; a fighter's follows the table.
 static void TestHudScoreFollowsTheWatchedGame() {
@@ -279,6 +310,45 @@ static void TestHudScoreFollowsTheWatchedGame() {
 	const std::uint32_t none[2] = { 0, 0 };
 	CHECK(!sf4e::HudScore(true, false, none, true, start, shown));
 	CHECK(!sf4e::HudScore(false, true, start, false, none, shown));
+}
+
+// A spectator's HUD keeps the delay its game was granted with, taken as the
+// stream starts. The room ends that game and its fighters ready the next at
+// other delays while the stream still plays: the table's delays change, the
+// HUD's do not. An Own room's game says Own throughout.
+static void TestHudDelayFollowsTheWatchedGame() {
+	for (const auto policy : {DelayPolicy::Shared, DelayPolicy::Own}) {
+		RoomAuthority authority("Delays", 8, 7, Rules(), false, policy);
+		Join(authority, 0, true);
+		const auto a = Join(authority, 1), b = Join(authority, 2), w = Join(authority, 3);
+		const auto ready = [&](MemberId member, std::uint8_t delay) {
+			auto action = TableAction(authority, member, 0, ActionKind::Ready);
+			action.inputDelay = delay;
+			CHECK(authority.Apply(member, action).accepted);
+		};
+		for (const auto member : {a, b}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+		CHECK(authority.Apply(w, TableAction(authority, w, 0, ActionKind::Watch)).accepted);
+		ready(a, 3); ready(b, 5);
+		CHECK(authority.BeginMatch(0, a, b).accepted);
+		// What the grant's seats carry, as the host projects them (SeatMatchDelay).
+		const auto& room = authority.SnapshotView();
+		const auto& table = room.tables[0];
+		const auto granted = WatchedGameDelay(room.delayPolicy, SeatMatchDelay(room, table, 0), SeatMatchDelay(room, table, 1));
+		sf4e::MatchTelemetry telemetry;
+		telemetry.Reset(true);
+		telemetry.GrantedDelay(granted.frames, granted.own);
+		CHECK(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
+		const auto generation = table.matchGeneration;
+		CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+		for (const auto member : {a, b}) {
+			auto ack = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+			ack.matchGeneration = generation;
+			CHECK(authority.Apply(member, ack).accepted);
+		}
+		ready(a, 1); ready(b, 2);
+		CHECK(MatchDelay(table) == 2);
+		CHECK(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
+	}
 }
 
 // A Ready belongs to its seat. Once the committed room gives the client no
@@ -336,7 +406,10 @@ int main() {
 	TestFighterDepartureClosesTheGame();
 	TestReadinessClearsTheDelayLock();
 	TestLeavingQueueEndsTheQueuedWatch();
+	TestQueuedWatcherLeavesOneGame();
 	TestHudScoreFollowsTheWatchedGame();
+	TestHudDelayFollowsTheWatchedGame();
+	TestQueuePlaceCountsFromNext();
 
 	if (failures) return 1;
 	std::puts("RoomLifecycle test passed");

@@ -288,8 +288,13 @@ namespace sf4e {
 				// with its severity's lifetime: an Error stays until a newer
 				// notice replaces it or the next session starts, Info and Warning
 				// expire on their own (NoticeSeverity). An empty reason ends
-				// quietly.
-				static void AbortGgpoMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
+				// quietly. A spectator's session aborted for a Failure of its
+				// own records a stream failure, whose lock release the room is
+				// owed; one the player Left was already reported by the leave
+				// itself, which ends the lock-in. A latched abort is a Failure.
+				enum class AbortCause { Failure, Left };
+				static void AbortGgpoMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error,
+					AbortCause cause = AbortCause::Failure);
 				// Completes an abort latched inside a callback. Returns true
 				// when a session was closed. Must be called after every
 				// top-level GGPO API call that can run callbacks.
@@ -306,7 +311,7 @@ namespace sf4e {
 				// Safe to call outside GGPO callbacks at any time.
 				static void PollNativeMatchResult();
 				// P1 drops a spectator that has not synchronized in time or has
-				// fallen too far behind; a spectator client ends a stream that
+				// fallen too far behind, and ends its link; a spectator client ends a stream that
 				// never synchronized (SpectatorPolicy). Outside callbacks.
 				static void PollSpectators();
 				// Live spectator streams this client forwards inputs to. Only P1

@@ -1,6 +1,5 @@
 #include "TrainingInRoom.hxx"
 #include "../common/Localization.hxx"
-#include <algorithm>
 
 namespace sf4e { namespace ui {
 TrainingRoomStatus DescribeTrainingRoom(const room::Snapshot& room, unsigned unread) {
@@ -14,9 +13,7 @@ TrainingRoomStatus DescribeTrainingRoom(const room::Snapshot& room, unsigned unr
         if (opponent) status.opponent = opponent->name;
         else status.place = loc::T("training.room.waiting");
     } else if (place.kind == room::Place::Kind::Queue) {
-        const auto& queue = room.tables[place.table].queue;
-        const auto at = std::find(queue.begin(), queue.end(), room.localMember) - queue.begin();
-        status.place = loc::Tf("training.room.queued", static_cast<int>(at) + 1, static_cast<int>(queue.size()));
+        status.place = loc::Tf("training.room.queued", place.position, static_cast<int>(room.tables[place.table].queue.size()));
     } else status.place = loc::T("training.room.not_queued");
     if (unread) status.unread = loc::Tf("training.room.unread", unread);
     return status;

@@ -17,9 +17,11 @@
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/MatchFrameMeter.hxx"
+#include "../common/NativeMenuLock.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -38,6 +40,33 @@ using rVsMode = Dimps::GameEvents::VsMode;
 static HWND s_overlayWindow = nullptr;
 static sf4e::ui::ControllerNavigation controllerNavigation;
 static std::unique_ptr<sf4e::ui::SelectionArt> s_selectionArt;
+// The watched game's picture (ShellView::watchedPicture): the render target
+// copied at its own size, which also resolves a multisampled one, then
+// filtered down. Made at the first size seen and let go with the overlay,
+// which a Reset (also a change of resolution) or the device going frees.
+// The full copy keeps the target's format for the resolve; the shown one is
+// X8R8G8B8, so it samples opaque whatever alpha the game left in an A8R8G8B8
+// backbuffer (ImGui blends images by their alpha).
+static IDirect3DTexture9* s_watchedFull = nullptr, * s_watchedShown = nullptr;
+static bool s_watchedFailed = false;
+static ImTextureID WatchedPicture(unsigned width, unsigned height) {
+	IDirect3DDevice9* device = Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice;
+	IDirect3DSurface9* target = nullptr, * full = nullptr, * shown = nullptr;
+	D3DSURFACE_DESC desc{};
+	const bool fresh = !s_watchedShown;
+	const bool done = !s_watchedFailed && SUCCEEDED(device->GetRenderTarget(0, &target)) && SUCCEEDED(target->GetDesc(&desc)) &&
+		(s_watchedFull || SUCCEEDED(device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, D3DPOOL_DEFAULT, &s_watchedFull, nullptr))) &&
+		(s_watchedShown || SUCCEEDED(device->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &s_watchedShown, nullptr))) &&
+		SUCCEEDED(s_watchedFull->GetSurfaceLevel(0, &full)) && SUCCEEDED(s_watchedShown->GetSurfaceLevel(0, &shown)) &&
+		SUCCEEDED(device->StretchRect(target, nullptr, full, nullptr, D3DTEXF_NONE)) && SUCCEEDED(device->StretchRect(full, nullptr, shown, nullptr, D3DTEXF_LINEAR));
+	for (auto* surface : {target, full, shown}) if (surface) surface->Release();
+	// Once per overlay: the format names the backbuffer this picture came from.
+	if (done && fresh) spdlog::info("Overlay: watched game's picture {}x{} from its {}x{} frame in format {}", width, height, desc.Width, desc.Height, static_cast<int>(desc.Format));
+	// Once: the menu then stays translucent until the overlay is made again.
+	// A driver that will not convert the format to X8R8G8B8 ends up here too.
+	if (!done && !s_watchedFailed) { s_watchedFailed = true; spdlog::warn("Overlay: no {}x{} picture of the watched game's {}x{} frame in format {}", width, height, desc.Width, desc.Height, static_cast<int>(desc.Format)); }
+	return done ? reinterpret_cast<ImTextureID>(s_watchedShown) : ImTextureID{};
+}
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
 static sf4e::ui::OverlayPresentation presentation;
@@ -85,7 +114,7 @@ bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
-// Start at the main menu or over a Practice match (input::ControllerOpensMenu).
+// Start at the main menu or over a fight (input::ControllerOpensMenu).
 // The request holds the pads at once, until the frame that takes it has
 // shown the menu (MenuPads), so the press never reaches the native menu or
 // the fight. Behind another window it counts only where a pad update has
@@ -104,7 +133,21 @@ void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const,
     PushNetplayAlert(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ? SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)));
 }
 // Game thread: the native menu's Network item opens the room shell instead.
+// In a room or a match it is the only item that goes through: a button held
+// from the end of a game can land on any of them as the menu comes back, and
+// Benchmark then reads the battle system the game has just freed. The menu
+// is also kept from input there (fMainMenu::GetItemObserverState); this is
+// the second layer, for a selection that gets past it.
+static_assert(rMainMenu::MainMenuItemID::MMI_NETWORK == sf4e::input::NativeNetworkItem, "the Network item changed");
 static int OnMainMenuModeSelected(int mode) {
+    const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+    const auto lock = sf4e::input::NativeMenuLockFor(snapshot->session.room, snapshot->session.match);
+    spdlog::info("Main menu: native selection {} (room {}, match {}, Ember menu {})", mode, sf4e::input::RoomStateName(snapshot->session.room),
+        sf4e::input::MatchStateName(snapshot->session.match), s_menuPads.Holds() ? "shown" : "hidden");
+    if (!sf4e::input::NativeSelectionAllowed(lock, mode)) {
+        spdlog::warn("Main menu: selection {} refused while a room or match is open", mode);
+        return 1;
+    }
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
     s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
 }
@@ -119,6 +162,15 @@ static void NoteLifecycleThread(const char* what) {
 
 void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	NoteLifecycleThread("initialize");
+	// No device, no overlay: with no context every other overlay entry point
+	// does nothing, and the next Reset that has a device starts it. Reports
+	// from 1.2.0 crashed here on every launch reading through a null device.
+	if (!lpDevice) {
+		RECT client{}; if (hWnd) GetClientRect(hWnd, &client);
+		spdlog::error("Overlay: the game has no Direct3D device (window {}, client area {}x{}); the overlay is not started",
+			hWnd ? "present" : "missing", client.right - client.left, client.bottom - client.top);
+		return;
+	}
 	sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
 	sf4e::OverlayPrefs::StartPersistence();
 	IMGUI_CHECKVERSION();
@@ -260,6 +312,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
+    view.watchedGame = snapshot.watchedGame;
+    // Taken before Ember draws anything this frame, so it holds the game's picture alone.
+    if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
+        const auto& size = ImGui::GetMainViewport()->Size;
+        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureShare));
+    }
+    view.lockInDrops = snapshot.lockInDrops;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
@@ -272,6 +331,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
     view.probeStatus=snapshot.probeStatus; view.probeSamples=snapshot.probeSamples; view.probeLost=snapshot.probeLost;
     view.probeSent=snapshot.probeSent; view.probeExpected=snapshot.probeExpected;
+    view.memberLatency=snapshot.memberLatency;
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
 	view.shortInvitation = snapshot.shortInvitation;
@@ -283,6 +343,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.error = snapshot.helperError;
 	view.settingsError = snapshot.settingsError;
 	view.languagePreference = snapshot.languagePreference;
+	view.checkUpdatesAtLaunch = snapshot.checkUpdatesAtLaunch;
+	view.automaticCountry = snapshot.automaticCountry;
 	view.unixNow = static_cast<std::uint64_t>(std::time(nullptr));
 	// Both read their file once; the card's own outcome decides whether to ask.
 	static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
@@ -295,7 +357,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.discordPending=snapshot.discordPending; view.discordConfirm=snapshot.discordConfirm;
     view.discordRevision=snapshot.discordRevision;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
-    view.inputDevice = snapshot.inputDevice;
+    view.inputDevice = snapshot.inputDevice; view.menuButtons = snapshot.menuController.menu;
+    view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
+    view.padHint = snapshot.padHint;
+    view.padHintUntil = snapshot.padHintUntil; view.padLayer = snapshot.padLayer;
+    view.padSetup = snapshot.padSetup; view.atMainMenu = snapshot.atMainMenu;
+    view.padLayerPending = snapshot.padLayerPending; view.runningControllerLayer = snapshot.runningControllerLayer;
+    view.pads = snapshot.pads; view.captureCandidate = snapshot.captureCandidate;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
     view.canChangeController = snapshot.canChangeController;
@@ -317,6 +385,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
+    if (fighter) {
+        view.hintFighter = fighter->name; view.hintUltra = sf4e::ui::ShortUltraLabel(summaryPick.ultra);
+        view.hintAppearance = sf4e::ui::ShortAppearanceLabel(summaryPick, snapshot.installedContent.get());
+    }
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
@@ -348,10 +420,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
-        request.service = action.service; request.servicePath = std::move(action.servicePath);
+        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
+        request.updateOffer = std::move(action.updateOffer);
         request.replay = std::move(action.replay);
         request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
+        request.padAction = action.padAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
 		request.preferences = std::move(action.preferences);
@@ -364,15 +438,17 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
         request.practiceRoom = action.practiceRoom;
+        request.delayPolicy = action.delayPolicy;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
 		request.randomPool = lobbyRandomPool;
 		request.training = action.training;
+		request.leaveWatchedGame = action.leaveWatchedGame;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
 		// Training from inside a room: the menu closes behind it while the runtime
 		// sends the game on.
-		if (action.training == sf4e::TrainingEntry::Room) presentation.Close();
+		if (action.training == sf4e::TrainingEntry::Room) presentation.Close("Training from the room");
 		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -382,7 +458,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
 #endif
     );
-    if (!open) presentation.Close();
+    if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
+    if (shell.SelectionDrawn()) sf4e::NetplayFacade::NoteFighterSelector(view.room.roomEpoch);
+    if (!open) presentation.Close("Back on Ember's Home");
 }
 
 
@@ -408,36 +486,37 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto& status = frame->netplay;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     // A replay being exported can be followed or cancelled from Ember's menu,
-    // so the menu stays available over the battle log while it runs, and a
-    // Practice match's fighter ends the game from it (input::MenuContext).
+    // so the menu stays available over the battle log while it runs; a
+    // Practice match's fighter ends the game from it, and a spectator leaves
+    // the game it watches (input::MenuContext).
     const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
     presentation.Update(snapshot.menuContext, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
     if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
-        presentation.Open();
+        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" : "Start");
         if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
     }
     static bool inviteShown=false;
-    if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
+    if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open("a Discord invite"); inviteShown=true; }
     if (!snapshot.discordPending) inviteShown=false;
     // A room link from the browser opens the menu at the main menu, where
     // the shell puts it on the Join screen.
     static std::uint64_t joinLinkShown=0;
     if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open(); joinLinkShown=snapshot.pendingJoinSequence;
+        presentation.Open("a room link"); joinLinkShown=snapshot.pendingJoinSequence;
     }
     // Called out of Training: back at the main menu the menu opens on the
     // player's table, which the shell turns to, so the Ready row is in reach.
     static std::uint64_t trainingCallShown=0;
     if (snapshot.trainingCallSequence!=trainingCallShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open(); trainingCallShown=snapshot.trainingCallSequence;
+        presentation.Open("a Training call"); trainingCallShown=snapshot.trainingCallSequence;
     }
     // A Discord connect link likewise, at the main menu only: during play it
     // waits until the player opens Ember, which then asks before going on.
     static std::uint64_t connectLinkShown=0;
     if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
+        presentation.Open("a Discord connect link"); connectLinkShown=snapshot.tournament.connect.sequence;
     }
     // A replay link opens the menu at the main menu with no room, where the
     // shell puts its question on the Replays screen; in a room or in play it
@@ -446,14 +525,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (snapshot.replays.link.empty()) replayLinkShown.clear();
     else if (snapshot.replays.link != replayLinkShown && snapshot.atMainMenu && presentation.Available() &&
         snapshot.session.room == sf4e::netplay::RoomState::Idle) {
-        presentation.Open(); replayLinkShown = snapshot.replays.link;
+        presentation.Open("a replay link"); replayLinkShown = snapshot.replays.link;
     }
     // A public room link the player was free to follow opens the menu, where
     // the shell takes them to Public rooms; during play it waits until the
     // player opens Ember, and the shell says so.
     static std::uint64_t roomLinkShown=0;
     if (snapshot.tournament.roomLink.sequence!=roomLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        if (snapshot.tournament.roomLink.free) presentation.Open();
+        if (snapshot.tournament.roomLink.free) presentation.Open("a public room link");
         roomLinkShown=snapshot.tournament.roomLink.sequence;
     }
     sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
@@ -469,22 +548,27 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         notedOverflows = overflows;
     }
     // The pad drives the menu behind another window too (ShellHoldsPads).
+    const auto& setup = snapshot.padSetup.state;
+    const bool targetIsGameplay = std::any_of(snapshot.pads.begin(), snapshot.pads.end(), [&](const gamepads::PadView& pad) {
+        return pad.gameplay && gamepads::Same(pad.identity, snapshot.padSetup.identity);
+    });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || s_trainingControls.Open(), !assigning);
-    // Start opens Ember at the main menu and over a Practice match; in
-    // Training and over an export it is the game's pause.
-    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
+        presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
+    // Start opens Ember at the main menu and over a fight (a Practice match
+    // or a watched game); in Training and over an export it is the game's pause.
+    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
-    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
+    for (const auto& pad : snapshot.pads) if (pad.gameplay) sf4e::ui::SetMenuPromptBrand(snapshot.promptBrand, gamepads::NamesOf(pad.table));
+    sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.menu,snapshot.promptBrand);
     if (presentation.Reopened()) shell.ShowPlay();
     // The game's battle log was opened from the Replays screen: Ember's menu
     // gets out of the way, and comes back on that screen when the replay
     // operation says the main menu is back (sf4e__ReplayStore.hxx).
     static std::uint64_t logOpensSeen = 0, returnsSeen = 0;
-    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close(); }
-    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.ShowReplays(); }
-    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
+    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close("the battle log opened"); }
+    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open("the battle log closed"); shell.ShowReplays(); }
+    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle("F10");
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
@@ -505,6 +589,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     namespace meter = sf4e::match_frame_meter;
     sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch),
         snapshot.room.serverOwned, snapshot.replays.meterShown));
+    // How far back a held meter reaches and whether it starts over after a pause, as the Meter settings page chose.
+    const auto meterOptions = sf4e::ui::TrainingMeterOptions();
+    sf4e::training::SetMeterHistory(meterOptions.history, meterOptions.continuous);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
@@ -561,13 +648,24 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
         if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
+            // F7: standby, then record, then stop. From rest on a recorded
+            // slot it first asks about overwriting it, and its Record sends
+            // the same press.
             if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingRecordKey), false)) {
-                if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
+                if (!sf4e::training::PadPlaysDummy(training.mode) && training.lengths[training.selected] > 0) {
                     sf4e::ui::OpenTrainingRecordings(s_trainingControls, focus);
-                } else practice(training.mode == sf4e::training::Mode::Recording ? sf4e::training::Action::Stop : sf4e::training::Action::Record);
+                } else practice(sf4e::training::Action::AdvanceRecording);
             }
             if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1 + sf4e::ui::TrainingPlayKey), false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
+            // Escape leaves standby, keeps a recording, and stops a playback.
+            if (training.mode != sf4e::training::Mode::Idle && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) practice(sf4e::training::Action::Interrupt);
         }
+        // The controls opening, by any key, chip or pad, interrupt the same
+        // way, once per opening.
+        static bool controlsWereOpen = false;
+        const bool controlsOpen = s_trainingControls.Open();
+        if (controlsOpen && !controlsWereOpen) practice(sf4e::training::Action::Interrupt);
+        controlsWereOpen = controlsOpen;
         if (s_trainingControls.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
@@ -590,6 +688,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room, call);
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
+    layers.padHint = snapshot.padHint;
     if (snapshot.replays.captionShown) {
         const auto& caption = snapshot.replays.caption;
         auto& shown = layers.caption;
@@ -634,7 +733,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
-        strip.spectator = status.spectator;
+        strip.spectator = status.spectator; strip.behindFrames = status.spectatorBacklog; strip.ownDelays = status.ownDelays;
+        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength; strip.unreadChat = shell.UnreadChat();
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.layout = snapshot.preferences.matchHudLayout; strip.nameOffset = snapshot.preferences.matchHudNameOffset; strip.spectators = status.spectators;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
@@ -658,20 +758,37 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool capturing = CapturesInput();
     if (wasCapturing && !capturing) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
     wasCapturing = capturing;
+    // Said when it changes, with the room: the shell's visibility decides
+    // whether the pad reaches Ember's menu or the game's.
+    static bool shellWasVisible = false;
+    if (presentation.Visible() != shellWasVisible) {
+        shellWasVisible = presentation.Visible();
+        spdlog::info("Overlay: Ember menu {} ({}), room {}, match {}", shellWasVisible ? "shown" : "hidden", presentation.Why(),
+            sf4e::input::RoomStateName(snapshot.session.room), sf4e::input::MatchStateName(snapshot.session.match));
+    }
     // The native menu stays parked under a shown shell, focused or not, and
     // while the pad update hides the pads from it (behind another window, or
     // a press held from the shell), so a pad press while alt-tabbed cannot drive it.
     fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
         ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
-    if (layers.matchActive && focused && passive && !status.spectator && snapshot.practiceMatch)
-        sf4e::ui::DrawMatchPracticeNotice();
+    // A watched game says how to leave it, for its first seconds.
+    // The hint outlives the ImGui context a DX9 reset recreates, whose clock
+    // restarts, so it runs on the process clock.
+    static sf4e::ui::TimedHint watchingHint(10);
+    const bool watchingHintDue = watchingHint.Due(
+        snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, GetTickCount64() / 1000.0);
+    if (layers.matchActive && focused && passive) {
+        if (!status.spectator && snapshot.practiceMatch)
+            sf4e::ui::DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
+        else if (watchingHintDue) sf4e::ui::DrawMatchKeysNotice({"runtime.watching_hint"});
+    }
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
     prefs.randomPool = lobbyRandomPool;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
-    if (!sf4e::OverlayPrefs::Same(prefs, s_prefs) && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
+    if (prefs != s_prefs && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
     // An export takes its picture between the layers its video holds and
     // the rest of Ember, so the menu and the HUD are never in it.
     ImGui::Render();
@@ -695,6 +812,8 @@ void Overlay::FreeOverlay() {
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
     s_selectionArt.reset();
+    for (auto** texture : {&s_watchedFull, &s_watchedShown}) if (*texture) { (*texture)->Release(); *texture = nullptr; }
+    s_watchedFailed = false;
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
 }
 // ImGui's input queue is not thread-safe: the window messages that feed it
@@ -721,7 +840,8 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         focused = w != 0;
         if (!focused) {
             const auto training = sf4e::training::ReadView();
-            sf4e::training::Submit({sf4e::training::Action::Stop, training.generation});
+            // Standby is dropped and a recording kept (TrainingCommands.hxx keeps a place for it).
+            sf4e::training::Submit({sf4e::training::Action::Interrupt, training.generation});
             capture = false; pointerCapture = false;
             activationClick.Reset();
             sf4e::ui::SetOverlayCursorOwnership(false);

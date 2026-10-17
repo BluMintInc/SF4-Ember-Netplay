@@ -55,11 +55,47 @@ static void TestPublicJoinRejectionWording() {
 	CHECK(std::string(SessionClient::JoinRejectionKey(Error::SCE_JOIN_REJECTED_REQUEST_INVALID)) == "runtime.room_request_failed");
 }
 
+// One builder serves the hello admission and the fallback join_req, and both
+// carry the transport's latency route.
+static void TestJoinRequestCarriesLatency() {
+	SessionClient::Callbacks callbacks = {};
+	callbacks.OnError = [](SessionClient::ErrorType, SessionClient*, const SessionClient::Callbacks&) {};
+	std::string name = "Player";
+	const auto route = LatencyRoute::Parsed(std::string(64, 'c'), "use1");
+	SessionClient room(callbacks, "build", 30000, name);
+	room.RequireCustomRooms();
+	auto* roomTransport = new MockClient();
+	roomTransport->latency = route;
+	CHECK(room.Connect(std::unique_ptr<session::ClientTransport>(roomTransport), false) == 0);
+	roomTransport->state = session::ConnectionState::Connected;
+	CHECK(room.Step() == 0 && roomTransport->sent.size() == 1);
+	const auto admission = roomTransport->sent.back().at("admission").get<protocol::SessionJoinRequest>();
+	CHECK(admission.latency.endpoint == route.endpoint && admission.latency.relay == "use1" && admission.customRooms);
+	SessionClient legacy(callbacks, "build", 30000, name);
+	auto* legacyTransport = new MockClient();
+	legacyTransport->latency = route;
+	CHECK(legacy.Connect(std::unique_ptr<session::ClientTransport>(legacyTransport), false) == 0);
+	legacyTransport->state = session::ConnectionState::Connected;
+	CHECK(legacy.Step() == 0);
+	protocol::SessionHelloResp hello; hello.cid = {"room", "player"};
+	legacyTransport->Push(json(hello)); CHECK(legacy.Step() == 0);
+	CHECK(legacyTransport->sent.back().at("type") == "join_req");
+	CHECK(legacyTransport->sent.back().get<protocol::SessionJoinRequest>().latency.endpoint == route.endpoint);
+	// A transport with no route sends no key.
+	SessionClient none(callbacks, "build", 30000, name);
+	none.RequireCustomRooms();
+	auto* noneTransport = new MockClient();
+	CHECK(none.Connect(std::unique_ptr<session::ClientTransport>(noneTransport), false) == 0);
+	noneTransport->state = session::ConnectionState::Connected;
+	CHECK(none.Step() == 0 && !noneTransport->sent.back().at("admission").contains("latency"));
+}
+
 struct Observer { int ready = 0, synced = 0, error = 0; };
 int main() {
 	TestFailedRoomCanLeaveAfterNativeTeardown();
 	TestJoinRejectionBelongsToOneConnection();
 	TestPublicJoinRejectionWording();
+	TestJoinRequestCarriesLatency();
 	Observer observer;
 	SessionClient::Callbacks callbacks = {};
 	callbacks.data = &observer;
@@ -146,7 +182,31 @@ int main() {
 	CHECK(roomTransport->sent.size() == 1 && roomTransport->sent.back().at("admission").value("mainFighter", -1) == 13 &&
 		roomTransport->sent.back().at("admission").value("link", -1) == static_cast<int>(NetworkLink::Wired) &&
 		roomTransport->sent.back().at("admission").value("nat", -1) == static_cast<int>(NatClass::Strict));
-	protocol::SessionHelloResp roomHello; roomHello.cid = {"room", "player"};
+	// The player showed no Steam profile (the default), so the admission carries no key for it.
+	CHECK(!roomTransport->sent.back().at("admission").contains("steamId")&&!roomTransport->sent.back().at("admission").contains("country"));
+	{
+		// One who shows it sends the exact decimal text, and the server's profile reads it back.
+		SessionClient sharing(callbacks, "build", 30000, roomName);
+		sharing.RequireCustomRooms();
+		sharing.SetProfileSteam(sf4e::SteamId::Parsed("76561200000000000"));
+		sharing.SetProfileCountry(sf4e::CountryCode::Parsed("JP"));
+		auto* sharingTransport = new MockClient();
+		CHECK(sharing.Connect(std::unique_ptr<session::ClientTransport>(sharingTransport), false) == 0);
+		sharingTransport->state = session::ConnectionState::Connected;
+		CHECK(sharing.Step() == 0 && sharingTransport->sent.size() == 1);
+		const auto& admission = sharingTransport->sent.back().at("admission");
+		CHECK(admission.at("steamId").is_string() && admission.at("steamId").get<std::string>() == "76561200000000000");
+		CHECK(admission.get<protocol::SessionJoinRequest>().Profile().steamId.ToString() == "76561200000000000");
+		// The country it shows travels the same way.
+		CHECK(admission.at("country") == "JP" && admission.get<protocol::SessionJoinRequest>().Profile().country.ToString() == "JP");
+		// A value that is not a SteamId, or not text, joins as nobody sharing.
+		for (const json invalid : { json("76561190000000000"), json("x"), json(76561200000000000ull), json(nullptr) }) {
+			json forged = admission;
+			forged["steamId"] = invalid;
+			CHECK(!forged.get<protocol::SessionJoinRequest>().Profile().steamId.Present());
+		}
+		sharing.Disconnect();
+	}	protocol::SessionHelloResp roomHello; roomHello.cid = {"room", "player"};
 	roomHello.roomMember = 1; roomHello.authenticatedEndpoint = "player"; roomHello.incarnation = 11;
 	roomTransport->Push(json(roomHello)); CHECK(roomClient.Step() == 0);
 	// The committed hello already performed custom-room admission. It must not
@@ -406,9 +466,13 @@ int main() {
 	// current snapshot; the client resends from it, silently, up to three times.
 	// A fourth rejection is surfaced as a Ready reply so the press can fail now.
 	{
+		// A delay above the choice limit is normalized when it is chosen.
+		roomClient.SetSelectedDelay(9);
 		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
 		auto readyPayload = roomTransport->sent.back();
 		CHECK(readyPayload.at("action").at("kind").get<int>() == static_cast<int>(room::ActionKind::Ready));
+		CHECK(readyPayload.at("action").at("input_delay").get<int>() == MaximumInputDelay);
+		roomClient.SetSelectedDelay(2);
 		auto current = roomClient.GetRoomSnapshot();
 		for (int attempt = 1; attempt <= 4; ++attempt) {
 			protocol::RoomResultMessage stale;

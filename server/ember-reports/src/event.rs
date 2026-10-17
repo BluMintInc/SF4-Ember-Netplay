@@ -145,6 +145,34 @@ pub fn tail(text: &str, bytes: usize) -> &str {
     &text[start..]
 }
 
+// Without a dump the stack is only the crash address, which moves with each
+// load of a DLL, so one fault opened a new issue per run. The game's crash
+// log names it as `address=0x... module=Name+0x...`. Only the newest line for
+// this report's address counts: the log keeps earlier runs, and when that line
+// names no module an older crash at the same address must not stand in for it.
+fn logged_module(report: &Report, address: u64) -> Option<(String, u64)> {
+    let log = report.logs.get("sf4e-crash.log")?;
+    let logged_address = |line: &str| {
+        let (_, rest) = line.split_once("address=")?;
+        hex(rest.split(' ').next()?, 16)
+    };
+    let line = log
+        .lines()
+        .rev()
+        .find(|line| logged_address(line) == Some(address))?;
+    let (_, rest) = line.split_once("module=")?;
+    let (name, offset) = rest.split_whitespace().next()?.rsplit_once("+0x")?;
+    let named = !name.is_empty()
+        && name.len() <= 64
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
+    if !named {
+        return None;
+    }
+    Some((name.to_owned(), hex(offset, 8)?))
+}
+
 pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str>) -> Vec<u8> {
     let m = &report.meta;
     let code = walk.code.or_else(|| {
@@ -165,10 +193,12 @@ pub fn build(id: &ReportId, report: &Report, walk: &Walk, dump_path: Option<&str
     let crash_frames: &[Frame] = if walk.crash_frames.is_empty()
         && let Some(instruction) = m.crash_address.as_deref().and_then(|s| hex(s, 16))
     {
+        let (module, offset) =
+            logged_module(report, instruction).unwrap_or_else(|| ("unknown".into(), instruction));
         fallback = [Frame {
             instruction,
-            offset: instruction,
-            module: "unknown".into(),
+            offset,
+            module,
             ..Frame::default()
         }];
         &fallback

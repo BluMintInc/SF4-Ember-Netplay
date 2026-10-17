@@ -1,7 +1,9 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
@@ -96,6 +98,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		else runtime->error = loc::T("room.training.unavailable");
 		return DispatchOutcome::Dropped;
 	}
+	// Stop watching names the game; what leaving it takes is decided here, so
+	// a press never outlives the stream it was about. A retry decides afresh.
+	if (command.leaveWatchedGame.Active()) {
+		if (attempt == Attempt::Fresh) runtime->roomActionIntent.Clear();
+		const auto outcome = LeaveWatchedGame(command.leaveWatchedGame);
+		return outcome == DispatchOutcome::Deferred ? Defer(runtime->roomActionIntent, command) : outcome;
+	}
     if (command.discordAction != discord::InviteAction::None) {
         if (!runtime->discordInvite.Matches(command.discordRevision)) return DispatchOutcome::Dropped;
         if (command.discordAction == discord::InviteAction::Cancel) runtime->discordInvite.Cancel();
@@ -117,24 +126,51 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if (runtime->room) runtime->room->RequestShortInvitation();
         return DispatchOutcome::Dropped;
     }
+    if (command.padAction.kind != gamepads::ControllerRequest::Kind::None) {
+        HandleControllerRequest(command.padAction); return DispatchOutcome::Dropped;
+    }
     if (command.inputAction != input::Action::None) {
+        if (command.inputAction == input::Action::BeginCapture || command.inputAction == input::Action::UseKeyboard) runtime->setupAdoption.reset();
         if (command.inputAction == input::Action::Cancel) { runtime->input.Cancel(); runtime->inputInitialized=true; return DispatchOutcome::Dropped; }
-        const auto current = runtime->controller.GetSnapshot();
-        if (!AtMainMenu() || !GetRuntimeSnapshotShared()->canChangeController || runtime->readyIntent.Parked() ||
-            current.readyPending || (current.match != netplay::MatchState::None && current.match != netplay::MatchState::PostMatch)) return DispatchOutcome::Dropped;
+        if (!CanChooseControllerNow()) return DispatchOutcome::Dropped;
         if (command.inputAction == input::Action::BeginCapture) runtime->input.Begin();
         else if (command.inputAction == input::Action::UseKeyboard) {
             runtime->input.Cancel();
             for (const auto& device : runtime->inputDevices) if (device.type == Dimps::Pad::PADTYPE_RAWINPUT) {
                 runtime->input.Adopt(device); runtime->inputInitialized = true;
+                runtime->padHint.clear();
+                runtime->padHints.Selected(device.identity);
+                OverlayPrefs::SaveGameplayDevice(device.type, device.index, {});
+                LogGameplayController(device, "list");
                 input::AssignToSide(device, 0, false); break;
             }
         }
         return DispatchOutcome::Dropped;
     }
+    if (command.service == platform::ServiceAction::OpenSteamProfile) {
+        // Steam's overlay when it is up, otherwise the profile page in the browser.
+        SteamProfileOpeners openers;
+        openers.overlayAvailable = [] { return steam::OverlayAvailable(); };
+        openers.overlay = [](const SteamId& id) { return steam::OpenProfileOverlay(id); };
+        openers.browser = [](const SteamId& id) { return runtime->services.OpenSteamProfilePage(id); };
+        const auto route = OpenSteamProfile(command.steamProfile, openers);
+        spdlog::info("Room: Steam profile opened by {}", route == SteamProfileRoute::Overlay ? "the overlay" : route == SteamProfileRoute::Browser ? "the browser" : "no route");
+        if (route == SteamProfileRoute::Refused || route == SteamProfileRoute::Failed) runtime->error = loc::T("runtime.steam_profile_failed");
+        return DispatchOutcome::Dropped;
+    }
     if (command.service != platform::ServiceAction::None) {
+        // In-game install is refused; opening the Launcher needs the game out of a room and a match.
         if (command.service == platform::ServiceAction::InstallUpdate ||
-            ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery) && !GetRuntimeSnapshotShared()->canEditPreferences)) return DispatchOutcome::Dropped;
+            ((command.service == platform::ServiceAction::OpenUpdater || command.service == platform::ServiceAction::OpenRecovery ||
+              command.service == platform::ServiceAction::UpdateNow) && !GetRuntimeSnapshotShared()->canEditPreferences)) return DispatchOutcome::Dropped;
+        // The launch check and the answer to its offer have their own quiet entry points.
+        if (command.service == platform::ServiceAction::LaunchUpdateCheck) { runtime->services.RequestLaunchCheck(); return DispatchOutcome::Dropped; }
+        if (command.service == platform::ServiceAction::UpdateNow || command.service == platform::ServiceAction::SkipUpdate) {
+            const bool accepted = command.service == platform::ServiceAction::UpdateNow ?
+                runtime->services.UpdateNow(command.updateOffer) : runtime->services.SkipUpdate(command.updateOffer);
+            if (!accepted) runtime->error = loc::T("runtime.operation_busy");
+            return DispatchOutcome::Dropped;
+        }
         platform::DiagnosticsView diagnostics;
         const auto state = runtime->controller.GetSnapshot();
         diagnostics.room = static_cast<int>(state.room); diagnostics.match = static_cast<int>(state.match);
@@ -206,21 +242,27 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 				(action == room::ActionKind::Unqueue || action == room::ActionKind::Unwatch);
 			if (immediateSpectatorAction) {
 				// Removing a queued spectator preserves the current spectator
-				// stream. Unwatch is sent before local GGPO retirement so P1
-				// receives game_peer_end while the generation is still current.
+				// stream. An Unwatch here leaves a table whose watched game the
+				// room has already finished (the live game's leave is
+				// leaveWatchedGame); it is sent before local GGPO retirement so
+				// P1 receives game_peer_end while the generation is still current.
 				if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
 					runtime->error = loc::T("runtime.spectator_action_retrying");
 					return Defer(runtime->roomActionIntent, command);
 				}
-				// The player chose to leave: a passing note, not an error.
-				if (action == room::ActionKind::Unwatch) AbortLocalMatch(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
+				// The player chose to leave: a passing note, not an error, and no
+				// stream failure, whose lock release would race the Unwatch that
+				// already ends the lock-in.
+				if (action == room::ActionKind::Unwatch) AbortLocalMatch(GgpoEnd::Leave(loc::T("runtime.leaving_spectator")));
 				return DispatchOutcome::Dispatched;
 			}
 			if (runtime->controller.GetSnapshot().match == netplay::MatchState::Playing && !localSpectator) return DispatchOutcome::Dropped;
 			// The match teardown this starts ends by itself, so the wait has no budget.
 			Defer(runtime->roomActionIntent, command, Intent::Budget::Untimed);
 			if (DrainingSpectators()) RetireFinishedMatch("iroh_room_action");
-			else AbortLocalMatch(loc::T("runtime.returning_room"), NoticeSeverity::Info);
+			// The player chose this table change, so a spectator's view ends as a
+			// departure, not a stream failure that would drop its lock-in.
+			else AbortLocalMatch(GgpoEnd::Leave(loc::T("runtime.returning_room")));
 			return DispatchOutcome::Deferred;
 		}
 	}
@@ -329,6 +371,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         command.preferences.record=runtime->preferences.record;
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
+            Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");
@@ -353,6 +396,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
 		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
+		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -380,6 +424,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         runtime->replacementPending=true;
         // The replacement is the same kind of room as the one it replaces.
         runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
+        runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -792,19 +837,19 @@ void ResolvePendingIntents(bool helperReady) {
 		runtime->error = loc::T("runtime.previous_match_close_timeout");
 	}
 	const auto& controlState = runtime->controller.GetSnapshot();
-	const bool healthyRoomControl = controlState.control == netplay::Health::Healthy &&
-        (!controlState.coordinated || controlState.authorityWritable);
 	const bool matchIdle = runtime->match && runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle;
-	if (const auto* parked = runtime->roomActionIntent.Parked()) {
-		// A spectator leaves while its stream still runs: Unwatch must reach
-		// P1 before local GGPO retirement. Everything else waits for the menu.
-		const bool spectatorExit = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo &&
-			(parked->roomAction.kind == room::ActionKind::Unqueue || parked->roomAction.kind == room::ActionKind::Unwatch);
-		if (healthyRoomControl && !runtime->recoveringMatch && (spectatorExit || (AtMainMenu() && matchIdle)))
-			Retry(runtime->roomActionIntent, helperReady);
+	netplay::RetryGate gate;
+	gate.controlHealthy = controlState.control == netplay::Health::Healthy;
+	gate.authorityWritable = !controlState.coordinated || controlState.authorityWritable;
+	gate.recoveringMatch = runtime->recoveringMatch;
+	gate.spectatorInGame = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
+	gate.atMenuIdle = AtMainMenu() && matchIdle;
+	const bool healthyRoomControl = gate.controlHealthy && gate.authorityWritable;
+	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent}) {
+		const auto* parked = intent->Parked();
+		if (parked && (parked->leaveWatchedGame.Active() ? netplay::ParkedWatchedLeaveRetryable(gate) :
+			netplay::ParkedActionRetryable(parked->roomAction, gate))) Retry(*intent, helperReady);
 	}
-	if (runtime->chatIntent.Parked() && healthyRoomControl && !runtime->recoveringMatch && AtMainMenu() && matchIdle)
-		Retry(runtime->chatIntent, helperReady);
 	// A sent Ready keeps its budget; the pump clears it on commit or failure.
 	if (runtime->readyIntent.Parked() && healthyRoomControl && GetRuntimeSnapshotShared()->readyGate &&
 		!Game::Battle::System::ggpo && matchIdle)

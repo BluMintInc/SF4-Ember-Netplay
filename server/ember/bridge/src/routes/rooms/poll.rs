@@ -159,6 +159,7 @@ fn apply(
                  host_name = CASE WHEN ?7 THEN ?11 ELSE host_name END,
                  fighters = CASE WHEN ?7 THEN ?12 ELSE fighters END,
                  set_format = COALESCE(?13, set_format), rotation = COALESCE(?14, rotation),
+                 own_delay = CASE WHEN ?7 THEN ?15 ELSE own_delay END,
                  invitation_sealed = COALESCE(?4, invitation_sealed),
                  opened_at = COALESCE(opened_at, CASE WHEN ?6 THEN ?5 END)
              WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
@@ -179,6 +180,7 @@ fn apply(
                 details.fighters,
                 details.set_format,
                 details.rotation,
+                details.own_delay,
             ],
         )?;
         // Bans last for the room's life and are never evicted: the supervisor

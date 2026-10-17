@@ -1,5 +1,10 @@
 #pragma once
 #include <string>
+#include <map>
+#include <vector>
+#include "../common/ButtonPrompts.hxx"
+#include "../common/ButtonLayoutTypes.hxx"
+#include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/InputDelay.hxx"
 #include "../common/RoomRules.hxx"
@@ -21,6 +26,8 @@ struct LobbySettings {
 
 // How far the name plates move either way, in 720p game units.
 constexpr int MaxMatchHudNameOffset = 60;
+// The match HUD positions run from 0 (bottom center) to this one (top center).
+constexpr int MaxMatchHudAnchor = 5;
 
 struct PlayerPreferences {
     std::string displayName = "Player";
@@ -34,7 +41,8 @@ struct PlayerPreferences {
     bool showMatchHud = true;
     int matchHudSize = 0;
     bool matchHudRaised = false;
-    // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right.
+    // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right,
+    // 5 top center (above the game's round timer).
     int matchHudAnchor = 0;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.
     int matchHudLayout = 1;
@@ -46,6 +54,9 @@ struct PlayerPreferences {
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;
+    // Ember's menu over a game the player watches shows it small in its top
+    // right corner over an opaque menu, instead of dimmed behind the menu.
+    bool watchedPicture = false;
     // The training frame meter over the player's own matches and those they
     // watch. It only reads the game and shows confirmed frames.
     bool matchFrameMeter = false;
@@ -67,9 +78,20 @@ struct PlayerPreferences {
     // RenderingThreadOverride). Read at startup, so a change takes effect on
     // the next launch. It changes only how this PC draws, never the match.
     bool fasterDisplay = true;
+    gamepads::ButtonPrompts buttonPrompts = gamepads::ButtonPrompts::Automatic;
+    bool controllerLayer = true;
+    std::map<std::string, std::string> controllerMappings;
+    std::vector<gamepads::StoredLayout> buttonLayouts;
     // A match this PC only watches is recorded too, like one it plays
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;
+    // Room members can open this player's Steam profile from the room's member
+    // screen. Sent when they join a room; nothing is sent when it is off.
+    bool shareSteamProfile = true;
+    // The flag beside this player's name in rooms and on the player card:
+    // Windows' region (Automatic), a country they picked, or Hidden. Sent when
+    // they join a room; nothing is sent while it is Hidden or Windows names none.
+    CountryPreference country;
     bool discordPresence = true, discordInvites = true;
     // The launcher sends a crash's report without asking, logs only and at most
     // three a day (platform/ReportWorkflow.hxx). Off until the player turns it
@@ -81,17 +103,20 @@ struct PlayerPreferences {
     int roomCapacity = 16;
     // Whether Create opens a public room on the Ember ID service instead of a private one.
     bool roomPublic = false;
+    // Whose input delay a room created here plays at (room::Snapshot::delayPolicy).
+    room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Shared;
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.
     room::Rules publicTableRules = room::PublicRoomRules();
     bool Valid() const {
-        if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+        if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidMenuBinding(layout.menu); })) return false;
+        if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

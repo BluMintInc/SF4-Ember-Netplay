@@ -31,6 +31,7 @@ namespace sf4e {
 		int roundTimeIntegral = 99;
 		uint8_t useRelay = 0;
 		uint8_t devOverlay = 0;
+		// Reserved payload bytes. Gameplay controller restore uses player preferences.
 		uint8_t deviceType = 0xff;
 		uint8_t deviceIdx = 0xff;
 		// Reserved obsolete payload fields; ignored by the Iroh-only application.

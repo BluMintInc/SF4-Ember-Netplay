@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <deque>
@@ -90,13 +91,17 @@ namespace sf4e {
 			// A later press for the same table replaced this one; its outcome is stale.
 			bool superseded=false; };
         bool TakeActionReply(ActionReply& reply);
-        void SetSelectedDelay(unsigned delay) { if (delay<=static_cast<unsigned>(MaximumInputDelay)) _selectedDelay=static_cast<std::uint8_t>(delay); }
+        void SetSelectedDelay(unsigned delay) { _selectedDelay=static_cast<std::uint8_t>((std::min)(delay,static_cast<unsigned>(MaximumInputDelay))); }
         void SetSelectedLowerLag(bool on) { _selectedLowerLag=on; }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
 		// Set before the hello/join exchange; profile editing is offline-only.
 		void SetProfileMain(int fighter) { _profile.mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
 		void SetProfileLink(NetworkLink link) { _profile.link = link; }
 		void SetProfileNat(NatClass nat) { _profile.nat = nat; }
+		// None sends no profile at all.
+		void SetProfileSteam(const SteamId& id) { _profile.steamId = id; }
+		// None sends no country.
+		void SetProfileCountry(const CountryCode& country) { _profile.country = country; }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);
@@ -251,6 +256,8 @@ namespace sf4e {
 		bool HandleBattleHash(nlohmann::json& msg);
 		void ProjectSelectedRoomTable();
 		void TrySendPendingJoinRequest();
+		// The admission the hello and the fallback join_req both carry.
+		SessionProtocol::SessionJoinRequest BuildJoinRequest() const;
 		void ReconcileTerminalAcks();
 		RetainedRoomRetry* RetryRecord(room::ActionKind kind);
 		session::SendResult RetryRoomLifecycleAction(room::Action action,

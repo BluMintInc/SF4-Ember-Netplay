@@ -19,12 +19,22 @@ namespace sf4e {
 			static int playbackFrame;
 			static void Install();
             void UpdateInputs();
+			void LoadButtonConfig();
 
 			unsigned int GetButtons_RawOn(int pindex);
 			unsigned int GetButtons_MappedOn(int pindex);
 			// Both hooks above read through this: GGPO playback, then the
 			// training override, then the native pad behind the menu capture.
 			unsigned int ReadButtons(int pindex, bool raw);
+		};
+
+		// The game's keyboard scan, kept to the keyboards its object has room for.
+		struct Keyboards : Dimps::Pad::System_RawInput
+		{
+			static void Install();
+			// Once logging is up: what the scan during Main::Initialize found.
+			static void LogFirstScan();
+			int ScanDevices();
 		};
 	}
 }

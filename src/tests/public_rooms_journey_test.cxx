@@ -260,6 +260,45 @@ static const ShellAction& CreateWithChosenRules(Journey& j){
 // next. It goes on with Ember hidden right after the first is sent, and the
 // shell sends no rules of its own, shown or hidden. A room joined from the
 // list carries no rules.
+// Create on Public carries the room's delay policy: nothing for the shared delay,
+// own_delay for each player's own, which an older service refuses in words; and
+// a listed room that has it shows more than the short card.
+void OwnDelayJourney(){
+ Journey j;auto& h=j.h;j.OpenList();
+ j.List({MakeRoom("a","Friday Night",3,8)});
+ h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.Frame(0,2);
+ h.Choose("pr-create");
+ // Create on Public saves its visibility with the room defaults; the runtime has that save before the next one is sent.
+ const auto settle=[&]{
+  h.Frame(0,40);
+  const auto last=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
+  Check(last!=h.actions.rend(),"The room defaults were not saved");
+  if(last==h.actions.rend())return room::DelayPolicy::Shared;
+  h.view.preferences=last->preferences;h.Frame(0,2);return last->preferences.roomDelayPolicy;
+ };
+ Check(settle()==room::DelayPolicy::Shared,"Create on Public saved a delay policy nobody chose");
+ Check(j.row("delay-policy")&&j.row("delay-policy")->value==loc::T("room.delay_policy.shared"),"Create on Public did not offer the delay policy as the same for both");
+ h.Choose("host");
+ Check(j.requests().back()->op==Op::RoomCreate&&!j.requests().back()->ownDelay,"A room with the shared delay asked for each player's own");
+ j.Admit("unavailable");
+ h.FocusOn("delay-policy");h.Press(MenuInput::Right);
+ Check(j.row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy did not turn to each player's own");
+ // The choice is saved with the room defaults, and the room asks for it.
+ Check(settle()==room::DelayPolicy::Own,"The delay policy was not saved with the room defaults");
+ h.Choose("host");
+ Check(j.requests().back()->op==Op::RoomCreate&&j.requests().back()->ownDelay&&j.requests().back()->roomName=="Open Mic"&&
+  j.hosts()==0,"A room for each player's own delay did not ask for it");
+ // A service that predates the option refuses it, and says so: the player may choose again.
+ j.Admit("own_delay_unsupported");
+ Check(j.status==loc::T("public.failure.own_delay_unsupported")&&j.row("host")->enabled&&j.joins()==0,"A refusal of each player's own delay did not say why");
+ Check(std::string(loc::T("public.failure.own_delay_unsupported"))!=std::string(loc::T("public.failure.unavailable")),"The refusal reads as a general failure");
+ // A listed room with its own delay is not the short card: it says so.
+ h.Screen("public-rooms");h.Frame(0,2);
+ auto own=MakeRoom("o","Own Delay Room",2,4);own.ownDelay=true;
+ j.List({MakeRoom("a","Friday Night",3,8),own});
+ Check(j.row("pr-room:a")->height==72&&j.row("pr-room:o")->height==100,"A room with its own delay was drawn as the short card");
+}
+
 void CreateWithRulesJourney(){
  {
   Journey other;other.OpenList();other.List({MakeRoom("a","Friday Night",3,8)});
@@ -606,7 +645,7 @@ void CurrentRoomJourney(){
  v.session.room=netplay::RoomState::Idle;update();
  Check(!panel.OpeningKind()&&panel.RoomLink().empty(),"The room was kept after the session ended");
  // A created room is the same, of its own kind, and the link names the room the admission gave.
- panel.Create("Open Mic",6,room::PublicRoomRules());update();admit(LinkRoom,"Open Mic");
+ panel.Create("Open Mic",6,room::PublicRoomRules(),room::DelayPolicy::Shared);update();admit(LinkRoom,"Open Mic");
  Check(panel.OpeningKind()==PublicRoomsPanel::OpenKind::Create&&panel.RoomLink()==tournament_link::RoomPageUrl(LinkBridge,LinkRoom),"A created room is not the panel's room");
  // A room another way of opening replaces it; a join that never started lapses.
  panel.ForgetCurrent();Check(!panel.OpeningKind(),"The room was kept after another room was opened");
@@ -649,5 +688,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();CreateJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();CreateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

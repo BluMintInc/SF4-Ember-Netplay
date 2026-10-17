@@ -5,6 +5,7 @@
 #include "MenuGlyphs.hxx"
 #include "MenuPresentation.hxx"
 #include "MenuDialogs.hxx"
+#include "CountryFlag.hxx"
 #include "../common/FighterCatalog.hxx"
 #include <imgui.h>
 #include <cstring>
@@ -12,8 +13,10 @@
 
 namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
-const char* selectGlyph="LP";const char* backGlyph="LK";PlayerCardView playerCard;
+const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;
 int menuDeviceType=0;
+gamepads::PromptBrand promptBrand;
+gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
 MenuTextProbe textProbe;
 MenuCardProbe cardProbe;
 MenuStatusProbe statusProbe;
@@ -63,7 +66,9 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
         }
         d->AddText(ImGui::GetFont(),font,ImVec2(p.x+x,p.y+y),color,shown.c_str());};
     NoteUserText(playerCard.name);
-    text(portrait+24*s,13*s,playerCard.name.empty()?loc::T("card.player"):playerCard.name,18*s,palette::Ivory);
+    const auto flag=DrawCountryFlagBeside(d,p.x+portrait+24*s,p.y+13*s,18*s,playerCard.country);
+    if(flag.hovered)ImGui::SetTooltip("%s",CountryName(playerCard.country).c_str());
+    text(portrait+24*s+flag.width,13*s,playerCard.name.empty()?loc::T("card.player"):playerCard.name,18*s,palette::Ivory);
     text(portrait+24*s,38*s,playerCard.fighterName.empty()?loc::T("card.choose_fighter"):playerCard.fighterName,12*s,palette::Muted,"card-fighter");
     if(!compact)text(12*s,82*s,playerCard.controllerReady?loc::T("card.controller_ready"):loc::T("card.assign_controller"),11*s,playerCard.controllerReady?palette::Ready:palette::Ember,"card-controller");
     const float y=(compact?70:116)*s;
@@ -142,20 +147,28 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
 }
 // The legend follows whatever last moved the menu: a player with a pad
 // assigned who types on the keyboard sees keys, and the other way round.
-const char* padSelectGlyph="LP";const char* padBackGlyph="LK";
+// The pad's glyphs are copied, so a caller's text need not outlive the call.
+std::string padSelectGlyph="LK",padBackGlyph="MK";
 bool keyboardLast=false;unsigned previousKeys=0,previousPad=0;
 void ApplyMenuGlyphs(){
     const bool pad=menuDeviceType==input::PadXInput||menuDeviceType==input::PadDirectInput;
     const bool keys=!pad||keyboardLast;
-    selectGlyph=keys?"Enter":padSelectGlyph;
-    backGlyph=keys?"Esc":padBackGlyph;
+    selectGlyph=keys?"Enter":padSelectGlyph.c_str();
+    backGlyph=keys?"Esc":padBackGlyph.c_str();
 }
-void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback){
+void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback,gamepads::PromptBrand brand){
     menuDeviceType=type;
+    promptBrand=brand;
     padSelectGlyph=PhysicalGlyph(type,select,selectFallback);
     padBackGlyph=PhysicalGlyph(type,back,backFallback);
     ApplyMenuGlyphs();
 }
+void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
+    SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
+}
+gamepads::PromptBrand MenuPromptBrand(){ return promptBrand; }
+const gamepads::FightNames* MenuPromptNames(){ return &promptNames; }
+void SetMenuPromptBrand(gamepads::PromptBrand brand,const gamepads::FightNames& names){ promptBrand=brand;promptNames=names; }
 bool KeyboardPrompts(){ return !std::strcmp(selectGlyph,"Enter"); }
 void NoteMenuDevice(unsigned padHeld){
     const unsigned keys=KeyboardMenuBits();
@@ -192,36 +205,74 @@ unsigned KeyboardMenuBits(bool typesText) {
         for(const auto& mapping:menuOnly) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
     return bits;
 }
-MenuInput ReadMenuInput(bool textEditing,bool typesText) {
+MenuInput ReadMenuInput(bool textEditing,bool typesText,unsigned additionalPad) {
     auto value=input; value.time=ImGui::GetTime();
+    const unsigned padHeld=input.held|additionalPad; value.held=padHeld;
     const unsigned keys=KeyboardMenuBits(typesText);
     // Typing counts as using the keyboard, though its keys press no menu bit.
     const auto& io=ImGui::GetIO();
     const bool typed=!io.InputQueueCharacters.empty()||ImGui::IsKeyPressed(ImGuiKey_Backspace,false)||ImGui::IsKeyPressed(ImGuiKey_Delete,false);
     if((keys&~previousKeys)||typed) keyboardLast=true;
-    if(input.held&~previousPad) keyboardLast=false;
-    previousKeys=keys; previousPad=input.held;
+    if(padHeld&~previousPad) keyboardLast=false;
+    previousKeys=keys; previousPad=padHeld;
     ApplyMenuGlyphs();
     value.held|=textEditing?keys&~MenuInput::Select:keys; value.keyboard=keys;
     return value;
 }
+// 420 lets every standard size have three; 1280x720 at 200% (360 tall) keeps two.
+int GameMenu::HomeLines() { return ImGui::GetWindowSize().y>=420*Scale()?3:2; }
 void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin) {
     ImGui::SetCursorPosX(homeMargin);
+    const int lines=HomeLines();
     const auto current=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
     if(current!=entries.end()){
         // The focused row's help and the status each keep a line of their
         // own, so a save or an error never hides what the row does. Each is
-        // clipped to its line, so neither can move the list.
-        const float s=Scale(),width=ImGui::GetContentRegionAvail().x,line=HomeStatusHeight*s*.5f;
-        const auto p=ImGui::GetCursorScreenPos();auto* d=ImGui::GetWindowDrawList();
-        const auto clipped=[&](float y,ImU32 color,const char* text){
-            d->PushClipRect(ImVec2(p.x,p.y+y),ImVec2(p.x+width,p.y+y+line),true);
-            d->AddText(ImGui::GetFont(),12*s,ImVec2(p.x,p.y+y),color,text,nullptr,width);
+        // clipped to its line, so neither can move the list. The help sits on
+        // the line above the status; a row with columns (Fighter select) puts
+        // its labels on the line above that, over their values.
+        const float s=Scale(),width=ImGui::GetContentRegionAvail().x,line=HomeLineHeight*s,font=12*s,help=(lines-2)*line;
+        const auto p=ImGui::GetCursorScreenPos();auto* d=ImGui::GetWindowDrawList();auto* face=ImGui::GetFont();
+        const auto clipped=[&](float x,float y,float w,ImU32 color,const char* text,float wrap){
+            d->PushClipRect(ImVec2(p.x+x,p.y+y),ImVec2(p.x+x+w+2*s,p.y+y+line),true);
+            d->AddText(face,font,ImVec2(p.x+x,p.y+y),color,text,nullptr,wrap);
             d->PopClipRect();};
-        clipped(0,palette::Muted,current->detail.c_str());
-        if(*status)clipped(line,statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Ivory,status);
+        const auto& columns=current->columns;
+        if(columns.empty()||lines<3)clipped(0,help,width,palette::Muted,current->detail.c_str(),width);
+        else{
+            // Each column is as wide as its label or value. When they do not
+            // fit, the gaps narrow and then the widest columns share what is
+            // left alike, cut with an ellipsis.
+            const auto measure=[&](const std::string& text){return face->CalcTextSizeA(font,FLT_MAX,0,text.c_str()).x;};
+            std::vector<float> natural,fitted(columns.size());
+            for(const auto& c:columns)natural.push_back((std::max)(measure(c.first),measure(c.second)));
+            float gap=28*s,total=(columns.size()-1)*gap;
+            for(const float w:natural)total+=w;
+            if(total>width)gap=16*s;
+            std::vector<std::size_t> order(columns.size());
+            for(std::size_t i=0;i<order.size();++i)order[i]=i;
+            std::sort(order.begin(),order.end(),[&](std::size_t a,std::size_t b){return natural[a]<natural[b];});
+            float room=width-(columns.size()-1)*gap;
+            for(std::size_t k=0;k<order.size();++k){fitted[order[k]]=(std::max)(0.f,(std::min)(natural[order[k]],room/(order.size()-k)));room-=fitted[order[k]];}
+            const auto fit=[&](const std::string& text,float w){
+                if(measure(text)<=w)return text;
+                const char* end=nullptr;face->CalcTextSizeA(font,(std::max)(0.f,w-measure("...")-1),0,text.c_str(),nullptr,&end);
+                return std::string(text.c_str(),end)+"...";};
+            float x=0;
+            for(std::size_t i=0;i<columns.size();++i){
+                const auto& c=columns[i];const float w=fitted[i];
+                clipped(x,0,w,palette::Muted,fit(c.first,w).c_str(),0);
+                clipped(x,line,w,palette::Ivory,fit(c.second,w).c_str(),0);
+                // The probe measures the full text, so a cut one counts as an overflow.
+                const std::string probe="home-hint/"+std::to_string(i);
+                ReportMenuText(probe.c_str(),font,line,measure(c.first),w);
+                ReportMenuText((probe+"-value").c_str(),font,line,measure(c.second),w);
+                x+=w+gap;
+            }
+        }
+        if(*status)clipped(0,help+line,width,statusTone!=Tone::Neutral?ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)):palette::Ivory,status,width);
     }
-    ImGui::Dummy(ImVec2(0,HomeStatusHeight*Scale()));ImGui::SetCursorPosX(homeMargin);
+    ImGui::Dummy(ImVec2(0,lines*HomeLineHeight*Scale()));ImGui::SetCursorPosX(homeMargin);
 }
 MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,float flyoutScale,float cardHeight,bool stableStatus,Tone statusTone,bool home) {
     const bool flyout=flyoutScale>0;
@@ -234,20 +285,19 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
-    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText); menuInput.time=now;
+    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
+    if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
     // neither activate the focused row nor leak into the list behind it.
     const bool noticeOpen=!notice_.empty();
     if(noticeOpen) {
         const unsigned pressed=menuInput.held&~noticePrevious_; noticePrevious_=menuInput.held;
-        if(!noticeAlternative_.empty()) {
-            if(pressed&(MenuInput::Up|MenuInput::Left)) noticeAlternativeSelected_=false;
-            if(pressed&(MenuInput::Down|MenuInput::Right)) noticeAlternativeSelected_=true;
-        }
-        // Back always declines: only Select on the alternative chooses it.
-        if(pressed&(MenuInput::Select|MenuInput::Back))
-            DismissNotice(noticeAlternativeSelected_&&!(pressed&MenuInput::Back));
+        if(pressed&(MenuInput::Up|MenuInput::Left)) noticeSelected_=(std::max)(0,noticeSelected_-1);
+        if(pressed&(MenuInput::Down|MenuInput::Right)) noticeSelected_=(std::min)(static_cast<int>(noticeButtons_.size())-1,noticeSelected_+1);
+        // Back always declines: only Select takes the highlighted button.
+        if(pressed&MenuInput::Back) DismissNotice(NoticeResult::Dismissed);
+        else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
     } else noticePrevious_=~0u;
     held_=menuInput.held;
@@ -270,12 +320,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     float homeLift=0;
     if(home&&roomy&&!entries.empty()) {
         const float rows=entries.size()*(std::max)(44*Scale(),28*Scale()+2*ImGui::GetStyle().FramePadding.y)+(entries.size()-1)*ImGui::GetStyle().ItemSpacing.y;
-        const float footer=MenuLegend(windowSize.x-homeMargin-ImGui::GetStyle().WindowPadding.x,selectGlyph,backGlyph,false,false,menuArt,unit,loc::T("menu.select"),{},backHint.c_str())+
-            8*unit+3*ImGui::GetStyle().ItemSpacing.y+HomeStatusHeight*unit+ImGui::GetStyle().WindowPadding.y;
+        const float footer=MenuLegend(windowSize.x-homeMargin-ImGui::GetStyle().WindowPadding.x,selectGlyph,backGlyph,false,false,menuArt,unit,loc::T("menu.select"),{},backHint.c_str(),nullptr,true,!backInert)+
+            8*unit+3*ImGui::GetStyle().ItemSpacing.y+HomeLines()*HomeLineHeight*unit+ImGui::GetStyle().WindowPadding.y;
         homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
         homeTop-=homeLift;
     }
-    if(menuArt&&!flyout) {
+    if(menuArt&&!flyout&&backdrop) {
         const auto art=menuArt->MenuBackdrop();const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
         if(art.texture){auto* d=ImGui::GetWindowDrawList();
             ImVec2 uv0(0,0),uv1(1,1);
@@ -314,7 +364,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(ImGui::Button((backLabel+"###MenuBack").c_str())) {
             // A modal dialog blocks this button; a choice or the flyout's
             // confirmation leaves it live, so it cancels them.
-            if(!notice_.empty()) DismissNotice(false);
+            if(!notice_.empty()) DismissNotice(NoticeResult::Dismissed);
             else if(dialog) navigation.Cancel();
             else backRequested=true;
         }
@@ -337,11 +387,11 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     MenuEntry presentationEntry;
     if(focusedEntry!=entries.end()) { presentationEntry=*focusedEntry; presentationEntry.enabled=feedback_.Enabled(*focusedEntry); }
     const bool adjustable=!dialog&&focusedEntry!=entries.end()&&presentationEntry.adjustable&&presentationEntry.enabled;
-    const char* primary=dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
+    const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
     const bool wide=ImGui::GetContentRegionAvail().x>=(flyout?640:820)*unit;
     // Reserve the actual footer items and their spacing, not a guessed margin.
     const float footerSpacing=8*unit+2*ImGui::GetStyle().ItemSpacing.y+
-        (home?HomeStatusHeight*unit+ImGui::GetStyle().ItemSpacing.y:0);
+        (home?HomeLines()*HomeLineHeight*unit+ImGui::GetStyle().ItemSpacing.y:0);
     // Shortcut hints ride along only on an Xbox pad or the keyboard, which
     // have the buttons, and only when they fit
     // without another legend row; a narrow window keeps the standard legend.
@@ -349,10 +399,14 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendWidth=ImGui::GetContentRegionAvail().x;
     // An open dialog takes the screen's shortcuts away.
     const char* back=dialog?dialogBack.c_str():backHint.c_str();
-    const float standardLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back);
-    const bool hintsFit=!dialog&&(!std::strcmp(selectGlyph,"A")||KeyboardPrompts())&&!shortcutHints.empty()&&
-        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
-    const auto& extras=hintsFit?shortcutHints:noHints;
+    const float standardLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back,nullptr,listEnabled,!backInert);
+    // A pad button the player made Select or Back is no shortcut, so its hint goes.
+    std::vector<LegendHint> offered;
+    for(const auto& hint:shortcutHints) if(!listEnabled||KeyboardPrompts()||(std::strcmp(hint.glyph,selectGlyph)&&std::strcmp(hint.glyph,backGlyph))) offered.push_back(hint);
+    const bool hintsFit=!listEnabled||(!dialog&&(menuDeviceType==input::PadXInput||KeyboardPrompts())&&!offered.empty()&&
+        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,offered,back,nullptr,listEnabled,!backInert)<=standardLegend);
+    const auto& extras=hintsFit?offered:noHints;
+    const float reservedLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled,!backInert);
     // The footer note goes in the bottom right corner, level with the legend's
     // last row when it fits beside it. Otherwise it takes a line of its own
     // under the legend while the list keeps its least height and a row more,
@@ -360,12 +414,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float noteFont=12*unit,noteGap=24*unit;
     std::string note=flyout?std::string():footerNote;
     float legendEnd=0;
-    if(!note.empty())MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd);
+    if(!note.empty())MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd,listEnabled,!backInert);
     const float noteWidth=note.empty()?0.f:ImGui::GetFont()->CalcTextSizeA(noteFont,FLT_MAX,0,note.c_str()).x;
     const float besideRoom=legendWidth-legendEnd-noteGap;
     const float lineCost=noteFont+6*unit+ImGui::GetStyle().ItemSpacing.y;
     const bool noteOwnLine=noteWidth>besideRoom&&noteWidth<=legendWidth&&
-        ImGui::GetContentRegionAvail().y-standardLegend-footerSpacing-lineCost>=60+44*unit;
+        ImGui::GetContentRegionAvail().y-reservedLegend-footerSpacing-lineCost>=60+44*unit;
     if(!note.empty()&&noteWidth>besideRoom&&!noteOwnLine) {
         if(besideRoom<90*unit)note.clear();
         else {
@@ -374,7 +428,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             note=std::string(note.c_str(),end)+"...";
         }
     }
-    const float footer=standardLegend+footerSpacing+(noteOwnLine?lineCost:0.f);
+    const float footer=reservedLegend+footerSpacing+(noteOwnLine?lineCost:0.f);
     if(flyout || stableStatus) {
         // Bound long command errors without displacing the list or its legend.
         // The room header shares its Back row on wide windows; this decision
@@ -420,6 +474,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     auto preview=[&] {
         auto it=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.Focus();});
         if(it!=entries.end()) {
+            if(!customDetail) {
             const bool visualEnabled=feedback_.Enabled(*it);
             ImGui::PushStyleColor(ImGuiCol_Text,ToneColor(visualEnabled?Tone::Neutral:Tone::Pending));
             // A compact gallery's card already carries its label, so its two
@@ -430,6 +485,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             if(!it->detail.empty()){NoteDetailText(it->detail,it->detailText);ImGui::TextWrapped("%s",it->detail.c_str());}
             if(!it->value.empty()){if(it->userText||it->text)NoteUserText(it->value);ImGui::TextWrapped("%s",it->value.c_str());}
             if(!visualEnabled&&!it->quiet) ImGui::TextDisabled("%s",loc::T(feedback_.Pending(*it)?"room.updating":"common.unavailable"));
+            }
             if(detail) detail(it->id);
         }
     };
@@ -443,6 +499,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(!wide&&!home) {
         ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
         ImGui::BeginChild("Menu detail",ImVec2(0,compactGallery?2*ImGui::GetTextLineHeightWithSpacing()+4*unit:
+            compactDetailHeight>0?(std::max)(0.f,(std::min)(compactDetailHeight*unit,available.y-footer-60.f-ImGui::GetStyle().ItemSpacing.y)):
             leanDetail?(std::min)(compactDetailLines*ImGui::GetTextLineHeightWithSpacing()+4*unit,(available.y-footer)*.48f):
             (std::min)((available.y-footer)*(flyout?.4f:.48f),(flyout?110:145)*unit)));
         preview(); ImGui::EndChild();
@@ -461,6 +518,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float fullWidth=ImGui::GetContentRegionAvail().x;
     const float cellWidth=(fullWidth-gap*(columns-1))/columns;
     const std::size_t cells=MenuGridCells(entries);
+    ImVec2 focusMin,focusMax;
     // Tall appearance cards must fit as a whole in the focused scrolling pane,
     // including their saved marker and caption, even at narrow/high DPI sizes.
     const float gridHeight=cardHeight>100?(std::min)(cardHeight*Scale(),ImGui::GetContentRegionAvail().y):cardHeight*(flyout?unit:Scale());
@@ -493,7 +551,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const std::string label=FitLabel(e.label,labelWidth);
         const std::string value=FitLabel(e.value.empty()?loc::T("common.not_set"):e.value,(std::max)(1.f,valueWidth-(e.adjustable?52*unit:0)));
         const auto geometry=LayOutRow(ImVec2(start.x+lead,start.y),innerWidth,height,stackedValue,valueWidth,unit);
-        if(ImGui::Button("##entry",ImVec2(rowWidth,height))&&!modalAtStart&&!navigation.Editing()&&!navigation.Asking()) {
+        if(ImGui::Button("##entry",ImVec2(rowWidth,height))&&listEnabled&&!modalAtStart&&!navigation.Editing()&&!navigation.Asking()) {
             // One intent per click, settled before anything changes: a value's
             // arrow adjusts it; anything else on the row is Select.
             navigation.Focus(e.id,entries);
@@ -503,7 +561,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         // A moving pointer selects what it is over, as on the room board; a
         // resting one never takes the selection back from the pad or keys.
         // It does not scroll either: lastFocus_ takes the new focus below.
-        else if(pointerMoved&&!dialog&&ImGui::IsItemHovered()) navigation.Focus(e.id,entries);
+        else if(listEnabled&&pointerMoved&&!dialog&&ImGui::IsItemHovered()) navigation.Focus(e.id,entries);
         // Player text draws glyphs only while its row is inside the list's clip,
         // so a long roster or chat that has scrolled away stops holding them.
         const bool rowVisible=ImGui::IsItemVisible();
@@ -513,7 +571,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             ImGui::GetWindowDrawList()->AddText(geometry.label,ImGui::GetColorU32(ImGuiCol_Text),label.c_str());
             if(valueRow){
                 const float y=geometry.valueText.y,textWidth=ImGui::CalcTextSize(value.c_str()).x;
-                const auto color=visualEnabled?palette::Ivory:palette::Muted;
+                const auto color=e.valueHighlighted?palette::Ember:visualEnabled?palette::Ivory:palette::Muted;
                 const float x=e.adjustable?geometry.valueMin.x+(valueWidth-textWidth)*.5f:geometry.valueMax.x-textWidth;
                 ImGui::GetWindowDrawList()->AddText(ImVec2(x,y),color,value.c_str());
                 if(e.adjustable){
@@ -543,6 +601,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         if(home)ImGui::PopFont();ImGui::PopStyleColor(2);ImGui::PopStyleVar(3);
         if(cardProbe)cardProbe(e.id.c_str(),start,ImVec2(start.x+rowWidth,start.y+height));
         if(focused) {
+            focusMin=start;focusMax=ImVec2(start.x+rowWidth,start.y+height);
             // A card with rounded corners draws its own outline; the bar would stick out of them.
             if(gridCell)ImGui::GetWindowDrawList()->AddRect(start,ImVec2(start.x+rowWidth,start.y+height),palette::Ember,card?cardRounding*unit:0,0,2*Scale());
             else if(!(drawnCard&&cardRounding>0))ImGui::GetWindowDrawList()->AddRectFilled(start,ImVec2(start.x+3*Scale(),start.y+height),palette::Ember);
@@ -552,8 +611,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     if(home)ImGui::PopStyleVar();
     navigation.Scroll()=ImGui::GetScrollY(); ImGui::EndChild();ImGui::PopStyleColor();
+    const auto listMin=ImGui::GetItemRectMin(),listMax=ImGui::GetItemRectMax();
     if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
         ImGui::BeginChild("Menu detail",ImVec2(0,(std::max)(60.f,available.y-footer))); preview(); ImGui::EndChild(); ImGui::PopStyleColor(); }
+    if(listCard.draw)DrawListCard(listMin,listMax,focusMin,focusMax,unit);
     }
     if(action.kind==MenuAction::Back){backRequested=true;action={};}
     if(!flyout){
@@ -566,7 +627,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendTop=ImGui::GetCursorScreenPos().y;
     ImGui::Dummy(ImVec2(0,8*unit));if(home)ImGui::SetCursorPosX(homeMargin);
     const auto legendStart=ImGui::GetCursorScreenPos();
-    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectPrompt,backGlyph,true,adjustable,menuArt,unit,primary,extras,back);
+    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectPrompt,backGlyph,true,adjustable,menuArt,unit,primary,extras,back,nullptr,listEnabled,!backInert);
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(!note.empty()) {
         // Right-aligned to the legend's own right edge.
@@ -586,7 +647,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         DrawEditModal(entries,acceptEditText,action);
         lastEdit_=navigation.EditingId();
         lastFocus_=navigation.Focus();lastScreen_=navigation.Screen();
-        if(backRequested) return navigation.Return();
+        if(backRequested) return ownsBack?MenuAction{MenuAction::Back}:navigation.Return();
         return action;
     }
     // A renderer popup may survive a model cancellation by one frame. Close it
@@ -599,7 +660,28 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // hands the focus back the same way when it returns.
     lastEdit_=notice_.empty()?navigation.EditingId():std::string();
     lastFocus_=navigation.Focus(); lastScreen_=navigation.Screen();
-    if(backRequested) return navigation.Return();
+    if(backRequested) return ownsBack?MenuAction{MenuAction::Back}:navigation.Return();
     return action;
+}
+void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 rowMax,float unit) {
+    const auto cursor=ImGui::GetCursorScreenPos();const auto padding=ImGui::GetStyle().WindowPadding;
+    const float margin=16*unit,width=(std::max)(1.f,listMax.x-listMin.x-2*margin);
+    const float room=(std::max)(1.f,listMax.y-listMin.y-2*margin);
+    const float height=(std::min)(room,listCard.measure?listCard.measure((std::max)(1.f,width-2*padding.x))+2*padding.y:room);
+    // Centred on the list, unless that hides the focused row: then centred in
+    // the larger band above or below it, kept inside the list.
+    float top=(listMin.y+listMax.y-height)*.5f;
+    const bool row=rowMax.y>rowMin.y&&rowMax.y>listMin.y&&rowMin.y<listMax.y;
+    if(row&&top<rowMax.y&&top+height>rowMin.y) {
+        const float above=rowMin.y-listMin.y,below=listMax.y-rowMax.y;
+        top=above>below?listMin.y+(above-height)*.5f:rowMax.y+(below-height)*.5f;
+        top=(std::max)(listMin.y+margin,(std::min)(top,listMax.y-margin-height));
+    }
+    const ImVec2 at(listMin.x+margin,top);
+    BeginDialogCard("List card",at,ImVec2(width,height));
+    listCard.draw();
+    EndDialogCard();
+    ReportMenuCard("list-card",at,ImVec2(at.x+width,at.y+height));
+    ImGui::SetCursorScreenPos(cursor);
 }
 } }

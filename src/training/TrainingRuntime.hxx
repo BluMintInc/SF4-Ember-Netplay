@@ -8,6 +8,9 @@ View ReadView();
 // the view: what a pad press keeps for the save it may become. Any thread.
 struct Place { std::uint64_t generation = 0; float x[2] = {0, 0}; };
 Place ReadPlace();
+// Whether the pad's chord starts the recording rather than opening the
+// controls (TrainingSession.hxx), as the mode was last published. Any thread.
+bool ChordStartsRecording();
 // The call back from Training that stands for the battle, as the room's call
 // owner holds it, set each tick and read before every countdown tick
 // (TrainingSession.hxx: CallControl). Any thread.
@@ -23,7 +26,8 @@ void AfterUpdate(Dimps::Game::Battle::System* system);
 // its inputs are confirmed. stateFrame: the GGPO save frame of the state
 // just reached, 0 or less for a spectator, who plays confirmed inputs only.
 // lastConfirmedInput: -1 to capture without showing anything yet.
-void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput);
+// inputs: both sides' pads for the frame, a replay's (FighterSample::input); null in a match.
+void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs = nullptr);
 // SetMatchPractice: whether the battle being prepared is a Practice room's
 // match. Game thread.
 void SetMatchPractice(bool enabled);
@@ -42,6 +46,9 @@ static_assert((ReservedInputBits & FightButtons) == 0, "reserved bits overlap th
 unsigned ClearReservedInputBits(unsigned raw);
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
+// How many frames the meter keeps, and whether an exchange after a pause goes
+// on after the last (MeterOptions::history, continuous). Any thread.
+void SetMeterHistory(int frames, bool continuous);
 void CloseBattle();
 void StopCapture();
 // The override exists only during one native offline training update.

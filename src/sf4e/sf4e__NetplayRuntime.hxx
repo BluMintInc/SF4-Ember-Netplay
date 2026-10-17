@@ -13,6 +13,8 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
+#include "../netplay/ControllerInventory.hxx"
+#include "../common/ControllerHints.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
 #include "sf4e.hxx"
@@ -43,6 +45,8 @@
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
 #include "../netplay/MatchHudPreference.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
+#include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
@@ -65,6 +69,7 @@
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
+void LogGameplayController(const input::Device& device, const char* reason);
 // The lifecycle trace records only changes. Publish runs every application
 // tick, so the traced values are compared here first and the JSON document is
 // built only when one of them moved.
@@ -121,6 +126,16 @@ struct Runtime {
 
     input::Assignment input;
     bool inputInitialized = false;
+    std::optional<gamepads::Identity> setupAdoption;
+    std::string padHint;
+    ULONGLONG padHintUntil = 0;
+    gamepads::ControllerInventory padInventory;
+    gamepads::ControllerHints padHints;
+    std::vector<gamepads::PadView> pads;
+    gamepads::Layer padLayer = gamepads::Layer::Failed;
+    bool runningControllerLayer = true;
+    std::optional<gamepads::PromptBrand> loggedPromptBrand;
+    gamepads::ButtonPrompts loggedButtonPrompts = gamepads::ButtonPrompts::Automatic;
     input::Device matchInput;
     int matchInputSide=-1;
     bool matchInputFault=false;
@@ -131,8 +146,10 @@ struct Runtime {
 	std::shared_ptr<session::IrohRoom> room;
 	std::unique_ptr<session::IrohMatchSession> match;
 	bool matchEntered = false;
-	// The generation whose battle the runtime entered, while matchEntered.
+	// The generation whose battle the runtime entered, while matchEntered, and
+	// the table this member was at when it entered (the game WatchedGameNow names).
 	std::uint64_t enteredGeneration = 0;
+	int enteredTable = -1;
 	// Set when a netplay battle closes with its GGPO session already retired:
 	// the generation that was entered. TickMatch decides what it means.
 	std::uint64_t sessionlessCloseGeneration = 0;
@@ -143,6 +160,9 @@ struct Runtime {
 	// stays pending, resent as needed, until the room confirms it, the player
 	// locks in again, or it expires, whatever the room commits meanwhile.
 	netplay::SpectatorLockRelease spectatorLockRelease;
+	// Lock-ins this member lost because its own view failed while locked in
+	// (RuntimeSnapshot::lockInDrops). Only ever grows, so the shell tells each once.
+	std::uint64_t lockInDrops = 0;
 	// When the current grant's entry first waited for the main menu.
 	std::uint64_t entryDeferredGeneration = 0;
 	ULONGLONG entryDeferredSinceMs = 0;
@@ -156,6 +176,8 @@ struct Runtime {
     // The Practice choice of the room this PC hosts: the player's on Create,
     // the closed room's for a replacement, false for a room it joins.
     bool practiceRoom=false;
+    // The delay policy of the room this PC hosts, chosen the same way.
+    room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     bool leaveRequested=false, leaveAcknowledged=false;
     // The room being opened is a public one joined with a ticket, so a refusal or
     // failure is worded for it. Set with the join, cleared when the room closes.
@@ -270,6 +292,9 @@ struct Runtime {
 	std::shared_ptr<bridge::CommandMailbox> commands = std::make_shared<bridge::CommandMailbox>(32, 128 * 1024);
 	std::string displayName;
 	std::string languagePreference = "auto";
+	bool checkUpdatesAtLaunch = true;
+	// Windows' region, read once at start: what Automatic shows.
+	CountryCode automaticCountry;
 	std::string error;
 	bool ready = false;
 	bool eventSystemReady = false;
@@ -300,6 +325,9 @@ extern Runtime* runtime;
 // State shared by every phase (sf4e__NetplayRuntime.cxx).
 void ResetMatchEntry();
 bool LocalIsSpectator();
+// The game this PC only watches now: the entered generation and table while a
+// spectator's stream is live, else empty.
+netplay::WatchedGame WatchedGameNow();
 bool AtMainMenu();
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
@@ -339,14 +367,17 @@ void TickCreatedRules(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
 // How a cancelled game's GGPO session ends: aborted if one is live, with a
-// reason the player reads (empty says nothing), or retired quietly under a
-// diagnostics label.
+// reason the player reads (empty says nothing); left by the player, aborted
+// the same way after the room was told, so it is no failure of this PC's; or
+// retired quietly under a diagnostics label.
 struct GgpoEnd {
+    enum class How { Abort, Leave, Retire };
     const char* text;
     NoticeSeverity severity;
-    bool retire;
-    static GgpoEnd Abort(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) { return {reason, severity, false}; }
-    static GgpoEnd Retire(const char* label) { return {label, NoticeSeverity::Info, true}; }
+    How how;
+    static GgpoEnd Abort(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) { return {reason, severity, How::Abort}; }
+    static GgpoEnd Leave(const char* reason) { return {reason, NoticeSeverity::Info, How::Leave}; }
+    static GgpoEnd Retire(const char* label) { return {label, NoticeSeverity::Info, How::Retire}; }
 };
 // The one way this PC gives up its part in the current game. Nothing its
 // entry armed for the battle request survives (battle::NextRequest), the
@@ -355,10 +386,18 @@ struct GgpoEnd {
 // recovery stay with the caller.
 void CancelLocalMatch(GgpoEnd end);
 // CancelLocalMatch, and the game is recovered from (recoveringMatch).
+void AbortLocalMatch(GgpoEnd end);
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
 // The room ended this PC's game with no result: retire it and say so.
 void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
+// The player's leave of the game this PC watches (RuntimeCommand::
+// leaveWatchedGame), decided against the stream and the room as they are when
+// it runs (netplay::LeaveOfWatchedGame): nothing once that view is gone, only
+// the rest of the stream once the room has finished the game, otherwise an
+// Unwatch scoped to the game and the player's own end of the stream. Deferred
+// when the room's control could not take that Unwatch yet.
+netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& game);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();
 // Game thread: the announcer's challenger call at a percent of the game's voice volume.
@@ -398,6 +437,11 @@ void ExpirePublicRooms(std::uint64_t nowMs);
 std::string DeviceName(const input::Device& device);
 std::string ControllerLabel(const input::Device& device);
 void CaptureMenuInput();
+void HandleControllerRequest(const gamepads::ControllerRequest& request);
+bool CanChooseControllerNow();
+// The buttons that confirm and go back in Ember's menus for a device: the
+// binding of its pad's Ember layout (runtime->pads), else the game's own.
+input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex);
 
 // The published snapshot, errors and Discord (sf4e__NetplayRuntime__Status.cxx).
 void FillNetworkDiagnostics(platform::DiagnosticsView& view);
@@ -408,6 +452,10 @@ PostPublishState Publish();
 PostPublishState PublishThrottled();
 void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
+// Keeps the helper's ping subscription in step with the room board.
+void TickMemberLatency();
+// Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).
+bool FighterSelectorShown(std::uint64_t roomGeneration);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../common/Country.hxx"
 #include "../common/Localization.hxx"
 
 #include <filesystem>
@@ -19,4 +20,8 @@ void SetGameDirectory(const std::filesystem::path& directory);
 std::string GameLanguage();
 // ResolveLocale with this process's game language and Windows UI languages.
 loc::Locale ResolveUiLocale(std::string_view preference);
+// The country of the user's Region setting in Windows (GetUserGeoID and its
+// GEO_ISO2), which Automatic shows. None when Windows names none, or names one
+// the country table lacks.
+CountryCode WindowsCountry();
 } }

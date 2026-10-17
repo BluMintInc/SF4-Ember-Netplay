@@ -55,6 +55,9 @@ struct Command {
 	// RoomCreate names and sizes the new room; RoomTicket names the room to join.
 	std::string roomName, roomId;
 	int capacity = 0;
+	// RoomCreate: each fighter plays at their own input delay (room::DelayPolicy::Own).
+	// Sent to the helper only when set.
+	bool ownDelay = false;
 	// The interface's identity for a public room request, increasing, chosen by
 	// the PublicRoomsPanel. The runtime carries it to the request's answer, and a
 	// newer one supersedes a create or ticket still in flight.

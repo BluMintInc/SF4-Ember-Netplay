@@ -166,7 +166,7 @@ use iroh::TransportAddr;
 use iroh::endpoint::{PortmapperConfig, presets};
 use tokio::net::UdpSocket;
 
-async fn endpoint() -> Endpoint {
+pub(super) async fn endpoint() -> Endpoint {
     Endpoint::builder(presets::Minimal)
         .clear_ip_transports()
         .bind_addr((Ipv4Addr::LOCALHOST, 0))
@@ -177,7 +177,7 @@ async fn endpoint() -> Endpoint {
         .await
         .unwrap()
 }
-fn address(endpoint: &Endpoint) -> EndpointAddr {
+pub(super) fn address(endpoint: &Endpoint) -> EndpointAddr {
     EndpointAddr::new(endpoint.id()).with_ip_addr(endpoint.bound_sockets()[0])
 }
 /// The only route strings an event may carry: a class and a relay region.
@@ -220,7 +220,7 @@ async fn next(events: &mut mpsc::Receiver<Event>, kind: &str) -> Event {
     }
 }
 
-fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
+pub(super) fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
     Actor {
         endpoint,
         relay_only: false,
@@ -281,6 +281,7 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         coordination_port: None,
         refresh_roster: None,
         wake: Arc::new(Notify::new()),
+        latency: super::latency::Latency::offline(),
     }
 }
 
@@ -3773,6 +3774,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             coordination_port: None,
             refresh_roster: None,
             wake: Arc::new(Notify::new()),
+            latency: super::latency::Latency::offline(),
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -3801,7 +3803,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             .await
             .unwrap();
         guest_actor
-            .completed(Completion::GuestControl(1, invite.clone(), Ok(guest_control)))
+            .completed(Completion::GuestControl(1, invite.clone(), Ok(guest_control), None))
             .await
             .unwrap();
         let guest_service = tokio::spawn(async move {
@@ -4066,6 +4068,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         coordination_port: None,
         refresh_roster: None,
         wake: Arc::new(Notify::new()),
+        latency: super::latency::Latency::offline(),
     };
     actor
         .command(Request {
@@ -4079,7 +4082,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
     let _ = next(&mut events, "room_closed").await;
     assert!(actor.begin(2, "test-build"));
     actor
-        .completed(Completion::Hosted(2, Ok(replacement.clone())))
+        .completed(Completion::Hosted(2, Ok(replacement.clone()), None))
         .await
         .unwrap();
     let _ = next(&mut events, "hosted").await;
@@ -4099,7 +4102,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         matches!(events.recv().await, Some(Event::Error { code, .. }) if code == "stale_epoch")
     );
     actor
-        .completed(Completion::Hosted(1, Ok(old.clone())))
+        .completed(Completion::Hosted(1, Ok(old.clone()), None))
         .await
         .unwrap();
     assert_eq!(actor.room, Some(replacement.room()));
@@ -4196,6 +4199,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             coordination_port: None,
             refresh_roster: None,
             wake: Arc::new(Notify::new()),
+            latency: super::latency::Latency::offline(),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4551,6 +4555,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             coordination_port: None,
             refresh_roster: None,
             wake: Arc::new(Notify::new()),
+            latency: super::latency::Latency::offline(),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4950,7 +4955,7 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
     actor.epoch = 3;
     actor.opening = true;
     actor
-        .completed_hosted(3, Err(failed("relay_unavailable")))
+        .completed_hosted(3, Err(failed("relay_unavailable")), None)
         .await
         .unwrap();
     assert!(matches!(

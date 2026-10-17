@@ -944,12 +944,15 @@ impl Actor {
             .get(&peer)
             .and_then(ControlWorker::account)
             .map(ToString::to_string);
+        let (latency, latency_relay) = self.latency_route();
         self.emit(Event::Connected {
             epoch,
             peer,
             room,
             control,
             account,
+            latency,
+            latency_relay,
         })?;
         if let Some(invite) = joined_invite {
             self.emit(Event::DiscordInvite {

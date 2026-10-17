@@ -2,10 +2,13 @@
 
 #include <windows.h>
 #include "../common/PadKind.hxx"
+#include "../common/PadBindingRecords.hxx"
+#include "../common/MenuButtons.hxx"
 
 namespace Dimps {
 	namespace Pad {
 		void Locate(HMODULE peRoot);
+        sf4e::gamepads::PadBindingRecords BindingRecords();
 		
 		enum PadType {
 			PADTYPE_RAWINPUT = 1,
@@ -17,8 +20,12 @@ namespace Dimps {
 			PADTYPE_DIRECTINPUT == sf4e::input::PadDirectInput, "sf4e::input::PadKind must match PadType");
 
 		// Game thread, main menu or offline training; never assigns a side.
-		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr,
-                            unsigned int* selectPhysical = nullptr, unsigned int* backPhysical = nullptr);
+		bool ReadController(int deviceType, int deviceIndex, unsigned int& held, unsigned int* physicalButtons = nullptr);
+        // The buttons that confirm and go back in Ember's menus for a device
+        // (input::ResolveMenuButtons): the player's binding (physical masks, 0
+        // for none), else what the game's own menus use. Reads only; a device
+        // that is disconnected or has no valid record still gets an answer.
+        sf4e::input::MenuButtons MenuButtons(int deviceType, int deviceIndex, std::uint32_t boundConfirm = 0, std::uint32_t boundBack = 0);
 		struct System {
 			static const int BUTTON_MAPPING_FIGHT;
 			static const int BUTTON_MAPPING_MENU;
@@ -53,6 +60,10 @@ namespace Dimps {
 				// update calls it with zero masks and clearDevices set, which also
 				// clears the keyboards and pads, on each frame the window is behind.
 				void (System::* ClearInputs)(int mask0, int mask1, int mask2, int mask3, char clearDevices);
+				// Virtual +0xC4 (0x51BC30): reads every .ctrlsav file and writes the
+				// binding records' fight and menu tables (system+0xD4, stride 0x27C;
+				// 0x516540 does the writing). The title screen task 0x638130 calls it.
+				void (System::* LoadButtonConfig)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {
@@ -80,6 +91,11 @@ namespace Dimps {
 				// sets the byte for the next one, and clears it while the Steam
 				// overlay is open.
 				void (System_RawInput::* Update)();
+				// 0x6E0150: lists the raw input keyboards and registers for them,
+				// once after start and again after a device change. It adds one
+				// keyboard per device with no limit, past the eight the object
+				// holds (common/KeyboardSlots.hxx).
+				int (System_RawInput::* ScanDevices)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {

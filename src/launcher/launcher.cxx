@@ -508,11 +508,13 @@ int ShowLauncherMessage(const char* key, UINT flags) {
 // The recovery screen, with its selection art reporting to launcher.log. The
 // updater offers to start the game when canStart says the launch may go on.
 // `crash` offers the crash's report from the message (ui/RecoverySurface.hxx).
+// `offer`: the update the player accepted in the game (ui/RecoverySurface.hxx).
 bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
 	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false,
-	const std::optional<sf4e::reports::CrashContext>& crash = std::nullopt) {
+	const std::optional<sf4e::reports::CrashContext>& crash = std::nullopt,
+	const std::optional<sf4e::launcher::InstallOffer>& offer = std::nullopt) {
 	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
-		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart, crash);
+		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart, crash, offer);
 }
 
 // Lets the /j page on embernetplay.link hand a room link to Ember through
@@ -567,6 +569,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
+    std::vector<std::string> offerWords;
     CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
     app.add_option("--join-link", joinUri, "Open a room, tournament match, public room or Discord connect link from the browser (ember://join/..., ember://tournament/open?..., ember://room/open?... or ember://discord/connect?...).");
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
@@ -577,6 +580,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
     app.add_option("--wait-pid", waitPid, "Wait for the current game to exit before opening update controls.");
     app.add_option("--locale", localeOverride, "Use a language for this launcher run only.");
+    app.add_option("--install-offer", offerWords, "With --updates: the update accepted in the game, as <channel> <tag> <sha256>.")->expected(3);
     // Steam's launch options put the game's own command after the launcher
     // ("Launcher.exe" %command%), arguments included; Ember starts the game
     // itself, so all of it is unused. An unknown option before it is still an error.
@@ -622,7 +626,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     // Declining an update, or a failed install, leaves the game as it was, so
     // the updater can go on to start it; only Start continues past here.
-    if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true)) return 0;
+    // An offer that does not parse is dropped: the window then shows the usual offer.
+    const auto installOffer = sf4e::launcher::ParseInstallOffer(offerWords);
+    if (!offerWords.empty()) spdlog::info(installOffer ? "Started with an update offer from the game" : "Ignored an update offer that is not valid");
+    if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true, std::nullopt, installOffer)) return 0;
     if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_opened"), chosenDirectory, false, sf4e::ui::Tone::Neutral)) return 0;
     if (!instance.Acquire()) {
         // A room link goes to the running game, which shows it on its Join
@@ -691,7 +698,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.editionSelect = settings.editionSelect;
     payload.netplay.roundCount = settings.roundCount;
     payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
-    payload.netplay.deviceIdx = payload.netplay.deviceType = 0xff;
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
     // The game reads the room link once at start and clears it (NetplayRuntime).
@@ -828,7 +834,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // A crash's report reads the logs folder; without one the message
         // only names the files.
         const bool reportable = crashed && exitCode != 0xC0000139u && !steamAbove && g_logsDir[0];
+        // Windows code integrity refusing a file (0xC0E90002) is not a crash
+        // either: say what blocked the game and where to allow it.
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
+            exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
             steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
             reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;

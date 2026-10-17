@@ -87,6 +87,9 @@ msgstr "Игра загрузит эти файлы вместо файлов и
 msgid "launcher.game_wrong_dll"
 msgstr "Игра остановилась до запуска Ember: в загруженной DLL нет нужной функции. Обычно рядом с SSFIV.exe находится GGPO.dll, spdlog.dll, fmt.dll или zlib1.dll от другого мода либо старой установки. Переместите найденные файлы и повторите попытку. Если их нет, отправьте журнал лаунчера (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows заблокировала один из файлов игры до запуска Ember (управление приложениями). Интеллектуальное управление приложениями не может разрешить отдельную программу: если оно включено в Безопасности Windows, Ember заработает только после его отключения. На компьютере, которым управляет организация, попросите администратора разрешить Ember."
+
 msgid "recovery.window"
 msgstr "Восстановление Ember"
 
@@ -198,6 +201,24 @@ msgstr "Запустить SF4"
 msgid "updates.start_game_detail"
 msgstr "Закрыть обновление и запустить SF4 с Ember."
 
+msgid "updates.launch_heading"
+msgstr "Доступно обновление"
+
+msgid "updates.launch_text"
+msgstr "Доступна версия {0}. У вас версия {1}. Обновление сейчас закроет игру и установит новую версию."
+
+msgid "updates.launch_now"
+msgstr "Обновить сейчас"
+
+msgid "updates.launch_later"
+msgstr "Позже"
+
+msgid "updates.launch_skip"
+msgstr "Пропустить эту версию"
+
+msgid "updates.offer_changed"
+msgstr "Обновление изменилось после вашего выбора. Проверьте версию ниже перед установкой."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Закрытие сейчас отменит текущую операцию."
 
@@ -283,17 +304,77 @@ msgstr "Страница открыта в браузере. Перейдите 
 msgid "services.community_failed"
 msgstr "Не удалось открыть браузер. Перейдите по адресу {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Открытие профиля Steam в браузере..."
+
+msgid "services.steam_profile_opened"
+msgstr "Открыто в браузере."
+
+msgid "services.steam_profile_failed"
+msgstr "Не удалось открыть браузер."
+
 msgid "settings.language"
 msgstr "Язык"
 
 msgid "settings.language.detail"
 msgstr "Выберите, чтобы открыть список, или переключайте влево/вправо. Автовыбор учитывает язык игры, затем Windows."
 
+msgid "settings.country"
+msgstr "Страна"
+
+msgid "settings.country_detail"
+msgstr "Флаг рядом с вашим именем в комнатах и на карточке игрока. Его покажут комнаты, в которые вы войдёте с этого момента."
+
+msgid "settings.country.automatic"
+msgstr "Автоматически"
+
+msgid "settings.country.automatic_value"
+msgstr "Автоматически ({0})"
+
+msgid "settings.country.hidden"
+msgstr "Скрыто"
+
+msgid "settings.country.current"
+msgstr "Текущий"
+
+msgid "country.search"
+msgstr "Поиск"
+
+msgid "country.search_value"
+msgstr "Поиск: {0}"
+
+msgid "country.search_detail"
+msgstr "Введите часть названия страны, чтобы сузить список. Введённая буква также переходит к странам на эту букву, а Влево и Вправо переходят между буквами."
+
+msgid "country.automatic_detail"
+msgstr "По региону, заданному в Windows: {0}."
+
+msgid "country.automatic_none"
+msgstr "Windows не указывает регион, для которого у Ember есть флаг, поэтому флаг не показывается."
+
+msgid "country.hidden_detail"
+msgstr "Рядом с вашим именем флаг не показывается."
+
+msgid "country.choose_detail"
+msgstr "Показывать этот флаг рядом с вашим именем."
+
+msgid "country.none"
+msgstr "Нет подходящих стран"
+
+msgid "country.none_detail"
+msgstr "Измените поиск, чтобы увидеть больше стран."
+
 msgid "settings.language.system_with"
 msgstr "Автоматически: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Не удалось сохранить выбор языка. Он останется активным до конца сеанса."
+
+msgid "settings.update_check"
+msgstr "Проверять обновления при запуске"
+
+msgid "settings.update_check_detail"
+msgstr "Ищет новую версию при запуске игры, не чаще чем раз в 6 часов. Перед любыми изменениями спрашивает."
 
 msgid "menu.edit_detail"
 msgstr "Выберите для правки. Введите или вставьте текст; Enter принимает, «Назад» отменяет."
@@ -395,7 +476,7 @@ msgid "screen.room"
 msgstr "Лобби"
 
 msgid "screen.table"
-msgstr "Стол"
+msgstr "Ячейка"
 
 msgid "screen.members"
 msgstr "Участники"
@@ -619,8 +700,29 @@ msgstr "Вернуться в текущее лобби"
 msgid "home.fighter_select"
 msgstr "Выбор бойца"
 
+msgid "home.selection_costume_color"
+msgstr "Костюм, цвет"
+
+msgid "home.selection_ultra"
+msgstr "Ультра"
+
+msgid "home.selection_alternate"
+msgstr "Альт. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, цвет {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Двойная"
+
 msgid "home.selection_locked"
-msgstr "Вернитесь к своему столу, чтобы узнать состояние выбора."
+msgstr "Вернитесь в свою ячейку, чтобы узнать состояние выбора."
 
 msgid "home.profile"
 msgstr "Профиль игрока"
@@ -687,6 +789,12 @@ msgstr "Сохранять просмотренные матчи"
 
 msgid "replays.save_watched_detail"
 msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
+
+msgid "settings.watched_picture"
+msgstr "Просматриваемая игра в углу"
+
+msgid "settings.watched_picture_detail"
+msgstr "Когда меню Ember открыто поверх игры, которую вы смотрите, показывает её маленькой в правом верхнем углу поверх непрозрачного меню, а не затемнённой за ним."
 
 msgid "replays.link"
 msgstr "Воспроизвести повтор по ссылке"
@@ -859,6 +967,12 @@ msgstr "Основной персонаж"
 msgid "profile.main_character_detail"
 msgstr "{0}. Показывается в карточке игрока независимо от выбора для матча."
 
+msgid "profile.share_steam"
+msgstr "Показывать мой профиль Steam"
+
+msgid "profile.share_steam_detail"
+msgstr "Участники лобби могут открыть ваш профиль Steam на экране участника. Вступает в силу при следующем входе в лобби."
+
 msgid "profile.record"
 msgstr "Победы / поражения"
 
@@ -908,7 +1022,7 @@ msgid "settings.input_delay.auto"
 msgstr "Авто"
 
 msgid "room.name"
-msgstr "Название лобби"
+msgstr "Имя лобби"
 
 msgid "room.capacity"
 msgstr "Вместимость"
@@ -1003,11 +1117,7 @@ msgstr "Быстрый вывод кадров (на 1 кадр раньше)"
 msgid "player.faster_display_detail"
 msgstr "Игра показывает каждый кадр сразу, как он готов, а не на кадр позже. Выключите это, если игра на этом ПК опускается ниже 60 кадров/с. Влияет только на этот ПК: другому игроку включать не нужно. Изменение вступит в силу при следующем запуске игры."
 
-msgid "player.native_menus"
-msgstr "Открыть меню игры"
 
-msgid "player.native_menus_detail"
-msgstr "Ember закроется. Чтобы настроить кнопки боя, выберите «Настройки» в меню игры."
 
 msgid "settings.interface_title"
 msgstr "ИНТЕРФЕЙС"
@@ -1077,6 +1187,9 @@ msgstr "Вверху слева"
 
 msgid "hud_position.top_right"
 msgstr "Вверху справа"
+
+msgid "hud_position.top_center"
+msgstr "Вверху по центру"
 
 msgid "settings.edge_spacing"
 msgstr "Отступ от края"
@@ -1157,7 +1270,7 @@ msgid "about.controls"
 msgstr "Управление"
 
 msgid "about.controls_detail"
-msgstr "Геймпад Xbox: A выбирает, B возвращает назад, независимо от кнопок боя. Другие геймпады: назначенная кнопка LP выбирает, LK возвращает назад. Клавиатура: стрелки, Enter и Escape. D-pad перемещает, влево и вправо меняют значение. Кнопка «Назад» на экране «Главная» скрывает Ember. F10 (или Start на геймпаде) снова открывает его в главном меню игры.\n\nВ лобби A на столе позволяет выбрать место, A на своём месте отмечает «Готов», а B освобождает место или выходит из очереди. На геймпаде Xbox X открывает «Боец», Y открывает «Опции», View открывает «Чат»; повторное нажатие возвращает в лобби.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На геймпаде удерживайте View или Select и нажмите Start."
+msgstr "Xbox: A выбирает, B возвращает назад. PlayStation: Крест выбирает, Круг возвращает назад. Switch: B выбирает, A возвращает назад, как в меню игры. Контроллер, настроенный в Ember: Кнопка, выбранная для слабого удара ногой, выбирает, а для среднего удара ногой возвращает назад независимо от раскладки кнопок. Клавиатура: стрелки, Enter и Escape. Крестовина перемещает; Влево и Вправо меняют значение. Возврат на главном экране скрывает Ember. F10 или Start на контроллере снова открывает его в главном меню игры.\n\nВ комнате A на ячейке позволяет выбрать место, A на своём месте сообщает о готовности, B покидает место или очередь (на других контроллерах кнопки в тех же позициях). На Xbox X открывает Бойца, Y Настройки, View Чат; нажмите снова для возврата в комнату. PlayStation использует Квадрат, Треугольник и Share или Create; Switch Y, X и Minus.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит. На контроллере удерживайте View (Share, Create или Minus) и нажмите Start."
 
 msgid "about.controls_keyboard"
 msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В лобби F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
@@ -1232,7 +1345,7 @@ msgid "room.reconnecting"
 msgstr "Переподключение..."
 
 msgid "room.table_setup_title"
-msgstr "СТОЛ {0} / НАСТРОЙКА БОЯ"
+msgstr "ЯЧЕЙКА {0} / НАСТРОЙКА БОЯ"
 
 msgid "room.waiting_opponent"
 msgstr "Ожидание соперника"
@@ -1265,10 +1378,10 @@ msgid "room.match_in_progress"
 msgstr "Матч идёт"
 
 msgid "room.table_closed"
-msgstr "Стол закрыт"
+msgstr "Ячейка закрыта"
 
 msgid "controller.disconnected"
-msgstr "Контроллер отключён. Подключите его или назначьте вручную."
+msgstr "Контроллер отключён. Подключите его снова или выберите другой в Настройки > Игрок и контроллер."
 
 msgid "controller.none"
 msgstr "Выберите игровое устройство"
@@ -1278,6 +1391,12 @@ msgstr "Клавиатура"
 
 msgid "controller.numbered"
 msgstr "Контроллер {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} не подключён. Пока используется {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} подключён. Теперь вы играете с ним."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (отключено)"
@@ -1335,6 +1454,15 @@ msgstr "Задержка"
 
 msgid "match.spectating"
 msgstr "Просмотр"
+
+msgid "match.behind"
+msgstr "Отставание"
+
+msgid "match.delay_own"
+msgstr "Своя"
+
+msgid "match.up_next"
+msgstr "Ваша очередь следующая"
 
 msgid "match.preview_spacing"
 msgstr "Отступ: {0} / пример значений"
@@ -1418,7 +1546,7 @@ msgid "training.mirror"
 msgstr "Отразить выбранную запись"
 
 msgid "training.mirror.detail"
-msgstr "Меняет местами лево и право в этой ячейке, для сохранённой записи, которая играет зеркально."
+msgstr "Меняет местами лево и право в этом слоте, для сохранённой записи, которая играет зеркально."
 
 msgid "training.recording_saved"
 msgstr "Запись сохранена как {0}."
@@ -1478,7 +1606,7 @@ msgid "training.reply"
 msgstr "Ответ манекена"
 
 msgid "training.reply.detail"
-msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: воспроизводит «Приёмы ответа» или ячейку ответа, если эта строка пуста. Ответ ждёт, пока идёт воспроизведение или запись."
+msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: воспроизводит «Приёмы ответа» или слот ответа, если эта строка пуста. Ответ ждёт, пока идёт воспроизведение или запись."
 
 msgid "training.reply.hit"
 msgstr "После сорванного комбо"
@@ -1492,14 +1620,11 @@ msgstr "При подъёме"
 msgid "training.reply.any"
 msgstr "Всегда после восстановления"
 
-msgid "training.reply.slot"
-msgstr "Ячейка ответа"
+msgid "training.reply.recordings"
+msgstr "Записи"
 
-msgid "training.reply.slot.detail"
-msgstr "Запись манекена, которая воспроизводится как ответ, пока «Приёмы ответа» пусты, с первого нажатия."
-
-msgid "training.reply.slot_empty"
-msgstr "Ячейка {0} пуста, манекену нечем ответить. Запишите её или выберите приём."
+msgid "training.reply.no_recordings_on"
+msgstr "Нет включённых записей, подходящих для ответа"
 
 msgid "training.reply.chance"
 msgstr "Шанс ответа"
@@ -1517,13 +1642,13 @@ msgid "training.reply.moves"
 msgstr "Приёмы ответа"
 
 msgid "training.reply.moves.detail"
-msgstr "Ответ, записанный цифровой нотацией, например 623HP или 44, читается для стороны, в которую смотрит манекен. Подходят и названия движений: qcf, qcb, dp, rdp, hcf и hcb, например qcfP или dp+HP. Движение вводится, пока манекен ещё скован, чтобы кнопка попала на его первый свободный кадр. [1] держит направление до следующего приёма, [1]20f держит его 20 кадров, а 10f ждёт: [1] > 3HP блокирует внизу, пока манекен не освободится, затем жмёт 3HP. Пустая строка использует ячейку ответа."
+msgstr "Ответ, записанный цифровой нотацией, например 623HP или 44, читается для стороны, в которую смотрит манекен. Подходят и названия движений: qcf, qcb, dp, rdp, hcf и hcb, например qcfP или dp+HP. Движение вводится, пока манекен ещё скован, чтобы кнопка попала на его первый свободный кадр. [1] держит направление до следующего приёма, [1]20f держит его 20 кадров, а 10f ждёт: [1] > 3HP блокирует внизу, пока манекен не освободится, затем жмёт 3HP. Пустая строка отвечает включённой записью."
 
 msgid "training.reply.move"
 msgstr "Готовый ответ"
 
 msgid "training.reply.move.detail"
-msgstr "Влево и вправо выбирают обычный ответ в нумпад-записи для стороны, куда смотрит манекен. «Ячейка ответа» воспроизводит запись; «Свой» оставляет набранные приёмы. «Выбрать» открывает «Приёмы ответа» для ввода."
+msgstr "Влево и вправо выбирают обычный ответ в нумпад-записи для стороны, куда смотрит манекен. «Записи» отвечают включённой записью; «Свой» оставляет набранные приёмы. «Выбрать» открывает «Приёмы ответа» для ввода."
 
 msgid "training.reply.custom"
 msgstr "Свой"
@@ -1628,40 +1753,58 @@ msgid "training.close_controls.detail"
 msgstr "Закройте Ember, затем меню паузы SF4, если оно открыто."
 
 msgid "training.slot"
-msgstr "Ячейка {0}"
+msgstr "Слот {0}"
 
 msgid "training.slot_selected"
-msgstr "Ячейка {0} / ВЫБРАНА"
+msgstr "Слот {0} / ВЫБРАН"
 
-msgid "training.recorded_frames"
-msgstr "Записано кадров: {0}. Запись хранится до конца этого боя."
+msgid "training.slot.detail"
+msgstr "Записано кадров: {0}. «Выбрать» включает или выключает слот: «Пуск» и ответ манекена берут включённые слоты. Слоты остаются за этим бойцом-манекеном, пока игра не закрыта."
+
+msgid "training.slot.empty"
+msgstr "Пусто"
+
+msgid "training.slot.empty_detail"
+msgstr "Ничего не записано. «Выбрать» назначает этот слот для «Запись»."
 
 msgid "training.record"
 msgstr "Запись"
 
 msgid "training.record.overwrite"
-msgstr "Перезаписать занятую ячейку и вернуться к тренировке."
+msgstr "Перезаписать занятый слот и вернуться к тренировке."
 
-msgid "training.record.detail"
-msgstr "Записать управление P1 как P2 и вернуться к тренировке."
+msgid "training.record.choose"
+msgstr "Влево и вправо выбирают слот для записи; строки ниже тоже используют его."
+
+msgid "training.record.standby_detail"
+msgstr "Ожидание: P1 управляет манекеном, тренировка продолжается. {0} или {1} начинает запись, повторное нажатие останавливает её."
 
 msgid "training.play"
 msgstr "Пуск"
 
-msgid "training.play.detail"
-msgstr "Воспроизвести выбранную ячейку и вернуться к тренировке. Записи следуют стороне, в которую смотрит манекен. Влево и Вправо выбирают, повторять ли её."
+msgid "training.play.on_detail"
+msgstr "Воспроизводит включённый слот по порядку воспроизведения и возвращает к тренировке. Записи следуют стороне, куда смотрит манекен. Влево и вправо выбирают повтор; каждый повтор выбирает заново."
+
+msgid "training.order"
+msgstr "Порядок воспроизведения"
+
+msgid "training.order.random"
+msgstr "Случайно"
+
+msgid "training.order.in_order"
+msgstr "По порядку"
+
+msgid "training.order.detail"
+msgstr "Как «Пуск» и ответ манекена выбирают среди включённых ячеек."
 
 msgid "training.play.once"
 msgstr "Один раз"
 
-msgid "training.slot_empty"
-msgstr "Ячейка пуста."
+msgid "training.no_recordings_on"
+msgstr "Нет включённых записей"
 
 msgid "training.stop"
 msgstr "Стоп"
-
-msgid "training.stop.detail"
-msgstr "Остановить запись/воспроизведение."
 
 msgid "training.loop"
 msgstr "Повтор"
@@ -1670,7 +1813,7 @@ msgid "training.clear_recording"
 msgstr "Очистить выбранную запись"
 
 msgid "training.clear_recording.detail"
-msgstr "Удалить запись из этой ячейки до конца текущего боя."
+msgstr "Удалить запись из этого слота до конца текущего боя."
 
 msgid "training.player_one"
 msgstr "Игрок 1"
@@ -1690,11 +1833,17 @@ msgstr "Очистить индикатор и историю нажатий о�
 msgid "training.practice_ready"
 msgstr "Тренировка готова"
 
+msgid "training.standby_status"
+msgstr "Ожидание: P1 управляет манекеном. {0} или {1} начинает запись."
+
+msgid "training.standby"
+msgstr "Ожидание"
+
 msgid "training.recording_suspended"
 msgstr "Запись приостановлена, пока открыто меню"
 
 msgid "training.playback_suspended"
-msgstr "Воспроизведение идёт; запись ждёт закрытия меню"
+msgstr "Идёт воспроизведение"
 
 msgid "training.applying"
 msgstr "Выполнение команды..."
@@ -1722,6 +1871,15 @@ msgstr "Попадание"
 
 msgid "training.meter.block"
 msgstr "Блок"
+
+msgid "training.meter.focus_forward"
+msgstr "Фокус-отмена, рывок вперёд"
+
+msgid "training.meter.focus_back"
+msgstr "Фокус-отмена, рывок назад"
+
+msgid "training.meter.cancelled"
+msgstr "Отменено"
 
 msgid "training.meter.whiff"
 msgstr "Мимо"
@@ -1756,11 +1914,47 @@ msgstr "Наклонный"
 msgid "training.meter.style.flat"
 msgstr "Плоский"
 
+msgid "training.meter.style.classic"
+msgstr "Классический"
+
 msgid "training.meter.frames_shown"
 msgstr "Кадров на шкале"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Сколько кадров шкала показывает на той же ширине. Чем меньше, тем шире кадр и легче считать; 120 показывает всю историю. Когда шкала остановлена, колесо мыши над ней листает назад."
+msgstr "Сколько кадров шкала показывает на той же ширине. Чем меньше, тем шире кадр и легче считать. Более длинный размен продолжается с левого края. Когда шкала остановлена, колесо мыши над ней листает назад по странице."
+
+msgid "training.meter.history"
+msgstr "История счётчика"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} с"
+
+msgid "training.meter.history.detail"
+msgstr "Сколько счётчик хранит произошедшее. Пока он остановлен, колесо мыши над полосами листает назад по странице; более длинная история достаёт до начала длинного комбо."
+
+msgid "training.meter.after_pause"
+msgstr "После паузы"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Начать заново"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Продолжить"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Что делает счётчик, когда что-то снова движется после того, как оба бойца стояли. Начать заново очищает полосы для нового размена, как в Street Fighter 6. Продолжить идёт после предыдущего, и история листается через несколько."
+
+msgid "training.meter.scroll"
+msgstr "Прокрутка счётчика"
+
+msgid "training.meter.scroll.pages"
+msgstr "Страницы"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Плавно"
+
+msgid "training.meter.scroll.detail"
+msgstr "Как полосы движутся дальше. Страницы перелистывают целую страницу и начинают слева. Плавно держит новейший кадр у правого края и сдвигает; колесо над остановленным счётчиком отматывает на десять кадров за щелчок."
 
 msgid "training.meter.hud_recovery"
 msgstr "Восстановление на HUD"
@@ -1783,6 +1977,33 @@ msgstr "Клавиши на HUD"
 msgid "training.meter.hud_status"
 msgstr "Запись на HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Ввод на HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Стик"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Стрелки"
+
+msgid "training.meter.inputs_both"
+msgstr "Гибрид"
+
+msgid "training.meter.classic_data"
+msgstr "Строка данных на HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Дорожки ввода"
+
+msgid "training.meter.classic_colors"
+msgstr "Цвета SF6 и meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Легенда, метки и рамка"
+
+msgid "training.meter.classic_slant"
+msgstr "Наклонные ячейки"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Показывает эту часть HUD тренировки во время боя. F5 скрывает весь HUD."
 
@@ -1792,11 +2013,38 @@ msgstr "Размер HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Задаёт размер текста и полос HUD тренировки. Размер интерфейса тоже его увеличивает."
 
+msgid "training.meter.settings"
+msgstr "Настройки счётчика"
+
+msgid "training.meter.settings.detail"
+msgstr "Где находится счётчик, сколько он хранит и что делает после паузы."
+
+msgid "training.meter.classic"
+msgstr "Классический счётчик"
+
+msgid "training.meter.classic.detail"
+msgstr "Высота полос классического счётчика и его части."
+
+msgid "training.meter.position"
+msgstr "Положение счётчика"
+
+msgid "training.meter.position.detail"
+msgstr "Насколько низко на экране находится счётчик, по его нижнему краю. 82% держит его прямо над шкалами суперприёмов; меньшие числа поднимают его."
+
+msgid "training.meter.bar_height"
+msgstr "Высота полос"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Высота полос классического счётчика."
+
 msgid "training.recovery_frames"
 msgstr "Восст.: {0} к."
 
 msgid "training.recovery_unknown"
 msgstr "Восст.: --"
+
+msgid "training.recovery_cancelled"
+msgstr "Восст.: отменено"
 
 msgid "training.neutral"
 msgstr "Нейтраль"
@@ -1842,6 +2090,12 @@ msgstr "Преимущество"
 
 msgid "training.last_advantage"
 msgstr "Последнее преимущество"
+
+msgid "training.last_focus_forward"
+msgstr "Последняя фокус-отмена, рывок вперёд"
+
+msgid "training.last_focus_back"
+msgstr "Последняя фокус-отмена, рывок назад"
 
 msgid "selection.preview_unavailable"
 msgstr "Превью\nнедоступно"
@@ -1889,7 +2143,7 @@ msgid "selection.adjust_saves"
 msgstr "Влево и вправо меняют значение, оно сразу сохраняется."
 
 msgid "selection.locked_detail"
-msgstr "Выбор заблокирован. Вернитесь к столу, чтобы узнать состояние."
+msgstr "Выбор заблокирован. Вернитесь в свою ячейку, чтобы узнать состояние."
 
 msgid "selection.title"
 msgstr "ВЫБОР БОЙЦА"
@@ -2069,7 +2323,7 @@ msgid "selection.status_adjust"
 msgstr "«Влево/вправо» сохраняет / «Назад» возвращает."
 
 msgid "selection.status_locked"
-msgstr "Выбор заблокирован: вернитесь к столу."
+msgstr "Выбор заблокирован: вернитесь в свою ячейку."
 
 msgid "runtime.room_recovering"
 msgstr "Управление лобби восстанавливается. Соединение матча сохранено."
@@ -2145,11 +2399,8 @@ msgstr "Связь нестабильна. Игра идёт с предсказ
 msgid "runtime.connection_restored"
 msgstr "Связь восстановлена."
 
-msgid "runtime.spectator_disconnected"
-msgstr "Зритель отключился."
-
 msgid "runtime.spectator_stream_lost"
-msgstr "Трансляция для зрителя прервалась. Нажмите «Смотреть», чтобы войти в следующий матч."
+msgstr "Поток зрителя прерван. Следующий бой в этой ячейке вы будете смотреть."
 
 msgid "runtime.match_connection_lost"
 msgstr "Связь в матче потеряна."
@@ -2160,17 +2411,23 @@ msgstr "Соперник отключился. Матч окончен."
 msgid "runtime.leaving_spectator"
 msgstr "Выход из режима зрителя."
 
+msgid "runtime.spectator_sat_out"
+msgstr "Бой начался, пока вы были не в главном меню. Следующий бой вы будете смотреть."
+
+msgid "runtime.watching_hint"
+msgstr "Start или F10 открывает Ember, где «Не смотреть» возвращает в лобби."
+
 msgid "runtime.returning_room"
 msgstr "Возвращение в лобби."
 
 msgid "runtime.table_game_cancelled"
-msgstr "Бой за этим столом отменён. Вернитесь в лобби, чтобы снова нажать «Готов»."
+msgstr "Бой в этой ячейке отменён. Вернитесь в лобби, чтобы снова нажать «Готов»."
 
 msgid "runtime.practice_ended"
 msgstr "Тренировка завершена. Вернитесь в лобби, чтобы снова нажать «Готов»."
 
 msgid "runtime.result_not_recorded"
-msgstr "Не удалось записать результат: стол изменился до подтверждения."
+msgstr "Не удалось записать результат: ячейка изменилась до подтверждения."
 
 msgid "runtime.participant_left"
 msgstr "Участник матча покинул лобби. Бой завершится."
@@ -2296,7 +2553,7 @@ msgid "room.status.queued"
 msgstr "В очереди"
 
 msgid "room.status.seated"
-msgstr "За столом"
+msgstr "В ячейке"
 
 msgid "room.status.ready"
 msgstr "Готов"
@@ -2361,6 +2618,9 @@ msgstr " Ваше место освободится."
 msgid "room.leave.queue"
 msgstr " Вы потеряете место в очереди."
 
+msgid "room.leave.watching"
+msgstr " Просмотр завершится."
+
 msgid "room.leave.host"
 msgstr " Другой участник станет ведущим."
 
@@ -2371,7 +2631,7 @@ msgid "room.connecting"
 msgstr "Подключение"
 
 msgid "room.table_occupancy"
-msgstr "Стол {0}   {1}/2"
+msgstr "Ячейка {0}   {1}/2"
 
 msgid "room.member_you"
 msgstr "{0} / ВЫ"
@@ -2428,10 +2688,10 @@ msgid "chat.event.host"
 msgstr "{0} теперь ведущий"
 
 msgid "chat.event.game_won"
-msgstr "{0}: победа в бою за столом {1} ({2})"
+msgstr "{0}: победа в бою в ячейке {1} ({2})"
 
 msgid "chat.event.set_won"
-msgstr "{0}: победа в сете за столом {1} ({2})"
+msgstr "{0}: победа в поединке в ячейке {1} ({2})"
 
 msgid "room.fighter_options"
 msgstr "Настройки бойца"
@@ -2443,7 +2703,7 @@ msgid "room.settings"
 msgstr "Настройки лобби"
 
 msgid "room.settings.detail"
-msgstr "Название, вместимость и доступ в лобби."
+msgstr "Имя, вместимость и доступ в лобби."
 
 msgid "room.settings.host_only"
 msgstr "Лобби может управлять только ведущий."
@@ -2491,7 +2751,7 @@ msgid "room.updating"
 msgstr "Обновление лобби..."
 
 msgid "room.battle_slot"
-msgstr "СТОЛ БОЯ {0}"
+msgstr "ЯЧЕЙКА БОЯ {0}"
 
 msgid "room.looking_for_fight"
 msgstr "Ищет бой"
@@ -2569,10 +2829,10 @@ msgid "room.action_rejected"
 msgstr "Лобби изменилось или отклонило действие. Проверьте текущее состояние и попробуйте снова."
 
 msgid "room.leave_current_table"
-msgstr "Сначала покиньте текущий стол."
+msgstr "Сначала покиньте текущую ячейку."
 
 msgid "room.choose_action"
-msgstr "Выберите действие для этого стола."
+msgstr "Выберите действие для этой ячейки."
 
 msgid "room.result_unresolved.detail"
 msgstr "Прошлый результат не установлен. Выберите «Отказаться от результата» или попросите ведущего отменить бой; победа не будет засчитана."
@@ -2623,7 +2883,7 @@ msgid "room.ready_timeout.other"
 msgstr "Бойцу {1} осталось {0} с для подтверждения готовности"
 
 msgid "chat.event.ready_timeout"
-msgstr "{0} покидает стол {1}: готовность не подтверждена вовремя"
+msgstr "{0} покидает ячейку {1}: готовность не подтверждена вовремя"
 
 msgid "room.hold.status"
 msgstr "Ждём зрителей: {0} с"
@@ -2656,7 +2916,7 @@ msgid "room.ready_up"
 msgstr "Готов"
 
 msgid "room.selected_delay.detail"
-msgstr "Настройка от 0 до 10 кадров, ниже 0 включается Авто. 0 не добавляет задержки и требует низкого стабильного пинга."
+msgstr "Настройка от {0} до {1} кадров, ниже 0 включается Авто. 0 не добавляет задержки и требует низкого стабильного пинга."
 
 msgid "room.selected_delay.locked"
 msgstr "Выбранная задержка закреплена на этот матч."
@@ -2729,7 +2989,7 @@ msgid "room.leave_seat.keep"
 msgstr "Остаться"
 
 msgid "room.leave_seat.costs_score"
-msgstr "Если встать, серия закончится и счёт сбросится ({0})."
+msgstr "Если встать, поединок закончится и счёт сбросится ({0})."
 
 msgid "room.leave_seat.hands_over"
 msgstr "Ваше место займёт следующий игрок в очереди."
@@ -2741,22 +3001,40 @@ msgid "room.abandon_result"
 msgstr "Отказаться от результата"
 
 msgid "room.abandon_result.detail"
-msgstr "Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
+msgstr "Результат не будет записан. Оба бойца останутся в ячейке и смогут снова подтвердить готовность."
 
 msgid "room.end_practice"
 msgstr "Завершить тренировку"
 
 msgid "room.end_practice.detail"
-msgstr "Сразу завершает этот тренировочный матч для обоих бойцов. Результат не будет записан. Оба бойца останутся за столом и смогут снова подтвердить готовность."
+msgstr "Сразу завершает этот тренировочный матч для обоих бойцов. Результат не будет записан. Оба бойца останутся в ячейке и смогут снова подтвердить готовность."
 
 msgid "room.leave_queue"
 msgstr "Выйти из очереди"
+
+msgid "room.leave_queue.watching"
+msgstr " Вы продолжите смотреть этот бой до конца."
 
 msgid "room.join_queue"
 msgstr "В очередь"
 
 msgid "room.stop_watching"
 msgstr "Не смотреть"
+
+msgid "room.stop_watching.detail"
+msgstr "Прекращает просмотр этой ячейки и возвращает в лобби. Бойцы продолжают играть."
+
+msgid "room.stop_watching.finished"
+msgstr "Лобби уже завершило этот бой. Прекращает просмотр оставшейся части и возвращает в лобби."
+
+msgid "room.leave_game"
+msgstr "Покинуть этот бой"
+
+msgid "room.leave_game.detail"
+msgstr "Прекращает просмотр этого боя и возвращает в лобби. Вы сохраняете место в очереди, а бойцы продолжают играть."
+
+msgid "room.watching_ends"
+msgstr " Просмотр завершится; бойцы продолжат играть."
 
 msgid "room.watch_next"
 msgstr "Смотреть новый бой"
@@ -2777,13 +3055,13 @@ msgid "room.unlock_spectating"
 msgstr "Снять закрепление"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другому столу."
+msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другой ячейке."
 
 msgid "room.lock_in_ended.stopped"
 msgstr "Закрепление снято: вы перестали смотреть."
 
 msgid "room.lock_in_ended.moved"
-msgstr "Закрепление снято: вы смотрите другой стол."
+msgstr "Закрепление снято: вы смотрите другую ячейку."
 
 msgid "room.lock_in_ended.playing"
 msgstr "Закрепление снято: вы заняли место или встали в очередь."
@@ -2792,16 +3070,16 @@ msgid "room.lock_in_ended.dropped"
 msgstr "Закрепление снято: трансляция для зрителя прервалась. Закрепитесь снова, чтобы следующий матч вас подождал."
 
 msgid "room.table_rules"
-msgstr "Правила стола"
+msgstr "Правила ячейки"
 
 msgid "room.rules_summary"
 msgstr "Раундов: {0}, {1} с, выбор издания: {2}"
 
 msgid "room.table_options"
-msgstr "Настройки стола"
+msgstr "Настройки ячейки"
 
 msgid "room.table_options.detail"
-msgstr "Стол {0}: Задержка, проверка связи, правила, очередь и просмотр для этого стола."
+msgstr "Ячейка {0}: Задержка, проверка связи, правила, очередь и просмотр для этой ячейки."
 
 msgid "room.legend_fighter"
 msgstr "Боец"
@@ -2834,16 +3112,16 @@ msgid "room.rules.apply_note"
 msgstr "Изменения ещё не применены."
 
 msgid "room.rules.host_only"
-msgstr "Правила стола может менять только ведущий."
+msgstr "Правила ячейки может менять только ведущий."
 
 msgid "room.rules.tournament"
-msgstr "Правила за этим столом задаёт турнир."
+msgstr "Правила в этой ячейке задаёт турнир."
 
 msgid "room.apply_rules"
 msgstr "Применить"
 
 msgid "room.apply_rules.detail"
-msgstr "Отправить полный набор новых правил для этого стола."
+msgstr "Отправить полный набор новых правил для этой ячейки."
 
 msgid "room.member_status_host_muted"
 msgstr "{0} / ВЕДУЩИЙ / Чат скрыт"
@@ -2875,6 +3153,15 @@ msgstr "Сменить ведущего"
 msgid "room.transfer_host.detail"
 msgstr "Назначить {0} ведущим лобби."
 
+msgid "room.steam_profile"
+msgstr "Профиль Steam"
+
+msgid "room.steam_profile.detail"
+msgstr "Открыть профиль Steam этого участника."
+
+msgid "room.steam_profile.none"
+msgstr "Этот участник не делится профилем Steam."
+
 msgid "room.compose_message"
 msgstr "Написать сообщение"
 
@@ -2894,10 +3181,10 @@ msgid "room.admission.detail"
 msgstr "Закрытое лобби не принимает новых."
 
 msgid "room.apply_name"
-msgstr "Сохранить название"
+msgstr "Сохранить имя"
 
 msgid "room.apply_name.detail"
-msgstr "Сохранить название лобби."
+msgstr "Сохранить имя лобби."
 
 msgid "room.apply_capacity"
 msgstr "Применить лимит"
@@ -2971,6 +3258,12 @@ msgstr "Не удалось запустить сеть. Игра без сет�
 msgid "runtime.network_helper_unavailable"
 msgstr "Сетевой компонент недоступен (ошибка {0}). Игра без сети доступна."
 
+msgid "runtime.network_helper_missing"
+msgstr "Не удалось запустить сеть: в папке Ember нет файла sf4-net.exe. Его могла удалить защитная программа. Переустановите Ember и разрешите его папку в антивирусе. Игра без сети доступна."
+
+msgid "runtime.network_helper_blocked"
+msgstr "Не удалось запустить сеть: защитная программа заблокировала sf4-net.exe. Разрешите папку Ember в антивирусе и перезапустите Ember. Игра без сети доступна."
+
 msgid "discord.connecting"
 msgstr "Подключение к Discord..."
 
@@ -2981,7 +3274,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Игровое устройство отключилось. Подключите его до следующего матча."
 
 msgid "runtime.match_input_blocked"
-msgstr "Ввод в матче заблокирован: подключите {0} снова. Если слот изменился, вернитесь в лобби и назначьте устройство заново."
+msgstr "{0} отключён. Ваш боец не получает ввод, пока вы не подключите его снова."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Не удалось проверить назначение контроллера для матча. Назначьте его снова."
@@ -3015,6 +3308,9 @@ msgstr "Сбой соединения с лобби. Лобби закрывае
 
 msgid "runtime.operation_busy"
 msgstr "Операция занята. Повторите попытку."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Не удалось открыть профиль Steam."
 
 msgid "discord.invitation_expired"
 msgstr "Срок приглашения Discord истёк. Попросите новое."
@@ -3062,7 +3358,7 @@ msgid "runtime.room_catchup_timeout"
 msgstr "Лобби не успело синхронизироваться. Последнее действие не применено; попробуйте снова."
 
 msgid "runtime.previous_match_close_timeout"
-msgstr "Прошлый матч не успел завершиться. Примените настройки стола ещё раз."
+msgstr "Прошлый матч не успел завершиться. Примените настройки ячейки ещё раз."
 
 msgid "runtime.spectator_close_timeout"
 msgstr "Матч не успел завершиться. Просмотр зрителя остановлен."
@@ -3089,10 +3385,10 @@ msgid "room.reject.stale_room"
 msgstr "Лобби изменилось до получения вашего действия. Повторите попытку."
 
 msgid "room.reject.stale_table"
-msgstr "Стол изменился до получения вашего действия. Повторите попытку."
+msgstr "Ячейка изменилась до получения вашего действия. Повторите попытку."
 
 msgid "room.reject.wrong_phase"
-msgstr "Стол не готов к этому действию."
+msgstr "Ячейка не готова к этому действию."
 
 msgid "room.reject.wrong_generation"
 msgstr "Этот бой уже закончился."
@@ -3101,10 +3397,10 @@ msgid "room.reject.unauthorized"
 msgstr "Это может сделать только ведущий."
 
 msgid "room.reject.not_seated"
-msgstr "Вы не заняли место за этим столом."
+msgstr "Вы не заняли место в этой ячейке."
 
 msgid "room.reject.already_seated"
-msgstr "Вы уже сидите за столом."
+msgstr "Вы уже заняли место в ячейке."
 
 msgid "room.reject.already_queued"
 msgstr "Вы уже в очереди."
@@ -3113,13 +3409,13 @@ msgid "room.reject.not_queued"
 msgstr "Вас нет в очереди."
 
 msgid "room.reject.not_watching"
-msgstr "Вы не смотрите этот стол."
+msgstr "Вы не смотрите эту ячейку."
 
 msgid "room.reject.seat_taken"
 msgstr "Это место только что заняли. Выберите снова."
 
 msgid "room.reject.invalid_rules"
-msgstr "Правила этого стола недопустимы."
+msgstr "Правила этой ячейки недопустимы."
 
 msgid "room.reject.invalid_capacity"
 msgstr "Недопустимая вместимость."
@@ -3167,7 +3463,7 @@ msgid "runtime.ready.selection_unavailable"
 msgstr "Этот выбор бойца недоступен. Выберите доступные костюм, цвет, издание и Ультра."
 
 msgid "runtime.ready.take_seat"
-msgstr "Займите место за столом, прежде чем нажать «Готов»."
+msgstr "Займите место в ячейке, прежде чем нажать «Готов»."
 
 msgid "runtime.ready.refused"
 msgstr "Лобби отклонило вашу готовность. Нажмите «Готов» снова."
@@ -3863,7 +4159,7 @@ msgid "tournament.failure.link_service"
 msgstr "Доверьтесь этому турнирному сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на матч."
 
 msgid "rules.set_length"
-msgstr "Длина сета"
+msgstr "Длина поединка"
 
 msgid "rules.set_length.none"
 msgstr "Без длины"
@@ -3872,10 +4168,10 @@ msgid "rules.set_length.first_to"
 msgstr "До {0} побед"
 
 msgid "rules.set_length.detail"
-msgstr "Сет заканчивается, когда игрок выигрывает столько игр. Без длины те же двое продолжают играть."
+msgstr "Поединок заканчивается, когда игрок выигрывает столько игр. Без длины те же двое продолжают играть."
 
 msgid "rules.rotation"
-msgstr "После сета"
+msgstr "После поединка"
 
 msgid "rules.rotation.winner_stays"
 msgstr "Победитель остаётся"
@@ -3896,19 +4192,34 @@ msgid "rules.rotation.both_rotate.detail"
 msgstr "Оба игрока встают в конец очереди, а садятся следующие двое."
 
 msgid "rules.rotation.needs_set"
-msgstr "Сначала выберите длину сета. Без неё никто не меняется."
+msgstr "Сначала выберите длину поединка. Без неё никто не меняется."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
 msgid "room.table_set"
-msgstr "Сет"
+msgstr "Поединок"
 
 msgid "room.table_footer_set"
 msgstr "{0}, {1}     Очередь: {2}     Зрители: {3}"
 
 msgid "room.streak"
-msgstr "Сетов подряд: {0}"
+msgstr "Поединков подряд: {0}"
+
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Примерный пинг: около {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Измерение пинга..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Пинг недоступен: соединения с этим участником пока нет."
+
+msgid "room.latency.tip.in_match"
+msgstr "Пинг приостановлен, пока этот участник играет."
 
 msgid "screen.public_rooms"
 msgstr "Открытые лобби"
@@ -3920,10 +4231,10 @@ msgid "public.create"
 msgstr "Создать открытое лобби"
 
 msgid "public.create_detail"
-msgstr "Открывает лобби, видимое всем игрокам с Ember ID, и делает вас ведущим. Затем выберите название, размер и правила столов."
+msgstr "Открывает лобби, видимое всем игрокам с Ember ID, и делает вас ведущим. Затем выберите имя, размер и правила ячеек."
 
 msgid "public.create_requirements"
-msgstr "Создаёт открытое лобби в сервисе Ember ID, входит в него и задаёт эти правила на всех столах. Потом их можно изменить в настройках стола."
+msgstr "Создаёт открытое лобби в сервисе Ember ID, входит в него и применяет эти настройки ко всем ячейкам. Потом каждую ячейку можно настроить отдельно в настройках ячейки."
 
 msgid "public.create_needs_id"
 msgstr "Для открытых лобби нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые лобби."
@@ -3980,7 +4291,7 @@ msgid "public.failure.unsupported_build"
 msgstr "Открытые лобби пока недоступны в этой версии."
 
 msgid "public.failure.invalid_name"
-msgstr "Это название лобби нельзя использовать. Выберите другое."
+msgstr "Это имя лобби нельзя использовать. Выберите другое."
 
 msgid "public.failure.rooms_unavailable"
 msgstr "Открытые лобби сейчас недоступны."
@@ -4325,10 +4636,10 @@ msgid "export.line_text"
 msgstr "Текст строки матча"
 
 msgid "export.set"
-msgstr "Счёт сета"
+msgstr "Счёт поединка"
 
 msgid "export.set_detail"
-msgstr "Победы каждого игрока в сете на данный момент, рядом с именем. Считаются по матчам, которые эти двое сыграли прямо перед этим; измените, если счёт неверный."
+msgstr "Победы каждого игрока в поединке на данный момент, рядом с именем. Считаются по матчам, которые эти двое сыграли прямо перед этим; измените, если счёт неверный."
 
 msgid "export.set_wins"
 msgstr "Победы игрока {0}"
@@ -4379,7 +4690,7 @@ msgid "training.result"
 msgstr "Результат"
 
 msgid "training.room.table"
-msgstr "Стол {0}"
+msgstr "Ячейка {0}"
 
 msgid "training.room.waiting"
 msgstr "Ожидание соперника"
@@ -4587,3 +4898,1333 @@ msgstr "Не удалось включить «Отправлять всегда
 
 msgid "reports.automatic_unavailable"
 msgstr "Сегодняшние автоматические отчёты исчерпаны, или история отправленных отчётов не читается, поэтому отчёт не отправлен. Выберите «Отправить этот отчёт», чтобы отправить его из предпросмотра."
+
+msgid "player.button_prompts"
+msgstr "Значки кнопок"
+
+msgid "player.button_prompts_detail"
+msgstr "Изображения кнопок, которые показывает Ember. Автоматически подбирает их для контроллера, которым вы играете. Функции кнопок остаются прежними."
+
+msgid "player.prompts_auto"
+msgstr "Автоматически"
+
+
+msgid "controller.brand.stick"
+msgstr "Боевые кнопки"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} подключён."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} подключён. Вы играете с клавиатурой; для смены используйте Сменить контроллер в Настройки > Игрок и контроллер."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} подключён. Откройте Ember, чтобы настроить его кнопки."
+
+msgid "controller.connected_full"
+msgstr "{0} подключён, но уже используются четыре контроллера. Отключите один, чтобы использовать этот."
+
+msgid "controller.disconnected_named"
+msgstr "{0} отключён."
+
+msgid "controller.reconnected"
+msgstr "{0} снова подключён."
+
+msgid "controller.release_to_use"
+msgstr "Отпустите кнопку, чтобы играть с {0}."
+
+msgid "player.controllers"
+msgstr "Контроллеры"
+
+msgid "player.controllers_value"
+msgstr "Подключено: {0}"
+
+msgid "player.controllers_detail"
+msgstr "Вы играете с {0}. Посмотрите все подключённые контроллеры, проверьте их кнопки и настройте те, которые Ember ещё не знает."
+
+
+
+msgid "player.game_reads"
+msgstr "Разрешить игре читать контроллеры"
+
+msgid "player.game_reads_detail"
+msgstr "Выкл.: Ember читает все контроллеры, и игра видит каждый как контроллер Xbox. Вкл.: игра читает контроллеры сама, как без Ember; контроллерам PlayStation и Switch тогда нужен Steam Input. Изменения применяются при следующем запуске игры."
+
+msgid "player.game_reads_pending"
+msgstr "Перезапустите игру, чтобы применить изменение."
+
+msgid "player.prompts_showing"
+msgstr "Показаны кнопки {0}."
+
+msgid "controllers.title"
+msgstr "КОНТРОЛЛЕРЫ"
+
+msgid "controllers.unavailable"
+msgstr "Поддержка контроллеров выключена"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember не смог запустить поддержку контроллеров, поэтому в этот раз игра читает их сама. Контроллеры Xbox работают как обычно; другим может понадобиться Steam Input. Подробности в sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Игра читает контроллеры"
+
+msgid "controllers.game_reads_detail"
+msgstr "Разрешить игре читать контроллеры включено, поэтому Ember не настраивает и не проверяет контроллеры. Выключите эту опцию в Игрок и контроллер и перезапустите игру."
+
+msgid "controllers.none"
+msgstr "Нет подключённых контроллеров"
+
+msgid "controllers.none_detail"
+msgstr "Подключите контроллер, и он появится здесь. Клавиатура работает и без него."
+
+msgid "controllers.value_yours"
+msgstr "Ваш"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Не настроен"
+
+msgid "controllers.value_full"
+msgstr "Не используется"
+
+msgid "controllers.value_absent"
+msgstr "Не подключён"
+
+msgid "controllers.detail_yours"
+msgstr "Вы играете с этим контроллером. Игровой слот {0}. Нажимайте его кнопки для проверки."
+
+msgid "controllers.detail_other"
+msgstr "Игровой слот {0}. Нажимайте кнопки для проверки. Выберите, чтобы играть с ним или настроить его кнопки."
+
+msgid "controllers.detail_custom"
+msgstr "Использует сохранённую настройку кнопок."
+
+msgid "controllers.detail_steam"
+msgstr "Steam Input управляет этим контроллером, поэтому его кнопки следуют настройкам Steam. Чтобы им управлял Ember, запустите Ember вне Steam или выключите Steam Input для Ultra Street Fighter IV в Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember ещё не знает кнопки этого контроллера. До настройки игра читает его напрямую, а меню Ember используют кнопки, назначенные на слабый и средний удар ногой. Выберите для настройки."
+
+msgid "controllers.detail_full"
+msgstr "В игре есть место для четырёх контроллеров. Отключите другой, чтобы использовать этот."
+
+msgid "controllers.detail_absent"
+msgstr "Ваш сохранённый контроллер. Подключите его, чтобы снова играть с ним."
+
+msgid "controllers.detail_game_read"
+msgstr "Игра сама читает этот контроллер."
+
+msgid "controllers.steam_name"
+msgstr "Контроллер Steam"
+
+msgid "controllers.test_heading"
+msgstr "Нажимайте кнопки для проверки"
+
+msgid "controllers.test_raw"
+msgstr "Нажато: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Нажато: ничего"
+
+msgid "controllers.choice_play"
+msgstr "Играть с этим контроллером"
+
+msgid "controllers.choice_play_detail"
+msgstr "Используйте его для игры онлайн и меню Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "Вы уже играете с этим контроллером."
+
+msgid "controllers.choice_setup"
+msgstr "Настроить кнопки"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Нажимайте каждую кнопку по очереди, чтобы сообщить Ember её назначение."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Steam Input задаёт кнопки этого контроллера."
+
+msgid "controllers.choice_forget"
+msgstr "Забыть настройку кнопок"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Вернуть работу контроллера до настройки. Применяется при следующем запуске игры."
+
+msgid "controllers.now_playing"
+msgstr "Вы играете с {0}."
+
+msgid "controllers.forgotten"
+msgstr "Настройка кнопок забыта. Это применится при следующем запуске игры."
+
+msgid "pad_setup.input.button"
+msgstr "Кнопка {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Крестовина вверх"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Крестовина вправо"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Крестовина вниз"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Крестовина влево"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Ось {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Ось {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Ось триггера {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Контроллер отключён. Подключите его снова или выйдите из комнаты, чтобы выбрать другой."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} вернулся, но в другом игровом слоте. Он снова заработает со следующей игры."
+
+msgid "pad_setup.title"
+msgstr "НАСТРОЙКА КОНТРОЛЛЕРА"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Новый контроллер"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember пока не знает кнопки {0}. Нажмите любую кнопку на нём, чтобы настроить его сейчас. Это займёт около минуты."
+
+msgid "pad_setup.not_now"
+msgstr "Не сейчас"
+
+msgid "pad_setup.step_count"
+msgstr "Шаг {0} из {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Вверх"
+
+msgid "pad_setup.step.down"
+msgstr "Вниз"
+
+msgid "pad_setup.step.left"
+msgstr "Влево"
+
+msgid "pad_setup.step.right"
+msgstr "Вправо"
+
+msgid "pad_setup.step.lp"
+msgstr "Слабый удар рукой"
+
+msgid "pad_setup.step.mp"
+msgstr "Средний удар рукой"
+
+msgid "pad_setup.step.hp"
+msgstr "Сильный удар рукой"
+
+msgid "pad_setup.step.lk"
+msgstr "Слабый удар ногой"
+
+msgid "pad_setup.step.mk"
+msgstr "Средний удар ногой"
+
+msgid "pad_setup.step.hk"
+msgstr "Сильный удар ногой"
+
+msgid "pad_setup.step.3p"
+msgstr "Все три удара рукой"
+
+msgid "pad_setup.step.3k"
+msgstr "Все три удара ногой"
+
+msgid "pad_setup.step.ls"
+msgstr "Нажатие левого стика"
+
+msgid "pad_setup.step.rs"
+msgstr "Нажатие правого стика"
+
+msgid "pad_setup.step.lx"
+msgstr "Левый стик вправо"
+
+msgid "pad_setup.step.ly"
+msgstr "Левый стик вниз"
+
+msgid "pad_setup.step.rx"
+msgstr "Правый стик вправо"
+
+msgid "pad_setup.step.ry"
+msgstr "Правый стик вниз"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Наклоните рычаг или нажмите кнопку этого направления, затем отпустите."
+
+msgid "pad_setup.press_button"
+msgstr "Нажмите кнопку, которую хотите использовать для этого действия, затем отпустите."
+
+msgid "pad_setup.optional"
+msgstr "Если на контроллере нет кнопки для этого действия, пропустите его."
+
+msgid "pad_setup.optional_stick"
+msgstr "Если на контроллере нет стика для этого действия, пропустите его."
+
+msgid "pad_setup.lk_selects"
+msgstr "Эта кнопка также выбирает пункты в меню."
+
+msgid "pad_setup.mk_backs"
+msgstr "Эта кнопка также возвращает назад в меню."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Продолжайте удерживать, чтобы отменить настройку."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Удерживать любую кнопку: отмена"
+
+msgid "pad_setup.back_step"
+msgstr "На шаг назад"
+
+msgid "pad_setup.skip"
+msgstr "Пропустить"
+
+msgid "pad_setup.required"
+msgstr "Это действие обязательно."
+
+msgid "pad_setup.conflict"
+msgstr "{0} уже назначено на {1}. Используйте другой ввод."
+
+msgid "pad_setup.idle_hint"
+msgstr "Пока ничего не нажато. Удерживайте любую кнопку 3 секунды для отмены или нажмите Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Контроллер отключён. Подключите его в течение {0} секунд, чтобы продолжить."
+
+msgid "pad_setup.skipped"
+msgstr "Пропущено"
+
+msgid "pad_setup.summary_detail"
+msgstr "Нажмите кнопку, чтобы увидеть её шаг. Здесь слабый удар ногой выбирает, а средний возвращает назад, как и в каждом меню."
+
+msgid "pad_setup.redo_detail"
+msgstr "Выберите, чтобы назначить этот ввод снова."
+
+msgid "pad_setup.save"
+msgstr "Сохранить"
+
+msgid "pad_setup.save_detail"
+msgstr "Сохранить настройку и использовать её сейчас."
+
+msgid "pad_setup.start_over"
+msgstr "Начать заново"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Очистить все шаги и начать заново."
+
+msgid "pad_setup.cancel"
+msgstr "Отменить настройку"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Выйти без сохранения."
+
+msgid "pad_setup.cancelled"
+msgstr "Настройка отменена. Ничего не сохранено."
+
+msgid "pad_setup.saved_heading"
+msgstr "Контроллер настроен"
+
+msgid "pad_setup.saved"
+msgstr "{0} настроен. Чтобы изменить атаки его кнопок, выберите Раскладка кнопок."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember не смог использовать эту настройку. Ничего не сохранено. Подробности в sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Настройка остановлена, потому что {0} отключён. Ничего не сохранено."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Настройка остановлена после минуты без ввода. Ничего не сохранено."
+
+msgid "player.button_layout"
+msgstr "Раскладка кнопок"
+
+msgid "player.button_layout_detail"
+msgstr "Выберите атаки кнопок {0}. Для соперника ничего не меняется."
+
+msgid "player.button_layout_setup"
+msgstr "Ember пока не обслуживает {0}. Выберите, чтобы сначала настроить кнопки."
+
+msgid "player.button_layout_keyboard"
+msgstr "Раскладки предназначены для контроллеров. Для клавиатуры используйте Настройки кнопок игры."
+
+msgid "player.button_layout_game_reads"
+msgstr "Отключите Чтение контроллеров игрой, чтобы использовать раскладки. Пока используйте Настройки кнопок игры."
+
+msgid "player.button_layout_failed"
+msgstr "Поддержка контроллеров Ember в этот раз не запустилась. Используйте Настройки кнопок игры."
+
+msgid "player.game_buttons"
+msgstr "Настройки кнопок игры"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember закроется. В меню игры выберите Параметры, затем настройки контроллера. Используйте их для клавиатуры и контроллеров, которые читает игра. Контроллер с раскладкой Ember использует её. Игра сохраняет раскладку только при наличии кнопки для каждого действия."
+
+msgid "controllers.choice_layout"
+msgstr "Раскладка кнопок"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Выберите атаки каждой кнопки."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Сначала настройте кнопки."
+
+msgid "controllers.detail_layout"
+msgstr "Раскладка кнопок: {0}."
+
+msgid "button_layout.title"
+msgstr "РАСКЛАДКА КНОПОК"
+
+msgid "button_layout.button_title"
+msgstr "ИЗМЕНИТЬ КНОПКУ"
+
+msgid "button_layout.test"
+msgstr "Проверьте кнопки"
+
+msgid "button_layout.test_detail"
+msgstr "Нажимайте кнопки {0}, чтобы увидеть их атаки. В этой строке только Назад управляет меню."
+
+msgid "button_layout.attacks"
+msgstr "Атаки"
+
+msgid "button_layout.throw"
+msgstr "Бросок (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Фокус-атака (MP+MK)"
+
+msgid "button_layout.red_focus"
+msgstr "Красная фокус-атака (LP+MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Выберите строку, затем нажмите кнопку для {0}. Если атака есть у другой кнопки, они поменяются."
+
+msgid "button_layout.row_missing"
+msgstr "Ни одна кнопка не выполняет только эту атаку, поэтому её нельзя выполнить отдельно."
+
+msgid "button_layout.no_button"
+msgstr "Нет кнопки"
+
+msgid "button_layout.edit_button"
+msgstr "Изменить одну кнопку"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Выберите строку, затем нажмите кнопку, чтобы точно выбрать её атаки. Можно задать любую комбинацию или отключить кнопку."
+
+msgid "button_layout.preset"
+msgstr "Шаблон"
+
+msgid "button_layout.preset_detail"
+msgstr "Выберите готовую раскладку. Стандартная соответствует раскладке игры."
+
+msgid "button_layout.custom"
+msgstr "Своя"
+
+msgid "button_layout.game_layout"
+msgstr "Раскладка игры"
+
+msgid "button_layout.preset.default"
+msgstr "Стандартная"
+
+msgid "button_layout.preset.default_detail"
+msgstr "Раскладка игры. Подходит большинству контроллеров и стикам с 8 кнопками."
+
+msgid "button_layout.preset.triggers"
+msgstr "Тройные атаки на триггерах"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Для контроллеров с шестью кнопками. Сильный удар рукой на правой плечевой кнопке, сильный удар ногой на левой. Три удара рукой на левом триггере, три удара ногой на правом."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Фокус и бросок"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Как Стандартная, но левая плечевая кнопка выполняет фокус-атаку, а левый триггер бросок. На стике с 8 кнопками это четвёртый столбец. Три удара рукой и ногой переходят на нажатия стиков."
+
+msgid "button_layout.preset_applied"
+msgstr "Установлена раскладка {0}."
+
+msgid "button_layout.remove"
+msgstr "Использовать раскладку игры"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember перестаёт менять кнопки этого контроллера. Снова применяется раскладка из Настроек кнопок игры."
+
+msgid "button_layout.removed"
+msgstr "Для этого контроллера снова применяется раскладка игры."
+
+msgid "button_layout.press_for"
+msgstr "Нажмите кнопку для {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Нажмите кнопку для изменения"
+
+msgid "button_layout.waiting"
+msgstr "Нажмите кнопку..."
+
+msgid "button_layout.press_cancel"
+msgstr "Двиньте стик или нажмите Start для отмены."
+
+msgid "button_layout.assigned"
+msgstr "{0} теперь на {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} теперь на {1}. {2} вместо этого выполняет {3}."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} теперь на {1}. {2} теперь ничего не выполняет."
+
+msgid "button_layout.bit_detail"
+msgstr "Влево или Вправо включает или выключает {0} для этой кнопки."
+
+msgid "button_layout.clear"
+msgstr "Без атак"
+
+msgid "button_layout.clear_detail"
+msgstr "Эта кнопка ничего не делает в бою."
+
+msgid "button_layout.button_does"
+msgstr "В бою: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Ничего"
+
+msgid "button_layout.absent"
+msgstr "Не подключён"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} не подключён. Раскладка сохранена. Подключите его для изменения."
+
+msgid "button_layout.setup_first"
+msgstr "Сначала настройте кнопки"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Игра сама читает {0}, поэтому Ember пока не может менять его кнопки. Настройте его один раз, и он будет работать здесь как остальные контроллеры."
+
+msgid "button_layout.missing_heading"
+msgstr "У некоторых атак нет кнопки"
+
+msgid "button_layout.missing_text"
+msgstr "У этих атак нет отдельной кнопки: {0}. Раскладка сохранена."
+
+msgid "button_layout.keep_editing"
+msgstr "Продолжить правку"
+
+msgid "button_layout.leave"
+msgstr "Выйти"
+
+msgid "button_layout.menu_confirm"
+msgstr "Подтверждение в меню"
+
+msgid "button_layout.menu_back"
+msgstr "Назад в меню"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Выберите, затем нажмите кнопку, которая подтверждает в меню Ember. Пока вы её не выберете, это кнопка, которой подтверждают меню игры."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Выберите, затем нажмите кнопку, которая возвращает назад в меню Ember. Пока вы её не выберете, это кнопка, которой возвращаются назад меню игры."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} уже назначена: {1}. Выберите другую кнопку."
+
+msgid "room.delay_policy"
+msgstr "Задержка ввода в лобби"
+
+msgid "room.delay_policy.shared"
+msgstr "Одинаковая для обоих"
+
+msgid "room.delay_policy.own"
+msgstr "Своя у каждого игрока"
+
+msgid "room.delay_policy.detail"
+msgstr "Одинаковая для обоих: каждый матч идёт с большей из двух задержек. Своя у каждого игрока: каждый играет с выбранной им задержкой, а разницу сглаживает откат на другой стороне. Это действует, пока лобби открыто."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, своя задержка"
+
+msgid "room.table_footer_own_delay"
+msgstr "Своя задержка"
+
+msgid "room.input_delay.own"
+msgstr "Ваша задержка: {0}"
+
+msgid "public.own_delay"
+msgstr "Своя задержка"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Эта служба лобби пока не может создать лобби со своей задержкой у каждого игрока. Выберите «Одинаковая для обоих» или повторите попытку позже."
+
+#. Country names, generated by scripts/gen-countries.mjs from ICU. Do not edit by hand.
+
+msgid "country.AD"
+msgstr "Андорра"
+
+msgid "country.AE"
+msgstr "ОАЭ"
+
+msgid "country.AF"
+msgstr "Афганистан"
+
+msgid "country.AG"
+msgstr "Антигуа и Барбуда"
+
+msgid "country.AI"
+msgstr "Ангилья"
+
+msgid "country.AL"
+msgstr "Албания"
+
+msgid "country.AM"
+msgstr "Армения"
+
+msgid "country.AO"
+msgstr "Ангола"
+
+msgid "country.AQ"
+msgstr "Антарктида"
+
+msgid "country.AR"
+msgstr "Аргентина"
+
+msgid "country.AS"
+msgstr "Американское Самоа"
+
+msgid "country.AT"
+msgstr "Австрия"
+
+msgid "country.AU"
+msgstr "Австралия"
+
+msgid "country.AW"
+msgstr "Аруба"
+
+msgid "country.AX"
+msgstr "Аландские о-ва"
+
+msgid "country.AZ"
+msgstr "Азербайджан"
+
+msgid "country.BA"
+msgstr "Босния и Герцеговина"
+
+msgid "country.BB"
+msgstr "Барбадос"
+
+msgid "country.BD"
+msgstr "Бангладеш"
+
+msgid "country.BE"
+msgstr "Бельгия"
+
+msgid "country.BF"
+msgstr "Буркина-Фасо"
+
+msgid "country.BG"
+msgstr "Болгария"
+
+msgid "country.BH"
+msgstr "Бахрейн"
+
+msgid "country.BI"
+msgstr "Бурунди"
+
+msgid "country.BJ"
+msgstr "Бенин"
+
+msgid "country.BL"
+msgstr "Сен-Бартелеми"
+
+msgid "country.BM"
+msgstr "Бермудские о-ва"
+
+msgid "country.BN"
+msgstr "Бруней"
+
+msgid "country.BO"
+msgstr "Боливия"
+
+msgid "country.BQ"
+msgstr "Бонэйр, Синт-Эстатиус и Саба"
+
+msgid "country.BR"
+msgstr "Бразилия"
+
+msgid "country.BS"
+msgstr "Багамы"
+
+msgid "country.BT"
+msgstr "Бутан"
+
+msgid "country.BV"
+msgstr "о-в Буве"
+
+msgid "country.BW"
+msgstr "Ботсвана"
+
+msgid "country.BY"
+msgstr "Беларусь"
+
+msgid "country.BZ"
+msgstr "Белиз"
+
+msgid "country.CA"
+msgstr "Канада"
+
+msgid "country.CC"
+msgstr "Кокосовые о-ва"
+
+msgid "country.CD"
+msgstr "Конго - Киншаса"
+
+msgid "country.CF"
+msgstr "Центрально-Африканская Республика"
+
+msgid "country.CG"
+msgstr "Конго - Браззавиль"
+
+msgid "country.CH"
+msgstr "Швейцария"
+
+msgid "country.CI"
+msgstr "Кот-д’Ивуар"
+
+msgid "country.CK"
+msgstr "о-ва Кука"
+
+msgid "country.CL"
+msgstr "Чили"
+
+msgid "country.CM"
+msgstr "Камерун"
+
+msgid "country.CN"
+msgstr "Китай"
+
+msgid "country.CO"
+msgstr "Колумбия"
+
+msgid "country.CR"
+msgstr "Коста-Рика"
+
+msgid "country.CU"
+msgstr "Куба"
+
+msgid "country.CV"
+msgstr "Кабо-Верде"
+
+msgid "country.CW"
+msgstr "Кюрасао"
+
+msgid "country.CX"
+msgstr "о-в Рождества"
+
+msgid "country.CY"
+msgstr "Кипр"
+
+msgid "country.CZ"
+msgstr "Чехия"
+
+msgid "country.DE"
+msgstr "Германия"
+
+msgid "country.DJ"
+msgstr "Джибути"
+
+msgid "country.DK"
+msgstr "Дания"
+
+msgid "country.DM"
+msgstr "Доминика"
+
+msgid "country.DO"
+msgstr "Доминиканская Республика"
+
+msgid "country.DZ"
+msgstr "Алжир"
+
+msgid "country.EC"
+msgstr "Эквадор"
+
+msgid "country.EE"
+msgstr "Эстония"
+
+msgid "country.EG"
+msgstr "Египет"
+
+msgid "country.EH"
+msgstr "Западная Сахара"
+
+msgid "country.ER"
+msgstr "Эритрея"
+
+msgid "country.ES"
+msgstr "Испания"
+
+msgid "country.ET"
+msgstr "Эфиопия"
+
+msgid "country.FI"
+msgstr "Финляндия"
+
+msgid "country.FJ"
+msgstr "Фиджи"
+
+msgid "country.FK"
+msgstr "Фолклендские о-ва"
+
+msgid "country.FM"
+msgstr "Федеративные Штаты Микронезии"
+
+msgid "country.FO"
+msgstr "Фарерские о-ва"
+
+msgid "country.FR"
+msgstr "Франция"
+
+msgid "country.GA"
+msgstr "Габон"
+
+msgid "country.GB"
+msgstr "Великобритания"
+
+msgid "country.GD"
+msgstr "Гренада"
+
+msgid "country.GE"
+msgstr "Грузия"
+
+msgid "country.GF"
+msgstr "Французская Гвиана"
+
+msgid "country.GG"
+msgstr "Гернси"
+
+msgid "country.GH"
+msgstr "Гана"
+
+msgid "country.GI"
+msgstr "Гибралтар"
+
+msgid "country.GL"
+msgstr "Гренландия"
+
+msgid "country.GM"
+msgstr "Гамбия"
+
+msgid "country.GN"
+msgstr "Гвинея"
+
+msgid "country.GP"
+msgstr "Гваделупа"
+
+msgid "country.GQ"
+msgstr "Экваториальная Гвинея"
+
+msgid "country.GR"
+msgstr "Греция"
+
+msgid "country.GS"
+msgstr "Южная Георгия и Южные Сандвичевы о-ва"
+
+msgid "country.GT"
+msgstr "Гватемала"
+
+msgid "country.GU"
+msgstr "Гуам"
+
+msgid "country.GW"
+msgstr "Гвинея-Бисау"
+
+msgid "country.GY"
+msgstr "Гайана"
+
+msgid "country.HK"
+msgstr "Гонконг (САР)"
+
+msgid "country.HM"
+msgstr "о-ва Херд и Макдональд"
+
+msgid "country.HN"
+msgstr "Гондурас"
+
+msgid "country.HR"
+msgstr "Хорватия"
+
+msgid "country.HT"
+msgstr "Гаити"
+
+msgid "country.HU"
+msgstr "Венгрия"
+
+msgid "country.ID"
+msgstr "Индонезия"
+
+msgid "country.IE"
+msgstr "Ирландия"
+
+msgid "country.IL"
+msgstr "Израиль"
+
+msgid "country.IM"
+msgstr "о-в Мэн"
+
+msgid "country.IN"
+msgstr "Индия"
+
+msgid "country.IO"
+msgstr "Британская территория в Индийском океане"
+
+msgid "country.IQ"
+msgstr "Ирак"
+
+msgid "country.IR"
+msgstr "Иран"
+
+msgid "country.IS"
+msgstr "Исландия"
+
+msgid "country.IT"
+msgstr "Италия"
+
+msgid "country.JE"
+msgstr "Джерси"
+
+msgid "country.JM"
+msgstr "Ямайка"
+
+msgid "country.JO"
+msgstr "Иордания"
+
+msgid "country.JP"
+msgstr "Япония"
+
+msgid "country.KE"
+msgstr "Кения"
+
+msgid "country.KG"
+msgstr "Киргизия"
+
+msgid "country.KH"
+msgstr "Камбоджа"
+
+msgid "country.KI"
+msgstr "Кирибати"
+
+msgid "country.KM"
+msgstr "Коморы"
+
+msgid "country.KN"
+msgstr "Сент-Китс и Невис"
+
+msgid "country.KP"
+msgstr "КНДР"
+
+msgid "country.KR"
+msgstr "Республика Корея"
+
+msgid "country.KW"
+msgstr "Кувейт"
+
+msgid "country.KY"
+msgstr "о-ва Кайман"
+
+msgid "country.KZ"
+msgstr "Казахстан"
+
+msgid "country.LA"
+msgstr "Лаос"
+
+msgid "country.LB"
+msgstr "Ливан"
+
+msgid "country.LC"
+msgstr "Сент-Люсия"
+
+msgid "country.LI"
+msgstr "Лихтенштейн"
+
+msgid "country.LK"
+msgstr "Шри-Ланка"
+
+msgid "country.LR"
+msgstr "Либерия"
+
+msgid "country.LS"
+msgstr "Лесото"
+
+msgid "country.LT"
+msgstr "Литва"
+
+msgid "country.LU"
+msgstr "Люксембург"
+
+msgid "country.LV"
+msgstr "Латвия"
+
+msgid "country.LY"
+msgstr "Ливия"
+
+msgid "country.MA"
+msgstr "Марокко"
+
+msgid "country.MC"
+msgstr "Монако"
+
+msgid "country.MD"
+msgstr "Молдова"
+
+msgid "country.ME"
+msgstr "Черногория"
+
+msgid "country.MF"
+msgstr "Сен-Мартен"
+
+msgid "country.MG"
+msgstr "Мадагаскар"
+
+msgid "country.MH"
+msgstr "Маршалловы о-ва"
+
+msgid "country.MK"
+msgstr "Северная Македония"
+
+msgid "country.ML"
+msgstr "Мали"
+
+msgid "country.MM"
+msgstr "Мьянма (Бирма)"
+
+msgid "country.MN"
+msgstr "Монголия"
+
+msgid "country.MO"
+msgstr "Макао (САР)"
+
+msgid "country.MP"
+msgstr "Северные Марианские о-ва"
+
+msgid "country.MQ"
+msgstr "Мартиника"
+
+msgid "country.MR"
+msgstr "Мавритания"
+
+msgid "country.MS"
+msgstr "Монтсеррат"
+
+msgid "country.MT"
+msgstr "Мальта"
+
+msgid "country.MU"
+msgstr "Маврикий"
+
+msgid "country.MV"
+msgstr "Мальдивы"
+
+msgid "country.MW"
+msgstr "Малави"
+
+msgid "country.MX"
+msgstr "Мексика"
+
+msgid "country.MY"
+msgstr "Малайзия"
+
+msgid "country.MZ"
+msgstr "Мозамбик"
+
+msgid "country.NA"
+msgstr "Намибия"
+
+msgid "country.NC"
+msgstr "Новая Каледония"
+
+msgid "country.NE"
+msgstr "Нигер"
+
+msgid "country.NF"
+msgstr "о-в Норфолк"
+
+msgid "country.NG"
+msgstr "Нигерия"
+
+msgid "country.NI"
+msgstr "Никарагуа"
+
+msgid "country.NL"
+msgstr "Нидерланды"
+
+msgid "country.NO"
+msgstr "Норвегия"
+
+msgid "country.NP"
+msgstr "Непал"
+
+msgid "country.NR"
+msgstr "Науру"
+
+msgid "country.NU"
+msgstr "Ниуэ"
+
+msgid "country.NZ"
+msgstr "Новая Зеландия"
+
+msgid "country.OM"
+msgstr "Оман"
+
+msgid "country.PA"
+msgstr "Панама"
+
+msgid "country.PE"
+msgstr "Перу"
+
+msgid "country.PF"
+msgstr "Французская Полинезия"
+
+msgid "country.PG"
+msgstr "Папуа — Новая Гвинея"
+
+msgid "country.PH"
+msgstr "Филиппины"
+
+msgid "country.PK"
+msgstr "Пакистан"
+
+msgid "country.PL"
+msgstr "Польша"
+
+msgid "country.PM"
+msgstr "Сен-Пьер и Микелон"
+
+msgid "country.PN"
+msgstr "о-ва Питкэрн"
+
+msgid "country.PR"
+msgstr "Пуэрто-Рико"
+
+msgid "country.PS"
+msgstr "Палестинские территории"
+
+msgid "country.PT"
+msgstr "Португалия"
+
+msgid "country.PW"
+msgstr "Палау"
+
+msgid "country.PY"
+msgstr "Парагвай"
+
+msgid "country.QA"
+msgstr "Катар"
+
+msgid "country.RE"
+msgstr "Реюньон"
+
+msgid "country.RO"
+msgstr "Румыния"
+
+msgid "country.RS"
+msgstr "Сербия"
+
+msgid "country.RU"
+msgstr "Россия"
+
+msgid "country.RW"
+msgstr "Руанда"
+
+msgid "country.SA"
+msgstr "Саудовская Аравия"
+
+msgid "country.SB"
+msgstr "Соломоновы о-ва"
+
+msgid "country.SC"
+msgstr "Сейшельские о-ва"
+
+msgid "country.SD"
+msgstr "Судан"
+
+msgid "country.SE"
+msgstr "Швеция"
+
+msgid "country.SG"
+msgstr "Сингапур"
+
+msgid "country.SH"
+msgstr "о-в Св. Елены"
+
+msgid "country.SI"
+msgstr "Словения"
+
+msgid "country.SJ"
+msgstr "Шпицберген и Ян-Майен"
+
+msgid "country.SK"
+msgstr "Словакия"
+
+msgid "country.SL"
+msgstr "Сьерра-Леоне"
+
+msgid "country.SM"
+msgstr "Сан-Марино"
+
+msgid "country.SN"
+msgstr "Сенегал"
+
+msgid "country.SO"
+msgstr "Сомали"
+
+msgid "country.SR"
+msgstr "Суринам"
+
+msgid "country.SS"
+msgstr "Южный Судан"
+
+msgid "country.ST"
+msgstr "Сан-Томе и Принсипи"
+
+msgid "country.SV"
+msgstr "Сальвадор"
+
+msgid "country.SX"
+msgstr "Синт-Мартен"
+
+msgid "country.SY"
+msgstr "Сирия"
+
+msgid "country.SZ"
+msgstr "Эсватини"
+
+msgid "country.TC"
+msgstr "Тёркс и Кайкос"
+
+msgid "country.TD"
+msgstr "Чад"
+
+msgid "country.TF"
+msgstr "Французские Южные территории"
+
+msgid "country.TG"
+msgstr "Того"
+
+msgid "country.TH"
+msgstr "Таиланд"
+
+msgid "country.TJ"
+msgstr "Таджикистан"
+
+msgid "country.TK"
+msgstr "Токелау"
+
+msgid "country.TL"
+msgstr "Восточный Тимор"
+
+msgid "country.TM"
+msgstr "Туркменистан"
+
+msgid "country.TN"
+msgstr "Тунис"
+
+msgid "country.TO"
+msgstr "Тонга"
+
+msgid "country.TR"
+msgstr "Турция"
+
+msgid "country.TT"
+msgstr "Тринидад и Тобаго"
+
+msgid "country.TV"
+msgstr "Тувалу"
+
+msgid "country.TW"
+msgstr "Тайвань"
+
+msgid "country.TZ"
+msgstr "Танзания"
+
+msgid "country.UA"
+msgstr "Украина"
+
+msgid "country.UG"
+msgstr "Уганда"
+
+msgid "country.UM"
+msgstr "Внешние малые о-ва (США)"
+
+msgid "country.US"
+msgstr "Соединенные Штаты"
+
+msgid "country.UY"
+msgstr "Уругвай"
+
+msgid "country.UZ"
+msgstr "Узбекистан"
+
+msgid "country.VA"
+msgstr "Ватикан"
+
+msgid "country.VC"
+msgstr "Сент-Винсент и Гренадины"
+
+msgid "country.VE"
+msgstr "Венесуэла"
+
+msgid "country.VG"
+msgstr "Виргинские о-ва (Великобритания)"
+
+msgid "country.VI"
+msgstr "Виргинские о-ва (США)"
+
+msgid "country.VN"
+msgstr "Вьетнам"
+
+msgid "country.VU"
+msgstr "Вануату"
+
+msgid "country.WF"
+msgstr "Уоллис и Футуна"
+
+msgid "country.WS"
+msgstr "Самоа"
+
+msgid "country.YE"
+msgstr "Йемен"
+
+msgid "country.YT"
+msgstr "Майотта"
+
+msgid "country.ZA"
+msgstr "Южно-Африканская Республика"
+
+msgid "country.ZM"
+msgstr "Замбия"
+
+msgid "country.ZW"
+msgstr "Зимбабве"
+
+#. End of the generated country names.

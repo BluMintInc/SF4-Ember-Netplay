@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <array>
@@ -10,7 +11,9 @@
 #include <nlohmann/json.hpp>
 
 #include "SessionPlainTypes.hxx"
+#include "../common/InputDelay.hxx"
 #include "../common/StageValue.hxx"
+#include "../common/LatencyRoute.hxx"
 #include "RoomModel.hxx"
 
 constexpr int MAX_SF4E_PROTOCOL_USERS = 4;
@@ -67,6 +70,8 @@ namespace sf4e {
 			room::MemberId roomMember = 0;
 			std::string authenticatedEndpoint;
 			std::uint64_t incarnation = 0;
+			// The member's latency endpoint as admitted; none from an older client.
+			LatencyRoute latency;
 		};
 
 		struct LobbyData {
@@ -100,9 +105,11 @@ namespace sf4e {
 		};
 
 		// What the game could not take in a room's match: its round count or
-		// time, its stage, or either fighter. Every value is one the game's own
-		// menus offer, or it is refused before any of it is written.
-		enum class MatchProblem { None, Settings, Stage, Fighter };
+		// time, its stage, either fighter, or a seat's input delay past
+		// InputDelayWireCeiling. Every value is one the game's own menus offer
+		// (a delay, one a room can record), or it is refused before any of it
+		// is written.
+		enum class MatchProblem { None, Settings, Stage, Fighter, Delay };
 		MatchProblem FindMatchProblem(const LobbyData& lobby, const MatchData& match);
 
 		enum MessageType {
@@ -222,6 +229,16 @@ namespace sf4e {
 			JoinResult result;
 		};
 
+		// What RegisterToWait admits: one join request and the address it came from.
+		struct AdmissionRequest {
+			std::string sidecarHash;
+			std::string username;
+			std::string peerAddress;
+			uint16_t port = 0;
+			room::MemberProfile profile;
+			LatencyRoute latency;
+		};
+
 		struct SessionJoinRequest {
 			MessageType type = MT_SESSION_JOINREQ;
 			std::string sidecarHash;
@@ -234,11 +251,30 @@ namespace sf4e {
 			int link = 0;
 			// A NatClass value; older clients omit it.
 			int nat = 0;
+			// The player's Steam profile as exact decimal text; absent when they
+			// do not show it, and read as none when it is not a SteamId.
+			std::string steamId;
+			// The country the player shows, as its code; absent when none, and read
+			// as none when the table lacks it.
+			std::string country;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
-			room::MemberProfile Profile() const { return {mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)}; }
+			// The member's latency endpoint; absent from older clients and read as
+			// none when malformed.
+			LatencyRoute latency;
+			room::MemberProfile Profile() const {
+				room::MemberProfile profile{mainFighter, NetworkLinkFromWire(link), NatClassFromWire(nat)};
+				profile.steamId = SteamId::Parsed(steamId);
+				profile.country = CountryCode::Parsed(country);
+				return profile;
+			}
 			void SetProfile(const room::MemberProfile& profile) {
 				mainFighter = profile.mainFighter; link = static_cast<int>(profile.link); nat = static_cast<int>(profile.nat);
+				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
+				country = profile.country.ToString();
+			}
+			AdmissionRequest Admission(const std::string& peerAddress) const {
+				return {sidecarHash, username, peerAddress, port, Profile(), latency};
 			}
 		};
 
@@ -394,18 +430,78 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConnectionID, host, user);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyID, host, key);
 
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MemberData, connId, name, ip, port, flags, roomMember, authenticatedEndpoint, incarnation);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MemberData, connId, name, ip, port, flags, roomMember, authenticatedEndpoint, incarnation, latency);
 		// WITH_DEFAULT so a LobbyData from a peer built before a field was
 		// added (e.g. trainingMode) deserializes with that field's default
 		// instead of throwing on the missing key.
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbyData, id, editionSelect, roundCount, roundTime, trainingMode, members);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay, lowerInputLag);
+		inline void to_json(nlohmann::json& j, const MatchData& value) {
+			j = nlohmann::json{{"readyMessageNum", value.readyMessageNum}, {"chara", value.chara}, {"stageID", value.stageID},
+				{"rngSeed", value.rngSeed}, {"inputDelay", value.inputDelay}, {"lowerInputLag", value.lowerInputLag}};
+		}
+		// Written by hand so the delays are checked as the sender wrote them: the
+		// generic reader narrows a number to eight bits first, which would turn
+		// [257, 2] into [1, 2]. A missing field keeps its default, as for the others.
+		inline void from_json(const nlohmann::json& j, MatchData& value) {
+			const MatchData defaults;
+			value.readyMessageNum = j.value("readyMessageNum", defaults.readyMessageNum);
+			value.chara = j.value("chara", defaults.chara);
+			value.stageID = j.value("stageID", defaults.stageID);
+			value.rngSeed = j.value("rngSeed", defaults.rngSeed);
+			value.lowerInputLag = j.value("lowerInputLag", defaults.lowerInputLag);
+			value.inputDelay = defaults.inputDelay;
+			const auto delay = j.find("inputDelay");
+			if (delay == j.end()) return;
+			if (!delay->is_array() || delay->size() != 2) throw std::invalid_argument("match input delay");
+			for (std::size_t seat = 0; seat < 2; ++seat) {
+				const auto& item = delay->at(seat);
+				if (!item.is_number_integer()) throw std::invalid_argument("match input delay");
+				const bool inRange = item.is_number_unsigned()
+					? item.get<std::uint64_t>() <= static_cast<std::uint64_t>(InputDelayWireCeiling)
+					: item.get<std::int64_t>() >= 0 && item.get<std::int64_t>() <= InputDelayWireCeiling;
+				if (!inRange) throw std::out_of_range("match input delay");
+				value.inputDelay[seat] = static_cast<std::uint8_t>(item.get<std::int64_t>());
+			}
+		}
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloMsg, type, cid, authenticatedEndpoint, incarnation, admission);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionDataUpdate, type, lobbyData, matchData, matchGeneration, authorityTerm, authorityRevision);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SessionJoinReject, type, result);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionJoinRequest, type, sidecarHash, username, port, customRooms, roomProtocol, mainFighter, link, nat, roomChatDelta);
+		// Written by hand so that a player who shows no profile or country sends no key for it.
+		inline void to_json(nlohmann::json& j, const SessionJoinRequest& value) {
+			j = nlohmann::json{{"type", value.type}, {"sidecarHash", value.sidecarHash}, {"username", value.username}, {"port", value.port},
+				{"customRooms", value.customRooms}, {"roomProtocol", value.roomProtocol}, {"mainFighter", value.mainFighter},
+				{"link", value.link}, {"nat", value.nat}, {"roomChatDelta", value.roomChatDelta}};
+			if (!value.steamId.empty()) j["steamId"] = value.steamId;
+			if (!value.country.empty()) j["country"] = value.country;
+			if (value.latency.Valid()) j["latency"] = value.latency;
+		}
+		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
+			const SessionJoinRequest defaults{};
+			value.type = j.value("type", defaults.type);
+			value.sidecarHash = j.value("sidecarHash", defaults.sidecarHash);
+			value.username = j.value("username", defaults.username);
+			value.port = j.value("port", defaults.port);
+			value.customRooms = j.value("customRooms", defaults.customRooms);
+			value.roomProtocol = j.value("roomProtocol", defaults.roomProtocol);
+			value.mainFighter = j.value("mainFighter", defaults.mainFighter);
+			value.link = j.value("link", defaults.link);
+			value.nat = j.value("nat", defaults.nat);
+			value.roomChatDelta = j.value("roomChatDelta", defaults.roomChatDelta);
+			// Not a string, or not a SteamId: no profile, the join itself is unaffected.
+			const auto steam = j.find("steamId");
+			value.steamId.clear();
+			if (steam != j.end() && steam->is_string() && SteamId::Parsed(steam->get<std::string>()).Present()) value.steamId = steam->get<std::string>();
+			// Likewise a country the table lacks.
+			const auto country = j.find("country");
+			value.country.clear();
+			if (country != j.end() && country->is_string() && CountryCode::Parsed(country->get<std::string>()).Present()) value.country = country->get<std::string>();
+			// A malformed route is no route; the join itself is unaffected.
+			const auto latency = j.find("latency");
+			value.latency = {};
+			if (latency != j.end()) latency->get_to(value.latency);
+		}
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);

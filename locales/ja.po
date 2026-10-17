@@ -87,6 +87,9 @@ msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読�
 msgid "launcher.game_wrong_dll"
 msgstr "読み込んだDLLに必要な関数がないため、Emberの起動前にゲームが停止しました。通常、別のMODや古いインストールのGGPO.dll、spdlog.dll、fmt.dll、zlib1.dllがSSFIV.exeの隣にあります。見つかったファイルを移動して再試行してください。ない場合はランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を送ってください。"
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Emberの起動前に、Windowsがゲームのファイルをブロックしました（アプリコントロール）。スマートアプリコントロールでは特定のプログラムだけを許可できません。Windowsセキュリティでオンになっている場合、Emberはオフにしてから動きます。管理されたPCでは、管理者にEmberの許可を依頼してください。"
+
 msgid "recovery.window"
 msgstr "Emberの復旧"
 
@@ -198,6 +201,24 @@ msgstr "SF4を起動"
 msgid "updates.start_game_detail"
 msgstr "アップデーターを閉じて、EmberでSF4を起動します。"
 
+msgid "updates.launch_heading"
+msgstr "アップデートがあります"
+
+msgid "updates.launch_text"
+msgstr "バージョン{0}を利用できます。現在のバージョンは{1}です。今すぐ更新するとゲームを閉じてインストールします。"
+
+msgid "updates.launch_now"
+msgstr "今すぐ更新"
+
+msgid "updates.launch_later"
+msgstr "後で"
+
+msgid "updates.launch_skip"
+msgstr "このバージョンをスキップ"
+
+msgid "updates.offer_changed"
+msgstr "選択した後にアップデートの内容が変わりました。インストールする前に、下のバージョンを確認してください。"
+
 msgid "recovery.close_cancels_detail"
 msgstr "今閉じると実行中の操作はキャンセルされます。"
 
@@ -283,17 +304,77 @@ msgstr "ブラウザーで開きました。切り替えてサーバーに参加
 msgid "services.community_failed"
 msgstr "ブラウザーを開けませんでした。{0}にアクセスして参加してください。"
 
+msgid "services.opening_steam_profile"
+msgstr "ブラウザーでSteamプロフィールを開いています..."
+
+msgid "services.steam_profile_opened"
+msgstr "ブラウザーで開きました。"
+
+msgid "services.steam_profile_failed"
+msgstr "ブラウザーを開けませんでした。"
+
 msgid "settings.language"
 msgstr "言語"
 
 msgid "settings.language.detail"
 msgstr "選択でリストから選べます。左右でも切り替えられます。自動ではゲームの言語、次にWindowsの言語を使います。"
 
+msgid "settings.country"
+msgstr "国・地域"
+
+msgid "settings.country_detail"
+msgstr "ルームとプレイヤーカードで名前の横に表示される国旗です。今後参加するルームで表示されます。"
+
+msgid "settings.country.automatic"
+msgstr "自動"
+
+msgid "settings.country.automatic_value"
+msgstr "自動（{0}）"
+
+msgid "settings.country.hidden"
+msgstr "非表示"
+
+msgid "settings.country.current"
+msgstr "現在"
+
+msgid "country.search"
+msgstr "検索"
+
+msgid "country.search_value"
+msgstr "検索: {0}"
+
+msgid "country.search_detail"
+msgstr "国名の一部を入力すると一覧を絞り込めます。文字を入力するとその文字で始まる国に移動し、左右で文字ごとに移動します。"
+
+msgid "country.automatic_detail"
+msgstr "Windowsで設定された地域に従います: {0}。"
+
+msgid "country.automatic_none"
+msgstr "Windowsの地域にEmberの国旗がないため、国旗は表示されません。"
+
+msgid "country.hidden_detail"
+msgstr "名前の横に国旗を表示しません。"
+
+msgid "country.choose_detail"
+msgstr "名前の横にこの国旗を表示します。"
+
+msgid "country.none"
+msgstr "一致する国がありません"
+
+msgid "country.none_detail"
+msgstr "検索を変更すると他の国が表示されます。"
+
 msgid "settings.language.system_with"
 msgstr "自動：{0}"
 
 msgid "settings.language_save_failed"
 msgstr "言語設定を保存できませんでした。このセッション中は選択した言語を使います。"
+
+msgid "settings.update_check"
+msgstr "起動時に更新を確認"
+
+msgid "settings.update_check_detail"
+msgstr "ゲームの起動時に新しいバージョンを確認します。確認は6時間に1回までです。何かを変更する前に確認を求めます。"
 
 msgid "menu.edit_detail"
 msgstr "選択して編集します。入力または貼り付け後、Enterで決定。戻るでキャンセルします。"
@@ -619,6 +700,27 @@ msgstr "現在のルームに戻る"
 msgid "home.fighter_select"
 msgstr "キャラクター選択"
 
+msgid "home.selection_costume_color"
+msgstr "コスチューム・カラー"
+
+msgid "home.selection_ultra"
+msgstr "ウルトラ"
+
+msgid "home.selection_alternate"
+msgstr "アレンジ{0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}、カラー{1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "ダブル"
+
 msgid "home.selection_locked"
 msgstr "現在の選択状態は対戦席に戻って確認してください。"
 
@@ -687,6 +789,12 @@ msgstr "観戦した対戦を保存"
 
 msgid "replays.save_watched_detail"
 msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
+
+msgid "settings.watched_picture"
+msgstr "観戦中の試合を隅に表示"
+
+msgid "settings.watched_picture_detail"
+msgstr "観戦中の試合の上でEmberのメニューを開くと、メニューの後ろに暗く表示する代わりに、不透明なメニューの右上に小さく表示します。"
 
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"
@@ -858,6 +966,12 @@ msgstr "メインキャラ"
 msgid "profile.main_character_detail"
 msgstr "{0}。対戦時の選択とは別に、プレイヤーカードに表示されます。"
 
+msgid "profile.share_steam"
+msgstr "自分のSteamプロフィールを表示"
+
+msgid "profile.share_steam_detail"
+msgstr "ルームのメンバーは、メンバー画面からあなたのSteamプロフィールを開けます。次にルームに参加したときから反映されます。"
+
 msgid "profile.record"
 msgstr "勝敗記録"
 
@@ -1002,11 +1116,7 @@ msgstr "表示の高速化（遅延1フレーム減）"
 msgid "player.faster_display_detail"
 msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
 
-msgid "player.native_menus"
-msgstr "ゲーム本体のメニューを開く"
 
-msgid "player.native_menus_detail"
-msgstr "Emberを閉じます。ゲームメニューのオプションで対戦ボタンを設定してください。"
 
 msgid "settings.interface_title"
 msgstr "表示"
@@ -1076,6 +1186,9 @@ msgstr "左上"
 
 msgid "hud_position.top_right"
 msgstr "右上"
+
+msgid "hud_position.top_center"
+msgstr "上中央"
 
 msgid "settings.edge_spacing"
 msgstr "端からの距離"
@@ -1156,7 +1269,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。パッドではViewかSelectを押したままStartを押します。"
+msgstr "Xbox: Aで選択、Bで戻ります。PlayStation: クロスで選択、サークルで戻ります。Switch: ゲームのメニューと同様、Bで選択、Aで戻ります。Emberで設定したコントローラー: 弱キック用に選んだボタンで選択、中キック用に選んだボタンで戻ります。ボタン配置を変更しても同じです。キーボード: 矢印、Enter、Escape。十字キーで移動し、左右で値を変えます。ホームで戻るとEmberが隠れます。ゲームのメインメニューでF10、またはコントローラーのStartを押すと再び開きます。\n\nルームでは、テーブル上でAを押すと席を選べます。自分の席でAを押すと準備完了になり、Bで席や順番待ちから抜けます。他のコントローラーでは同じ位置のボタンを使います。XboxではXでファイター、Yでオプション、Viewでチャットを開きます。もう一度押すとルームに戻ります。PlayStationはスクエア、トライアングル、ShareまたはCreate、SwitchはY、X、Minusを使います。\n\nトレーニングではF6で操作を開き、F5でHUDを隠し、F7で録画、F8で再生します。コントローラーではView（Share、Create、Minus）を押しながらStartを押してください。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -1267,7 +1380,7 @@ msgid "room.table_closed"
 msgstr "対戦席は閉鎖されました"
 
 msgid "controller.disconnected"
-msgstr "コントローラーの接続が切れました。再接続するか、明示的に割り当ててください。"
+msgstr "コントローラーが切断されました。再接続するか、設定 > プレイヤーとコントローラーで別のものを選んでください。"
 
 msgid "controller.none"
 msgstr "対戦用デバイスを選んでください"
@@ -1277,6 +1390,12 @@ msgstr "キーボード"
 
 msgid "controller.numbered"
 msgstr "コントローラー {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} が接続されていません。今は {1} を使用します。"
+
+msgid "controller.connected_adopted"
+msgstr "{0} が接続されました。このコントローラーでプレイします。"
 
 msgid "controller.disconnected_name"
 msgstr "{0}（未接続）"
@@ -1334,6 +1453,15 @@ msgstr "遅延"
 
 msgid "match.spectating"
 msgstr "観戦中"
+
+msgid "match.behind"
+msgstr "配信遅れ"
+
+msgid "match.delay_own"
+msgstr "各自"
+
+msgid "match.up_next"
+msgstr "次はあなたの番です"
 
 msgid "match.preview_spacing"
 msgstr "余白{0} / サンプル値"
@@ -1491,14 +1619,11 @@ msgstr "起き上がり"
 msgid "training.reply.any"
 msgstr "復帰するたび"
 
-msgid "training.reply.slot"
-msgstr "反撃スロット"
+msgid "training.reply.recordings"
+msgstr "記録"
 
-msgid "training.reply.slot.detail"
-msgstr "反撃の技が空のとき、反撃として再生するダミーの記録です。最初の入力から再生します。"
-
-msgid "training.reply.slot_empty"
-msgstr "スロット{0}が空なので、ダミーは反撃しません。記録するか技を選んでください。"
+msgid "training.reply.no_recordings_on"
+msgstr "反撃に使えるオンの記録がありません"
 
 msgid "training.reply.chance"
 msgstr "反撃の確率"
@@ -1516,13 +1641,13 @@ msgid "training.reply.moves"
 msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
-msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空なら反撃スロットを使います。"
+msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空ならオンの記録で反撃します。"
 
 msgid "training.reply.move"
 msgstr "反撃のプリセット"
 
 msgid "training.reply.move.detail"
-msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。反撃スロットは記録を再生し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
+msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。記録はオンの記録で反撃し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
 
 msgid "training.reply.custom"
 msgstr "カスタム"
@@ -1632,8 +1757,14 @@ msgstr "スロット{0}"
 msgid "training.slot_selected"
 msgstr "スロット{0} / 選択中"
 
-msgid "training.recorded_frames"
-msgstr "{0}F記録済み。記録はこの対戦が終わるまで残ります。"
+msgid "training.slot.detail"
+msgstr "{0}フレーム記録済み。選択でスロットのオンとオフを切り替えます。再生とダミーの反撃はオンのスロットを使います。スロットはゲームを閉じるまでこのダミーのキャラクターに残ります。"
+
+msgid "training.slot.empty"
+msgstr "空"
+
+msgid "training.slot.empty_detail"
+msgstr "記録がありません。選択でこのスロットをレコーディング先にします。"
 
 msgid "training.record"
 msgstr "レコーディング"
@@ -1641,26 +1772,38 @@ msgstr "レコーディング"
 msgid "training.record.overwrite"
 msgstr "使用中のスロットを上書きして練習に戻ります。"
 
-msgid "training.record.detail"
-msgstr "P1の操作をP2として記録し、練習に戻ります。"
+msgid "training.record.choose"
+msgstr "左右で記録先のスロットを選びます。下の項目もこのスロットを使います。"
+
+msgid "training.record.standby_detail"
+msgstr "スタンバイ: P1でダミーを操作したまま練習に戻ります。{0}または{1}で記録を始め、もう一度同じ操作で止めます。"
 
 msgid "training.play"
 msgstr "再生"
 
-msgid "training.play.detail"
-msgstr "選択中のスロットを再生して練習に戻ります。記録はダミーの向きに合わせて再生されます。左右で繰り返すかを選びます。"
+msgid "training.play.on_detail"
+msgstr "オンのスロットを再生順に選んで再生し、練習に戻ります。記録はダミーの向きに合わせて再生されます。左右で繰り返すかを選びます。繰り返すたびに選び直します。"
+
+msgid "training.order"
+msgstr "再生順"
+
+msgid "training.order.random"
+msgstr "ランダム"
+
+msgid "training.order.in_order"
+msgstr "順番"
+
+msgid "training.order.detail"
+msgstr "再生とダミーの反撃がオンのスロットから選ぶ方法です。"
 
 msgid "training.play.once"
 msgstr "1回"
 
-msgid "training.slot_empty"
-msgstr "このスロットは空です。"
+msgid "training.no_recordings_on"
+msgstr "オンの記録がありません"
 
 msgid "training.stop"
 msgstr "停止"
-
-msgid "training.stop.detail"
-msgstr "記録または再生を停止します。"
 
 msgid "training.loop"
 msgstr "ループ再生"
@@ -1689,11 +1832,17 @@ msgstr "計測表示と両プレイヤーの入力履歴を消去します。"
 msgid "training.practice_ready"
 msgstr "練習の準備完了"
 
+msgid "training.standby_status"
+msgstr "スタンバイ: P1でダミーを操作中。{0}または{1}で記録を始めます。"
+
+msgid "training.standby"
+msgstr "スタンバイ"
+
 msgid "training.recording_suspended"
 msgstr "操作画面を開いている間、記録は一時停止します"
 
 msgid "training.playback_suspended"
-msgstr "再生中。録画は操作画面を閉じるまで待機します"
+msgstr "再生中"
 
 msgid "training.applying"
 msgstr "操作を適用中..."
@@ -1721,6 +1870,15 @@ msgstr "ヒット"
 
 msgid "training.meter.block"
 msgstr "ガード"
+
+msgid "training.meter.focus_forward"
+msgstr "セービングキャンセル、前ダッシュ"
+
+msgid "training.meter.focus_back"
+msgstr "セービングキャンセル、バックステップ"
+
+msgid "training.meter.cancelled"
+msgstr "キャンセル"
 
 msgid "training.meter.whiff"
 msgstr "空振り"
@@ -1755,11 +1913,47 @@ msgstr "斜め"
 msgid "training.meter.style.flat"
 msgstr "フラット"
 
+msgid "training.meter.style.classic"
+msgstr "クラシック"
+
 msgid "training.meter.frames_shown"
 msgstr "表示フレーム数"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "同じ幅に表示するフレーム数です。少ないほど1フレームが広く数えやすくなり、120では履歴全体を表示します。メーターの停止中は、バーの上でマウスホイールを回すとさかのぼれます。"
+msgstr "同じ幅に表示するフレーム数です。少ないほど1フレームが広く数えやすくなります。それより長い攻防は左端から続けて表示します。メーターの停止中は、バーの上でマウスホイールを回すと1ページずつさかのぼれます。"
+
+msgid "training.meter.history"
+msgstr "メーター履歴"
+
+msgid "training.meter.history_seconds"
+msgstr "{0}秒"
+
+msgid "training.meter.history.detail"
+msgstr "メーターが記録を保持する長さ。停止中はバーの上でマウスホイールを回すと1ページずつ戻れます。長くすると長いコンボの最初まで戻れます。"
+
+msgid "training.meter.after_pause"
+msgstr "停止後"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "最初から"
+
+msgid "training.meter.after_pause.continue"
+msgstr "続ける"
+
+msgid "training.meter.after_pause.detail"
+msgstr "両者が止まった後に再び動いたときのメーターの動作。「最初から」はストリートファイター6と同じく新しい攻防のためにバーを消去します。「続ける」は前の攻防の後に続け、履歴で複数の攻防を遡れます。"
+
+msgid "training.meter.scroll"
+msgstr "メーターのスクロール"
+
+msgid "training.meter.scroll.pages"
+msgstr "ページ"
+
+msgid "training.meter.scroll.smooth"
+msgstr "なめらか"
+
+msgid "training.meter.scroll.detail"
+msgstr "バーの進み方。「ページ」は1ページ分めくって左端から始めます。「なめらか」は最新フレームを右端に保ってスライドし、停止中のメーター上のホイールは1目盛りで10フレーム戻ります。"
 
 msgid "training.meter.hud_recovery"
 msgstr "HUDに硬直を表示"
@@ -1782,6 +1976,33 @@ msgstr "HUDにショートカットを表示"
 msgid "training.meter.hud_status"
 msgstr "HUDに記録を表示"
 
+msgid "training.meter.hud_inputs"
+msgstr "HUDに入力を表示"
+
+msgid "training.meter.inputs_stick"
+msgstr "スティック"
+
+msgid "training.meter.inputs_arrows"
+msgstr "矢印"
+
+msgid "training.meter.inputs_both"
+msgstr "ハイブリッド"
+
+msgid "training.meter.classic_data"
+msgstr "HUDのデータ行"
+
+msgid "training.meter.classic_inputs"
+msgstr "入力レーン"
+
+msgid "training.meter.classic_colors"
+msgstr "SF6カラーとメイティ"
+
+msgid "training.meter.classic_extras"
+msgstr "凡例・マーカー・縁取り"
+
+msgid "training.meter.classic_slant"
+msgstr "斜めのセル"
+
 msgid "training.meter.hud_part.detail"
 msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"
 
@@ -1791,11 +2012,38 @@ msgstr "HUDのサイズ"
 msgid "training.meter.hud_size.detail"
 msgstr "トレーニングHUDの文字とバーの大きさを変えます。画面サイズでも大きくなります。"
 
+msgid "training.meter.settings"
+msgstr "メーター設定"
+
+msgid "training.meter.settings.detail"
+msgstr "メーターの位置、履歴の長さ、停止後の動作。"
+
+msgid "training.meter.classic"
+msgstr "クラシックメーター"
+
+msgid "training.meter.classic.detail"
+msgstr "クラシックメーターのバーの高さと各部分。"
+
+msgid "training.meter.position"
+msgstr "メーターの位置"
+
+msgid "training.meter.position.detail"
+msgstr "メーター下端の画面上の位置。82%でスーパーゲージのすぐ上、数値を下げるほど上に移動します。"
+
+msgid "training.meter.bar_height"
+msgstr "バーの高さ"
+
+msgid "training.meter.bar_height.detail"
+msgstr "クラシックメーターのバーの高さ。"
+
 msgid "training.recovery_frames"
 msgstr "硬直{0}F"
 
 msgid "training.recovery_unknown"
 msgstr "硬直--"
+
+msgid "training.recovery_cancelled"
+msgstr "硬直キャンセル"
 
 msgid "training.neutral"
 msgstr "入力なし"
@@ -1841,6 +2089,12 @@ msgstr "硬直差"
 
 msgid "training.last_advantage"
 msgstr "前回の硬直差"
+
+msgid "training.last_focus_forward"
+msgstr "前回のセービングキャンセル、前ダッシュ"
+
+msgid "training.last_focus_back"
+msgstr "前回のセービングキャンセル、バックステップ"
 
 msgid "selection.preview_unavailable"
 msgstr "プレビューを\n表示できません"
@@ -2144,11 +2398,8 @@ msgstr "接続が不安定です。予測入力で対戦を続けています。
 msgid "runtime.connection_restored"
 msgstr "接続が復旧しました。"
 
-msgid "runtime.spectator_disconnected"
-msgstr "観戦者の接続が切れました。"
-
 msgid "runtime.spectator_stream_lost"
-msgstr "観戦映像の通信が切れました。「観戦」で次の対戦に参加してください。"
+msgstr "観戦ストリームが切断されました。この対戦席の次の対戦を観戦します。"
 
 msgid "runtime.match_connection_lost"
 msgstr "対戦の接続が切れました。"
@@ -2158,6 +2409,12 @@ msgstr "対戦相手の接続が切れました。対戦は終了です。"
 
 msgid "runtime.leaving_spectator"
 msgstr "観戦を終了しています。"
+
+msgid "runtime.spectator_sat_out"
+msgstr "メインメニューを離れている間に対戦が始まりました。次の対戦から観戦します。"
+
+msgid "runtime.watching_hint"
+msgstr "StartかF10でEmberを開き、「観戦をやめる」でルームに戻れます。"
 
 msgid "runtime.returning_room"
 msgstr "ルームに戻っています。"
@@ -2359,6 +2616,9 @@ msgstr " 席が空きます。"
 
 msgid "room.leave.queue"
 msgstr " 順番待ちから外れます。"
+
+msgid "room.leave.watching"
+msgstr " 観戦は終了します。"
 
 msgid "room.leave.host"
 msgstr " 別のメンバーがホストになります。"
@@ -2655,7 +2915,7 @@ msgid "room.ready_up"
 msgstr "準備完了にする"
 
 msgid "room.selected_delay.detail"
-msgstr "0～10Fの範囲で調整します。0より下は自動です。0は遅延を加えず、低く安定したPingが必要です。"
+msgstr "{0}～{1}Fの範囲で調整します。0より下は自動です。0は遅延を加えず、低く安定したPingが必要です。"
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
@@ -2751,11 +3011,29 @@ msgstr "この練習対戦を両者とも今すぐ終了します。結果は記
 msgid "room.leave_queue"
 msgstr "順番待ちをやめる"
 
+msgid "room.leave_queue.watching"
+msgstr " この対戦は終了まで観戦を続けます。"
+
 msgid "room.join_queue"
 msgstr "順番待ちに入る"
 
 msgid "room.stop_watching"
 msgstr "観戦をやめる"
+
+msgid "room.stop_watching.detail"
+msgstr "この対戦席の観戦をやめてルームに戻ります。対戦は続きます。"
+
+msgid "room.stop_watching.finished"
+msgstr "この対戦はルームではすでに終了しています。残りの観戦をやめてルームに戻ります。"
+
+msgid "room.leave_game"
+msgstr "この対戦から退出"
+
+msgid "room.leave_game.detail"
+msgstr "この対戦の観戦をやめてルームに戻ります。順番待ちの位置は保たれ、対戦は続きます。"
+
+msgid "room.watching_ends"
+msgstr " 観戦は終了します。対戦は続きます。"
 
 msgid "room.watch_next"
 msgstr "次の対戦を観戦"
@@ -2874,6 +3152,15 @@ msgstr "ホストを移譲"
 msgid "room.transfer_host.detail"
 msgstr "{0}をルームのホストにします。"
 
+msgid "room.steam_profile"
+msgstr "Steamプロフィール"
+
+msgid "room.steam_profile.detail"
+msgstr "このメンバーのSteamプロフィールを開きます。"
+
+msgid "room.steam_profile.none"
+msgstr "このメンバーはSteamプロフィールを共有していません。"
+
 msgid "room.compose_message"
 msgstr "メッセージを作成"
 
@@ -2970,6 +3257,12 @@ msgstr "通信を開始できませんでした。オフラインでは遊べま
 msgid "runtime.network_helper_unavailable"
 msgstr "通信補助プログラムを利用できません（エラー{0}）。オフラインでは遊べます。"
 
+msgid "runtime.network_helper_missing"
+msgstr "通信を開始できません。Emberのフォルダーにsf4-net.exeがありません。セキュリティソフトが削除した可能性があります。Emberを再インストールし、セキュリティソフトでフォルダーを許可してください。オフラインでは遊べます。"
+
+msgid "runtime.network_helper_blocked"
+msgstr "通信を開始できません。セキュリティソフトがsf4-net.exeをブロックしました。セキュリティソフトでEmberのフォルダーを許可し、Emberを再起動してください。オフラインでは遊べます。"
+
 msgid "discord.connecting"
 msgstr "Discordに接続中..."
 
@@ -2980,7 +3273,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "対戦用デバイスの接続が切れました。次の対戦前に再接続してください。"
 
 msgid "runtime.match_input_blocked"
-msgstr "対戦入力がブロックされています。{0}を再接続してください。スロットが変わった場合は、ルームに戻って割り当て直してください。"
+msgstr "{0} が切断されました。再接続するまでファイターに入力は届きません。"
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "対戦側のコントローラー割り当てを確認できませんでした。再度割り当ててください。"
@@ -3014,6 +3307,9 @@ msgstr "ルームへの接続に失敗しました。ルームを閉じます。
 
 msgid "runtime.operation_busy"
 msgstr "操作を実行中です。再試行してください。"
+
+msgid "runtime.steam_profile_failed"
+msgstr "Steamプロフィールを開けませんでした。"
 
 msgid "discord.invitation_expired"
 msgstr "Discordの招待は期限切れです。新しい招待を依頼してください。"
@@ -3909,6 +4205,21 @@ msgstr "{0}、{1}     順番待ち{2}     観戦{3}"
 msgid "room.streak"
 msgstr "{0}セット連続"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "推定Ping：約{0} ms。"
+
+msgid "room.latency.tip.measuring"
+msgstr "Pingを測定中..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Pingを取得できません：このメンバーとはまだ接続していません。"
+
+msgid "room.latency.tip.in_match"
+msgstr "このメンバーの対戦中はPingの測定を止めています。"
+
 msgid "screen.public_rooms"
 msgstr "公開ルーム"
 
@@ -4586,3 +4897,1333 @@ msgstr "「常に送信」をオンにできなかったため、このレポー
 
 msgid "reports.automatic_unavailable"
 msgstr "本日の自動レポートの上限に達したか、送信済みレポートの記録を読み取れないため、このレポートは送信されませんでした。「このレポートを送信」を選ぶと、プレビューから送信できます。"
+
+msgid "player.button_prompts"
+msgstr "ボタンの表示"
+
+msgid "player.button_prompts_detail"
+msgstr "Emberに表示するボタンの画像です。自動は、プレイに使うコントローラーに合わせます。各ボタンの機能は変わりません。"
+
+msgid "player.prompts_auto"
+msgstr "自動"
+
+
+msgid "controller.brand.stick"
+msgstr "対戦用ボタン"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} が接続されました。"
+
+msgid "controller.connected_keyboard"
+msgstr "{0} が接続されました。キーボードでプレイしています。変更するには、設定 > プレイヤーとコントローラーの「コントローラーを変更」を使ってください。"
+
+msgid "controller.connected_unmapped"
+msgstr "{0} が接続されました。Emberを開いてボタンを設定してください。"
+
+msgid "controller.connected_full"
+msgstr "{0} が接続されましたが、すでに4台のコントローラーが使われています。1台を外すと使えます。"
+
+msgid "controller.disconnected_named"
+msgstr "{0} が切断されました。"
+
+msgid "controller.reconnected"
+msgstr "{0} が再接続されました。"
+
+msgid "controller.release_to_use"
+msgstr "ボタンを離すと {0} でプレイします。"
+
+msgid "player.controllers"
+msgstr "コントローラー"
+
+msgid "player.controllers_value"
+msgstr "接続中: {0} 台"
+
+msgid "player.controllers_detail"
+msgstr "{0} でプレイしています。接続中のコントローラーを確認し、ボタンをテストして、Emberがまだ認識していないものを設定できます。"
+
+
+
+msgid "player.game_reads"
+msgstr "ゲームにコントローラーを読ませる"
+
+msgid "player.game_reads_detail"
+msgstr "オフ: Emberがすべてのコントローラーを読み、ゲームにはXboxパッドとして見えます。オン: Emberなしの場合と同様にゲームが直接読み、PlayStationとSwitchのパッドにはSteam Inputが必要になります。変更は次回のゲーム起動時に適用されます。"
+
+msgid "player.game_reads_pending"
+msgstr "適用するにはゲームを再起動してください。"
+
+msgid "player.prompts_showing"
+msgstr "{0} のボタンを表示しています。"
+
+msgid "controllers.title"
+msgstr "コントローラー"
+
+msgid "controllers.unavailable"
+msgstr "コントローラー対応はオフです"
+
+msgid "controllers.unavailable_detail"
+msgstr "Emberのコントローラー対応を開始できなかったため、今回はゲームが直接読みます。Xboxパッドは通常どおり使えます。他のパッドにはSteam Inputが必要な場合があります。詳細はsf4e.logにあります。"
+
+msgid "controllers.game_reads"
+msgstr "ゲームがコントローラーを読みます"
+
+msgid "controllers.game_reads_detail"
+msgstr "「ゲームにコントローラーを読ませる」がオンのため、Emberではコントローラーの設定やテストができません。プレイヤーとコントローラーでオフにして、ゲームを再起動してください。"
+
+msgid "controllers.none"
+msgstr "コントローラー未接続"
+
+msgid "controllers.none_detail"
+msgstr "コントローラーを接続するとここに表示されます。キーボードはコントローラーなしで使えます。"
+
+msgid "controllers.value_yours"
+msgstr "使用中"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "未設定"
+
+msgid "controllers.value_full"
+msgstr "未使用"
+
+msgid "controllers.value_absent"
+msgstr "未接続"
+
+msgid "controllers.detail_yours"
+msgstr "このコントローラーでプレイしています。ゲームスロット {0}。ボタンを押してテストしてください。"
+
+msgid "controllers.detail_other"
+msgstr "ゲームスロット {0}。ボタンを押してテストしてください。選択すると、このコントローラーでプレイしたり、ボタンを設定したりできます。"
+
+msgid "controllers.detail_custom"
+msgstr "保存したボタン設定を使っています。"
+
+msgid "controllers.detail_steam"
+msgstr "Steam Inputがこのコントローラーを扱うため、ボタンはSteamの設定に従います。Emberに扱わせるには、Steamの外からEmberを起動するか、SteamでUltra Street Fighter IVのSteam Inputをオフにしてください。"
+
+msgid "controllers.detail_unmapped"
+msgstr "Emberはこのコントローラーのボタンをまだ認識していません。設定するまではゲームが直接読み、Emberのメニューでは弱キックと中キックに設定されたボタンを使います。選択すると設定できます。"
+
+msgid "controllers.detail_full"
+msgstr "ゲームで使えるコントローラーは4台までです。他の1台を外すと使えます。"
+
+msgid "controllers.detail_absent"
+msgstr "保存したコントローラーです。接続するとまたプレイできます。"
+
+msgid "controllers.detail_game_read"
+msgstr "ゲームがこのコントローラーを直接読みます。"
+
+msgid "controllers.steam_name"
+msgstr "Steamコントローラー"
+
+msgid "controllers.test_heading"
+msgstr "ボタンを押してテスト"
+
+msgid "controllers.test_raw"
+msgstr "入力中: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "入力中: なし"
+
+msgid "controllers.choice_play"
+msgstr "このコントローラーでプレイ"
+
+msgid "controllers.choice_play_detail"
+msgstr "オンラインプレイとEmberのメニューで使います。"
+
+msgid "controllers.choice_play_current"
+msgstr "すでにこのコントローラーでプレイしています。"
+
+msgid "controllers.choice_setup"
+msgstr "ボタンを設定"
+
+msgid "controllers.choice_setup_detail"
+msgstr "各ボタンを順番に押して、Emberに役割を伝えます。"
+
+msgid "controllers.choice_setup_steam"
+msgstr "このコントローラーのボタンはSteam Inputが設定します。"
+
+msgid "controllers.choice_forget"
+msgstr "ボタン設定を忘れる"
+
+msgid "controllers.choice_forget_detail"
+msgstr "このコントローラーを設定前の動作に戻します。次回のゲーム起動時に適用されます。"
+
+msgid "controllers.now_playing"
+msgstr "{0} でプレイしています。"
+
+msgid "controllers.forgotten"
+msgstr "ボタン設定を削除しました。次回のゲーム起動時に適用されます。"
+
+msgid "pad_setup.input.button"
+msgstr "ボタン {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "ハット上"
+
+msgid "pad_setup.input.hat_right"
+msgstr "ハット右"
+
+msgid "pad_setup.input.hat_down"
+msgstr "ハット下"
+
+msgid "pad_setup.input.hat_left"
+msgstr "ハット左"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "軸 {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "軸 {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "トリガー軸 {0}"
+
+msgid "controller.disconnected_room"
+msgstr "コントローラーが切断されました。再接続するか、ルームを退出して別のものを選んでください。"
+
+msgid "runtime.match_input_moved"
+msgstr "{0} が戻りましたが、別のゲームスロットにあります。次の試合からまた使えます。"
+
+msgid "pad_setup.title"
+msgstr "コントローラー設定"
+
+msgid "pad_setup.prompt_heading"
+msgstr "新しいコントローラー"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember はまだ {0} のボタンを認識していません。このコントローラーのボタンを押すと設定を始めます。約1分で終わります。"
+
+msgid "pad_setup.not_now"
+msgstr "今はしない"
+
+msgid "pad_setup.step_count"
+msgstr "ステップ {0} / {1}"
+
+msgid "pad_setup.step.up"
+msgstr "上"
+
+msgid "pad_setup.step.down"
+msgstr "下"
+
+msgid "pad_setup.step.left"
+msgstr "左"
+
+msgid "pad_setup.step.right"
+msgstr "右"
+
+msgid "pad_setup.step.lp"
+msgstr "弱パンチ"
+
+msgid "pad_setup.step.mp"
+msgstr "中パンチ"
+
+msgid "pad_setup.step.hp"
+msgstr "強パンチ"
+
+msgid "pad_setup.step.lk"
+msgstr "弱キック"
+
+msgid "pad_setup.step.mk"
+msgstr "中キック"
+
+msgid "pad_setup.step.hk"
+msgstr "強キック"
+
+msgid "pad_setup.step.3p"
+msgstr "パンチ3つ同時"
+
+msgid "pad_setup.step.3k"
+msgstr "キック3つ同時"
+
+msgid "pad_setup.step.ls"
+msgstr "左スティック押し込み"
+
+msgid "pad_setup.step.rs"
+msgstr "右スティック押し込み"
+
+msgid "pad_setup.step.lx"
+msgstr "左スティック右"
+
+msgid "pad_setup.step.ly"
+msgstr "左スティック下"
+
+msgid "pad_setup.step.rx"
+msgstr "右スティック右"
+
+msgid "pad_setup.step.ry"
+msgstr "右スティック下"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "この方向にレバーを倒すかボタンを押して、離してください。"
+
+msgid "pad_setup.press_button"
+msgstr "この操作に使いたいボタンを押して、離してください。"
+
+msgid "pad_setup.optional"
+msgstr "この操作用のボタンがない場合はスキップしてください。"
+
+msgid "pad_setup.optional_stick"
+msgstr "この操作用のスティックがない場合はスキップしてください。"
+
+msgid "pad_setup.lk_selects"
+msgstr "このボタンはメニューでの決定にも使います。"
+
+msgid "pad_setup.mk_backs"
+msgstr "このボタンはメニューで戻る操作にも使います。"
+
+msgid "pad_setup.hold_cancel"
+msgstr "押し続けると設定をキャンセルします。"
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "ボタン長押し：キャンセル"
+
+msgid "pad_setup.back_step"
+msgstr "1つ前のステップ"
+
+msgid "pad_setup.skip"
+msgstr "スキップ"
+
+msgid "pad_setup.required"
+msgstr "この操作は必要です。"
+
+msgid "pad_setup.conflict"
+msgstr "{0} はすでに {1} に設定されています。別の入力を使ってください。"
+
+msgid "pad_setup.idle_hint"
+msgstr "まだ入力がありません。ボタンを3秒間押し続けるか、Esc を押すとキャンセルします。"
+
+msgid "pad_setup.reconnect"
+msgstr "コントローラーが切断されました。{0} 秒以内に再接続すると続けられます。"
+
+msgid "pad_setup.skipped"
+msgstr "スキップ済み"
+
+msgid "pad_setup.summary_detail"
+msgstr "ボタンを押すと対応するステップが表示されます。ここでもすべてのメニューと同じく、弱キックで決定、中キックで戻ります。"
+
+msgid "pad_setup.redo_detail"
+msgstr "選択してこの入力を設定し直します。"
+
+msgid "pad_setup.save"
+msgstr "保存"
+
+msgid "pad_setup.save_detail"
+msgstr "この設定を保存して今すぐ使います。"
+
+msgid "pad_setup.start_over"
+msgstr "最初からやり直す"
+
+msgid "pad_setup.start_over_detail"
+msgstr "すべてのステップを消して最初から始めます。"
+
+msgid "pad_setup.cancel"
+msgstr "設定をキャンセル"
+
+msgid "pad_setup.cancel_detail"
+msgstr "保存せずに終了します。"
+
+msgid "pad_setup.cancelled"
+msgstr "設定をキャンセルしました。何も保存していません。"
+
+msgid "pad_setup.saved_heading"
+msgstr "コントローラー設定完了"
+
+msgid "pad_setup.saved"
+msgstr "{0} を設定しました。対戦中の各ボタンの攻撃を変更するには「ボタン配置」を選んでください。"
+
+msgid "pad_setup.save_failed"
+msgstr "Ember はこの設定を使用できませんでした。何も保存していません。詳細は sf4e.log にあります。"
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "{0} が切断されたため設定を終了しました。何も保存していません。"
+
+msgid "pad_setup.stopped_idle"
+msgstr "1分間入力がなかったため設定を終了しました。何も保存していません。"
+
+msgid "player.button_layout"
+msgstr "ボタン配置"
+
+msgid "player.button_layout_detail"
+msgstr "{0} の各ボタンで出す攻撃を選びます。対戦相手には影響しません。"
+
+msgid "player.button_layout_setup"
+msgstr "Ember はまだ {0} に対応していません。選択して、先にボタンを設定してください。"
+
+msgid "player.button_layout_keyboard"
+msgstr "ボタン配置はコントローラー用です。キーボードは「ゲームのボタン設定」を使ってください。"
+
+msgid "player.button_layout_game_reads"
+msgstr "ボタン配置を使うには「ゲームにコントローラーを読み取らせる」をオフにしてください。それまでは「ゲームのボタン設定」を使ってください。"
+
+msgid "player.button_layout_failed"
+msgstr "今回は Ember のコントローラー対応を開始できませんでした。「ゲームのボタン設定」を使ってください。"
+
+msgid "player.game_buttons"
+msgstr "ゲームのボタン設定"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember を閉じます。ゲームのメニューでオプション、コントローラー設定の順に選んでください。キーボードとゲームが直接読み取るコントローラー用です。Ember のボタン配置があるコントローラーには、その配置が適用されます。ゲームはすべての操作にボタンがある配置だけを保存します。"
+
+msgid "controllers.choice_layout"
+msgstr "ボタン配置"
+
+msgid "controllers.choice_layout_detail"
+msgstr "各ボタンで出す攻撃を選びます。"
+
+msgid "controllers.choice_layout_setup"
+msgstr "先にボタンを設定してください。"
+
+msgid "controllers.detail_layout"
+msgstr "ボタン配置: {0}。"
+
+msgid "button_layout.title"
+msgstr "ボタン配置"
+
+msgid "button_layout.button_title"
+msgstr "ボタン変更"
+
+msgid "button_layout.test"
+msgstr "ボタンを試す"
+
+msgid "button_layout.test_detail"
+msgstr "{0} のボタンを押して、出る攻撃を確認します。この行では「戻る」だけがメニューを操作します。"
+
+msgid "button_layout.attacks"
+msgstr "攻撃"
+
+msgid "button_layout.throw"
+msgstr "投げ (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "セービングアタック (MP+MK)"
+
+msgid "button_layout.red_focus"
+msgstr "レッドセービングアタック (LP+MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "選択してから、{0} に使いたいボタンを押してください。別のボタンに同じ攻撃があれば、2つのボタンの攻撃を入れ替えます。"
+
+msgid "button_layout.row_missing"
+msgstr "この攻撃だけを出すボタンがないため、単独では出せません。"
+
+msgid "button_layout.no_button"
+msgstr "ボタンなし"
+
+msgid "button_layout.edit_button"
+msgstr "1つのボタンを変更"
+
+msgid "button_layout.edit_button_detail"
+msgstr "選択してからボタンを押し、そのボタンの攻撃を細かく選びます。自由に攻撃を組み合わせたり、ボタンを無効にしたりできます。"
+
+msgid "button_layout.preset"
+msgstr "プリセット"
+
+msgid "button_layout.preset_detail"
+msgstr "用意された配置を選びます。「標準」はゲーム本来の配置です。"
+
+msgid "button_layout.custom"
+msgstr "カスタム"
+
+msgid "button_layout.game_layout"
+msgstr "ゲームの配置"
+
+msgid "button_layout.preset.default"
+msgstr "標準"
+
+msgid "button_layout.preset.default_detail"
+msgstr "ゲーム本来の配置。多くのパッドと8ボタンのアーケードスティックに適しています。"
+
+msgid "button_layout.preset.triggers"
+msgstr "トリガーで3つ同時"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "6ボタンのパッド用。右ショルダーボタンが強パンチ、左が強キック。左トリガーがパンチ3つ同時、右がキック3つ同時です。"
+
+msgid "button_layout.preset.focus_throw"
+msgstr "セービングと投げ"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "「標準」の左ショルダーボタンをセービング、左トリガーを投げに変更します。8ボタンのアーケードスティックでは4列目です。パンチ3つ同時とキック3つ同時はスティック押し込みに移ります。"
+
+msgid "button_layout.preset_applied"
+msgstr "配置を {0} にしました。"
+
+msgid "button_layout.remove"
+msgstr "ゲームの配置を使う"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember によるこのコントローラーのボタン変更を止め、「ゲームのボタン設定」の配置を再び適用します。"
+
+msgid "button_layout.removed"
+msgstr "このコントローラーにゲームの配置を再び適用します。"
+
+msgid "button_layout.press_for"
+msgstr "{0} のボタンを押してください"
+
+msgid "button_layout.press_to_change"
+msgstr "変更するボタンを押してください"
+
+msgid "button_layout.waiting"
+msgstr "ボタンを押してください..."
+
+msgid "button_layout.press_cancel"
+msgstr "スティックを動かすか Start を押すとキャンセルします。"
+
+msgid "button_layout.assigned"
+msgstr "{0} を {1} に割り当てました。"
+
+msgid "button_layout.swapped"
+msgstr "{0} を {1} に割り当てました。代わりに {2} は {3} を出します。"
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} を {1} に割り当てました。{2} は何も出さなくなりました。"
+
+msgid "button_layout.bit_detail"
+msgstr "左右でこのボタンの {0} をオンまたはオフにします。"
+
+msgid "button_layout.clear"
+msgstr "攻撃なし"
+
+msgid "button_layout.clear_detail"
+msgstr "このボタンは対戦中に何もしません。"
+
+msgid "button_layout.button_does"
+msgstr "対戦中: {0}"
+
+msgid "button_layout.nothing"
+msgstr "なし"
+
+msgid "button_layout.absent"
+msgstr "未接続"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} は接続されていません。配置は保存されています。接続すると変更できます。"
+
+msgid "button_layout.setup_first"
+msgstr "先にボタンを設定"
+
+msgid "button_layout.setup_first_detail"
+msgstr "ゲームが {0} を直接読み取っているため、Ember はまだボタンを変更できません。一度設定すれば、ここで他のコントローラーと同じように使えます。"
+
+msgid "button_layout.missing_heading"
+msgstr "ボタンのない攻撃があります"
+
+msgid "button_layout.missing_text"
+msgstr "専用ボタンのない攻撃: {0}。配置は保存されています。"
+
+msgid "button_layout.keep_editing"
+msgstr "編集を続ける"
+
+msgid "button_layout.leave"
+msgstr "戻る"
+
+msgid "button_layout.menu_confirm"
+msgstr "メニュー決定"
+
+msgid "button_layout.menu_back"
+msgstr "メニュー戻る"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "選択してから、Emberのメニューで決定するボタンを押してください。選ぶまでは、ゲーム本体のメニューで決定するボタンです。"
+
+msgid "button_layout.menu_back_detail"
+msgstr "選択してから、Emberのメニューで戻るボタンを押してください。選ぶまでは、ゲーム本体のメニューで戻るボタンです。"
+
+msgid "button_layout.menu_taken"
+msgstr "{0}はすでに{1}です。別のボタンを選んでください。"
+
+msgid "room.delay_policy"
+msgstr "ルームの入力遅延"
+
+msgid "room.delay_policy.shared"
+msgstr "両者で共通"
+
+msgid "room.delay_policy.own"
+msgstr "各自の設定"
+
+msgid "room.delay_policy.detail"
+msgstr "両者で共通：すべての対戦は、2人の遅延のうち大きいほうで行います。各自の設定：各プレイヤーが選んだ遅延で対戦し、差は相手側のロールバックが吸収します。この設定はルームが開いている間ずっと有効です。"
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}、各自の遅延"
+
+msgid "room.table_footer_own_delay"
+msgstr "各自の遅延"
+
+msgid "room.input_delay.own"
+msgstr "あなたの遅延：{0}"
+
+msgid "public.own_delay"
+msgstr "各自の遅延"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "このルームサービスは、各自の遅延でルームを作成することにまだ対応していません。「両者で共通」を選ぶか、しばらくしてからもう一度お試しください。"
+
+#. Country names, generated by scripts/gen-countries.mjs from ICU. Do not edit by hand.
+
+msgid "country.AD"
+msgstr "アンドラ"
+
+msgid "country.AE"
+msgstr "アラブ首長国連邦"
+
+msgid "country.AF"
+msgstr "アフガニスタン"
+
+msgid "country.AG"
+msgstr "アンティグア・バーブーダ"
+
+msgid "country.AI"
+msgstr "アンギラ"
+
+msgid "country.AL"
+msgstr "アルバニア"
+
+msgid "country.AM"
+msgstr "アルメニア"
+
+msgid "country.AO"
+msgstr "アンゴラ"
+
+msgid "country.AQ"
+msgstr "南極"
+
+msgid "country.AR"
+msgstr "アルゼンチン"
+
+msgid "country.AS"
+msgstr "米領サモア"
+
+msgid "country.AT"
+msgstr "オーストリア"
+
+msgid "country.AU"
+msgstr "オーストラリア"
+
+msgid "country.AW"
+msgstr "アルバ"
+
+msgid "country.AX"
+msgstr "オーランド諸島"
+
+msgid "country.AZ"
+msgstr "アゼルバイジャン"
+
+msgid "country.BA"
+msgstr "ボスニア・ヘルツェゴビナ"
+
+msgid "country.BB"
+msgstr "バルバドス"
+
+msgid "country.BD"
+msgstr "バングラデシュ"
+
+msgid "country.BE"
+msgstr "ベルギー"
+
+msgid "country.BF"
+msgstr "ブルキナファソ"
+
+msgid "country.BG"
+msgstr "ブルガリア"
+
+msgid "country.BH"
+msgstr "バーレーン"
+
+msgid "country.BI"
+msgstr "ブルンジ"
+
+msgid "country.BJ"
+msgstr "ベナン"
+
+msgid "country.BL"
+msgstr "サン・バルテルミー"
+
+msgid "country.BM"
+msgstr "バミューダ"
+
+msgid "country.BN"
+msgstr "ブルネイ"
+
+msgid "country.BO"
+msgstr "ボリビア"
+
+msgid "country.BQ"
+msgstr "オランダ領カリブ"
+
+msgid "country.BR"
+msgstr "ブラジル"
+
+msgid "country.BS"
+msgstr "バハマ"
+
+msgid "country.BT"
+msgstr "ブータン"
+
+msgid "country.BV"
+msgstr "ブーベ島"
+
+msgid "country.BW"
+msgstr "ボツワナ"
+
+msgid "country.BY"
+msgstr "ベラルーシ"
+
+msgid "country.BZ"
+msgstr "ベリーズ"
+
+msgid "country.CA"
+msgstr "カナダ"
+
+msgid "country.CC"
+msgstr "ココス(キーリング)諸島"
+
+msgid "country.CD"
+msgstr "コンゴ民主共和国(キンシャサ)"
+
+msgid "country.CF"
+msgstr "中央アフリカ共和国"
+
+msgid "country.CG"
+msgstr "コンゴ共和国(ブラザビル)"
+
+msgid "country.CH"
+msgstr "スイス"
+
+msgid "country.CI"
+msgstr "コートジボワール"
+
+msgid "country.CK"
+msgstr "クック諸島"
+
+msgid "country.CL"
+msgstr "チリ"
+
+msgid "country.CM"
+msgstr "カメルーン"
+
+msgid "country.CN"
+msgstr "中国"
+
+msgid "country.CO"
+msgstr "コロンビア"
+
+msgid "country.CR"
+msgstr "コスタリカ"
+
+msgid "country.CU"
+msgstr "キューバ"
+
+msgid "country.CV"
+msgstr "カーボベルデ"
+
+msgid "country.CW"
+msgstr "キュラソー"
+
+msgid "country.CX"
+msgstr "クリスマス島"
+
+msgid "country.CY"
+msgstr "キプロス"
+
+msgid "country.CZ"
+msgstr "チェコ"
+
+msgid "country.DE"
+msgstr "ドイツ"
+
+msgid "country.DJ"
+msgstr "ジブチ"
+
+msgid "country.DK"
+msgstr "デンマーク"
+
+msgid "country.DM"
+msgstr "ドミニカ国"
+
+msgid "country.DO"
+msgstr "ドミニカ共和国"
+
+msgid "country.DZ"
+msgstr "アルジェリア"
+
+msgid "country.EC"
+msgstr "エクアドル"
+
+msgid "country.EE"
+msgstr "エストニア"
+
+msgid "country.EG"
+msgstr "エジプト"
+
+msgid "country.EH"
+msgstr "西サハラ"
+
+msgid "country.ER"
+msgstr "エリトリア"
+
+msgid "country.ES"
+msgstr "スペイン"
+
+msgid "country.ET"
+msgstr "エチオピア"
+
+msgid "country.FI"
+msgstr "フィンランド"
+
+msgid "country.FJ"
+msgstr "フィジー"
+
+msgid "country.FK"
+msgstr "フォークランド諸島"
+
+msgid "country.FM"
+msgstr "ミクロネシア連邦"
+
+msgid "country.FO"
+msgstr "フェロー諸島"
+
+msgid "country.FR"
+msgstr "フランス"
+
+msgid "country.GA"
+msgstr "ガボン"
+
+msgid "country.GB"
+msgstr "イギリス"
+
+msgid "country.GD"
+msgstr "グレナダ"
+
+msgid "country.GE"
+msgstr "ジョージア"
+
+msgid "country.GF"
+msgstr "仏領ギアナ"
+
+msgid "country.GG"
+msgstr "ガーンジー"
+
+msgid "country.GH"
+msgstr "ガーナ"
+
+msgid "country.GI"
+msgstr "ジブラルタル"
+
+msgid "country.GL"
+msgstr "グリーンランド"
+
+msgid "country.GM"
+msgstr "ガンビア"
+
+msgid "country.GN"
+msgstr "ギニア"
+
+msgid "country.GP"
+msgstr "グアドループ"
+
+msgid "country.GQ"
+msgstr "赤道ギニア"
+
+msgid "country.GR"
+msgstr "ギリシャ"
+
+msgid "country.GS"
+msgstr "サウスジョージア・サウスサンドウィッチ諸島"
+
+msgid "country.GT"
+msgstr "グアテマラ"
+
+msgid "country.GU"
+msgstr "グアム"
+
+msgid "country.GW"
+msgstr "ギニアビサウ"
+
+msgid "country.GY"
+msgstr "ガイアナ"
+
+msgid "country.HK"
+msgstr "中華人民共和国香港特別行政区"
+
+msgid "country.HM"
+msgstr "ハード島・マクドナルド諸島"
+
+msgid "country.HN"
+msgstr "ホンジュラス"
+
+msgid "country.HR"
+msgstr "クロアチア"
+
+msgid "country.HT"
+msgstr "ハイチ"
+
+msgid "country.HU"
+msgstr "ハンガリー"
+
+msgid "country.ID"
+msgstr "インドネシア"
+
+msgid "country.IE"
+msgstr "アイルランド"
+
+msgid "country.IL"
+msgstr "イスラエル"
+
+msgid "country.IM"
+msgstr "マン島"
+
+msgid "country.IN"
+msgstr "インド"
+
+msgid "country.IO"
+msgstr "英領インド洋地域"
+
+msgid "country.IQ"
+msgstr "イラク"
+
+msgid "country.IR"
+msgstr "イラン"
+
+msgid "country.IS"
+msgstr "アイスランド"
+
+msgid "country.IT"
+msgstr "イタリア"
+
+msgid "country.JE"
+msgstr "ジャージー"
+
+msgid "country.JM"
+msgstr "ジャマイカ"
+
+msgid "country.JO"
+msgstr "ヨルダン"
+
+msgid "country.JP"
+msgstr "日本"
+
+msgid "country.KE"
+msgstr "ケニア"
+
+msgid "country.KG"
+msgstr "キルギス"
+
+msgid "country.KH"
+msgstr "カンボジア"
+
+msgid "country.KI"
+msgstr "キリバス"
+
+msgid "country.KM"
+msgstr "コモロ"
+
+msgid "country.KN"
+msgstr "セントクリストファー・ネーヴィス"
+
+msgid "country.KP"
+msgstr "北朝鮮"
+
+msgid "country.KR"
+msgstr "韓国"
+
+msgid "country.KW"
+msgstr "クウェート"
+
+msgid "country.KY"
+msgstr "ケイマン諸島"
+
+msgid "country.KZ"
+msgstr "カザフスタン"
+
+msgid "country.LA"
+msgstr "ラオス"
+
+msgid "country.LB"
+msgstr "レバノン"
+
+msgid "country.LC"
+msgstr "セントルシア"
+
+msgid "country.LI"
+msgstr "リヒテンシュタイン"
+
+msgid "country.LK"
+msgstr "スリランカ"
+
+msgid "country.LR"
+msgstr "リベリア"
+
+msgid "country.LS"
+msgstr "レソト"
+
+msgid "country.LT"
+msgstr "リトアニア"
+
+msgid "country.LU"
+msgstr "ルクセンブルク"
+
+msgid "country.LV"
+msgstr "ラトビア"
+
+msgid "country.LY"
+msgstr "リビア"
+
+msgid "country.MA"
+msgstr "モロッコ"
+
+msgid "country.MC"
+msgstr "モナコ"
+
+msgid "country.MD"
+msgstr "モルドバ"
+
+msgid "country.ME"
+msgstr "モンテネグロ"
+
+msgid "country.MF"
+msgstr "サン・マルタン"
+
+msgid "country.MG"
+msgstr "マダガスカル"
+
+msgid "country.MH"
+msgstr "マーシャル諸島"
+
+msgid "country.MK"
+msgstr "北マケドニア"
+
+msgid "country.ML"
+msgstr "マリ"
+
+msgid "country.MM"
+msgstr "ミャンマー (ビルマ)"
+
+msgid "country.MN"
+msgstr "モンゴル"
+
+msgid "country.MO"
+msgstr "中華人民共和国マカオ特別行政区"
+
+msgid "country.MP"
+msgstr "北マリアナ諸島"
+
+msgid "country.MQ"
+msgstr "マルティニーク"
+
+msgid "country.MR"
+msgstr "モーリタニア"
+
+msgid "country.MS"
+msgstr "モントセラト"
+
+msgid "country.MT"
+msgstr "マルタ"
+
+msgid "country.MU"
+msgstr "モーリシャス"
+
+msgid "country.MV"
+msgstr "モルディブ"
+
+msgid "country.MW"
+msgstr "マラウイ"
+
+msgid "country.MX"
+msgstr "メキシコ"
+
+msgid "country.MY"
+msgstr "マレーシア"
+
+msgid "country.MZ"
+msgstr "モザンビーク"
+
+msgid "country.NA"
+msgstr "ナミビア"
+
+msgid "country.NC"
+msgstr "ニューカレドニア"
+
+msgid "country.NE"
+msgstr "ニジェール"
+
+msgid "country.NF"
+msgstr "ノーフォーク島"
+
+msgid "country.NG"
+msgstr "ナイジェリア"
+
+msgid "country.NI"
+msgstr "ニカラグア"
+
+msgid "country.NL"
+msgstr "オランダ"
+
+msgid "country.NO"
+msgstr "ノルウェー"
+
+msgid "country.NP"
+msgstr "ネパール"
+
+msgid "country.NR"
+msgstr "ナウル"
+
+msgid "country.NU"
+msgstr "ニウエ"
+
+msgid "country.NZ"
+msgstr "ニュージーランド"
+
+msgid "country.OM"
+msgstr "オマーン"
+
+msgid "country.PA"
+msgstr "パナマ"
+
+msgid "country.PE"
+msgstr "ペルー"
+
+msgid "country.PF"
+msgstr "仏領ポリネシア"
+
+msgid "country.PG"
+msgstr "パプアニューギニア"
+
+msgid "country.PH"
+msgstr "フィリピン"
+
+msgid "country.PK"
+msgstr "パキスタン"
+
+msgid "country.PL"
+msgstr "ポーランド"
+
+msgid "country.PM"
+msgstr "サンピエール島・ミクロン島"
+
+msgid "country.PN"
+msgstr "ピトケアン諸島"
+
+msgid "country.PR"
+msgstr "プエルトリコ"
+
+msgid "country.PS"
+msgstr "パレスチナ自治区"
+
+msgid "country.PT"
+msgstr "ポルトガル"
+
+msgid "country.PW"
+msgstr "パラオ"
+
+msgid "country.PY"
+msgstr "パラグアイ"
+
+msgid "country.QA"
+msgstr "カタール"
+
+msgid "country.RE"
+msgstr "レユニオン"
+
+msgid "country.RO"
+msgstr "ルーマニア"
+
+msgid "country.RS"
+msgstr "セルビア"
+
+msgid "country.RU"
+msgstr "ロシア"
+
+msgid "country.RW"
+msgstr "ルワンダ"
+
+msgid "country.SA"
+msgstr "サウジアラビア"
+
+msgid "country.SB"
+msgstr "ソロモン諸島"
+
+msgid "country.SC"
+msgstr "セーシェル"
+
+msgid "country.SD"
+msgstr "スーダン"
+
+msgid "country.SE"
+msgstr "スウェーデン"
+
+msgid "country.SG"
+msgstr "シンガポール"
+
+msgid "country.SH"
+msgstr "セントヘレナ"
+
+msgid "country.SI"
+msgstr "スロベニア"
+
+msgid "country.SJ"
+msgstr "スバールバル諸島・ヤンマイエン島"
+
+msgid "country.SK"
+msgstr "スロバキア"
+
+msgid "country.SL"
+msgstr "シエラレオネ"
+
+msgid "country.SM"
+msgstr "サンマリノ"
+
+msgid "country.SN"
+msgstr "セネガル"
+
+msgid "country.SO"
+msgstr "ソマリア"
+
+msgid "country.SR"
+msgstr "スリナム"
+
+msgid "country.SS"
+msgstr "南スーダン"
+
+msgid "country.ST"
+msgstr "サントメ・プリンシペ"
+
+msgid "country.SV"
+msgstr "エルサルバドル"
+
+msgid "country.SX"
+msgstr "シント・マールテン"
+
+msgid "country.SY"
+msgstr "シリア"
+
+msgid "country.SZ"
+msgstr "エスワティニ"
+
+msgid "country.TC"
+msgstr "タークス・カイコス諸島"
+
+msgid "country.TD"
+msgstr "チャド"
+
+msgid "country.TF"
+msgstr "仏領極南諸島"
+
+msgid "country.TG"
+msgstr "トーゴ"
+
+msgid "country.TH"
+msgstr "タイ"
+
+msgid "country.TJ"
+msgstr "タジキスタン"
+
+msgid "country.TK"
+msgstr "トケラウ"
+
+msgid "country.TL"
+msgstr "東ティモール"
+
+msgid "country.TM"
+msgstr "トルクメニスタン"
+
+msgid "country.TN"
+msgstr "チュニジア"
+
+msgid "country.TO"
+msgstr "トンガ"
+
+msgid "country.TR"
+msgstr "トルコ"
+
+msgid "country.TT"
+msgstr "トリニダード・トバゴ"
+
+msgid "country.TV"
+msgstr "ツバル"
+
+msgid "country.TW"
+msgstr "台湾"
+
+msgid "country.TZ"
+msgstr "タンザニア"
+
+msgid "country.UA"
+msgstr "ウクライナ"
+
+msgid "country.UG"
+msgstr "ウガンダ"
+
+msgid "country.UM"
+msgstr "合衆国領有小離島"
+
+msgid "country.US"
+msgstr "アメリカ合衆国"
+
+msgid "country.UY"
+msgstr "ウルグアイ"
+
+msgid "country.UZ"
+msgstr "ウズベキスタン"
+
+msgid "country.VA"
+msgstr "バチカン市国"
+
+msgid "country.VC"
+msgstr "セントビンセント及びグレナディーン諸島"
+
+msgid "country.VE"
+msgstr "ベネズエラ"
+
+msgid "country.VG"
+msgstr "英領ヴァージン諸島"
+
+msgid "country.VI"
+msgstr "米領ヴァージン諸島"
+
+msgid "country.VN"
+msgstr "ベトナム"
+
+msgid "country.VU"
+msgstr "バヌアツ"
+
+msgid "country.WF"
+msgstr "ウォリス・フツナ"
+
+msgid "country.WS"
+msgstr "サモア"
+
+msgid "country.YE"
+msgstr "イエメン"
+
+msgid "country.YT"
+msgstr "マヨット"
+
+msgid "country.ZA"
+msgstr "南アフリカ"
+
+msgid "country.ZM"
+msgstr "ザンビア"
+
+msgid "country.ZW"
+msgstr "ジンバブエ"
+
+#. End of the generated country names.

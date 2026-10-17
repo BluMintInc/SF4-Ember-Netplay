@@ -43,13 +43,13 @@ your own delay, and its detail names the recommended delay and the match delay.
 A new profile is on **Auto**: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
 twelve seconds at most. A check that fails is tried once more. You ready with
-its recommendation held between one and four frames, or with two frames if it
+its recommendation held between one and three frames, or with two frames if it
 produced none. A rematch, or a change of fighter, keeps the measurement, and
 after each game Auto follows the ping that game reported, up or down, by the
 same bands as below, when the game gave at least ten seconds of it; spectators
 and the queue are never checked or held. **Check
 connection** runs the same five-second measurement by hand. Left and Right
-choose a delay of your own instead, from zero to ten, with Auto one step below
+choose a delay of your own instead, from zero to five, with Auto one step below
 zero. Zero adds no delay and needs a steady, low ping; Auto and the
 recommendation never choose it. A chosen delay is saved, Select applies a valid recommendation to it,
 and you can Ready without a usable probe. Ready locks your own delay for that
@@ -65,10 +65,18 @@ values favored the fighter who chose less. Input delay's detail shows the
 match delay in use; before your opponent readies it shows "At least" your own
 choice. Each fighter's own delay is kept for the next game.
 
+The room can choose otherwise when it is created. **Room input delay** on
+Create (private or public) is **Same for both** to begin with, as above. With
+**Each player's own** every fighter plays at the delay they readied with, and
+the other side's rollback makes up the difference; Input delay's detail then
+reads "Your delay" instead of the match delay. The choice is kept with the room
+defaults, is fixed for as long as the room is open, and shows as "Own delay" in
+the room's rules and on its table cards and, for a public room, in the list.
+
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It follows the median round-trip time, the ping the check
-shows: up to 80 ms is one frame, 81 to 150 ms two, 151 to 220 ms three, and
-221 ms and up four, with one more frame for each further 70 ms, up to ten.
+shows: up to 80 ms is one frame, 81 to 150 ms two, 151 to 220 ms three, 221 to 290 ms four, and
+291 ms and up five, the most it recommends.
 If the 95th percentile round trip lands more than one step worse than the
 median's, the recommendation rises to one step below it. These are tuning
 assumptions, not a guarantee about frame timing or network quality.
@@ -109,14 +117,19 @@ positions. B on your queue card, or **Leave queue**, leaves the queue at once.
 Leaving the queue during a game lets you finish watching it; the place ends with
 that game unless you press **Watch next game**. Between games, leaving the queue
 returns you to the room. A queued member has no Watch or Stop watching action of
-its own.
+its own; during a game, Start or F10 opens Ember over it, where **Leave this
+game** stops watching that game and keeps the queue place.
 
 ## Watch
 
 **Watch next game** (**Watch** in the seat chooser) reserves a spectator place
 without joining the queue. A game already in progress cannot be joined halfway
 through. **Stop watching** returns the spectator to the room; the fighters
-continue playing.
+continue playing. During a game, Start or F10 opens Ember over it on the room
+board at **Stop watching**; Queue, Watch, Leave queue and Leave room there say what
+happens to the view. Your view runs a little behind the room, so the room may
+have finished the game while you still watch it: Stop watching then only ends
+the rest of the view, and your place at the table stays as it is.
 
 A spectator by choice can also use **Lock in to watch** in Table options
 (**Release lock-in** undoes it). If both fighters ready while a locked-in
@@ -129,13 +142,16 @@ Unready or Cancel the start, and then the game does not start. Without lock-in
 the fighters do not wait: a spectator still closing out the previous game joins
 the game after that. Lock-in ends when you stop watching, move to another table
 or seat, or your view of a game fails, so it cannot hold up the fighters again;
-a short notice says which.
+a short notice says which. Only your own Release lock-in, while you keep
+watching the same table, ends it without one.
 
 A spectator whose connection is still being set up when the fighters are ready
 (after a short grace period) misses that game and watches the next one. A
-spectator whose connection leaves about half a second of network frames
-unacknowledged, sustained for about a second, is dropped from that game and can
-watch the next. Slow playback alone does not drop anyone: the spectator plays
+spectator that was away from the main menu when the game started is told so and
+watches the next one. A spectator whose connection leaves about half a second of
+network frames unacknowledged, sustained for about a second, is dropped from that
+game, keeps its place and watches the next game at the table; it is told so.
+Slow playback alone does not drop anyone: the spectator plays
 extra frames to catch up and can trail by up to 1024 frames (about 17 seconds).
 
 ## Manage the room

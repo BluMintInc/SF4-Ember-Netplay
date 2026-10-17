@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
 import { BridgeClient, parseResult, RESULT_TYPE, ResultError, signWebhook, TestPlayer, verifyResult, WebhookError } from "../src/index.ts";
-import { linkPlayer, missing, startBridge, startReceiver, until } from "./bridge-process.ts";
+import { linkPlayer, startBridge, startReceiver, until } from "./bridge-process.ts";
 
 const EMBER_A = new TestPlayer({ origin: "http://127.0.0.1:1", seed: Buffer.alloc(32, 1) }).emberId;
 const EMBER_B = new TestPlayer({ origin: "http://127.0.0.1:1", seed: Buffer.alloc(32, 2) }).emberId;
@@ -101,7 +101,7 @@ test("verifyResult checks the signature and that the delivery is for the match",
   assert.throws(() => verifyResult(event, signWebhook(event, `res_${MATCH}`, now, secret), [secret]), ResultError);
 });
 
-test("a finished match is delivered to the connection's results_url, signed", { skip: missing, timeout: 60_000 }, async () => {
+test("a finished match is delivered to the connection's results_url, signed", { timeout: 60_000 }, async () => {
   const receiver = await startReceiver();
   const secret = `whsec_${randomBytes(32).toString("base64")}`;
   const bridge = await startBridge({ connection: { results_url: receiver.url }, secrets: { result_secrets: { "mock-local": secret } } });

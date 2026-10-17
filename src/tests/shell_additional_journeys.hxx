@@ -1,5 +1,8 @@
 #pragma once
 void RoomJourneys();
+void ButtonPromptJourneys();
+void ControllerJourneys();
+void ButtonLayoutJourneys();
 void KeyboardJourneys();
 void PresentationJourneys();
 void AppearanceGalleries();
@@ -7,10 +10,13 @@ void ChatJourneys();
 void TrainingSettingsAndHome();
 void TrainingFromRoom();
 void PracticeRoomCreate();
+void DelayPolicyCreate();
+void DelayPolicyInRoom();
 void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();
 void LanguageSaveFailure();
+void UpdateLaunchJourneys();
 void SessionReports();
 void RecoveryWindow();
 void ProblemReportJourneys();

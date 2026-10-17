@@ -264,6 +264,12 @@ static void TestStatusLineDetails() {
 	details.hostName.clear();
 	const auto bare = json::parse(roomhost::StatusLine(3, 1, "sf4e3:x", {}, details)).at("details");
 	CHECK(!bare.contains("host_name") && bare.size() == 6);
+	// A room whose fighters each play at their own delay says so, and only that room.
+	auto ownDetails = details;
+	ownDetails.ownDelay = true;
+	const auto own = json::parse(roomhost::StatusLine(3, 1, "sf4e3:x", {}, ownDetails)).at("details");
+	CHECK(own.at("own_delay") == true && own.size() == bare.size() + 1);
+	CHECK(!(ownDetails == details) && roomhost::StatusLine(3, 1, "sf4e3:x", {}, ownDetails) != roomhost::StatusLine(3, 1, "sf4e3:x", {}, details));
 	// A room name that is not UTF-8 is replaced instead of throwing.
 	details.name = std::string("bad\xff");
 	CHECK(json::parse(roomhost::StatusLine(0, 0, "sf4e3:x", {}, details)).at("details").at("name").is_string());
@@ -319,6 +325,10 @@ static void TestDetailsOfSnapshot() {
 	for (int i = 0; i < 20; ++i) snapshot.members.push_back(Joined(10 + i, "m" + std::to_string(i), i, i));
 	snapshot.host = 10;
 	CHECK(roomhost::DetailsOf(snapshot).fighters.size() == 16);
+	// The delay policy is the room's: Own is reported, Shared is not.
+	CHECK(!roomhost::DetailsOf(snapshot).ownDelay);
+	snapshot.delayPolicy = room::DelayPolicy::Own;
+	CHECK(roomhost::DetailsOf(snapshot).ownDelay);
 }
 
 // The room host opens a public room with the public rules, and the list's

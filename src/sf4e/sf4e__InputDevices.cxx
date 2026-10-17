@@ -1,4 +1,5 @@
 #include "sf4e__InputDevices.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include <spdlog/spdlog.h>
 #include <algorithm>
@@ -67,6 +68,10 @@ bool Connected(const Device& device) {
     const auto& methods=System_XInput::publicMethods;
     if(!backend||device.index>=(backend->*methods.GetDeviceCount)()||
         (backend->*methods.GetDeviceStatus)(device.index)!=1)return false;
+    if (device.type == PADTYPE_XINPUT && !device.identity.guid.empty()) {
+        const auto identity = Gamepads::IdentityForSlot(device.index);
+        if (!identity || !gamepads::Same(device.identity, *identity)) return false;
+    }
     const char* name=(backend->*methods.GetDeviceName)(device.index);
     return name&&*name?device.name==name:device.name=="Controller "+std::to_string(device.index+1);
 }
@@ -95,6 +100,10 @@ std::vector<Device> ReadDevices() {
             const char* name = (controllers->*methods.GetDeviceName)(index);
             device.name = name && *name ? name : "Controller " + std::to_string(index + 1);
             device.buttons = (controllers->*methods.GetButtonsOn)(index);
+            if (device.type == PadXInput) {
+                const auto identity = Gamepads::IdentityForSlot(index);
+                if (identity) device.identity = *identity;
+            }
         }
         result.push_back(std::move(device));
     }
@@ -169,6 +178,7 @@ bool SideAssigned(int side) {
     return pad && side >= 0 && side <= 1 && (pad->*System::publicMethods.GetAssigmentStatusForPlayer)(side) >= 0;
 }
 void LogInventory(const std::vector<Device>& devices) {
+    Gamepads::LogInventory();
     // ReadDevices lists the keyboard once the provider is ready; before that
     // there is nothing to report. The first list is logged even with no pads.
     if (devices.empty()) return;

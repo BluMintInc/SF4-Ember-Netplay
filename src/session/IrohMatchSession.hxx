@@ -78,6 +78,13 @@ public:
 	MatchTeardownTiming::SpectatorExit SpectatorExitStep(bool streamDrained) const {
 		return MatchTeardownTiming::SpectatorExitStep(StreamSourceClosed(), streamDrained, SpectatorExitTimedOut());
 	}
+	// P1's GGPO stopped serving a spectator (SpectatorPolicy). Ends that
+	// spectator's link for this generation, so its client fails within its
+	// peer-close grace instead of waiting out its own stream timeout. False
+	// when there is no such live link. While the helper's command queue is
+	// full the end waits for a later Tick of this match; a room that refuses
+	// it is logged. Neither fails this match.
+	bool EndSpectatorStream(std::size_t slot);
 private:
 	struct Link {
 		std::size_t slot;
@@ -129,6 +136,13 @@ private:
 	static constexpr ULONGLONG PeerCloseGraceMs = 2000;
 	ULONGLONG fighterClosedAt_ = 0;
 	bool DropSpectatorLink(std::vector<Link>::iterator& link);
+	// Spectator slots of a started match whose link end the helper has not
+	// taken yet, for this generation only: P1's own drops (EndSpectatorStream)
+	// and the room's game_peer_end share them, so neither fails the room on a
+	// full helper queue.
+	std::vector<std::size_t> spectatorEnds_;
+	void QueueSpectatorEnd(std::size_t slot);
+	void FlushSpectatorEnds();
 	bool ReportReady(ULONGLONG now, bool spectatorsReady);
 	std::deque<PendingAck> pendingAcks_;
 	SOCKET reservedPort_ = INVALID_SOCKET;

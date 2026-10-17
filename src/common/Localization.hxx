@@ -32,6 +32,11 @@ Script ScriptOf(Locale locale);
 // Every translated string of a catalog run together, which is the text the UI
 // fonts must be able to draw.
 std::string DisplayText(Locale locale);
+// DisplayText without the country names (country.XX), the text a font atlas
+// bakes for the interface. Country names reach the atlas as players' names do,
+// once they are on screen (Theme.hxx: NoteUserText), since a CJK catalog's 249
+// of them would not fit its budget.
+std::string InterfaceText(Locale locale);
 
 namespace detail {
 std::string Format(const char* translated, const char* id, fmt::format_args arguments);

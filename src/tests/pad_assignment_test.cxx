@@ -1,5 +1,6 @@
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__InputDevices.hxx"
+#include "../netplay/ControllerRestore.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include <cstdlib>
 #include <iostream>
@@ -137,5 +138,27 @@ int main() {
     backend.buttons[4]=0x200;ambiguous.Tick(sample());backend.buttons[4]=0;
     CHECK(ambiguous.Tick(sample())&&ambiguous.Selected().index==4);
     backend.connected[4]=false;ambiguous.Tick(sample());CHECK(!ambiguous.Ready()&&ambiguous.Selected().index==4);
+    {
+        namespace input = sf4e::input;
+        // Native slot/name changes must not substitute another pad for a saved identity.
+        auto devices = sample();
+        auto saved = devices[1];
+        saved.identity = {"usb-guid", "saved-serial", "usb-path", "Saved pad"};
+        auto reconnected = saved;
+        reconnected.index = 3; reconnected.name = "Controller 4";
+        reconnected.identity = {"bt-guid", "saved-serial", "bt-path", "Saved pad Bluetooth"};
+        auto replacement = saved;
+        replacement.identity.serial = "other-serial";
+        devices[1] = replacement; devices.push_back(reconnected);
+        auto restored = input::RestoreController(devices, replacement, saved, {});
+        CHECK(!restored.provisional && restored.device.index == 3 && restored.device.Same(saved));
+        input::Assignment assignment;
+        assignment.Adopt(restored.device);
+        devices.pop_back(); assignment.Tick(devices);
+        CHECK(!assignment.Ready());
+        reconnected.index = 2; devices.push_back(reconnected); assignment.Tick(devices);
+        CHECK(assignment.Ready() && assignment.Selected().index == 2);
+        CHECK(!assignment.Selected().Same(replacement));
+    }
     std::cout << "Native adapter: keyboard in either game slot, stale keyboard replaced by XInput, DirectInput and leverless devices; both slots, held buttons, cancel, disconnect and rematches passed\n";
 }

@@ -1,7 +1,10 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "../netplay/PublishCadence.hxx"
+#include "../netplay/LatencyBoard.hxx"
+#include "../common/HelperFailure.hxx"
 #include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
@@ -32,7 +35,12 @@ void FillNetworkDiagnostics(platform::DiagnosticsView& view) {
 std::string StickyText() {
     switch (runtime->stickyError) {
     case StickyError::StartFailed: return loc::T("runtime.network_start_failed");
-    case StickyError::HelperUnavailable: return loc::Tf("runtime.network_helper_unavailable", runtime->stickyCode);
+    case StickyError::HelperUnavailable:
+        switch (netplay::ClassifyHelperFailure(runtime->stickyCode)) {
+        case netplay::HelperFailure::Missing: return loc::T("runtime.network_helper_missing");
+        case netplay::HelperFailure::Blocked: return loc::T("runtime.network_helper_blocked");
+        default: return loc::Tf("runtime.network_helper_unavailable", runtime->stickyCode);
+        }
     default: return {};
     }
 }
@@ -272,10 +280,15 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
 input::MenuContext MenuContextNow(bool atMainMenu) {
     // A Practice match is this PC's to end only while it fights in it, under rollback.
     const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
+    // A spectator leaves the game it watches only while its stream is live:
+    // the game the snapshot names and the room action's dispatch reads, so
+    // the menu's Stop watching and the leave it sends agree.
+    const bool watchedMatch = WatchedGameNow().Active();
     return atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
         replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
-        practiceFight ? input::MenuContext::PracticeMatch : input::MenuContext::Unavailable;
+        practiceFight ? input::MenuContext::PracticeMatch :
+        watchedMatch ? input::MenuContext::WatchedMatch : input::MenuContext::Unavailable;
 }
 
 // What a throttled fight republishes on (netplay::PublishCadence): every input
@@ -307,8 +320,10 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
+    mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
     mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
+    mixString(runtime->padHint);
     mix(AtMainMenu());
     return h;
 }
@@ -396,10 +411,27 @@ PostPublishState Publish() {
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
+    snapshot.gameplayBrand = Gamepads::BrandForDevice(snapshot.inputDevice.type, snapshot.inputDevice.index);
+    snapshot.promptBrand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, snapshot.inputDevice.type, snapshot.gameplayBrand);
+    snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
+    snapshot.runningControllerLayer = runtime->runningControllerLayer;
+    snapshot.padSetup = Gamepads::ReadFrame().setup;
+    snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
+    snapshot.padHintUntil = runtime->padHintUntil;
+    const auto& candidate = runtime->input.Candidate();
+    for (auto& pad : snapshot.pads) {
+        if (pad.state != gamepads::RowState::Absent && candidate.type == input::PadXInput && pad.slot == candidate.index)
+            snapshot.captureCandidate = pad.id;
+        if ((pad.state == gamepads::RowState::Unmapped || pad.state == gamepads::RowState::GameRead) &&
+            candidate.type == input::PadDirectInput && pad.directInputIndex == candidate.index) snapshot.captureCandidate = pad.id;
+        pad.customMapping = pad.customMapping && runtime->preferences.controllerMappings.count(pad.identity.guid) != 0;
+    }
     snapshot.controller = snapshot.inputDevice.name;
     snapshot.inputCapture = runtime->input.State();
     snapshot.controllerReady = runtime->input.Ready();
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
+    if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle)
+        snapshot.padHint = runtime->padHint;
 
 	snapshot.atMainMenu = AtMainMenu();
 	snapshot.practiceMatch = training::MatchPracticeActive();
@@ -421,6 +453,8 @@ PostPublishState Publish() {
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
+    snapshot.watchedGame = WatchedGameNow();
+    snapshot.lockInDrops = runtime->lockInDrops;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     snapshot.installedContent = custom::Installed();
@@ -433,9 +467,10 @@ PostPublishState Publish() {
         sample.deviceIndex = snapshot.inputDevice.index;
         unsigned held = 0, physical = 0;
         sample.connected = snapshot.inputDevice.connected &&
-            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held,&physical,&sample.selectPhysical,&sample.backPhysical);
-        if(sample.deviceType==input::PadXInput){sample.selectPhysical=input::xinput::A;sample.backPhysical=input::xinput::B;}
-        sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical) : 0;
+            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held, &physical);
+        // Asked whether or not the read worked, so the prompts stay right.
+        sample.menu = MenuButtonsFor(sample.deviceType, sample.deviceIndex);
+        sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical,sample.menu) : 0;
     }
     snapshot.canEditSelection = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle;
 	snapshot.canOpenRoom = snapshot.controllerReady && snapshot.helperReady && snapshot.atMainMenu && !UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
@@ -443,6 +478,8 @@ PostPublishState Publish() {
 	snapshot.displayName = runtime->displayName;
 	snapshot.preferences = runtime->preferences;
 	snapshot.languagePreference = runtime->languagePreference;
+	snapshot.checkUpdatesAtLaunch = runtime->checkUpdatesAtLaunch;
+	snapshot.automaticCountry = runtime->automaticCountry;
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
 		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
@@ -451,7 +488,10 @@ PostPublishState Publish() {
 	snapshot.settingsError = OverlayPrefs::PersistenceError();
 	snapshot.helperError = runtime->error;
     snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchInputFault&&runtime->match&&!LocalIsSpectator()?
-        loc::Tf("runtime.match_input_blocked",DeviceName(runtime->matchInput)):std::string();
+        loc::Tf(std::any_of(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
+            return pad.state != gamepads::RowState::Absent && !runtime->matchInput.identity.guid.empty() &&
+                gamepads::Same(pad.identity, runtime->matchInput.identity) && pad.slot != runtime->matchInput.index;
+        }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;
@@ -463,6 +503,7 @@ PostPublishState Publish() {
 		snapshot.shortInvitation = runtime->room->ShortInvitation();
 		snapshot.shortInvitationPending = runtime->room->ShortInvitationPending();
 		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
+		snapshot.memberLatency = runtime->room->MemberLatencies();
 	}
 	FillRoomView(snapshot);
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->readyIntent.Parked() &&
@@ -534,6 +575,23 @@ void PumpDiscordClient() {
     }
 }
 
+static netplay::LatencyBoardPulse latencyBoard;
+// The board's kind of pulse, for the fighter selector.
+static netplay::LatencyBoardPulse fighterSelector;
+
+bool FighterSelectorShown(std::uint64_t roomGeneration) {
+	return fighterSelector.Shown(roomGeneration, GetTickCount64());
+}
+
+void TickMemberLatency() {
+	if (!runtime->room) return;
+	const auto session = runtime->controller.GetSnapshot();
+	static const room::Snapshot none;
+	const auto& room = runtime->attached && UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot() : none;
+	const bool shown = latencyBoard.Shown(room.roomEpoch, GetTickCount64());
+	runtime->room->WatchLatency(netplay::LatencyWanted(shown, session.room, session.match, room, runtime->replacementPending));
+}
+
 void PublishAndTickDiscordInvite() {
 	const auto view=PublishThrottled();
     std::string currentParty; std::uint64_t expiry=0;
@@ -559,6 +617,14 @@ std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, boo
     // Recovery ends (MatchRecovered) only once the session is idle at the main
     // menu; until then, and while native GGPO lives, nothing is retired yet.
     return match && !ggpoLive && !recovering ? match->RetiredGeneration() : 0;
+}
+
+void NoteLatencyBoard(std::uint64_t roomGeneration) {
+	internal::latencyBoard.Note(roomGeneration, GetTickCount64());
+}
+
+void NoteFighterSelector(std::uint64_t roomGeneration) {
+	internal::fighterSelector.Note(roomGeneration, GetTickCount64());
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

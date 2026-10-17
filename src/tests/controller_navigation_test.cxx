@@ -64,8 +64,8 @@ void NativeReader() {
     Check(!Dimps::Pad::ReadController(3, 7, held), "Wrong provider identity accepted");
     Check(ControllerButtons(0x1) == Button::Up && ControllerButtons(0x2) == Button::Down &&
           ControllerButtons(0x4) == Button::Left && ControllerButtons(0x8) == Button::Right, "Native direction bits incorrect");
-    Check(ControllerButtons(0x10) == Button::Confirm && ControllerButtons(0x1000) == (Button::Confirm | Button::Menu) &&
-          ControllerButtons(0x40) == Button::Back && ControllerButtons(0x2000) == Button::Back, "Native action bits incorrect");
+    // Select and Back are physical buttons (Pad::MenuButtons), never a fight function.
+    Check(ControllerButtons(0x10 | 0x40 | 0x2000) == 0 && ControllerButtons(0x1000) == Button::Menu, "A fight function became a menu action");
     Check(ControllerButtons(0x20 | 0x80 | 0x400 | 0x800) == 0, "Unrelated attack became UI action");
     Check(ControllerButtons(0x40,3,0x40000)==Button::Confirm,"Physical A must select even when bound to LK");
     Check(ControllerButtons(0x20,3,0x20000)==Button::Back,"Physical B must return even when bound to MP");
@@ -80,7 +80,14 @@ void NativeReader() {
   ControllerButtons(0,PadXInput,xinput::X)==MenuInput::Fighter&&ControllerButtons(0,PadXInput,xinput::Y)==MenuInput::Options&&
   ControllerButtons(0,PadXInput,xinput::View)==MenuInput::Chat,"An Xbox button reached the menu as another action");
  Check(ControllerButtons(0,PadXInput,xinput::Start)==Button::Menu&&(Button::Menu&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat))==0,"Start became a menu shortcut");
- Check(ControllerButtons(0x10,PadDirectInput,0)==MenuInput::Select&&ControllerButtons(0x10,PadKeyboard,0)==MenuInput::Select,"A non-Xbox pad lost its mapped select");
+ // A stick confirms on its third button and goes back on its second, as the game's menus do.
+ Check(ControllerButtons(0x40,PadDirectInput,1u<<18)==MenuInput::Select&&ControllerButtons(0x80,PadDirectInput,1u<<17)==MenuInput::Back,"A stick lost the game's menu buttons");
+ Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==0,"A stick's LP still selected");
+ // Bound to X and Y, those confirm and go back; X and Y are then no shortcuts, and A and B do nothing.
+ MenuButtons moved; moved.confirm=xinput::X; moved.back=xinput::Y;
+ Check(ControllerButtons(0,PadXInput,xinput::X,moved)==MenuInput::Select&&ControllerButtons(0,PadXInput,xinput::Y,moved)==MenuInput::Back,"A bound button did not select or go back");
+ Check(ControllerButtons(0,PadXInput,xinput::A|xinput::B,moved)==0&&ControllerButtons(0,PadXInput,xinput::View,moved)==MenuInput::Chat,"Moving the menu buttons broke the others");
+
 }
 
 
@@ -172,10 +179,14 @@ void NativeCapture() {
   sf4e::input::ControllerOpensMenu(MenuContext::MainMenu)&&!sf4e::input::ControllerOpensMenu(MenuContext::OfflineTraining),"Start opened Ember over an export");
  // Over a Practice match this PC fights, Start opens Ember and the pad drives it;
  // the fight keeps the menu away from every other context.
- Check(ControllerMenuAvailable(MenuContext::PracticeMatch)&&sf4e::input::ControllerOpensMenu(MenuContext::PracticeMatch)&&
-  sf4e::input::MenuShownIn(MenuContext::PracticeMatch)&&!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Start could not open Ember over a Practice match");
- for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,MenuContext::PracticeMatch}){
-  Check(sf4e::input::FightKeepsMenuAway(true,context)==(context!=MenuContext::PracticeMatch)&&!sf4e::input::FightKeepsMenuAway(false,context),
+ // So does a game this PC only watches, where Stop watching leaves it.
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch})
+  Check(ControllerMenuAvailable(context)&&sf4e::input::ControllerOpensMenu(context)&&sf4e::input::MenuShownIn(context)&&
+   sf4e::input::MenuOverFight(context),"Start could not open Ember over a fight it is shown over");
+ Check(!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Ember's menu was shown over offline Training's controls");
+ for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,
+  MenuContext::PracticeMatch,MenuContext::WatchedMatch}){
+  Check(sf4e::input::FightKeepsMenuAway(true,context)==!sf4e::input::MenuOverFight(context)&&!sf4e::input::FightKeepsMenuAway(false,context),
    "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
  }
  sf4e::input::MenuInputCapture capture;
@@ -204,10 +215,10 @@ void NativeCapture() {
  Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
 }
 // The menu reads the pad from the runtime's published snapshot, published as
-// netplay::PublishCadence says. Over a Practice fight the pad drives Ember's
-// menu, so every tick is published: a Select or a Back pressed and released
-// between two otherwise scheduled publications reaches the menu, once each,
-// for no longer than it was held. A fight without menu navigation stays
+// netplay::PublishCadence says. Over a Practice fight or a watched game the
+// pad drives Ember's menu, so every tick is published: a Select or a Back
+// pressed and released between two otherwise scheduled publications reaches
+// the menu, once each, for no longer than it was held. A fight without menu navigation stays
 // throttled, its fingerprint unchanged.
 void PracticeFightPresses(){
  using sf4e::input::MenuContext;
@@ -215,7 +226,7 @@ void PracticeFightPresses(){
  // tick and none falls on a backstop tick (0, 6, 12).
  const std::uint32_t ticks[]={0,0,Button::Confirm,0,Button::Back,0,0,0,Button::Confirm,0,Button::Back,0,0};
  constexpr unsigned count=sizeof(ticks)/sizeof(ticks[0]);
- for(const auto context:{MenuContext::PracticeMatch,MenuContext::Unavailable}){
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::Unavailable}){
   const bool navigable=sf4e::input::ControllerMenuAvailable(context);
   sf4e::netplay::PublishCadence cadence;ControllerNavigation nav;
   ControllerSample published;published.deviceType=sf4e::input::PadXInput;published.deviceIndex=0;published.connected=true;
@@ -229,7 +240,7 @@ void PracticeFightPresses(){
    previous=out;
   }
   if(navigable)Check(publications==count&&selects==2&&selectTicks==2&&backs==2,
-   "A press between scheduled publications was lost or held over a Practice fight");
+   "A press between scheduled publications was lost or held over a fight the menu is shown over");
   else Check(publications==3,"A fight without menu navigation was no longer throttled");
  }
 }
@@ -672,10 +683,24 @@ void DialogContract(){
  Check(menu.navigation.Editing()&&!menu.navigation.EditAccepts()&&has("Cancel edit"),"The pointer's Cancel highlight was not kept or shown");
  Check(press(MenuInput::Select).kind==MenuAction::None&&!menu.navigation.Editing(),"Select after the pointer chose Cancel accepted the draft");
  imgui.io.AddMousePosEvent(1,1);frame();
- bool hidden=false;menu.ShowNotice("Advice","Heading","Don't show again",[&]{hidden=true;});frame();frame();
+ menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
  Check(has("OK")&&has("Close")&&!has("Fighter"),"A notice kept the screen's legend");
  press(MenuInput::Right);frame();Check(has("Don't show again"),"The notice legend did not follow its highlighted button");
- press(MenuInput::Select);Check(hidden&&!menu.NoticeOpen(),"The notice's alternative was not taken");
+ press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::HideGameSettings&&!menu.NoticeOpen(),"The notice's second button was not taken");
+ Check(menu.TakeNoticeResult()==NoticeResult::None,"A notice result was read twice");
+ // The first button is highlighted first and Select takes it; Back never takes the highlighted one.
+ menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
+ press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::Acknowledged&&!menu.NoticeOpen(),"The first button did not read as acknowledged");
+ menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
+ press(MenuInput::Right);press(MenuInput::Back);Check(menu.TakeNoticeResult()==NoticeResult::Dismissed&&!menu.NoticeOpen(),"Back took the highlighted button");
+ // More than two buttons stop at both ends, and a new notice drops an answer nobody took.
+ menu.ShowNotice(NoticeDialog{"Three","Heading",{{"First"},{"Second",NoticeResult::CreatePublicRoom},{"Third",NoticeResult::OpenButtonLayout}}});frame();frame();
+ press(MenuInput::Left);press(MenuInput::Right);press(MenuInput::Right);press(MenuInput::Right);frame();
+ Check(has("Third"),"The last button was not reached or was passed");
+ press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::OpenButtonLayout,"The third button's result was lost");
+ menu.ShowNotice("One");frame();frame();press(MenuInput::Select);menu.ShowNotice("Two");
+ Check(menu.TakeNoticeResult()==NoticeResult::None,"A new notice inherited the last one's result");
+ menu.CloseNotice();frame();frame();
  menu.navigation.Focus("record",rows);frame();frame();
  Check(!has("Review")&&!has("Select")&&press(MenuInput::Select).kind==MenuAction::None,"An information row offers Select");
  menu.navigation.Focus("licence",rows);frame();frame();Check(has("Read"),"A reader row does not say Read");
@@ -798,7 +823,7 @@ void FlyoutIgnoresChoices(){
  press(MenuInput::Select);Check(chosen==0,"A flyout row with choices picked an option");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","defaults","interface","training-replays","problem-reports","sent-reports","developer",
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer",
    "discord","discord-invitation","public-rooms","identity","identity-backup","linked-accounts","tournament-matches","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin",
    "roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);

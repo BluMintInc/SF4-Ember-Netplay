@@ -41,6 +41,9 @@ void CloseBattle();
 // frame the update reached. Only while the meter is shown, and only when the
 // battle moved on; a held frame would start the meter over.
 bool AfterUpdate(Dimps::Game::Battle::System* system);
+// Both players' inputs on the frame the replay just played, from its file, in
+// the game's pad bits; false without the file's lanes or that frame.
+bool PlayedInputs(unsigned (&inputs)[2]);
 
 // Once a game tick, with the player's controller: reads the pad's controls
 // during playback and asks for the replay's inputs for the lanes.

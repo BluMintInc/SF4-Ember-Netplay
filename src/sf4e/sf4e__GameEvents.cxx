@@ -9,6 +9,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../common/NativeMenuLock.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -174,6 +175,23 @@ void fMainMenu::Install() {
 	void (fMainMenu:: * _fOnModeSelected)(int) = &OnModeSelected;
 	DetourAttach((PVOID*)&rMainMenu::itemObserverMethods.GetItemObserverState, *(PVOID*)&_fGetItemObserverState);
 	DetourAttach((PVOID*)&rMainMenu::itemObserverMethods.OnModeSelected, *(PVOID*)&_fOnModeSelected);
+	void (fMainMenu:: * _fIdleTask)(int) = &IdleTask;
+	DetourAttach((PVOID*)&rMainMenu::taskMethods.IdleTask, *(PVOID*)&_fIdleTask);
+}
+
+// Game thread. What a room or a match puts on the native menu, logged when
+// it changes (the menu only asks while it is up, so a change shows at the next
+// ask). The snapshot is the runtime's last tick.
+static sf4e::input::NativeMenuLock NativeLockNow() {
+	static sf4e::input::NativeMenuLock last = sf4e::input::NativeMenuLock::None;
+	const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+	const auto lock = sf4e::input::NativeMenuLockFor(snapshot->session.room, snapshot->session.match);
+	if (lock != last) {
+		last = lock;
+		spdlog::info("Main menu: native menu {} (room {}, match {})", lock == sf4e::input::NativeMenuLock::None ? "unlocked" : "locked",
+			sf4e::input::RoomStateName(snapshot->session.room), sf4e::input::MatchStateName(snapshot->session.match));
+	}
+	return lock;
 }
 
 
@@ -208,6 +226,13 @@ int fMainMenu::GetItemObserverState() {
 			spdlog::info("Main menu: entering Training without the Fight Request question (it was {})", was ? "offered" : "not offered");
 		}
 	}
+	// Not idle for the menu's Flash, so it gets no input, while a room is
+	// joined or a match is live, whether or not Ember's menu is up. The
+	// Training request above and the native OnModeSelected read the state
+	// field itself, so neither depends on this answer.
+	if (NativeLockNow() != sf4e::input::NativeMenuLock::None) {
+		return rMainMenu::MMIOS_TRANSITION;
+	}
 	const int overridden = bOverrideItemObserverState.load();
 	if (overridden != -1) {
 		return overridden;
@@ -217,11 +242,21 @@ int fMainMenu::GetItemObserverState() {
 }
 
 void fMainMenu::OnModeSelected(int mode) {
-	if (OnModeSelectedOverride(mode)) {
+	if (OnModeSelectedOverride && OnModeSelectedOverride(mode)) {
 		return;
 	}
 
 	return (this->*rMainMenu::itemObserverMethods.OnModeSelected)(mode);
+}
+
+// The menu's per-frame task reads the SET TITLE (Button 1) and SET ICON
+// (Button 4) shortcuts from the game's pad and checks the item observer's state
+// field itself, so the answer above never reaches it. Skipped whole while the
+// menu is locked: nothing else in it is live (the dialog flag it also handles
+// has no setter).
+void fMainMenu::IdleTask(int arg) {
+	if (NativeLockNow() != sf4e::input::NativeMenuLock::None) return;
+	(this->*rMainMenu::taskMethods.IdleTask)(arg);
 }
 
 void fRootEvent::Install() {

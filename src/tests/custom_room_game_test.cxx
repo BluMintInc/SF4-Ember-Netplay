@@ -1,8 +1,10 @@
+#include "network_completion.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/sf4e__SessionServer.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "iroh_integration_fixture.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "../common/SpectatorPolicy.hxx"
 #include <ggponet.h>
 #include <cstdlib>
 #include <deque>
@@ -48,7 +50,12 @@ int wmain(int argc, wchar_t** argv) {
 	// --late-join: the last member is admitted while game one is being played
 	// (F-017). No room may fail and no match may end early; after the game it
 	// queues for its table and spectates game two.
-	bool relay = false, perf = false, stallSpectator = false, lateSpectator = false, lateJoin = false;
+	// --slow-spectator: the last member, a spectator, never starts its GGPO
+	// stream in game one, as a PC still loading the battle. P1 drops it after
+	// SpectatorPolicy's sync deadline and ends its link; its session must fail
+	// within the peer-close grace, far inside StreamSyncTimeoutMs, the fight
+	// must go on, and it must be back in game two.
+	bool relay = false, perf = false, stallSpectator = false, lateSpectator = false, lateJoin = false, slowSpectator = false;
 	std::size_t count = room::MaxMembers, perTable = 4;
 	int perfFrames = 600, gameCostUs = 1000;
 	std::uint64_t rematchCycles = 6;
@@ -62,18 +69,18 @@ int wmain(int argc, wchar_t** argv) {
 		else if (arg == L"--stall-spectator") stallSpectator = true;
 		else if (arg == L"--late-spectator") lateSpectator = true;
 		else if (arg == L"--late-join") lateJoin = true;
+		else if (arg == L"--slow-spectator") slowSpectator = true;
 		else if (arg == L"--members") count = number();
 		else if (arg == L"--per-table") perTable = number();
 		else if (arg == L"--frames") perfFrames = static_cast<int>(number());
 		else if (arg == L"--game-cost-us") gameCostUs = static_cast<int>(number());
 		else if (arg == L"--cycles") rematchCycles = number();
 		else if (arg == L"--json") { CHECK(i + 1 < argc); jsonPath = argv[++i]; }
-		else CHECK(false);
+		else CHECK(sf4e::test::ParseNetworkCaseOption(arg));
 	}
 	if (!perTable) perTable = count;
 	CHECK(count >= 2 && count <= room::MaxMembers && perTable >= 2 && count % perTable == 0);
 	CHECK(perTable <= room::MaxMatchParticipants && count / perTable <= room::TableCount && rematchCycles >= 1);
-	const bool singleTable = count == perTable;
 	const std::size_t tableCount = count / perTable;
 	const int playerFrames = perf ? perfFrames + 20 : 80, watchFrames = perf ? perfFrames : 60;
 	if (perf) diag::SetEnabled(true);
@@ -88,6 +95,10 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(!lateJoin || (!stallSpectator && !lateSpectator && !perf && (Count - 1) % perTable >= 2 && rematchCycles >= 2));
 	const std::size_t joiner = lateJoin ? Count - 1 : Count;
 	std::size_t admitted = lateJoin ? Count - 1 : Count;
+	const std::size_t slow = slowSpectator ? Count - 1 : Count;
+	CHECK(!slowSpectator || (!stallSpectator && !lateSpectator && !lateJoin && !perf && (Count - 1) % perTable >= 2 && rematchCycles >= 2));
+	// When P1 ended the slow spectator's link, and when its session failed.
+	std::uint64_t slowDroppedAt = 0, slowFailedAt = 0;
 	bool stallActive = false;
 	const auto live = [&](std::size_t i) { return !(stallActive && i == stalled) && i < admitted; };
 	std::vector<platform::HelperProcess> processes(Count);
@@ -311,6 +322,20 @@ int wmain(int argc, wchar_t** argv) {
 	const auto role = [&](std::size_t i) {
 		return i == 0 ? "host_p1" : i % perTable == 0 ? "p1" : i % perTable == 1 ? "p2" : "spectator";
 	};
+	// Only the slow spectator's session may fail, and only after P1 ended its
+	// link. The runtime then aborts it (and reports the abort to the room,
+	// which this fixture leaves out), and so does this fixture.
+	const auto tickMatch = [&](std::size_t i) {
+		if (!live(i) || matches[i]->Tick(ggpo[i] != nullptr)) return;
+		if (i == slow && slowDroppedAt && !slowFailedAt) {
+			slowFailedAt = GetTickCount64();
+			std::cout << "Slow spectator's session failed " << (slowFailedAt - slowDroppedAt) << " ms after P1 ended its link: "
+				<< matches[i]->Error() << '\n';
+			CHECK(matches[i]->Abort());
+			return;
+		}
+		std::cerr << "match " << i << " " << matches[i]->Error() << '\n'; CHECK(false);
+	};
 	const auto slice = [&](std::size_t i, const char* phaseName, const std::function<void()>& game) {
 		auto& d = diag::G();
 		d.OnOuterFrame(0.0); // clears per-frame attribution
@@ -320,7 +345,7 @@ int wmain(int argc, wchar_t** argv) {
 		recoveryPeers[i].server->AdvanceCustomRoom(GetTickCount64()); mark[2] = diag::NowMs();
 		CHECK(recoveryPeers[i].server->Step() == 0); mark[3] = diag::NowMs();
 		CHECK(clients[i]->Step() == 0); mark[4] = diag::NowMs();
-		if (live(i) && !matches[i]->Tick(ggpo[i] != nullptr)) { std::cerr << "match " << i << " " << matches[i]->Error() << '\n'; CHECK(false); }
+		tickMatch(i);
 		mark[5] = diag::NowMs();
 		if (game) game();
 		mark[6] = diag::NowMs();
@@ -346,9 +371,7 @@ int wmain(int argc, wchar_t** argv) {
 			}
 			CHECK(false);
 		}
-		for (std::size_t i = 0; i < Count; ++i) if (live(i) && !matches[i]->Tick(ggpo[i] != nullptr)) {
-			std::cerr << "match " << i << " " << matches[i]->Error() << '\n'; CHECK(false);
-		}
+		for (std::size_t i = 0; i < Count; ++i) tickMatch(i);
 		traceTableZero();
 	};
 	auto allViewsCurrent = [&]() {
@@ -391,6 +414,11 @@ int wmain(int argc, wchar_t** argv) {
 		const bool stalledThisCycle = stallActive;
 		const bool lateThisCycle = lateSpectator && cycle == 2;
 		const bool joinsThisCycle = lateJoin && cycle == 1;
+		const bool slowThisCycle = slowSpectator && cycle == 1;
+		const std::size_t slowHost = slow / perTable * perTable;
+		std::size_t slowSlot = 0;
+		GGPOPlayerHandle slowHandle = GGPO_INVALID_HANDLE;
+		SpectatorPolicy slowPolicy;
 		// The members this cycle withholds: the stalled spectator while its
 		// pre-start grace runs, the late spectator that still owes the previous
 		// generation's terminal acknowledgement, and the member not yet admitted.
@@ -533,6 +561,8 @@ int wmain(int argc, wchar_t** argv) {
 			if (skip(i)) continue;
 			const auto slot = matches[i]->LocalSlot();
 			const auto& roster = matches[i]->Roster();
+			// Still loading the battle: no GGPO, and the session keeps its port.
+			if (slowThisCycle && i == slow) { slowSlot = slot; continue; }
 			matches[i]->ReleasePortToGgpo();
 			if (slot >= 2) {
 				CHECK(matches[i]->RemotePort(roster[0]) != 0);
@@ -558,10 +588,31 @@ int wmain(int argc, wchar_t** argv) {
 					}
 					GGPOPlayerHandle handle; CHECK(ggpo_add_player(ggpo[i], &player, &handle) == GGPO_OK);
 					if (p == slot) { localHandles[i] = handle; CHECK(ggpo_set_frame_delay(ggpo[i], handle, 2) == GGPO_OK); }
+					if (slowThisCycle && i == slowHost && roster[p] == clients[slow]->_cid) slowHandle = handle;
 				}
 			}
 		}
 		std::vector<int> frames(Count, 0);
+		if (slowThisCycle) {
+			// P1's policy, as the game runs it; the fighters' sync is taken as now.
+			CHECK(slowHandle != GGPO_INVALID_HANDLE && slowSlot >= 2);
+			const auto now = GetTickCount64();
+			slowPolicy.Start(now, {slowHandle}); slowPolicy.OnFighterSynchronized(now);
+			frames[slow] = watchFrames;
+		}
+		// P1 drops the spectator that never synchronized, as PollSpectators does.
+		const auto dropSlowSpectator = [&]() {
+			if (!slowThisCycle || slowDroppedAt) return;
+			const auto overdue = slowPolicy.SyncOverdue(GetTickCount64());
+			if (overdue.empty()) return;
+			CHECK(overdue.size() == 1 && overdue[0] == slowHandle);
+			activeSession = ggpo[slowHost];
+			const auto result = ggpo_disconnect_player(ggpo[slowHost], slowHandle);
+			CHECK(GGPO_SUCCEEDED(result) || result == GGPO_ERRORCODE_PLAYER_DISCONNECTED);
+			CHECK(matches[slowHost]->EndSpectatorStream(slowSlot));
+			slowDroppedAt = GetTickCount64();
+			std::cout << "P1 dropped the slow spectator at frame " << frames[slowHost] << " and ended its link\n";
+		};
 		if (stalledThisCycle) frames[stalled] = watchFrames;
 		if (lateThisCycle) frames[late] = watchFrames;
 		if (joinsThisCycle) frames[joiner] = watchFrames;
@@ -616,7 +667,7 @@ int wmain(int argc, wchar_t** argv) {
 		// The 45 s allowance covers 60 frames; scale it for a long timed run.
 		wait([&]() {
 			const double tickStart = diag::NowMs();
-			if (!sliced) { pump(); joinDuringFight(); for (std::size_t i = 0; i < Count; ++i) advance(i); Sleep(14); } // approximate a game tick
+			if (!sliced) { pump(); joinDuringFight(); dropSlowSpectator(); for (std::size_t i = 0; i < Count; ++i) advance(i); Sleep(14); } // approximate a game tick
 			else {
 				for (std::size_t i = 0; i < Count; ++i) slice(i, "match", [&]() {
 					advance(i);
@@ -635,8 +686,15 @@ int wmain(int argc, wchar_t** argv) {
 				const double spent = diag::NowMs() - tickStart;
 				if (spent < 16.0) Sleep(static_cast<DWORD>(16.0 - spent));
 			}
-			return joinStage == 3 && std::all_of(frames.begin(), frames.end(), [&](int frame) { return frame >= watchFrames; });
+			return joinStage == 3 && (!slowThisCycle || slowFailedAt) &&
+				std::all_of(frames.begin(), frames.end(), [&](int frame) { return frame >= watchFrames; });
 		}, 45000 + static_cast<std::uint64_t>(watchFrames) * (20 + Count * (2 + gameCostUs / 1000)));
+		if (slowThisCycle) {
+			// Within the spectator's peer-close grace and a few room ticks, far
+			// inside the 30 s it would otherwise have waited.
+			CHECK(slowFailedAt - slowDroppedAt < 6000 && slowFailedAt - slowDroppedAt < SpectatorPolicy::StreamSyncTimeoutMs);
+		}
+		if (cycle == 2 && slowSpectator) CHECK(matches[slow]->Generation() == matches[slowHost]->Generation());
 		if (joinsThisCycle) {
 			// The fight ran to its end with the room whole: every room is still
 			// Ready and no match session failed (both are checked every tick).
@@ -786,4 +844,5 @@ int wmain(int argc, wchar_t** argv) {
 	wait([&]() { return std::all_of(processes.begin(), processes.end(), [](const platform::HelperProcess& process) { return !process.IsRunning(); }); });
 	std::cout << Count << " members; " << tableCount << " concurrent match(es) with " << (perTable - 2) << " spectator(s) each; "
 		<< rematchCycles << " games without automatic rotation and spectator input verification passed. No SF4 simulation tested.\n";
+    sf4e::test::CompleteNetworkCase();
 }

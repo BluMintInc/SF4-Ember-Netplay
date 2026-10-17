@@ -73,7 +73,8 @@ int main() {
         const auto send = [&](Action action) { Command command; command.action = action; command.generation = recorded.GetView().generation; return recorded.Apply(command); };
         const std::vector<unsigned> dragon{R, D, D | R, D | R | LP};
         recorded.SetPositions(100, 0);
-        Require(send(Action::Record), "The recording did not start");
+        // Standby, then the recording.
+        Require(send(Action::AdvanceRecording) && send(Action::AdvanceRecording), "The recording did not start");
         for (const unsigned bits : dragon) { Frame pad; pad[0] = {bits, bits, 0, 0}; recorded.Commit(recorded.Prepare(pad)); }
         Require(send(Action::Stop) && recorded.Slot(0).size() == dragon.size(), "The recording was not kept");
         for (std::size_t frame = 0; frame < dragon.size(); ++frame)
@@ -94,13 +95,16 @@ int main() {
         Require(playSlot(0, 100) == std::vector<unsigned>{L, D, D | L, D | L | LP}, "A recording made on the left did not swap Left and Right on the right");
         Require(recorded.GetView().history[1].front().buttons == (D | L | LP), "The input history did not show the direction played");
         Require(playSlot(100, 0) == dragon, "A recording played on the side it was made on changed");
+        // From here only the second slot is on, so Play plays it.
+        Command off; off.action = Action::SlotOn; off.generation = recorded.GetView().generation; off.slot = 0; off.on = false;
+        Require(recorded.Apply(off), "The first slot did not turn off");
         // Made on the right, facing left, with the sides swapping halfway:
         // forward is Left for two frames, then Right. The slot holds
         // forward throughout, and the history what the pad pressed.
         Command select; select.action = Action::Select; select.generation = recorded.GetView().generation; select.slot = 1;
         Require(recorded.Apply(select), "The second slot was not selected");
         recorded.SetPositions(0, 100);
-        Require(send(Action::Record), "The second recording did not start");
+        Require(send(Action::AdvanceRecording) && send(Action::AdvanceRecording), "The second recording did not start");
         for (const unsigned bits : {L, L | LP, R, R | LP}) {
             Frame pad; pad[0] = {bits, bits, 0, 0}; recorded.Commit(recorded.Prepare(pad));
             if (bits == (L | LP)) recorded.SetPositions(100, 0);
@@ -112,7 +116,7 @@ int main() {
             Require((recorded.Slot(1)[frame].raw & (L | R)) == R, "A side change in a recording was not held as forward throughout");
         Require(playSlot(0, 100) == std::vector<unsigned>{L, L | LP, L, L | LP}, "A recording with a side change did not play forward on the right");
         // A reply from a slot plays for the way the dummy faces too.
-        Require(recorded.Reply(1, ReplySchedule{}) && recorded.Prepare(Frame{})[1].raw == L, "A reply from a slot did not turn for the dummy facing left");
+        Require(recorded.Reply(recorded.Slot(1), ReplySchedule{}, 1) && recorded.Prepare(Frame{})[1].raw == L, "A reply from a slot did not turn for the dummy facing left");
         recorded.StopReply();
         // Mirror swaps the selected slot's Left and Right, once per press,
         // and never while it plays or when it is empty.
@@ -160,7 +164,7 @@ int main() {
             Require(!MoveFighters(placed, missing, swap) && first[0] == 0 && second[0] == 100 && !placed.FacingRight(1) && placed.GetView().x[0] == 0,
                 "A Place that failed moved a fighter or turned the session");
         }
-        Require(order(Action::Record), "The recording did not start");
+        Require(order(Action::AdvanceRecording) && order(Action::AdvanceRecording), "The recording did not start");
         { Frame pad; pad[0] = {L, L, 0, 0}; placed.Commit(placed.Prepare(pad)); }
         Require(MoveFighters(placed, both, swap) && first[0] == 100 && second[0] == 0 && placed.FacingRight(1) && placed.GetView().x[0] == 100,
             "A Place that swapped the fighters did not move and turn them");

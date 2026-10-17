@@ -65,8 +65,7 @@ static const char* RoomRejectText(sf4e::room::RejectReason reason) {
 	}
 }
 
-void SessionClient::TrySendPendingJoinRequest() {
-	if (!_joinRequestPending || !_transport || !_connected || _stepCounter < _joinRequestNextStep) return;
+SessionProtocol::SessionJoinRequest SessionClient::BuildJoinRequest() const {
 	SessionProtocol::SessionJoinRequest request;
 	request.sidecarHash = _sidecarHash;
 	request.username = _name;
@@ -75,7 +74,13 @@ void SessionClient::TrySendPendingJoinRequest() {
 	request.roomProtocol = _customRoomsRequired ? room::ProtocolVersion : 0;
 	request.SetProfile(_profile);
 	request.roomChatDelta = _customRoomsRequired;
-	json payload = request;
+	if (_transport) request.latency = _transport->LocalLatency();
+	return request;
+}
+
+void SessionClient::TrySendPendingJoinRequest() {
+	if (!_joinRequestPending || !_transport || !_connected || _stepCounter < _joinRequestNextStep) return;
+	json payload = BuildJoinRequest();
 	const auto sent = Send(payload, nullptr);
 	if (sent == session::SendResult::Queued) {
 		// Local queue acceptance is not authenticated admission.  Keep the

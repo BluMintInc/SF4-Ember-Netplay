@@ -32,6 +32,8 @@ try {
     Set-Content -LiteralPath (Join-Path $target 'assets\selection\my-mod.png') -Value 'mine'
     # A photograph at a path selection art may use, which no package ships.
     Set-Content -LiteralPath (Join-Path $target 'assets\selection\RYU\costume-0\color-0.jpg') -Value 'mine'
+    # A glyph at a name the art pattern accepts, which no package ships.
+    Set-Content -LiteralPath (Join-Path $target 'assets\input\my_glyph.png') -Value 'mine'
     Set-Content -LiteralPath (Join-Path $target 'my-notes.txt') -Value 'mine'
     # Uninstall runs setup's own helper, not the folder's Updater.exe.
     Set-Content -LiteralPath (Join-Path $target 'Updater.exe') -Value 'not a working updater'
@@ -66,5 +68,5 @@ for ($i = 0; $i -lt 50 -and (Test-Path -LiteralPath $uninstallKey); $i++) { Star
 $left = [string[]]@(Get-ChildItem -LiteralPath $target -Recurse -File -Force | ForEach-Object { $_.FullName.Substring($target.Length + 1) })
 [Array]::Sort($left, [StringComparer]::Ordinal)
 Remove-Item -LiteralPath $target -Recurse -Force
-if (($left -join ',') -ne 'assets\selection\RYU\costume-0\color-0.jpg,assets\selection\my-mod.png,my-notes.txt') { throw "Unexpected files after uninstall: $($left -join ', ')" }
+if (($left -join ',') -ne 'assets\input\my_glyph.png,assets\selection\RYU\costume-0\color-0.jpg,assets\selection\my-mod.png,my-notes.txt') { throw "Unexpected files after uninstall: $($left -join ', ')" }
 Write-Host 'Installer test passed: a folder with files is refused, the installed folder passes preflight, uninstall stops while an update holds the folder, then removes the product (also after its Updater.exe changed) and keeps the player files.'

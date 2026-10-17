@@ -29,22 +29,27 @@ impl Actor {
     /// Opens the room: an invitation naming this endpoint once it is online.
     /// `room` is the id a public room was asked for; a private room's is
     /// generated.
+    /// The latency endpoint is bound beside it, except for a public host.
     pub(super) fn spawn_host(&mut self, epoch: u64, build: String, room: Option<[u8; 16]>) {
         let endpoint = self.endpoint.clone();
+        let latency = self.latency_binding();
         self.tasks.spawn(async move {
-            let result = timeout(transport::HANDSHAKE_TIMEOUT, async {
-                endpoint.online().await;
-                let relay = endpoint
-                    .addr()
-                    .relay_urls()
-                    .next()
-                    .cloned()
-                    .ok_or_else(|| failed("relay_unavailable"))?;
-                host_invite(endpoint.id(), relay, build, room)
+            let (result, latency) = super::latency::beside(latency, async {
+                timeout(transport::HANDSHAKE_TIMEOUT, async {
+                    endpoint.online().await;
+                    let relay = endpoint
+                        .addr()
+                        .relay_urls()
+                        .next()
+                        .cloned()
+                        .ok_or_else(|| failed("relay_unavailable"))?;
+                    host_invite(endpoint.id(), relay, build, room)
+                })
+                .await
+                .unwrap_or_else(|_| Err(failed("relay_unavailable")))
             })
-            .await
-            .unwrap_or_else(|_| Err(failed("relay_unavailable")));
-            Completion::Hosted(epoch, result)
+            .await;
+            Completion::Hosted(epoch, result, latency)
         });
     }
 

@@ -5,12 +5,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import type { BridgeClient, Json, TestPlayer } from "../src/index.ts";
 
-export const binary = fileURLToPath(new URL(`../../../server/ember/target/debug/ember-bridge${process.platform === "win32" ? ".exe" : ""}`, import.meta.url));
-export const missing = !existsSync(binary) && "build ember-bridge first";
+export const binary = process.env.EMBER_BRIDGE_TEST_BINARY ?? "";
 
 export interface RunningBridge {
   origin: string;
@@ -39,6 +37,7 @@ export interface BridgeOptions {
 }
 
 export async function startBridge(options: BridgeOptions = {}): Promise<RunningBridge> {
+  if (!binary || !existsSync(binary)) throw new Error("Set EMBER_BRIDGE_TEST_BINARY to the ember-bridge binary from the tested build");
   const dir = mkdtempSync(join(tmpdir(), "ember-sdk-"));
   execFileSync(binary, ["init", dir]);
   const configPath = join(dir, "bridge.json");

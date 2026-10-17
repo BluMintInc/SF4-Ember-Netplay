@@ -217,6 +217,11 @@ int main() {
     CHECK(IsCustomColor(29) && IsCustomColor(98) && !IsCustomColor(28) && !IsCustomColor(22) && !IsCustomColor(99));
     CHECK(ColorInRange(0, 1, 30) && !ColorInRange(0, 1, 15) && !ColorInRange(0, 1, 99) && !ColorInRange(0, 11, 22));
     CHECK(ColorInRange(0, 11, 29) && ColorInRange(0, 11, 98) && !ColorInRange(0, 11, 10));
+    // Only a costume the fighter has takes a color, a custom one included: never an unknown fighter or costume.
+    CHECK(ColorInRange(0, 98, 29) && !ColorInRange(0, -1, 29) && !ColorInRange(0, 99, 29) && !ColorInRange(0, INT_MAX, 29));
+    CHECK(!ColorInRange(44, 0, 29) && !ColorInRange(-1, 11, 29) && !ColorInRange(44, 11, 29) && !ColorInRange(INT_MAX, 0, 98));
+    Pick unknownCostume; unknownCostume.costume = INT_MAX; unknownCostume.color = 29;
+    CHECK(!Valid(unknownCostume, true) && Normalize(unknownCostume, true) && unknownCostume.costume == 0 && unknownCostume.color == 29);
     Pick extra; extra.costume = 1; extra.color = 29;
     CHECK(Valid(extra, true) && !Normalize(extra, true));
     extra.costume = 11;

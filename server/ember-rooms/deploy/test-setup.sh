@@ -242,6 +242,8 @@ check "config no longer lists it" config_lacks aaa111
 
 echo "10. --max-rooms sets the room limit"
 config_max() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["max_rooms"] == int(sys.argv[2]) else 1)' "$CONFIG" "$1"; }
+# Resource warning tests control the unit independently of the production budget.
+sed -i 's/^MemoryMax=.*/MemoryMax=3000M/' "$STAGE/ember-rooms.service"
 run_setup --max-rooms 31
 check "exits 0" succeeded
 check "max_rooms is 31" config_max 31
@@ -249,6 +251,10 @@ check "says what changed" mentions "max_rooms 10 -> 31"
 check "warns that MemoryMax is too small" mentions "needs about 3100M of memory"
 check "restarts a supervisor that cannot reload" mentions "does not answer GET /limits"
 check "config lists the new build" config_lists bbb222
+sed -i 's/^MemoryMax=.*/MemoryMax=4500M/' "$STAGE/ember-rooms.service"
+run_setup --max-rooms 31
+check "sufficient resource fixture exits 0" succeeded
+check "sufficient memory does not warn" bash -c '! grep -q "needs about 3100M of memory" "$1"' _ "$OUT"
 snapshot snap10
 
 echo "11. --max-rooms past the port range is refused before any change"

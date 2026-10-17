@@ -44,7 +44,9 @@ is left for a decision.
    how many seconds are left: 15.
 5. They press Ready and the match starts the usual way. If the 15 seconds run
    out, their seat is given up, by the action the Leave seat row sends, and a
-   notice says so.
+   notice says so. The seconds count only at the main menu, while Ember's
+   fighter selector is not open and no Ready of theirs is still on its way,
+   so choosing another fighter first costs nothing.
 6. With **Auto-ready from Training** on (Settings, off by default)
    they are readied at once instead.
 
@@ -146,9 +148,15 @@ authority refuses it, quietly, and its members show as idle as before.
   called.
 - The window to ready starts when they reach the main menu, not when they are
   called, so the time the battle takes to close is not taken from them.
+- The window's time runs only while they are at the main menu, out of Ember's
+  fighter selector, with no Ready of theirs sent or parked and not yet in the
+  room. A player who goes back into a Training battle during the window is
+  called again and keeps the time they had left.
+- However the window is held, the seat is given up 60 seconds after they were
+  first back at the main menu.
 - The window ends without a forfeit when they ready, when the opponent leaves
   or is replaced, or when the table stops being theirs.
-- A call whose battle has not left after 20 seconds is forgotten. Nothing is
+- A first call whose battle has not left after 20 seconds is forgotten. Nothing is
   taken from the player for that; if they are still in Training they are
   called again.
 - Nobody is called at the main menu. A player who never went to Training has

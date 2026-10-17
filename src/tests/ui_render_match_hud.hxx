@@ -7,6 +7,7 @@
 #include "ui_render_support.hxx"
 #include "../common/Localization.hxx"
 #include "../ui/Theme.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 #include <imgui.h>
 #include <algorithm>
 #include <cmath>
@@ -14,6 +15,12 @@
 // Half the Small panel's usual scale on a screen h tall: the least a squeezed panel keeps.
 float MatchHudMinimumPanelScale(float h);
 bool MatchBoxesOverlap(const sf4e::ui::MatchStripBox& a,const sf4e::ui::MatchStripBox& b);
+// Whether the panel or the state line of `bounds` overlaps `box`.
+bool MatchHudTouchesBox(const sf4e::ui::MatchStripBounds& bounds,const sf4e::ui::MatchStripBox& box);
+// Top center on screens of several shapes (geometry only): centred, under the top of the game image
+// and over the K.O. sign, the state line below the timer, three sizes, the Ember strip and the split
+// panel shrinking to the band or falling back to Bottom center, and the name offset.
+void CheckMatchHudTopCenter();
 // One drawn frame of the HUD, in a window of w by h: it never takes input, the Ember
 // strip stays inside the safe band and on its anchored half, and the split layout keeps
 // its name labels inside the 16:9 game image where the game's own HUD leaves room.
@@ -51,8 +58,32 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
         matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;matchStrip.predictionStalled=true;draw("match-hud-stalled");
         matchStrip.predictionStalled=false;
     }
+    {
+        // A fighter's cells are Ping, Rollback and Delay, and its state line says nothing of the room.
+        // A spectator's are the match's Delay ("Own" where each fighter plays at their own), the frames
+        // its stream is Behind and Spectating; with nothing more urgent, its line says where it stands.
+        MatchStripView fighter;fighter.pingMs=68;fighter.rollbackFrames=2;fighter.appliedDelay=3;
+        fighter.queuePosition=2;fighter.queueLength=3;fighter.unreadChat=4;
+        const auto cells=MatchTelemetryCells(fighter);
+        Require(cells[0].label==loc::T("match.ping")&&cells[0].value=="68 ms"&&cells[1].label==loc::T("match.rollback")&&cells[1].value=="2f"&&
+            cells[2].label==loc::T("match.delay")&&cells[2].value=="3f"&&MatchStripStateLine(fighter).empty(),"A fighter's match HUD changed");
+        const auto unavailable=MatchTelemetryCells(MatchStripView{})[0].value;
+        auto watcher=fighter;watcher.spectator=true;watcher.behindFrames=12;
+        auto shown=MatchTelemetryCells(watcher);
+        Require(shown[0].label==loc::T("match.delay")&&shown[0].value=="3f"&&shown[1].label==loc::T("match.behind")&&shown[1].value=="12f"&&
+            shown[2].label.empty()&&shown[2].value==loc::T("match.spectating"),"A spectator's match HUD does not show its delay and backlog");
+        watcher.ownDelays=true;watcher.behindFrames=-1;shown=MatchTelemetryCells(watcher);
+        Require(shown[0].value==loc::T("match.delay_own")&&shown[1].value==unavailable,"A spectator's Own delay or unknown backlog is shown wrongly");
+        const std::string unread=loc::Tf("training.room.unread",4);
+        Require(MatchStripStateLine(watcher)==loc::Tf("training.room.queued",2,3)+"  \xC2\xB7  "+unread,"A spectator's queue place and unread chat are not on its state line");
+        watcher.queuePosition=1;Require(MatchStripStateLine(watcher)==loc::T("match.up_next")+std::string("  \xC2\xB7  ")+unread,"A spectator next in the queue is not told so");
+        watcher.unreadChat=0;Require(MatchStripStateLine(watcher)==loc::T("match.up_next"),"A spectator's state line keeps an empty unread count");
+        watcher.queuePosition=0;Require(MatchStripStateLine(watcher).empty(),"A spectator with nothing to say shows a state line");
+        watcher.unreadChat=4;Require(MatchStripStateLine(watcher)==unread,"A spectator's unread chat is not on its state line");
+        watcher.notice="Connection restored.";Require(MatchStripStateLine(watcher)=="Connection restored.","A notice must outrank a spectator's room line");
+    }
     // Each anchor stays inside the safe bounds and on its own edge (checked per frame).
-    for(int anchor=1;anchor<5;++anchor){
+    for(int anchor=1;anchor<=netplay::MaxMatchHudAnchor;++anchor){
         matchStrip.anchor=anchor;
         const auto shot="match-hud-anchor-"+std::to_string(anchor);draw(shot.c_str());
     }
@@ -70,7 +101,10 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9";matchStrip.names[1]="Another very long player name";
     matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-long");
     matchStrip.pingMs=-1;matchStrip.appliedDelay=-1;draw("match-hud-unavailable");
-    matchStrip.spectator=true;draw("match-hud-spectator");
+    // A spectator: the match delay, its backlog and its place in the room, at each size.
+    matchStrip.spectator=true;matchStrip.appliedDelay=3;matchStrip.behindFrames=12;
+    matchStrip.queuePosition=2;matchStrip.queueLength=3;matchStrip.unreadChat=2;
+    for(int hudSize=0;hudSize<3;++hudSize){matchStrip.size=hudSize;draw(hudSize==1?"match-hud-spectator":nullptr,0,1);}
     matchStrip.score="12 - 10";draw("match-hud-score");
     reset();draw("match-hud-reset");
     // The split layout: names above the life bars, a small telemetry panel by anchor.
@@ -78,7 +112,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     split.links[0]=NetworkLink::Wired;split.links[1]=NetworkLink::Wireless;
     split.pingMs=68;split.rollbackFrames=2;split.appliedDelay=3;split.layout=1;
     matchStrip=split;draw("match-hud-split");
-    for(int anchor=1;anchor<5;++anchor){
+    for(int anchor=1;anchor<=netplay::MaxMatchHudAnchor;++anchor){
         matchStrip.anchor=anchor;
         const auto shot="match-hud-split-anchor-"+std::to_string(anchor);draw(shot.c_str());
     }
@@ -92,7 +126,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     // to fit above the plates and the three sizes stay distinct.
     const std::string hardNotice=matchStrip.notice;
     const ImVec2 shortScreens[]={ImVec2(960,540),ImVec2(854,480),ImVec2(640,360)};
-    for(const bool warning:{true,false})for(const int anchor:{3,4})for(const bool raised:{false,true}){
+    for(const bool warning:{true,false})for(const int anchor:{3,4,netplay::MaxMatchHudAnchor})for(const bool raised:{false,true}){
         matchStrip.connectionWarning=warning;matchStrip.disconnectCountdownMs=warning?1400:-1;
         matchStrip.notice=warning?"":hardNotice;matchStrip.noticeSeverity=warning?0:2;
         Require(MatchStripStateLine(matchStrip)==(warning?sf4e::loc::Tf("match.connection_countdown",2):hardNotice),"Top-anchor sweep shows the wrong state line");
@@ -103,7 +137,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
             for(int hudSize=0;hudSize<3;++hudSize){
                 matchStrip.size=hudSize;
                 const auto bounds=MatchStripGeometry(matchStrip,ImVec2(0,0),screen);
-                for(const auto& name:bounds.names)Require(!MatchBoxesOverlap(bounds.panel,name),"Match HUD telemetry covers a name plate on a short screen");
+                for(const auto& name:bounds.names)Require(!MatchHudTouchesBox(bounds,name),"Match HUD telemetry covers a name plate on a short screen");
                 Require(bounds.panel.y0>=0,"Match HUD telemetry left the top of a short screen");
                 width[hudSize]=bounds.panel.x1-bounds.panel.x0;
             }
@@ -126,10 +160,13 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9 and more";matchStrip.names[1]="Another very long player name that keeps going";
     matchStrip.score="12 - 10";matchStrip.spectators=3;matchStrip.size=1;
     matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-split-long");
-    matchStrip.spectator=true;matchStrip.size=1;draw("match-hud-split-spectator");
+    // A spectator of a game with no set score, at each size: a narrow screen fits the panel then.
+    matchStrip.spectator=true;matchStrip.score.clear();matchStrip.appliedDelay=3;matchStrip.behindFrames=12;
+    matchStrip.queuePosition=1;matchStrip.queueLength=3;matchStrip.unreadChat=2;
+    for(int hudSize=0;hudSize<3;++hudSize){matchStrip.size=hudSize;draw(hudSize==1?"match-hud-split-spectator":nullptr,0,1);}
     // The name offset moves both plates by that many game units and nothing else; a top-anchored
     // panel stays above plates moved all the way up, on short screens too.
-    matchStrip.spectator=false;matchStrip.score.clear();matchStrip.spectators=0;
+    matchStrip.spectator=false;matchStrip.score.clear();matchStrip.spectators=0;matchStrip.size=1;
     const auto unmoved=MatchStripGeometry(matchStrip);
     const float shiftScale=(std::min)(ImGui::GetMainViewport()->Size.y/720.f,ImGui::GetMainViewport()->Size.x/1280.f);
     for(const int offset:{-60,-20,60}){
@@ -152,13 +189,28 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
                     moved.names[side].y1-moved.names[side].y0==unmoved.names[side].y1-unmoved.names[side].y0,"Match HUD name offset does not move the plates by itself");
             for(const auto& screen:shortScreens){
                 const auto bounds=MatchStripGeometry(matchStrip,ImVec2(0,0),screen);
-                for(const auto& name:bounds.names)Require(!MatchBoxesOverlap(bounds.panel,name),"Match HUD telemetry covers a moved name plate on a short screen");
+                for(const auto& name:bounds.names)Require(!MatchHudTouchesBox(bounds,name),"Match HUD telemetry covers a moved name plate on a short screen");
                 Require(bounds.panel.y0>=0&&bounds.panel.y1<=screen.y,"Match HUD telemetry left a short screen around moved name plates");
                 Require(bounds.panelScale>=MatchHudMinimumPanelScale(screen.y)-.001f,"Match HUD telemetry unreadable above moved name plates on a short screen");
             }
         }
+        // Top center follows the offset too: its band is y 0..38 of the game image moved by it, and the panel
+        // goes to Bottom center when that leaves less than half the usual scale.
+        matchStrip.anchor=netplay::MaxMatchHudAnchor;draw(nullptr,0,1);
+        {
+            const auto view=ImGui::GetMainViewport()->Size;
+            const float fit=(38+offset-3)*shiftScale/(34*1.25f);
+            Require(MatchStripGeometry(matchStrip).panelBelow==(fit<.5f*(std::max)(.8f,view.y/1080.f)),"Match HUD placed the Top center panel on the wrong edge for the name offset");
+            for(const auto& screen:shortScreens){
+                const auto bounds=MatchStripGeometry(matchStrip,ImVec2(0,0),screen);
+                for(const auto& name:bounds.names)Require(!MatchHudTouchesBox(bounds,name),"Match HUD Top center covers a moved name plate on a short screen");
+                Require(bounds.panel.y0>=0&&bounds.panel.y1<=screen.y&&(!bounds.state.valid||bounds.state.y1<=screen.y),"Match HUD Top center left a short screen around moved name plates");
+                Require(bounds.panelScale>=MatchHudMinimumPanelScale(screen.y)-.001f,"Match HUD Top center unreadable on a short screen");
+            }
+        }
     }
     matchStrip.nameOffset=0;matchStrip.anchor=0;
+    CheckMatchHudTopCenter();
     matchStrip.layout=0;matchStrip.spectator=false;matchStrip.size=0;
 }
 }

@@ -119,6 +119,7 @@ pub(super) fn command_stage(command: &Command) -> &'static str {
         Command::CheckpointAck { .. } => "command:checkpoint_ack",
         Command::ProbeRequest { .. } => "command:probe_request",
         Command::ShortInvite { .. } => "command:short_invite",
+        Command::LatencyWatch { .. } => "command:latency_watch",
         Command::Tournament { .. } => "command:tournament",
         Command::Shutdown => "command:shutdown",
     }

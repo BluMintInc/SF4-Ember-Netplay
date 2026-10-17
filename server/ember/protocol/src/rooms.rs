@@ -58,6 +58,13 @@ pub const MAX_ROTATION: u8 = 2;
 pub const MAX_ROOM_BANS: usize = 512;
 const MAX_REGION: usize = 8;
 
+/// A room property written only when set, the way a room's own delay is: a
+/// listing or request for any other room is byte for byte what it was before,
+/// so a reader that refuses unknown fields never meets it.
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 /// A room name: 1 to 64 bytes of single-line text with no control characters
 /// and no leading or trailing whitespace.
 pub fn check_room_name(name: &str) -> Result<()> {
@@ -192,6 +199,12 @@ pub struct RoomSummary {
     /// when they gave one (`CreateRoom::region`), else its host's.
     pub region: String,
     pub created_at: u64,
+    /// Each fighter plays at the input delay they chose, instead of both at the
+    /// higher of the two. Fixed when the room is created. Present only when
+    /// true: a room with the shared delay says nothing, so a reader that
+    /// predates the field never sees it.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub own_delay: bool,
     /// What follows is the room host's own report and is only in a listing
     /// that asked for it (`detail=1`); a bridge that does not know it, or a
     /// room host that has not said, leaves each one out.
@@ -296,6 +309,11 @@ pub struct CreateRoom {
     /// Left out when the creator's region is not known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
+    /// Asks for a room whose fighters each play at their own input delay (see
+    /// `RoomSummary::own_delay`). Sent only when true; a bridge that does not
+    /// know the field refuses the request, which is never retried without it.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub own_delay: bool,
 }
 
 impl CreateRoom {
@@ -404,6 +422,7 @@ impl ConnectionCreateRoom {
             capacity: self.capacity,
             build_id: self.build_id.clone(),
             region: None,
+            own_delay: false,
         }
     }
 
@@ -499,6 +518,7 @@ mod tests {
             tables_playing: 1,
             region: "use1".into(),
             created_at: 900,
+            own_delay: false,
             host_name: None,
             fighters: None,
             locked: None,
@@ -652,6 +672,7 @@ mod tests {
             capacity: 8,
             build_id: "build".into(),
             region: None,
+            own_delay: false,
         };
         assert!(create.check().is_ok());
         for capacity in [0, 1, 17, 255] {

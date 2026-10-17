@@ -112,6 +112,10 @@ int* System::GetSlowMotion(System* s) {
     return (int*)((unsigned int)s + 0x1464);
 }
 
+Dimps::Game::GameMementoKey* System::GetMementoKey(System* s) {
+    return (Dimps::Game::GameMementoKey*)((unsigned int)s + 0x14a4);
+}
+
 FixedPoint* System::GetTransitionProgress(System* s) {
     return (FixedPoint*)((unsigned int)s + 0xe24);
 }

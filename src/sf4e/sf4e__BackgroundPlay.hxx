@@ -10,7 +10,8 @@ struct HWND__;
 // playing and keeps its sound while the window is behind or minimized, and
 // a room's match this PC only watches keeps playing there too. Ember's menu
 // keeps the pads behind another window too, while it is shown and where
-// Start opens it (the main menu, a Practice match this PC fights), and so does go now while a call back from
+// Start opens it (the main menu, a Practice match this PC fights, a game it
+// only watches), and so does go now while a call back from
 // Training offers it; without the setting the game is given none of them there.
 namespace sf4e {
 	namespace BackgroundPlay {

@@ -100,6 +100,13 @@ fn main() -> ExitCode {
         text(&config, "helper"),
         config["capacity"],
     );
+    // A room with its own delay says so in its invitation, so a test can see
+    // what the supervisor passed on; any other room's invitation is unchanged.
+    let invitation = if config["own_delay"] == true {
+        format!("{invitation}:own-delay")
+    } else {
+        invitation
+    };
     let hosted = json!({ "type": "hosted", "invitation": invitation, "region": "test" });
     let status = |members: u64, tables: u64, banned: Vec<String>| {
         json!({ "type": "status", "members": members, "tables_playing": tables,

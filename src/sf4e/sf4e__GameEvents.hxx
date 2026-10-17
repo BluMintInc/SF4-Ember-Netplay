@@ -14,6 +14,11 @@ namespace sf4e {
 
 	namespace GameEvents {
 		void Install();
+        struct OptionUIController : Dimps::GameEvents::OptionUIController {
+            void* Construct(DWORD owner, DWORD mode);
+            int Destroy();
+            static void Install();
+        };
 
 		// The one pending request to leave for Training, whole under one lock: the
 		// runtime posts it, the native menu reads, judges and consumes it. A
@@ -67,6 +72,8 @@ namespace sf4e {
 			void* Destroy(DWORD arg1);
 			void OnModeSelected(int mode);
 			int GetItemObserverState();
+			// On the event, not its item observer.
+			void IdleTask(int arg);
 
 			// On the item observer (ToItemObserver), like GoToVersusMode.
 			void GoToLocalBattleLog();

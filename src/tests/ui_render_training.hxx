@@ -80,17 +80,23 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","dummy","reply","tools"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
-        if(std::string(screen)=="reply")Require(trainingRows.size()==7,"Reply page lost one of its own rows");
+        if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==6&&trainingRows[0].id=="hud-size","HUD page lost its size or one of its parts");
-        if(std::string(screen)=="reply")for(const auto& row:trainingRows)if(row.id=="reply-slot"){
-            Require(row.value==loc::Tf("training.slot",1),"Reply slot value includes recorded frame count");
-            Require(row.detail.find(loc::Tf("training.recorded_frames",120))!=std::string::npos,"Reply slot detail lost recorded frame count");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==8&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="meter-settings","HUD page lost its size or one of its parts");
+        // The reply plays the slots that are on, so its page has no slot of its own.
+        if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
+        // Each slot says whether it is on, or that it is empty, with its frames in the detail.
+        if(std::string(screen)=="recording"){
+            Require(trainingRows.size()==training::SlotCount+7&&trainingRows[0].value==loc::T("common.on")&&trainingRows[2].value==loc::T("common.off")&&
+                trainingRows[1].value==loc::T("training.slot.empty")&&trainingRows[0].detail.find("120")!=std::string::npos&&!trainingRows[1].adjustable,
+                "The recording page did not show each slot on, off or empty");
+            const auto order=std::find_if(trainingRows.begin(),trainingRows.end(),[](const MenuEntry& row){return row.id=="order";});
+            Require(order!=trainingRows.end()&&order->value==loc::T("training.order.random"),"The recording page lost its order row");
         }
         if(std::string(screen)=="home") {
             const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","return"};
@@ -110,7 +116,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     // Angled and Off at first; Right picks Flat and turns the number on, and
     // the colour key names what the chosen style draws.
     {
-        Require(!TrainingMeterOptions().flat&&!TrainingMeterOptions().recovery&&TrainingMeterOptions().shown==60,"Meter options are not Angled, Off and 60 frames at first");
+        Require(TrainingMeterOptions().style==training::MeterStyle::Angled&&!TrainingMeterOptions().recovery&&TrainingMeterOptions().shown==60,"Meter options are not Angled, Off and 60 frames at first");
         TrainingNavigation().Home();TrainingNavigation().Push("frame-data");draw();
         for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         const auto focus=[&](const char* id){
@@ -118,13 +124,13 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             Require(TrainingNavigation().Focus()==id,"Frame data row unreachable");};
         focus("color-key");draw("training-color-key");
         focus("meter-style");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-        Require(TrainingMeterOptions().flat&&!TrainingMeterOptions().recovery,"Meter style row did not pick Flat");
+        Require(TrainingMeterOptions().style==training::MeterStyle::Flat&&!TrainingMeterOptions().recovery,"Meter style row did not pick Flat");
         focus("frames-shown");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(TrainingMeterOptions().shown==90,"Frames shown row did not step to 90");
         draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(TrainingMeterOptions().shown==120,"Frames shown row went past 120");
         focus("hud-recovery");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-        Require(TrainingMeterOptions().flat&&TrainingMeterOptions().recovery,"Recovery row did not turn the HUD number on");
+        Require(TrainingMeterOptions().style==training::MeterStyle::Flat&&TrainingMeterOptions().recovery,"Recovery row did not turn the HUD number on");
         draw("training-meter-options");
         for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         focus("color-key");draw("training-color-key-flat");
@@ -150,12 +156,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         for(int i=0;i<20&&TrainingNavigation().Focus()!="reply-move";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
         Require(TrainingNavigation().Focus()=="reply-move","Reply pick list unreachable");
         const auto pickValue=[&]{for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
-        Require(pickValue()==loc::T("training.reply.slot"),"Reply pick list did not start on the reply slot");
+        Require(pickValue()==loc::T("training.reply.recordings"),"Reply pick list did not start on the recordings");
         acceptTraining=true;trainingCommand={};draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(pickValue()=="623P"&&trainingCommand.action==training::Action::DummyPlan,"Reply preset was not sent as a plan");
         draw("training-reply-presets");
         draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
-        Require(pickValue()==loc::T("training.reply.slot"),"Left did not return the pick list to the reply slot");
+        Require(pickValue()==loc::T("training.reply.recordings"),"Left did not return the pick list to the recordings");
         acceptTraining=false;
         SetMenuEntriesProbe({});
     }
@@ -172,7 +178,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.acks.Note(trainingCommand.requestId,false);
     draw("training-command-error");Require((TakeForwardedMenuAction().kind!=MenuAction::Close),"Failed training command closed flyout");
     training.ready=false;TrainingNavigation().Home();TrainingNavigation().Push("recording");draw("training-unavailable");
-    training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
+    training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");
+    training.mode=training::Mode::Standby;draw("training-standby");training.mode=training::Mode::Idle;
     // An Xbox pad's press turns the controls' legend to its buttons.
     SetMenuGlyphs(input::PadXInput,input::xinput::A,input::xinput::B);
     // A new battle clears the failed command left by the shots above.
@@ -193,25 +200,28 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     for(const auto* window:GImGui->Windows)if(window->LastFrameActive==ImGui::GetFrameCount()&&window->Name[0]!='#'&&std::string(window->Name)!="Debug##Default")
         Require(window->Pos.y+window->Size.y<=hud->Pos.y+hud->Size.y+1,"Training window sits between meter and super gauges");
     const auto savedMeter=training.meter;
-    // Both styles, at each frames-shown value, draw exactly the newest frames
-    // it names and no older one, keep the meter's size, and at the default
-    // zoom give each cell room to count by eye. Flat keeps Stable's colours
-    // exactly: an attack in Ember, at Stable's alpha.
+    // Both styles, at each frames-shown value, draw exactly the page with the
+    // newest frame and no earlier one, a full page and one just begun, keep
+    // the meter's size, and at the default zoom give each cell room to count
+    // by eye. Flat keeps Stable's colours exactly: an attack in Ember, at
+    // Stable's alpha.
     {
         training::FighterSample down,attack;down.valid=attack.valid=true;down.status=19;attack.status=16;down.action=attack.action=1;
         Require(TrainingCellColor(training::MeterCellOf(attack),false)==((palette::Ember&~IM_COL32_A_MASK)|(215u<<IM_COL32_A_SHIFT))&&
             TrainingCellColor(training::MeterCellOf(down),false)==IM_COL32(178,123,210,215),"Flat bars left Stable's colours");
         std::map<std::string,std::pair<ImVec2,ImVec2>> bars;
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});
-        for(const int shown:training::MeterShownChoices)for(bool angled:{true,false}) {
-            training::MeterOptions options;options.flat=!angled;options.shown=shown;SetTrainingMeterOptions(options);
-            training.meter.frames.clear();
-            for(int frame=0;frame<1200;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<1200-shown?down:attack,frame<1200-shown?down:attack}},frame);
+        for(const int shown:training::MeterShownChoices)for(bool angled:{true,false})for(const int last:{shown,7}) {
+            training::MeterOptions options;options.style=angled?training::MeterStyle::Angled:training::MeterStyle::Flat;options.shown=shown;SetTrainingMeterOptions(options);
+            // Ten pages, then the last frames on a page of their own unless they fill one.
+            const int total=10*shown+(last==shown?0:last);
+            training.meter.frames.clear();training.meter.length=0;
+            for(int frame=0;frame<total;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<total-last?down:attack,frame<total-last?down:attack}},frame);
             draw();
             const ImU32 oldColor=TrainingCellColor(training::MeterCellOf(down),angled),newColor=TrainingCellColor(training::MeterCellOf(attack),angled);
             int cells=0;
-            for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer){Require(vertex.col!=oldColor,"Meter drew frames older than the newest it shows");if(vertex.col==newColor)++cells;}
-            Require(cells==2*shown*4,"Meter did not draw exactly the frames shown for each player");
+            for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer){Require(vertex.col!=oldColor,"Meter drew frames of an earlier page");if(vertex.col==newColor)++cells;}
+            Require(cells==2*last*4,"Meter did not draw exactly the newest frame's page for each player");
             hud=FindWindow("Training frame meter");Require(hud->Size.x<=620*hudScale+1&&hud->Size.y<size.h*.17f,"Frames shown changed the meter's size");
             Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Frames shown moved the meter over the game's super meters");
             const auto& bar=bars.at("training-bar-1");
@@ -224,27 +234,33 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             }
         }
         SetMenuCardProbe({});SetTrainingMeterOptions({});
-        // A held meter scrolls back with the mouse wheel over the bars: six
-        // notches show the oldest 60 frames it keeps, and running again
-        // shows the newest.
+        // A held meter steps back a page a notch of the mouse wheel over the
+        // bars, no further than its oldest frame; Frames shown changed while
+        // it is stepped back keeps it within its frames; running again shows
+        // the newest frame's page.
         training.meter.frames.clear();
-        for(int frame=0;frame<121;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<60?down:attack,frame<60?down:attack}},frame);
-        training.meter.frozen=true;draw();
+        for(int frame=0;frame<120;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<60?down:attack,frame<60?down:attack}},frame);
+        training.meter.length=120;training.meter.frozen=true;draw();
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});draw();SetMenuCardProbe({});
         const auto& bar=bars.at("training-bar-1");
-        io.AddMousePosEvent((bar.first.x+bar.second.x)/2,(bar.first.y+bar.second.y)/2);io.AddMouseWheelEvent(0,6);draw();
         const auto count=[&](ImU32 colour){int n=0;for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer)if(vertex.col==colour)++n;return n;};
-        Require(count(TrainingCellColor(training::MeterCellOf(down),true))==2*59*4&&count(TrainingCellColor(training::MeterCellOf(attack),true))==2*1*4,"Scrolling a held meter back did not show its oldest frames");
-        io.AddMouseWheelEvent(0,-6);draw();
-        Require(count(TrainingCellColor(training::MeterCellOf(attack),true))==2*60*4,"Scrolling forward did not return to the newest frames");
-        io.AddMouseWheelEvent(0,6);draw();training.meter.frozen=false;draw();
-        Require(count(TrainingCellColor(training::MeterCellOf(attack),true))==2*60*4,"A running meter stayed scrolled back");
-        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);draw();
+        const ImU32 downColor=TrainingCellColor(training::MeterCellOf(down),true),attackColor=TrainingCellColor(training::MeterCellOf(attack),true);
+        Require(count(downColor)==0&&count(attackColor)==2*60*4,"A held meter did not show its newest frame's page");
+        io.AddMousePosEvent((bar.first.x+bar.second.x)/2,(bar.first.y+bar.second.y)/2);io.AddMouseWheelEvent(0,6);draw();
+        Require(count(downColor)==2*60*4&&count(attackColor)==0,"Stepping a held meter back did not stop at its first page");
+        io.AddMouseWheelEvent(0,-1);draw();
+        Require(count(downColor)==0&&count(attackColor)==2*60*4,"A notch forward did not return to the newest frame's page");
+        io.AddMouseWheelEvent(0,1);draw();
+        {training::MeterOptions wide;wide.shown=120;SetTrainingMeterOptions(wide);draw();}
+        Require(count(downColor)==2*60*4&&count(attackColor)==2*60*4,"Frames shown changed while stepped back left the frames kept");
+        SetTrainingMeterOptions({});io.AddMouseWheelEvent(0,1);draw();training.meter.frozen=false;draw();
+        Require(count(attackColor)==2*60*4,"A running meter stayed stepped back");
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);draw();training.meter.length=0;
     }
     // The F6 colour key must describe the flat bars: each entry's colour is the
     // one they draw for a status of that phase, and no two entries share one.
     {
-        SetTrainingMeterOptions({true,false});
+        SetTrainingMeterOptions({training::MeterStyle::Flat,false});
         const auto keyEntries=TrainingColorKeyEntries(false);
         Require(keyEntries.size()==6,"Colour key does not list the phases the bars draw");
         std::set<unsigned> keyColors;
@@ -303,25 +319,42 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.meter=savedMeter;
     // The default zoom flat, the whole history at once, and the recovery
     // number keep the meter's size.
-    for(const auto& shot:{std::make_pair("training-hud-flat",training::MeterOptions{true,false,60}),std::make_pair("training-hud-120",training::MeterOptions{false,false,120}),
-        std::make_pair("training-hud-recovery",training::MeterOptions{false,true,60})}) {
+    for(const auto& shot:{std::make_pair("training-hud-flat",training::MeterOptions{training::MeterStyle::Flat,false,60}),std::make_pair("training-hud-120",training::MeterOptions{training::MeterStyle::Angled,false,120}),
+        std::make_pair("training-hud-recovery",training::MeterOptions{training::MeterStyle::Angled,true,60})}) {
         SetTrainingMeterOptions(shot.second);draw(shot.first);
         hud=FindWindow("Training frame meter");Require(hud->Size.x<=620*hudScale+1&&hud->Size.y<size.h*.17f,"Meter option made the HUD too large");
         Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Meter option moved the HUD over the game's super meters");
     }
     SetTrainingMeterOptions({});
-    // A recording and a playback add their strip, and the meter stays clear of the gauges.
+    // Standby, a recording and a playback add their strip, and the meter stays
+    // clear of the gauges. The typed reply plays from a slot of its own and adds none.
     const float whole=hud->Size.y;
-    for(const auto& shot:{std::make_pair("training-hud-recording",training::Mode::Recording),std::make_pair("training-hud-playback",training::Mode::Playback)}) {
-        training.mode=shot.second;training.cursor=45;draw(shot.first);
+    training.active=0;training.activeLength=120;
+    for(const auto& shot:{std::make_pair("training-hud-standby",training::Mode::Standby),std::make_pair("training-hud-recording",training::Mode::Recording),
+        std::make_pair("training-hud-playback",training::Mode::Playback)}) {
+        training.mode=shot.second;training.cursor=shot.second==training::Mode::Standby?0:45;draw(shot.first);
         Require(hud->Size.y>whole&&hud->Size.y<size.h*.17f&&hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Recording strip is missing or made the HUD too large");
     }
-    training.mode=training::Mode::Idle;training.cursor=0;
+    training.active=training::ReplySlot;draw();
+    Require(std::fabs(hud->Size.y-whole)<1,"The typed reply drew a playback strip");
+    training.mode=training::Mode::Idle;training.cursor=0;training.active=-1;training.activeLength=0;
     // The HUD's parts: the bars alone are a smaller meter with no chip over it, and with every part off nothing is drawn.
     training::MeterOptions parts;parts.numbers=parts.state=parts.shortcuts=false;SetTrainingMeterOptions(parts);draw("training-hud-bars");
     Require(hud->Size.y<whole*.7f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
     parts.bars=false;SetTrainingMeterOptions(parts);draw();
     Require(hud->LastFrameActive!=ImGui::GetFrameCount(),"HUD drew with every part off");
+    SetTrainingMeterOptions({});
+    // The input display: one pad a side, on the screen, beside the meter where there is room.
+    parts=training::MeterOptions{};
+    for(const auto inputs:{training::InputDisplay::Stick,training::InputDisplay::Arrows,training::InputDisplay::Both}){
+        parts.inputs=inputs;SetTrainingMeterOptions(parts);
+        draw(inputs==training::InputDisplay::Stick?"training-hud-inputs-stick":inputs==training::InputDisplay::Arrows?"training-hud-inputs-arrows":"training-hud-inputs-both");
+        for(const char* name:InputDisplayWindows){
+            auto* pad=FindWindow(name);
+            Require(pad&&pad->LastFrameActive==ImGui::GetFrameCount()&&pad->Pos.x>=0&&pad->Pos.x+pad->Size.x<=size.w+1&&pad->Pos.y+pad->Size.y<=size.h*.82f+1,"Input display left the screen or covers the super meters");
+            if(size.w>=1280)Require(pad->Pos.x+pad->Size.x<=hud->Pos.x||pad->Pos.x>=hud->Pos.x+hud->Size.x,"Input display covers the meter");
+        }
+    }
     SetTrainingMeterOptions({});
     // A small window: the HUD shrinks with it and keeps its place over the
     // gauges, at every size and while it records.
@@ -353,7 +386,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     }
     // Run lengths and counting marks: P1's jab and a special it cancels into
     // each count their own startup, active and recovery; P2's two hits of the
-    // combo count apart; every fifth and tenth cell boundary is marked.
+    // combo count apart; every fifth and tenth cell boundary is marked. At 60
+    // frames shown the bars show the second page, the cancel and the combo.
     {
         training::MeterView runs;
         const auto attack=[](int action,int frame,int first,int last){training::FighterSample s;s.valid=true;s.status=16;s.action=action;
@@ -370,14 +404,34 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         runs.startupFrames={{5,-1}};runs.moves[0].seen=true;runs.moves[0].active=4;runs.moves[0].recovery=25;
         runs.advantage.valid=true;runs.advantage.frames={{3,-3}};runs.advantage.attacker=0;
-        training.meter=runs;SetTrainingMeterOptions({false,true,60});draw("training-hud-markers");
-        SetTrainingMeterOptions({false,true,120});draw("training-hud-runs");
+        training.meter=runs;SetTrainingMeterOptions({training::MeterStyle::Angled,true,60});draw("training-hud-markers");
+        SetTrainingMeterOptions({training::MeterStyle::Angled,true,120});draw("training-hud-runs");
         // The next exchange is being measured: the last reading stays, dimmed,
         // and Frame data still gives it.
         runs.lastAdvantage=runs.advantage;runs.advantage=training::FrameAdvantage{};runs.advantage.pending=true;runs.advantage.attacker=1;
         runs.advantage.unavailable=training::MeasurementUnavailable::MeasuringRecovery;
-        training.meter=runs;SetTrainingMeterOptions({false,true,120});draw("training-hud-measuring");
+        training.meter=runs;SetTrainingMeterOptions({training::MeterStyle::Angled,true,120});draw("training-hud-measuring");
         Require(TrainingFrameData(runs,0).find(std::string(loc::T("training.meter.hit"))+" +3")!=std::string::npos,"Frame data dropped the last reading while the next was measured");
+        // A focus cancel: the HUD and Frame data both give the move it
+        // cancelled, its recovery cancelled and the dash, from the one reading.
+        {
+            auto cancel=runs;cancel.advantage=training::FrameAdvantage{};cancel.advantage.valid=true;cancel.advantage.blocked=true;
+            cancel.advantage.attacker=0;cancel.advantage.frames={{-2,2}};cancel.startupFrames={{-1,-1}};
+            cancel.startupUnavailable[0]=training::MeasurementUnavailable::WaitingForAttackBoundary;
+            auto& chain=cancel.advantage.chain;chain.valid=chain.recoveryCancelled=true;chain.side=0;chain.startup=3;chain.active=2;
+            chain.provenance=training::BoundaryProvenance::BacActionHeader;chain.startupUnavailable=training::MeasurementUnavailable::None;
+            chain.dash=training::ActionClass::ForwardDash;cancel.lastAdvantage=cancel.advantage;
+            training.meter=cancel;SetTrainingMeterOptions({training::MeterStyle::Angled,true,60});draw("training-hud-focus-cancel");
+            const auto text=TrainingFrameData(cancel,0);
+            const auto label=[](const char* id,const std::string& value){return std::string(loc::T(id))+": "+value;};
+            Require(text.find(label("training.startup","3"))!=std::string::npos&&text.find(label("training.meter.recovery",loc::T("training.meter.cancelled")))!=std::string::npos&&
+                text.find(loc::T("training.meter.focus_forward"))!=std::string::npos&&text.find(label("training.result",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
+                "Frame data did not read the focus cancel");
+            // The next exchange is being measured: the kept reading keeps its cancel.
+            cancel.advantage=training::FrameAdvantage{};cancel.advantage.pending=true;cancel.advantage.attacker=0;
+            Require(TrainingFrameData(cancel,0).find(label("training.last_focus_forward",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
+                "Frame data's last reading lost its cancel");
+        }
         SetTrainingMeterOptions({});training.meter=savedMeter;
     }
     mode=6;training.watching=true;draw();
@@ -396,7 +450,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     Require(MenuPromptDevice()==input::PadKeyboard,"A function key did not turn the HUD's prompts to the keyboard");
     SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");
     // While a slot plays F8 stops it, and the strip says so.
-    training.mode=training::Mode::Playback;training.cursor=40;draw("training-hud-playing");training.mode=training::Mode::Idle;training.cursor=0;
+    training.mode=training::Mode::Playback;training.active=0;training.activeLength=120;training.cursor=40;draw("training-hud-playing");
+    training.mode=training::Mode::Idle;training.cursor=0;training.active=-1;training.activeLength=0;
     // A failed strip check names what the strip showed.
     const auto strip=[](const char* what){
         std::string told=std::string(what)+" (" +loc::Tag(loc::Active())+", "+std::to_string(LastTrainingStrip().textPixels)+" px):";
@@ -423,6 +478,9 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         io.DisplaySize=ImVec2(1920,1080);SetTrainingMeterOptions({});
         SetTrainingPositionKeys(1,10);draw();
         names({"F6",chip,"F7",record,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"The strip did not name the keyboard's keys at rest");
+        // On standby F7 starts the recording; recording, it stops it.
+        training.mode=training::Mode::Standby;draw();
+        names({"F6",chip,"F7",record,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"F7 did not read Record on standby");
         training.mode=training::Mode::Recording;draw();
         names({"F6",chip,"F7",stop,"F8",play,"F2",reset,"F11",save,"F5",hide},8,"F7 did not read Stop while recording");
         training.mode=training::Mode::Playback;draw();
