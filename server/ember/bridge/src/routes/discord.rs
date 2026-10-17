@@ -235,10 +235,12 @@ pub async fn cancel(
 enum Stored {
     Connected(String),
     /// The account is not `to`'s yet: connected to `from`, or to no Ember
-    /// ID. The player decides.
+    /// ID. `replaced` is the account `to` has now, which connecting this one
+    /// disconnects. The player decides.
     Asking {
         from: Option<String>,
         to: String,
+        replaced: Option<String>,
         confirmation: String,
     },
     Gone,
@@ -318,6 +320,13 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                 )
                 .optional()?;
             if owner.as_deref() != Some(ember_id.as_str()) {
+                let replaced: Option<String> = tx
+                    .query_row(
+                        "SELECT username FROM discord_accounts WHERE ember_id = ?1",
+                        [&ember_id],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
                 // The question is answered with its own secret from here on;
                 // the state stops naming this sign-in. The owner it names is
                 // kept, so the answer holds only while it still is.
@@ -335,6 +344,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                 return Ok(Stored::Asking {
                     from: owner,
                     to: ember_id,
+                    replaced,
                     confirmation,
                 });
             }
@@ -351,12 +361,14 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
         Ok(Stored::Asking {
             from,
             to,
+            replaced,
             confirmation,
         }) => {
             state.committed();
+            let replaced = replaced.as_deref();
             match from {
-                Some(from) => moving(&confirmation, &shown, &from, &to),
-                None => connecting(&confirmation, &shown, &to),
+                Some(from) => moving(&confirmation, &shown, &from, &to, replaced),
+                None => connecting(&confirmation, &shown, &to, replaced),
             }
         }
         Ok(Stored::Gone) => not_waiting(),
@@ -523,14 +535,34 @@ fn connected(username: &str, ember_id: &str) -> Response {
     )
 }
 
+/// What connecting an account to `to` does to the account `to` has now, if
+/// any: it is disconnected, and its links end as a moved account's do.
+fn replacing(to: &str, replaced: Option<&str>) -> String {
+    replaced.map_or_else(String::new, |replaced| {
+        format!(
+            "<p>Ember ID <strong>{to}</strong> is connected to Discord account <strong>{}</strong> now. \
+             That account is disconnected, and the tournament links it made end too, \
+             along with any tournament match <strong>{to}</strong> is playing through them.</p>",
+            html(replaced)
+        )
+    })
+}
+
 /// Asks before moving the account from Ember ID `from` to `to`. The form
 /// carries the question's confirmation secret, which only this page has.
-fn moving(confirmation: &str, username: &str, from: &str, to: &str) -> Response {
+fn moving(
+    confirmation: &str,
+    username: &str,
+    from: &str,
+    to: &str,
+    replaced: Option<&str>,
+) -> Response {
     let (username, from, to) = (
         html(username),
         html(&fingerprint(from)),
         html(&fingerprint(to)),
     );
+    let replacing = replacing(&to, replaced);
     page(
         "Move this Discord account?",
         &format!(
@@ -538,7 +570,9 @@ fn moving(confirmation: &str, username: &str, from: &str, to: &str) -> Response 
              <p>Discord account <strong>{username}</strong> is connected to another Ember ID, <strong>{from}</strong>. \
              Moving it connects it to Ember ID <strong>{to}</strong> instead.</p>\
              <div class=\"box warn\"><p>Tournament sites will find <strong>{to}</strong> from this Discord account, \
-             and the tournament links it made for <strong>{from}</strong> end.</p>\
+             and the tournament links it made for <strong>{from}</strong> end. \
+             A tournament match <strong>{from}</strong> is playing ends with them, and a game in progress does not count. \
+             The tournament site starts the match again from the games already won.</p>{replacing}\
              <p>Move it only if both Ember IDs are yours, for example on a new PC.</p></div>\
              <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
              <button name=\"choice\" value=\"move\">Move it to {to}</button>\
@@ -552,15 +586,16 @@ fn moving(confirmation: &str, username: &str, from: &str, to: &str) -> Response 
 /// Asks before connecting an account no Ember ID has to `to`, naming it so
 /// the player can compare it with the one their Ember shows. The form
 /// carries the question's confirmation secret, which only this page has.
-fn connecting(confirmation: &str, username: &str, to: &str) -> Response {
+fn connecting(confirmation: &str, username: &str, to: &str, replaced: Option<&str>) -> Response {
     let (username, to) = (html(username), html(&fingerprint(to)));
+    let replacing = replacing(&to, replaced);
     page(
         "Connect this Discord account?",
         &format!(
             "<h1>Connect this Discord account?</h1>\
              <p>This connects Discord account <strong>{username}</strong> to Ember ID <strong>{to}</strong>. \
              Tournament sites that use this Ember service will find that Ember ID from this Discord account.</p>\
-             <div class=\"box warn\"><p>Check that <strong>{to}</strong> is the Ember ID your Ember shows. \
+             {replacing}<div class=\"box warn\"><p>Check that <strong>{to}</strong> is the Ember ID your Ember shows. \
              If you did not choose Connect Discord in Ember just now, someone else may have sent you this link: \
              choose This wasn't me.</p></div>\
              <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\

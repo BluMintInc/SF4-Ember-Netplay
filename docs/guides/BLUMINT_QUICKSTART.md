@@ -64,8 +64,17 @@ is why BluMint looks a player up again before each match.
 If the Discord account is already connected to another Ember ID, the
 bridge's page asks before moving it. It names both Ember IDs and explains
 that the other ID's tournament links made through that account will end.
-Pressing **Cancel** in Ember also ends the sign-in on the bridge, so a page
-left open cannot finish it.
+Moving it also ends that ID's live BluMint matches: the game in progress
+counts for nobody, and the bridge posts a retryable abort with the games
+already won (`insufficientPlayers`, below), so you restart the set from that
+score. An Ember ID holds one Discord account at a time, so if the Ember ID
+it moves to, or a first connection's Ember ID, already has a different
+Discord account, the page names that account too: connecting disconnects
+it, and its links and live matches end the same way.
+Pressing **Cancel** in Ember also ends the sign-in on the bridge once that
+request reaches it, so a page left open then cannot finish it. Ember does
+not send a failed cancel again, so if it never arrives, the page can still
+finish the sign-in until it lapses ten minutes after it started.
 
 The bridge ID in the connect page's fragment is also the `bridge_id` in
 `https://bridge.embernetplay.link/.well-known/ember-bridge.json`.
