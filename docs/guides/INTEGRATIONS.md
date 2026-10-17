@@ -241,11 +241,17 @@ never trusts one by itself. The sign-in:
    minutes. Starting a sign-in ends the Ember ID's earlier ones, and
    `DELETE /v1/discord/start` (a `discord.cancel` proof, sent by Cancel in
    Ember) ends the one in flight, so a page left open connects nothing.
+   Ember does not send a cancel that failed again, so until such a sign-in
+   lapses, its page can still finish it.
 3. If that Discord account is connected to another Ember ID, nothing moves
    yet: the page names both Ember IDs, says that the tournament links the
-   account made for the other one end, and asks. The player's answer
-   (`POST /v1/discord/callback`, carrying the sign-in's state) moves it or
-   keeps it where it is.
+   account made for the other one end, along with the matches they hold, and
+   asks. If the Ember ID being connected already has another Discord
+   account, the page names it and says it is disconnected and its links end
+   too. The player's answer (`POST /v1/discord/callback`) carries a secret
+   made for that question and shown only on that page, never the sign-in's
+   state, which the Ember that started the sign-in also holds. It moves the
+   account or keeps it where it is.
 4. `GET /v1/discord` (player session) shows the connected account and
    `DELETE /v1/discord` (a `discord.remove` proof) disconnects it.
 

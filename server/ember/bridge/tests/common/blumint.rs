@@ -127,9 +127,19 @@ pub async fn fixture() -> Fixture {
 /// The fixture with these integration secrets, its quiet matches expiring
 /// after `match_expiry_hours`.
 pub async fn fixture_with(secrets: Secrets, match_expiry_hours: u64) -> Fixture {
+    fixture_adjusted(secrets, match_expiry_hours, |_| {}).await
+}
+
+/// `fixture_with`, its configuration changed by `adjust` first.
+pub async fn fixture_adjusted(
+    secrets: Secrets,
+    match_expiry_hours: u64,
+    adjust: impl FnOnce(&mut config::Config),
+) -> Fixture {
     let (api_base, blumint) = fake_blumint().await;
     let bridge = Bridge::start_with(
         |config| {
+            adjust(config);
             config.match_expiry_hours = match_expiry_hours;
             config.tenants.push(config::Tenant {
                 id: "bm".into(),

@@ -3,6 +3,9 @@
 //! its result, and an abort for a match that ended without one, with retries
 //! and the starting wins of a set asked for again.
 mod common;
+#[path = "discord/support.rs"]
+#[allow(dead_code)]
+mod support;
 
 use common::{
     Player,
@@ -14,6 +17,7 @@ use ember_bridge::{AppState, Keys, config, integrations::Secrets};
 use ember_protocol::report::Outcome;
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
+use zeroize::Zeroizing;
 
 #[tokio::test]
 async fn a_completed_match_says_its_result_is_to_be_sent() {
@@ -172,6 +176,54 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
         sent.last(),
         Some(&restart(&f, &third, "disputed", [0, 0])),
         "{sent:?}"
+    );
+}
+
+// Moving a Discord account to another Ember ID ends the links it made for
+// the old one, and with them a set that ID is playing: the game in progress
+// counts for nobody, and BluMint hears a retryable abort with the games
+// already won, so it asks for the set again from that score.
+#[tokio::test]
+async fn moving_discord_mid_set_restarts_the_set_from_the_games_won() {
+    let discord = support::fake_discord().await;
+    let secrets = Secrets {
+        discord_client_secret: Some(Zeroizing::new("test-secret".into())),
+        ..keyed()
+    };
+    let f = fixture_adjusted(secrets, config::DEFAULT_MATCH_EXPIRY_HOURS, |config| {
+        config.discord = Some(config::Discord {
+            client_id: "1546980049692135514".into(),
+            api_base: discord,
+        });
+        config.integration_secrets = Some("unused-in-tests.json".into());
+    })
+    .await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let binding = bound(&f, &id).await;
+    let first = permit(&f, &id, &binding, 1).await;
+    report(&f, &f.kate, &f.kate, &id, &first, 1, Outcome::P1Win).await;
+    report(&f, &f.sam, &f.sam, &id, &first, 2, Outcome::P1Win).await;
+    permit(&f, &id, &binding, 2).await;
+
+    // Kate moves her Discord account to a new PC's Ember ID during game 2.
+    let new_pc = support::player(&f.bridge, 3).await;
+    let state = support::start(&f.bridge, &new_pc).await;
+    let page = support::back(&f.bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(page.contains("a game in progress does not count"), "{page}");
+    let page = support::decide(&f.bridge, &support::confirmation(&page), "move").await;
+    assert!(page.contains("Discord connected"), "{page}");
+
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    let aborts: Vec<Json> = reports(&f, &id)
+        .await
+        .into_iter()
+        .filter(|body| body["mode"] == "abort")
+        .collect();
+    assert_eq!(
+        aborts,
+        vec![restart(&f, &id, "insufficientPlayers", [1, 0])]
     );
 }
 

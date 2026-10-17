@@ -207,8 +207,21 @@ async fn a_platforms_links_follow_the_discord_account() {
     assert_eq!(platform_links(&bridge).await, both);
 
     // Kate's account moves to the second Ember ID, replacing Sam's there: the
-    // links both sign-ins approved end at once.
-    move_here(&bridge, &two, "kate").await;
+    // page names Sam's account as the one it disconnects, and the links both
+    // sign-ins approved end at once.
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    let replacing = |name: &str| {
+        format!(
+            "connected to Discord account <strong>{name}</strong> now. That account is disconnected"
+        )
+    };
+    assert!(
+        page.contains("Move this Discord account?") && page.contains(&replacing("sam")),
+        "{page}"
+    );
+    let page = decide(&bridge, &confirmation(&page), "move").await;
+    assert!(page.contains("Discord connected"), "{page}");
     assert_eq!(platform_links(&bridge).await, vec![]);
     assert_eq!(
         lookup(&bridge, &provider, &[KATE, SAM]).await,
@@ -225,6 +238,16 @@ async fn a_platforms_links_follow_the_discord_account() {
         refused,
         json!({ "code": "player_unlinked", "players": [one_id] })
     );
+
+    // Connecting an account no Ember ID has names the one it would replace.
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-sam&state={state}")).await;
+    assert!(
+        page.contains("Connect this Discord account?") && page.contains(&replacing("kate")),
+        "{page}"
+    );
+    decide(&bridge, &confirmation(&page), "refuse").await;
+    assert_eq!(account(&bridge, &two).await["user_id"], KATE);
 
     // Signing in again with the same account keeps its link.
     connect(&bridge, &two, "kate").await;
