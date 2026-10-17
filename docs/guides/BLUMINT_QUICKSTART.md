@@ -203,9 +203,10 @@ Each player's Ember says whether they have pressed Ready every time it
 claims the match, and claims again as soon as that changes, at most once
 every two seconds, so
 a player waiting for an opponent who never presses Ready reads
-`present-ready` and the opponent `present-not-ready`. Each game's end takes
-both players' Ready back, so both read `present-not-ready` until they press
-it for the next game. An Ember from before this release does not say, and its
+`present-ready` and the opponent `present-not-ready`. A played game's end
+clears both seats at the table, so both read `present-not-ready` until they
+press Ready for the next game. A game called off because one player took
+Ready back leaves the other's Ready as it was. An Ember from before this release does not say, and its
 player reads `present-not-ready` until a game starts.
 
 A refused Ember stops claiming the match, so the bridge cannot tell whether
