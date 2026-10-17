@@ -4,7 +4,12 @@
 //! the bridge reports to BluMint.
 mod common;
 
-use common::{Player, blumint::*, results};
+use common::{
+    Player,
+    blumint::*,
+    play::{BUILD, claim, endpoint},
+    results,
+};
 use ember_bridge::{config, integrations::Secrets};
 use reqwest::StatusCode;
 use serde_json::json;
@@ -831,4 +836,50 @@ async fn an_upgrade_ends_the_matches_blumint_cannot_close() {
     );
     let (status, next) = create(&f, "set-3", 2).await;
     assert_eq!(status, StatusCode::OK, "{next}");
+}
+
+// A status the bridge stored but cannot read fails on its own: the other
+// matches' statuses still go out, and the match's next change writes it
+// again from the status as it stands.
+#[tokio::test]
+async fn a_stored_status_that_does_not_parse_fails_alone() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    let keyed = keyed_state(&f);
+    let lou = discord_player(&f, 3, "99", "lou").await;
+    let lee = discord_player(&f, 4, "98", "lee").await;
+    lookup(&f, json!({ "discord": [KATE, SAM, "99", "98"] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let broken = created["matchId"].as_str().unwrap().to_owned();
+    let mut body = request(&f, 2);
+    body["teams"] = json!([team("lou", lou.id()), team("lee", lee.id())]);
+    let (_, created) = create_with(&f, "set-2", body).await;
+    let other = created["matchId"].as_str().unwrap().to_owned();
+    claim(&f, &f.kate, &broken, &endpoint(&f.kate), BUILD).await;
+    claim(&f, &lou, &other, &endpoint(&lou), BUILD).await;
+    let id = broken.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE blumint_status SET body = '{ not json' WHERE match_id = ?1",
+                [&id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(status_row(&f, &broken).await, Some((1, "failed".into())));
+    assert!(statuses(&f, &broken).is_empty());
+    assert_eq!(statuses(&f, &other).len(), 1);
+
+    let (status, claimed) = claim(&f, &f.sam, &broken, &endpoint(&f.sam), BUILD).await;
+    assert_eq!(status, StatusCode::OK, "{claimed}");
+    assert_eq!(status_row(&f, &broken).await, Some((2, "queued".into())));
+    ember_bridge::deliver_results(&keyed).await;
+    let sent = statuses(&f, &broken);
+    assert_eq!(sent.len(), 1, "{sent:?}");
+    assert_eq!(sent[0]["revision"], 2);
 }

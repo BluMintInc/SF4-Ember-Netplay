@@ -62,11 +62,17 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
         None => now,
     };
     let status = blumint::status(tx, &found, now)?;
+    // A stored body the bridge cannot read is written again from the status
+    // as it stands, so it never stops the match's own writes.
     let last = match last {
-        Some((text, _)) => serde_json::from_str(&text).map_err(|_| ApiFailure::unavailable())?,
-        None => blumint::unopened_status(tx, &found)?,
+        Some((text, _)) => serde_json::from_str(&text)
+            .inspect_err(|_| {
+                eprintln!("status: {match_id}'s stored status does not parse; writing it again")
+            })
+            .ok(),
+        None => Some(blumint::unopened_status(tx, &found)?),
     };
-    if status == last {
+    if last.as_ref() == Some(&status) {
         return Ok(());
     }
     // `attempts` restarts with the revision: a lease of an earlier revision
@@ -158,7 +164,26 @@ impl Queue for Status {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         let mut leased = Vec::with_capacity(rows.len());
         for (match_id, connection_id, revision, body, observed_at, attempts, first_at) in rows {
-            let status = serde_json::from_str(&body).map_err(|_| ApiFailure::unavailable())?;
+            // A body the bridge cannot read fails on its own, so the rest of
+            // the queue goes on. The match's next change writes it again
+            // (`observe`).
+            let Ok(status) = serde_json::from_str(&body) else {
+                eprintln!("status: {match_id} revision {revision} does not parse; not sent");
+                tx.execute(
+                    "UPDATE blumint_status SET state = 'failed', next_at = ?1 WHERE match_id = ?2",
+                    params![now, match_id],
+                )?;
+                audit(
+                    tx,
+                    now,
+                    ("bridge", "blumint".into()),
+                    "blumint.status",
+                    &match_id,
+                    "failed",
+                    Some("the stored status does not parse"),
+                )?;
+                continue;
+            };
             let attempt = attempts + 1;
             tx.execute(
                 "UPDATE blumint_status SET state = 'delivering', next_at = ?1, attempts = ?2

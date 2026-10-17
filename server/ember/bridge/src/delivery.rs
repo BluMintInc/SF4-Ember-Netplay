@@ -118,7 +118,13 @@ pub async fn pass<Q: Queue>(state: &AppState, queue: &Arc<Q>) -> bool {
         .db
         .write(move |tx| leasing.lease(tx, now, now + LEASE_SECS))
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|error| {
+            eprintln!(
+                "delivery: {} could not lease: {error:?}",
+                std::any::type_name::<Q>()
+            );
+            Vec::new()
+        });
     let busy = !due.is_empty();
     futures_util::stream::iter(due)
         .for_each_concurrent(CONCURRENCY, |leased| async move {
