@@ -58,6 +58,22 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
     }
     return clicked;
 }
+void BeginDialogCard(const char* id,ImVec2 at,ImVec2 size) {
+    const ImVec4 panel(.13f,.115f,.1f,1);
+    ImGui::SetCursorScreenPos(at);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,panel);
+    ImGui::BeginChild(id,size,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+    // ImGui may draw a child's background in its parent's draw list, under a
+    // sibling drawn earlier (the menu list). The card paints its own panel so
+    // it covers whatever it is drawn over.
+    const auto min=ImGui::GetWindowPos(),max=ImVec2(min.x+ImGui::GetWindowSize().x,min.y+ImGui::GetWindowSize().y);
+    auto* draw=ImGui::GetWindowDrawList();
+    draw->PushClipRect(min,max);
+    draw->AddRectFilled(min,max,ImGui::GetColorU32(panel),ImGui::GetStyle().ChildRounding);
+    draw->AddRect(min,max,ImGui::GetColorU32(ImGuiCol_Border),ImGui::GetStyle().ChildRounding,0,ImGui::GetStyle().ChildBorderSize);
+    draw->PopClipRect();
+}
+void EndDialogCard() { ImGui::EndChild();ImGui::PopStyleColor(); }
 namespace {
 void NextPopupSize() {
     const auto viewport=ImGui::GetMainViewport()->Size;
@@ -71,11 +87,20 @@ const MenuEntry* FindEntry(const std::vector<MenuEntry>& entries,const std::stri
     return it==entries.end()?nullptr:&*it;
 }
 }
+void GameMenu::ShowNotice(NoticeDialog notice) {
+    notice_=std::move(notice.text); noticeHeading_=std::move(notice.heading); noticeButtons_=std::move(notice.buttons);
+    // A notice always has a button to close it by.
+    if(noticeButtons_.empty()) noticeButtons_.push_back({loc::T("common.ok")});
+    noticeSelected_=(std::max)(0,(std::min)(notice.selected,static_cast<int>(noticeButtons_.size())-1)); noticeError_=false; noticeResult_=NoticeResult::None;
+}
+void GameMenu::ShowNotice(std::string text,std::string heading,std::string okLabel) {
+    ShowNotice(NoticeDialog{std::move(text),std::move(heading),{{okLabel.empty()?std::string(loc::T("common.ok")):std::move(okLabel)}}});
+}
 bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& select,std::string& back) const {
     back=loc::T("common.cancel");
     if(!notice_.empty()) {
-        // Back declines a notice's alternative, so it reads as closing it.
-        select=noticeAlternativeSelected_?noticeAlternative_:loc::T("common.ok");back=loc::T("common.close");
+        // Back declines whichever button is highlighted, so it reads as closing the notice.
+        select=noticeButtons_[noticeSelected_].label;back=loc::T("common.close");
     } else if(navigation.Editing()) select=KeyboardPrompts()||navigation.EditAccepts()?loc::T("common.accept"):loc::T("edit.cancel");
     else if(navigation.Reading()) { select.clear(); back=loc::T("common.close"); }
     else if(navigation.Choosing()) {
@@ -113,9 +138,7 @@ void GameMenu::DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,floa
     ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,.8f));
     ImGui::BeginChild("Training veil",ImVec2(size.x-2*padding.x,height),0,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
     const ImVec2 dialogSize(size.x-32*unit,(std::min)(270*unit,height-16*unit));
-    ImGui::SetCursorScreenPos(ImVec2(pos.x+(size.x-dialogSize.x)*.5f,top+(height-dialogSize.y)*.5f));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.13f,.115f,.1f,1));
-    ImGui::BeginChild("Training confirmation",dialogSize,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+    BeginDialogCard("Training confirmation",ImVec2(pos.x+(size.x-dialogSize.x)*.5f,top+(height-dialogSize.y)*.5f),dialogSize);
     const auto* entry=FindEntry(entries,navigation.DialogId());
     const auto buttons=ConfirmationButtons(entries);
     ImGui::BeginChild("Confirmation explanation",ImVec2(0,ImGui::GetContentRegionAvail().y-DialogButtonsHeight(buttons,42*unit)-18*unit));
@@ -126,7 +149,7 @@ void GameMenu::DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,floa
     int selected=navigation.ConfirmSelected()?1:0;
     const int clicked=DrawDialogButtons("confirm",buttons,&selected,42*unit);
     AnswerConfirmation(entries,clicked,selected,action);
-    ImGui::EndChild();ImGui::PopStyleColor();
+    EndDialogCard();
     ImGui::EndChild();ImGui::PopStyleColor();
 }
 void GameMenu::DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action) {
@@ -232,14 +255,15 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
         else {
             if(noticeError_) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
             else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str());
+            NoteUserText(notice_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));
-            std::vector<DialogButton> buttons{{loc::T("common.ok")}};
-            if(!noticeAlternative_.empty())buttons.push_back({noticeAlternative_});
-            int selected=noticeAlternativeSelected_?1:0;
+            std::vector<DialogButton> buttons;
+            for(const auto& button:noticeButtons_) buttons.push_back({button.label});
+            int selected=noticeSelected_;
             const int clicked=DrawDialogButtons("notice",buttons,&selected,48*Scale());
-            noticeAlternativeSelected_=selected==1;
-            if(clicked>=0) DismissNotice(clicked==1);
+            noticeSelected_=selected;
+            if(clicked>=0) DismissNotice(noticeButtons_[clicked].result);
             if(notice_.empty()) ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

@@ -11,6 +11,11 @@ enum class SetFormat : std::uint8_t { Ft1 = 1, Ft2 = 2, Ft3 = 3, Ft4 = 4, Ft5 = 
 constexpr int MaxSetLength = 10;
 inline bool ValidGamesToWin(long long games) { return games >= 1 && games <= MaxSetLength; }
 inline bool ValidSetFormat(long long format) { return format == static_cast<int>(SetFormat::Unlimited) || ValidGamesToWin(format); }
+// Whose input delay a room's games are played at. Shared: both fighters play at
+// the higher of their two Ready delays (MatchDelay). Own: each fighter plays at
+// the delay they chose, and the other side's rollback absorbs the difference.
+enum class DelayPolicy : std::uint8_t { Shared = 0, Own };
+
 enum class RotationMode : std::uint8_t { WinnerStays = 0, LoserStays, BothRotate };
 // The round times a table offers, shortest first. The longest, about 2.7
 // hours, is also every game's in a Practice room (room::Snapshot::practice),

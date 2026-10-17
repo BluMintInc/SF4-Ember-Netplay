@@ -114,6 +114,79 @@ int main() {
 		CHECK(swapped.Update(table, In(false, true), 99000) == Step::None);
 	}
 	{
+		// Choosing a fighter in Ember's selector, or a Ready still on its way
+		// to the room, costs no window time; the main menu without either does.
+		TrainingCall call;
+		const auto room = Room(2, 1, 2);
+		CHECK(call.Update(room, In(true, false), 0) == Step::Call);
+		CHECK(call.Update(room, In(false, true), 1000) == Step::Open);
+		CHECK(call.Update(room, In(false, true), 6000) == Step::None && call.Remaining(6000) == 10000);
+		auto choosing = In(false, true); choosing.choosingFighter = true;
+		CHECK(call.Update(room, choosing, 26000) == Step::None && call.Remaining(26000) == 10000);
+		CHECK(call.Update(room, In(false, true), 30000) == Step::None && call.Remaining(30000) == 6000);
+		auto sending = In(false, true); sending.readyInFlight = true;
+		CHECK(call.Update(room, sending, 40000) == Step::None && call.Remaining(40000) == 6000);
+		CHECK(call.Update(room, In(false, true), 45999) == Step::None);
+		CHECK(call.Update(room, In(false, true), 46000) == Step::Forfeit);
+	}
+	{
+		// Away from the main menu, in the game's own screens, no time is spent either.
+		TrainingCall call;
+		const auto room = Room(2, 1, 2);
+		CHECK(call.Update(room, In(true, false), 0) == Step::Call);
+		CHECK(call.Update(room, In(false, true), 1000) == Step::Open);
+		CHECK(call.Update(room, In(false, false), 30000) == Step::None && call.Remaining(30000) == TrainingCall::ReadyWindowMs);
+	}
+	{
+		// However it is held, the window ends WindowCapMs after the player was back.
+		TrainingCall call;
+		const auto room = Room(2, 1, 2);
+		CHECK(call.Update(room, In(true, false), 0) == Step::Call);
+		CHECK(call.Update(room, In(false, true), 1000) == Step::Open);
+		auto choosing = In(false, true); choosing.choosingFighter = true;
+		CHECK(call.Update(room, choosing, 1000 + TrainingCall::WindowCapMs - 1) == Step::None &&
+			call.Remaining(1000 + TrainingCall::WindowCapMs - 1) == 1);
+		CHECK(call.Update(room, choosing, 1000 + TrainingCall::WindowCapMs) == Step::Forfeit);
+	}
+	{
+		// Back into a Training battle while the window is open: called again for
+		// that battle, never forgotten, and the time left is kept for the next window.
+		TrainingCall call;
+		const auto room = Room(2, 1, 2);
+		auto in = In(true, false); in.generation = 40;
+		CHECK(call.Update(room, in, 0) == Step::Call);
+		CHECK(call.Update(room, In(false, true), 1000) == Step::Open);
+		CHECK(call.Update(room, In(false, true), 6000) == Step::None);
+		in.generation = 41;
+		CHECK(call.Update(room, in, 7000) == Step::Call && call.Called() && call.Identity().generation == 41);
+		CHECK(call.Update(room, in, 7000 + TrainingCall::ArrivalMs) == Step::None && call.Called());
+		CHECK(call.Update(room, In(false, true), 30000) == Step::Open && call.Remaining(30000) == 10000);
+		// Staying in Training past the cap gives the seat up.
+		CHECK(call.Update(room, in, 31000) == Step::Call);
+		CHECK(call.Update(room, in, 1000 + TrainingCall::WindowCapMs - 1) == Step::None);
+		CHECK(call.Update(room, in, 1000 + TrainingCall::WindowCapMs) == Step::Forfeit && !call.Called());
+		// Reset by the forfeit: a later call starts with the full time and its own cap.
+		CHECK(call.Update(room, in, 70000) == Step::Call);
+		CHECK(call.Update(room, In(false, true), 71000) == Step::Open && call.Remaining(71000) == TrainingCall::ReadyWindowMs);
+		CHECK(call.Update(room, In(false, false), 71000 + TrainingCall::WindowCapMs - 1) == Step::None);
+		CHECK(call.Update(room, In(false, false), 71000 + TrainingCall::WindowCapMs) == Step::Forfeit);
+	}
+	{
+		// The cap comes before any other step on the tick it is reached: back at
+		// the main menu then is no new window, and Training then is no new call.
+		const auto room = Room(2, 1, 2);
+		const auto openThenCalled = [&](TrainingCall& call) {
+			CHECK(call.Update(room, In(true, false), 0) == Step::Call);
+			CHECK(call.Update(room, In(false, true), 1000) == Step::Open);
+			CHECK(call.Update(room, In(true, false), 2000) == Step::Call);
+		};
+		TrainingCall menu; openThenCalled(menu);
+		CHECK(menu.Update(room, In(false, true), 1000 + TrainingCall::WindowCapMs) == Step::Forfeit && menu.Remaining(1000 + TrainingCall::WindowCapMs) == 0);
+		TrainingCall training; openThenCalled(training);
+		CHECK(training.Update(room, In(false, true), 3000) == Step::Open);
+		CHECK(training.Update(room, In(true, false), 1000 + TrainingCall::WindowCapMs) == Step::Forfeit && !training.Called());
+	}
+	{
 		// The battle never leaves: the call is forgotten and the seat is kept.
 		TrainingCall call;
 		const auto room = Room(2, 1, 2);

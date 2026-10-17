@@ -93,6 +93,8 @@ bool IrohRoom::Begin(bool host) {
 	clientMessages_.clear();
 	queuedBytes_ = 0;
 	room_ = {};
+	localLatency_ = {};
+	latency_.Stop();
 	games_.clear();
 	closedGeneration_ = 0;
 	invitation_.clear(); discordInvitation_.clear(); shortInvitation_.clear(); shortPending_ = false;
@@ -197,21 +199,32 @@ bool IrohRoom::PrepareGame(const std::string& peer, std::uint64_t generation,
 }
 
 bool IrohRoom::EndPeer(const std::string& peer, std::uint64_t generation) {
+	return EndPeerCommand(peer, generation, true) == PeerEnd::Ended;
+}
+
+IrohRoom::PeerEnd IrohRoom::TryEndPeer(const std::string& peer, std::uint64_t generation) {
+	return EndPeerCommand(peer, generation, false);
+}
+
+IrohRoom::PeerEnd IrohRoom::EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull) {
 	if ((state_ != State::Ready && state_ != State::Degraded) || !IsEndpointIdentity(peer) ||
 		generation == 0 || generation <= closedGeneration_ ||
-		generation > static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)())) return false;
+		generation > static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)())) return PeerEnd::Refused;
 	auto game = games_.find(peer);
-	if (game == games_.end()) return true;
-	if (game->second.generation != generation) return false;
+	if (game == games_.end()) return PeerEnd::Ended;
+	if (game->second.generation != generation) return PeerEnd::Refused;
 	if (game->second.state == GameState::Closed) {
 		games_.erase(game);
-		return true;
+		return PeerEnd::Ended;
 	}
-	if (!Command(json{{"type", "end_peer"}, {"epoch", epoch_}, {"peer", peer},
-		{"generation", generation}}.dump())) return false;
+	const auto command = json{{"type", "end_peer"}, {"epoch", epoch_}, {"peer", peer}, {"generation", generation}}.dump();
+	if (failWhenFull) { if (!Command(command)) return PeerEnd::Refused; }
+	else if (helper_.State() != platform::HelperState::Connected) return PeerEnd::Refused;
+	// A connected helper refuses a command only while its queue is full.
+	else if (!helper_.Send(command)) return PeerEnd::Busy;
 	game->second.state = GameState::Closing;
 	game->second.virtualPort = 0;
-	return true;
+	return PeerEnd::Ended;
 }
 
 bool IrohRoom::EndMatch(std::uint64_t generation) {
@@ -380,6 +393,18 @@ bool IrohRoom::RequestProbe(const std::string& peer, std::uint64_t request, std:
     probe_={}; probe_.peer=peer; probe_.request=request; probe_.pairRevision=pairRevision; probe_.status="checking"; probe_.benchmark=benchmark; probe_.deadlineMs=GetTickCount64()+(benchmark?50000:25000);
     return true;
 }
+void IrohRoom::WatchLatency(bool wanted) {
+    const auto watch=[&](std::uint64_t view, bool on) {
+        return helper_.Send(json{{"type","latency_watch"},{"epoch",epoch_},{"room",room_},{"view",view},{"on",on}}.dump());
+    };
+    if (!wanted || !epoch_ || room_==std::array<std::uint8_t,16>{} || (state_!=State::Ready && state_!=State::Degraded)) {
+        if (const auto view=latency_.Stop()) watch(view, false);
+        return;
+    }
+    const auto now=GetTickCount64();
+    const auto view=latency_.Due(epoch_, room_, now);
+    if (view && watch(view, true)) latency_.Sent(view, epoch_, room_, now);
+}
 bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& type) {
     if (type!="coordination_state" && type!="control_rebound" && type!="checkpoint_begin" &&
         type!="checkpoint_chunk" && type!="checkpoint_end" && type!="checkpoint_ack" &&
@@ -509,7 +534,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         const unsigned expected=probe_.benchmark?600:100;
         const int recommendation=event.at("recommended_delay");
         probe_.recommended=(probe_.status=="complete" || probe_.status=="ready") && probe_.samples>=expected*4/5 &&
-            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=RecommendedInputDelayMinimum && recommendation<=MaximumInputDelay ? recommendation : -1;
+            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=RecommendedInputDelayMinimum && recommendation<=InputDelayWireCeiling ? (std::min)(recommendation,MaximumInputDelay) : -1;
         return true;
     }
     return true;
@@ -851,11 +876,16 @@ void IrohRoom::Poll() {
 				else ++shortFailures_;
 				spdlog::info("Room: short link {}", ready ? "ready" : "unavailable");
             } else if (type == "hosted" && hosting_ && state_ == State::Hosting) {
-				room_ = event.at("room").get<std::array<std::uint8_t, 16>>();
+				const auto room = event.at("room").get<std::array<std::uint8_t, 16>>();
+				if (room != room_) localLatency_ = {};
+				room_ = room;
+				ReadLocalLatency(event);
 				invitation_ = event.at("invitation").get<std::string>();
 				if(coordination_.writable && coordination_.rebound) state_=State::Ready;
 			} else if (type == "connected") {
 				if (!HandleConnected(event)) return;
+			} else if (type == "member_latency") {
+				latency_.Read(event, epoch_, room_);
 			} else if (type == "message" || type == "control_closed" || type == "peer_departed" || type == "peer_session") {
 				if (!HandleControlTraffic(event, type)) return;
 			} else if (type == "error") {

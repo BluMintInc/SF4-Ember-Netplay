@@ -26,6 +26,12 @@ pub struct Details {
     pub members: u8,
     pub set_format: Option<u8>,
     pub rotation: Option<u8>,
+    /// Whether the room host plays each fighter at their own input delay. The
+    /// host writes `own_delay: true` only for such a room, so a report without
+    /// it (an older host, or a room with the shared delay) reads as the shared
+    /// delay and replaces what the room was created asking for: the host's
+    /// word is the room's.
+    pub own_delay: bool,
 }
 
 fn small(value: &Value, limit: u64) -> Option<u8> {
@@ -95,6 +101,7 @@ impl Details {
             rotation: value
                 .get("rotation")
                 .and_then(|rotation| small(rotation, MAX_ROTATION.into())),
+            own_delay: value.get("own_delay").and_then(Value::as_bool) == Some(true),
         }
     }
 }
@@ -109,7 +116,7 @@ mod tests {
     fn a_complete_report_is_read_whole() {
         let value = json!({ "name": "Late night", "capacity": 6, "locked": true,
             "host_name": "  Kate ", "fighters": [3, 255, 0], "set_format": 3, "rotation": 2,
-            "unknown": [1] });
+            "own_delay": true, "unknown": [1] });
         assert_eq!(
             Details::from_value(&value, 3, 4),
             Details {
@@ -121,8 +128,28 @@ mod tests {
                 members: 3,
                 set_format: Some(3),
                 rotation: Some(2),
+                own_delay: true,
             }
         );
+    }
+
+    #[test]
+    fn a_report_says_own_delay_only_by_saying_true() {
+        let own =
+            |value: Value| Details::from_value(&json!({ "own_delay": value }), 2, 4).own_delay;
+        assert!(own(json!(true)));
+        for other in [
+            json!(false),
+            json!(null),
+            json!(1),
+            json!("true"),
+            json!([true]),
+        ] {
+            assert!(!own(other.clone()), "{other}");
+        }
+        // Nothing said, or not a report at all: the shared delay.
+        assert!(!Details::from_value(&json!({}), 2, 4).own_delay);
+        assert!(!Details::absent(2, 4).own_delay);
     }
 
     #[test]

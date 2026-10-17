@@ -476,13 +476,7 @@ int SessionClient::Step()
 	_connected = true;
 	if (_helloPending) {
 		json hello = SessionProtocol::SessionHelloMsg();
-        if(_customRoomsRequired) {
-            SessionProtocol::SessionJoinRequest admission;
-            admission.sidecarHash=_sidecarHash; admission.username=_name; admission.port=_ggpoPort;
-            admission.customRooms=true; admission.roomProtocol=room::ProtocolVersion; admission.SetProfile(_profile);
-            admission.roomChatDelta=true;
-            hello["admission"]=admission;
-        }
+        if(_customRoomsRequired) hello["admission"]=BuildJoinRequest();
         const auto sent=Send(hello,nullptr);
         if(sent==session::SendResult::NotConnected || sent==session::SendResult::QueueFull) return 0;
         if(sent!=session::SendResult::Queued) return -1;

@@ -447,6 +447,10 @@ impl Actor {
         let status_epoch = self.epoch;
         let status_peers = self.controls.len();
         let status_games = self.games.len();
+        // A departing member measures nothing more.
+        if self.matches(epoch) {
+            self.latency_clear();
+        }
         let mut leave = Box::pin(self.graceful_leave(epoch, abandon));
         loop {
             tokio::select! {

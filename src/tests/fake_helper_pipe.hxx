@@ -2,7 +2,7 @@
 // The helper's end of the native pipe, played by the test itself, so an
 // IrohRoom runs its production event handling without an sf4-net process.
 // It answers the bootstrap handshake, sends the events a test scripts, and
-// reads and drops what the room sends back (commands, checkpoint ACKs).
+// keeps what the room sends back (commands, checkpoint ACKs) for the test to read.
 // Windows only: the room's HelperClient talks to a named pipe there.
 #include <windows.h>
 
@@ -50,14 +50,17 @@ public:
 		CHECK(client.State() == sf4e::platform::HelperState::Connected);
 	}
 	void Send(const nlohmann::json& event) { Drain(); CHECK(WriteFrame(++nextId_, event.dump())); }
-	// Reads whatever the room has sent so far; the commands themselves are dropped.
+	// Reads whatever the room has sent so far into `received`.
 	void Drain() {
 		DWORD available = 0;
 		while (PeekNamedPipe(pipe_, nullptr, 0, nullptr, &available, nullptr) && available > 0) {
 			std::uint64_t id = 0; std::string payload;
 			CHECK(ReadFrame(id, payload));
+			received.push_back(nlohmann::json::parse(payload, nullptr, false));
 		}
 	}
+	// Every command the room sent, oldest first; a test may clear it.
+	std::vector<nlohmann::json> received;
 
 private:
 	bool Transfer(void* data, DWORD size, bool write) {

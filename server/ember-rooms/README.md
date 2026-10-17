@@ -41,7 +41,7 @@ in constant time. Refusals are JSON `{ "reason": "..." }`.
 
 | Route | Answer |
 |---|---|
-| `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid }` | 201 `{ invitation, region }` once the host reports `hosted` |
+| `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid, own_delay? }` (`own_delay` only when true) | 201 `{ invitation, region }` once the host reports `hosted` |
 | | 409 `room_limit` (room limit, no free port, or draining) |
 | | 409 `unsupported_build`, 409 `exists`, 400 `invalid_request` (names the `field`) |
 | | 502 `host_failed` (the host exited, broke the protocol or took over 30 s) |
@@ -80,6 +80,10 @@ open:
 `port` is the primary endpoint port and `coordination_port` the second UDP
 port the room needs.
 
+A room whose fighters each play at their own input delay also carries
+`"own_delay": true`, only for such a room: a child reads an absent key as the
+shared delay.
+
 The child writes one JSON object per line to stdout:
 
 - `{ "type": "hosted", "invitation": "...", "region": "..." }`, once, first.
@@ -87,7 +91,8 @@ The child writes one JSON object per line to stdout:
   "banned": ["emb_..."], "details": { ... } }` whenever something changes. The
   invitation changes as it renews, so every status carries the current one.
   `details` is optional: `{ "name", "capacity", "locked", "host_name",
-  "fighters", "set_format", "rotation" }` as the room host sees its room. The
+  "fighters", "set_format", "rotation", "own_delay" }` as the room host sees
+  its room (`own_delay` is there only when true). The
   supervisor does not interpret it. A JSON object of at most 2 KB (unknown keys
   included) goes to the bridge in `GET /rooms`; anything else (another type, a
   larger object, one nested more than 8 levels deep, even past the JSON

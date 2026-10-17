@@ -70,7 +70,7 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
 }
 }
 bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog,
-    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash) {
+    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash, const std::optional<launcher::InstallOffer>& offer) {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -107,6 +107,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     const bool offerOnly = crash && !services.ReportCrash(*crash, reports::AutomaticCrash::Consent::Existing);
     bool sendingShown = false;
     if (updates) services.Request(platform::ServiceAction::CheckUpdates);
+    launcher::InstallOfferGate offerGate(updates ? offer : std::nullopt);
     bool quit = false, retry = false;
     // Which of the launcher's message and the service's is the newer one: the
     // launcher's until the player asks a service for something, and again when
@@ -153,6 +154,13 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         }
         const auto state = services.Snapshot();
         OfferFoundUpdate(menu,state,offeredVersion);
+        // The accepted release goes straight to Download and install only if this window's own check finds it again.
+        // A release that changed or vanished leaves the usual explicit offer, with a word about the change.
+        switch(offerGate.Observe(state.channel,state.update,!state.pending&&state.lastAction==platform::ServiceAction::CheckUpdates)){
+        case launcher::InstallOfferGate::Step::Install:serviceNewer=true;services.Request(platform::ServiceAction::InstallUpdate);break;
+        case launcher::InstallOfferGate::Step::Changed:message=loc::T("updates.offer_changed");messageTone=Tone::Neutral;serviceNewer=false;break;
+        default:break;
+        }
         auto reportView = CrashReportView(state);
         if (offerOnly && !state.reporting.preparation) reportView.asking = true;
         // Sent without a press: the message says so, and that the dump stayed here.

@@ -120,10 +120,18 @@ void TestEmptyRound() {
 	CHECK(lanes.rounds[0].size() == 1 && lane::Rows(lanes, 0, 0, 0, rows) == 0);
 }
 
+void TestPadBits() {
+	// The game's pad bits: heavy punch and kick move to 0x400 and 0x800, the rest keep their place.
+	namespace in = sf4e::replayinputs;
+	CHECK(lane::PadBits(in::Up | in::Right | in::LP | in::MK) == (0x1u | 0x8u | 0x10u | 0x80u));
+	CHECK(lane::PadBits(in::HP) == 0x400u && lane::PadBits(in::HK) == 0x800u && lane::PadBits(0) == 0u);
+}
+
 }
 
 int main() {
 	TestRows();
+	TestPadBits();
 	TestCapAndHeldButtons();
 	TestEmptyRound();
 	return 0;

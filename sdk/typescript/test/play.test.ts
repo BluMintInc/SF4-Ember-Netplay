@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { BridgeClient, eventType, TestPlayer, type Binding, type Permit } from "../src/index.ts";
-import { missing, startBridge } from "./bridge-process.ts";
+import { startBridge } from "./bridge-process.ts";
 
-test("two test players play a set reported by the game", { skip: missing, timeout: 60_000 }, async () => {
+test("two test players play a set reported by the game", { timeout: 60_000 }, async () => {
   const bridge = await startBridge();
   try {
     const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });

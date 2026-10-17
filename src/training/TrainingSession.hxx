@@ -7,35 +7,13 @@
 #include <tuple>
 #include <vector>
 #include <string>
+#include <utility>
 #include "FrameMeter.hxx"
+#include "RecordingBank.hxx"
+#include "RecordingTypes.hxx"
 
 namespace sf4e { namespace training {
-constexpr int SlotCount = 8;
-// One more slot, never selectable, holds the dummy's typed reply.
-constexpr int ReplySlot = SlotCount;
-constexpr int MaxFrames = 60 * 120;
 constexpr int HistoryRows = 12;
-constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
-constexpr unsigned AttackButtons = 0xcf0;
-// wait: a loaded frame that repeats, buttons held, until the fighter can act
-// again (1) or a hit lands (2), so typed moves take their timing from the
-// fight; offset: frames after the cue the press lands on. A free frame is
-// predicted from the fighter's script, so 0 is that frame itself and a
-// negative offset is before it; a hit is pressed on the frame after it is seen.
-// A reply's leading hold (3) repeats until the reply's first move is due
-// (ReplyFirstMoveDue); elsewhere it is met at once.
-struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
-constexpr int MinOffset = -120, MaxOffset = 120;
-// A slot holds its frames as played by a fighter facing right, so a move
-// recorded on one side comes out the same on the other: Left and Right are
-// swapped for a fighter facing left, in both words, per played frame.
-constexpr unsigned LeftBit = 4, RightBit = 8;
-inline unsigned MirrorDirections(unsigned bits) {
-    return (bits & ~(LeftBit | RightBit)) | (bits & LeftBit ? RightBit : 0) | (bits & RightBit ? LeftBit : 0);
-}
-inline Input Mirror(Input input) { input.mapped = MirrorDirections(input.mapped); input.raw = MirrorDirections(input.raw); return input; }
-// Between the slot's facing and a fighter's: the same swap both ways.
-inline Input ForFacing(const Input& input, bool facingRight) { return facingRight ? input : Mirror(input); }
 constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -44,8 +22,16 @@ constexpr unsigned char WaitActionable = 1, WaitHit = 2, WaitReply = 3;
 constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
-enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan };
+// Standby: P1's pad plays the dummy, as in a recording, and nothing is
+// recorded until the next press (Session::Apply, AdvanceRecording).
+enum class Mode { Idle, Standby, Recording, Playback };
+// AdvanceRecording: standby, then recording, then stop. Interrupt: what
+// Escape, opening the controls and losing the focus send; it ends whatever
+// the session does when it runs, keeping a recording (TrainingCommands.hxx
+// gives it a place of its own in the queue). SlotOn and PlayOrder change
+// which slots play (RecordingBank.hxx). PlayOrder is the last.
+enum class Action { Select, AdvanceRecording, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
+    Interrupt, SlotOn, PlayOrder };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
@@ -131,15 +117,15 @@ inline bool ValidDummyState(const DummyState& s) {
 // after being hit, 2 after blocking, 3 on getting up, 4 any
 // of them. moves: the reply as made-up input, held as a slot holds it (for
 // the dummy facing right) and played for the way it faces on each frame; when
-// empty it replies with the recording in slot. chance:
-// percent of the times it replies. timing: frames the reply's first attack
+// empty it replies with a recording that is on, picked in the slots' order
+// (DummyReply.hxx). chance: percent of the times it replies. timing: frames the reply's first attack
 // button lands after the dummy's first free frame. varyStance: it stands or
 // crouches at random each time. The typed moves' schedule, as synthesis
 // gives it (Compiled), with no typed moves 0, -1 and -1: offset, the first
 // move's own ("5MK@+3"), added to timing; anchor, the frame of moves its
 // input takes effect on; hold, the frame of its leading hold, -1 for none.
 struct DummyPlan {
-    int when = 0, slot = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves;
+    int when = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves;
     int offset = 0, anchor = -1, hold = -1;
 };
 constexpr int MaxReplyTiming = 5;
@@ -147,13 +133,8 @@ inline bool ValidDummyPlan(const DummyPlan& plan) {
     const int frames = static_cast<int>(plan.moves.size());
     const bool schedule = frames ? plan.offset >= MinOffset && plan.offset <= MaxOffset && plan.anchor >= 0 && plan.anchor < frames &&
         plan.hold < plan.anchor && (plan.hold < 0 || plan.moves[plan.hold].wait == WaitReply) : !plan.offset && plan.anchor < 0 && plan.hold < 0;
-    return plan.when >= 0 && plan.when <= 4 && plan.slot >= 0 && plan.slot < SlotCount && plan.chance >= 0 && plan.chance <= 100 &&
+    return plan.when >= 0 && plan.when <= 4 && plan.chance >= 0 && plan.chance <= 100 &&
         plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && frames <= MaxFrames && schedule;
-}
-// A reply starts on its first pressed frame; -1 when it presses nothing.
-inline int ReplyStart(const std::vector<Input>& frames) {
-    const auto first = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & FightButtons) != 0; });
-    return first == frames.end() ? -1 : static_cast<int>(first - frames.begin());
 }
 // When a reply's first move lands, in frames of the reply as Session plays
 // it: start, its first played frame (ReplyStart); hold, the frame its
@@ -334,9 +315,13 @@ private:
 struct Command {
     Action action = Action::Stop; std::uint64_t generation = 0; std::uint64_t requestId = 0;
     // Select: the slot to choose.
+    // SlotOn: the slot, and whether it is on.
     int slot = 0;
+    bool on = false;
     // Loop: whether playback starts again at its end.
     bool loop = false;
+    // PlayOrder: how a slot is picked among those that are on.
+    Order order = Order::Random;
     // Load: made-up input for the selected slot, as a slot holds it (for a
     // fighter facing right), and the side (0 or 1) that plays it back.
     std::vector<Input> frames; int side = 1;
@@ -417,6 +402,9 @@ struct View {
     // A rollback match whose frame meter is shown: the meter is filled,
     // nothing else, and no command is taken.
     bool watching = false;
+    // The meter's samples carry each side's pad (FighterSample::input): a
+    // replay's, read from its file. A live match's inputs are never kept.
+    bool replayInputs = false;
     std::uint64_t generation = 0;
     // Where Player 1 and Player 2 stand (x), as the adapter reads them each frame.
     float x[2] = {0, 0};
@@ -426,8 +414,19 @@ struct View {
     // The call the countdown is for (LeaveCountdown::Call), 0 when none.
     std::uint64_t leavingCall = 0;
     Mode mode = Mode::Idle;
-    int selected = 0, cursor = 0, playbackSide = 1;
-    std::array<int, SlotCount + 1> lengths{};
+    // selected: the slot Record, Clear, Load, Mirror and Save act on. active:
+    // what plays, a slot, ReplySlot for typed reply moves, -1 when nothing
+    // does; playing never changes the selection. activeLength: its frames.
+    // cursor: frames recorded so far, or the frame playing.
+    int selected = 0, active = -1, activeLength = 0, cursor = 0, playbackSide = 1;
+    // What plays is the dummy's reply.
+    bool replying = false;
+    // The slots as the bank holds them (RecordingBank.hxx), and those Play
+    // and a recorded reply may use now.
+    std::array<int, SlotCount> lengths{};
+    std::array<bool, SlotCount> on{};
+    Order order = Order::Random;
+    SlotSet playable = 0, replyable = 0;
     std::array<std::deque<InputRun>, 2> history;
     MeterView meter;
     // ExportSlot: the selected slot's frames, handed over once per request.
@@ -439,10 +438,17 @@ struct View {
     DummyState dummy;
 };
 
-// Whether Ember plays Player 2 this frame: a recording, or a playback (a
-// reply among them) on its side. The dummy plays from the pad then (DummyControl).
+// P1's pad plays the dummy: on standby and while recording.
+inline bool PadPlaysDummy(Mode mode) { return mode == Mode::Standby || mode == Mode::Recording; }
+// The pad's chord that opens the controls starts the recording instead, on
+// standby only (TrainingPad.hxx, TrainingPadInput); while recording it opens
+// them, which interrupts the recording and keeps it.
+inline bool ChordStartsRecording(Mode mode) { return mode == Mode::Standby; }
+// Whether Ember plays Player 2 this frame: standby, a recording, or a
+// playback (a reply among them) on its side. The dummy plays from the pad
+// then (DummyControl).
 inline bool DrivesDummy(const View& view) {
-    return view.mode == Mode::Recording || (view.mode == Mode::Playback && view.playbackSide == 1);
+    return PadPlaysDummy(view.mode) || (view.mode == Mode::Playback && view.playbackSide == 1);
 }
 // What one update does with the fighters' input, decided once for it.
 // sample: the fight runs, so the update may be a recorded frame. read: Ember
@@ -450,8 +456,9 @@ inline bool DrivesDummy(const View& view) {
 // Ember's input. suppliesDummy: Player 2's is Ember's (DummyControl).
 struct InputPlan { bool sample = false, read = false, override = false, suppliesDummy = false; };
 // menu: Ember's controls or the game hold the pad. Playback needs no pad, so
-// it goes on under the open controls, where it can be watched; recording
-// waits for the pad to be free.
+// it goes on under a menu, where it can be watched; standby and recording
+// wait for the pad to be free. Opening Ember's controls interrupts all three
+// (Action::Interrupt).
 inline InputPlan PlanInput(const View& view, bool menu) {
     InputPlan plan;
     if (!view.ready) return plan;
@@ -465,17 +472,37 @@ inline InputPlan PlanInput(const View& view, bool menu) {
 
 // Owns only practice input data. The game adapter owns native save states.
 // Prepare is repeatable; only Commit advances a recording or playback cursor.
+// The slots are the dummy fighter's bank, attached for the battle
+// (RecordingBanks); a recording writes to a buffer of its own that replaces
+// the selected slot only when it stops, and a playback or reply plays its own
+// copy of the frames it started with.
 class Session {
 public:
     const View& GetView() const { return view_; }
-    const std::vector<Input>& Slot(int slot) const { return slots_[slot]; }
-    void Enter() { Reset(); view_.available = true; }
+    const RecordingBank& Bank() const { return bank_; }
+    const std::vector<Input>& Slot(int slot) const { return bank_.Slot(slot); }
+    // Moves on whenever what the session plays changes, or may: a playback,
+    // standby, a recording, a stop, an interruption or a reset. A reply made
+    // before it is dropped (DummyReply.hxx).
+    std::uint64_t Epoch() const { return epoch_; }
+    // A battle starts with the dummy fighter's bank.
+    void Enter(RecordingBank bank = RecordingBank{}) { Reset(); bank_ = std::move(bank); Publish(); view_.available = true; }
+    // The battle closes: its bank, with a recording under way kept in it.
+    RecordingBank TakeBank() {
+        Stop();
+        RecordingBank bank = std::move(bank_);
+        bank_ = RecordingBank{}; Publish();
+        return bank;
+    }
     void Reset() {
         const auto next = view_.generation + 1;
         view_ = View{}; view_.generation = next;
-        for (auto& slot : slots_) slot.clear();
-        actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resume_ = -1; firstOnLeft_ = true;
+        bank_ = RecordingBank{}; scratch_.clear(); playing_.clear();
+        actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resumeSide_ = 1; firstOnLeft_ = true;
+        ++epoch_;
     }
+    // Where the pickers' random order starts.
+    void Seed(unsigned seed) { playPicker_.Seed(seed); replyPicker_.Seed(seed ^ 0x9e3779b9u); }
     void SetReady(bool ready) { view_.ready = ready; }
     // What the fight showed this frame, for the waiting frames of a playback:
     // whether the fighter is free now, and whether a hit landed on the other one.
@@ -506,11 +533,16 @@ public:
         switch (command.action) {
         case Action::Place: case Action::ExportSlot: return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
-        case Action::Stop: Stop(); return true;
+        // Standby is dropped and a recording kept, whatever the mode is by the time it runs.
+        case Action::Stop: case Action::Interrupt: Stop(); return true;
         case Action::Select:
             if (command.slot < 0 || command.slot >= SlotCount || view_.mode != Mode::Idle) return false;
             view_.selected = command.slot; return true;
         case Action::Loop: view_.loop = command.loop; return true;
+        case Action::SlotOn:
+            if (command.slot < 0 || command.slot >= SlotCount || !bank_.SetOn(command.slot, command.on)) return false;
+            Publish(); return true;
+        case Action::PlayOrder: bank_.SetOrder(command.order); Publish(); return true;
         case Action::DummyState:
             if (!ValidDummyState(command.dummy)) return false;
             // The adapter writes the game; the view shows the request until
@@ -522,30 +554,34 @@ public:
             if (command.dummy.stun >= 0) view_.dummy.stun = command.dummy.stun;
             return true;
         case Action::ClearHistory: ClearHistory(); return true;
+        // A recording stops as Stop does, with the fight running or not.
+        case Action::AdvanceRecording: if (view_.mode == Mode::Recording) { Stop(); return true; } break;
         default: break;
         }
         if (!view_.ready) return false;
         switch (command.action) {
-        case Action::Record:
-            Stop(); slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0;
-            view_.mode = Mode::Recording; view_.playbackSide = 1; return true;
+        // Standby first, the selected slot as it was; the next press records.
+        case Action::AdvanceRecording:
+            if (view_.mode == Mode::Standby) { view_.mode = Mode::Recording; scratch_.clear(); view_.cursor = 0; ++epoch_; return true; }
+            Stop(); view_.mode = Mode::Standby; view_.playbackSide = 1; return true;
         case Action::Load:
             if (view_.mode != Mode::Idle || command.frames.empty() || (command.side != 0 && command.side != 1)) return false;
-            slots_[view_.selected].assign(command.frames.begin(), command.frames.begin() + (std::min)(command.frames.size(), std::size_t(MaxFrames)));
-            view_.lengths[view_.selected] = static_cast<int>(slots_[view_.selected].size());
+            bank_.Replace(view_.selected, command.frames); Publish();
             view_.playbackSide = command.side; return true;
-        case Action::Play:
+        case Action::Play: {
             Stop();
-            if (slots_[view_.selected].empty()) return false;
-            view_.mode = Mode::Playback; return true;
+            const int slot = playPicker_.Peek(bank_.Playable(), bank_.GetOrder());
+            if (slot < 0) return false;
+            Play(slot, bank_.Slot(slot)); playPicker_.Commit(slot);
+            return true;
+        }
         case Action::Clear:
             if (view_.mode != Mode::Idle) return false;
-            slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0; return true;
+            bank_.Replace(view_.selected, {}); Publish(); return true;
         // A loaded file that comes out the wrong way round: its Left and Right swapped.
         case Action::Mirror:
-            if (view_.mode != Mode::Idle || slots_[view_.selected].empty()) return false;
-            for (auto& frame : slots_[view_.selected]) frame = Mirror(frame);
-            return true;
+            if (view_.mode != Mode::Idle || bank_.Slot(view_.selected).empty()) return false;
+            bank_.MirrorSlot(view_.selected); Publish(); return true;
         case Action::Save: return true;
         case Action::Restore:
             if (!view_.checkpoint) return false;
@@ -553,38 +589,37 @@ public:
         default: return false;
         }
     }
-    // The dummy's reply: the slot once on Player 2, from its first pressed
-    // frame, after which the selected slot is the selected one again. Never
-    // over a recording or another playback.
-    // schedule: when its first move lands, kept with the reply (Schedule).
-    bool Reply(int slot, const ReplySchedule& schedule) {
-        if (!view_.ready || view_.mode != Mode::Idle || slot < 0 || slot > ReplySlot) return false;
-        const int first = ReplyStart(slots_[slot]);
+    // The slot a recorded reply would play now, from the slots that can be
+    // one, in their order; -1 when none can. Only Reply moves the order on.
+    int PeekReply() { return replyPicker_.Peek(bank_.Replyable(), bank_.GetOrder()); }
+    // The dummy's reply, once on Player 2 from its first pressed frame: a
+    // recording's frames as they were when it was made (slot: the one they
+    // came from), or typed moves (ReplySlot). Never over standby, a recording
+    // or another playback. schedule: when its first move lands, kept with
+    // the reply (Schedule).
+    bool Reply(std::vector<Input> frames, const ReplySchedule& schedule, int slot = ReplySlot) {
+        if (!view_.ready || view_.mode != Mode::Idle || slot < 0 || slot > ReplySlot || frames.size() > std::size_t(MaxFrames)) return false;
+        const int first = ReplyStart(frames);
         if (first < 0) return false;
-        resume_ = view_.selected; resumeSide_ = view_.playbackSide;
-        view_.selected = slot; view_.playbackSide = 1; view_.mode = Mode::Playback;
-        view_.cursor = first; ++replies_; schedule_ = schedule;
+        resumeSide_ = view_.playbackSide; view_.playbackSide = 1;
+        Play(slot, std::move(frames));
+        view_.replying = true; view_.cursor = first; ++replies_; schedule_ = schedule;
+        if (slot < SlotCount) replyPicker_.Commit(slot);
         return true;
     }
-    // The same with made-up input, kept in a slot of its own.
-    bool Reply(std::vector<Input> frames, const ReplySchedule& schedule) {
-        if (!view_.ready || view_.mode != Mode::Idle || frames.size() > std::size_t(MaxFrames)) return false;
-        slots_[ReplySlot] = std::move(frames); view_.lengths[ReplySlot] = static_cast<int>(slots_[ReplySlot].size());
-        return Reply(ReplySlot, schedule);
-    }
-    bool Replying() const { return resume_ >= 0; }
+    bool Replying() const { return view_.replying; }
     // The schedule of the reply playing, as it began.
     const ReplySchedule& Schedule() const { return schedule_; }
     // Replies started so far, never reset: each new reply changes it.
     std::uint64_t Replies() const { return replies_; }
     // The dummy was hit again, or what was seen of its stun went: the reply it had begun is dropped.
-    void StopReply() { if (resume_ >= 0) Stop(); }
+    void StopReply() { if (view_.replying) Stop(); }
     Frame Prepare(Frame physical) const {
         if (!view_.available || !view_.ready) return physical;
-        if (view_.mode == Mode::Recording) {
+        if (PadPlaysDummy(view_.mode)) {
             physical[1] = physical[0]; physical[0] = Input{};
         } else if (view_.mode == Mode::Playback) {
-            physical[view_.playbackSide] = ForFacing(slots_[view_.selected][view_.cursor], FacingRight(view_.playbackSide));
+            physical[view_.playbackSide] = ForFacing(playing_[view_.cursor], FacingRight(view_.playbackSide));
         }
         return physical;
     }
@@ -601,18 +636,16 @@ public:
             }
         }
         if (view_.mode == Mode::Recording) {
-            auto& slot = slots_[view_.selected];
-            // The history above keeps the pad's own directions; the slot, the dummy's.
-            slot.push_back(ForFacing(output[1], FacingRight(1)));
-            view_.lengths[view_.selected] = static_cast<int>(slot.size());
-            view_.cursor = static_cast<int>(slot.size());
-            if (slot.size() == MaxFrames) Stop();
+            // The history above keeps the pad's own directions; the recording, the dummy's.
+            scratch_.push_back(ForFacing(output[1], FacingRight(1)));
+            view_.cursor = static_cast<int>(scratch_.size());
+            if (scratch_.size() == MaxFrames) Stop();
         } else if (view_.mode == Mode::Playback) {
             // A waiting frame repeats until its condition shows, or long enough.
-            const auto& frame = slots_[view_.selected][view_.cursor];
+            const auto& frame = playing_[view_.cursor];
             if (frame.wait == WaitReply) {
                 // A reply's leading hold: until the runtime finds its first move due.
-                if (resume_ >= 0 && !replyDue_) return;
+                if (view_.replying && !replyDue_) return;
             } else {
                 // The cue, then the offset's frames more.
                 const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
@@ -630,28 +663,46 @@ public:
             waited_ = waitedPast_ = 0;
             if ((frame.raw & AttackButtons) && !(lastRaw_ & AttackButtons)) hit_ = false;
             lastRaw_ = frame.raw;
-            if (++view_.cursor == view_.lengths[view_.selected]) {
-                if (view_.loop && resume_ < 0) view_.cursor = 0;
-                else Stop();
+            if (++view_.cursor == view_.activeLength) {
+                // Each repeat of a loop picks its slot again, from those on now.
+                const int next = view_.loop && !view_.replying ? playPicker_.Peek(bank_.Playable(), bank_.GetOrder()) : -1;
+                if (next < 0) Stop();
+                else { Play(next, bank_.Slot(next)); playPicker_.Commit(next); }
             }
         }
     }
 private:
     View view_;
-    std::array<std::vector<Input>, SlotCount + 1> slots_;
+    RecordingBank bank_;
+    // The recording under way, and the frames that play.
+    std::vector<Input> scratch_, playing_;
+    SlotPicker playPicker_{1}, replyPicker_{2};
     bool actionable_ = false, hit_ = false, replyDue_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0;
     unsigned lastRaw_ = 0;
-    // The selection a reply borrowed, -1 when none plays.
-    int resume_ = -1, resumeSide_ = 1;
+    // The side a reply took over, given back when it ends.
+    int resumeSide_ = 1;
     ReplySchedule schedule_;
-    std::uint64_t replies_ = 0;
+    std::uint64_t replies_ = 0, epoch_ = 0;
     // Player 1 stands on the left (SetPositions), as a battle starts.
     bool firstOnLeft_ = true;
+    void Publish() {
+        for (int slot = 0; slot < SlotCount; ++slot) { view_.lengths[slot] = static_cast<int>(bank_.Slot(slot).size()); view_.on[slot] = bank_.On(slot); }
+        view_.order = bank_.GetOrder(); view_.playable = bank_.Playable(); view_.replyable = bank_.Replyable();
+    }
+    void Play(int slot, std::vector<Input> frames) {
+        playing_ = std::move(frames);
+        view_.mode = Mode::Playback; view_.active = slot; view_.activeLength = static_cast<int>(playing_.size()); view_.cursor = 0;
+    }
+    // Back to rest. A recording replaces the selected slot with what it
+    // recorded, in one change; standby records nothing.
     void Stop() {
-        view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
-        if (resume_ >= 0) { view_.selected = resume_; view_.playbackSide = resumeSide_; resume_ = -1; schedule_ = {}; }
+        if (view_.mode == Mode::Recording && !scratch_.empty()) { bank_.Replace(view_.selected, std::move(scratch_)); Publish(); }
+        scratch_.clear(); playing_.clear();
+        view_.mode = Mode::Idle; view_.cursor = 0; view_.active = -1; view_.activeLength = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
+        if (view_.replying) { view_.playbackSide = resumeSide_; view_.replying = false; schedule_ = {}; }
+        ++epoch_;
     }
     void ClearHistory() {
         for (auto& rows : view_.history) rows.clear();
@@ -660,13 +711,14 @@ private:
     // fighter, a wait's progress) belongs to the timeline the reset undid, and
     // so does a playback's place in its slot, whose waits that timeline cued:
     // a playback starts again from its first frame, in step with the restored
-    // positions, and a reply ends, its stun gone. A recording goes on: it only
-    // takes the player's input.
+    // positions, and a reply ends, its stun gone. Standby and a recording go
+    // on: they only take the player's input.
     void Rewind() {
         StopReply();
         if (view_.mode == Mode::Playback) view_.cursor = 0;
         actionable_ = hit_ = false; untilActionable_ = -1; waited_ = waitedPast_ = 0; lastRaw_ = 0;
         ClearHistory();
+        ++epoch_;
     }
 };
 // The frames stopped being consecutive (a gap or a reset): what the stun

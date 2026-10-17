@@ -87,6 +87,9 @@ msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará ko
 msgid "launcher.game_wrong_dll"
 msgstr "Hra se zastavila před spuštěním Ember, protože načtené DLL chybí funkce. Obvykle je vedle SSFIV.exe soubor GGPO.dll, spdlog.dll, fmt.dll nebo zlib1.dll z jiného modu či starší instalace. Přesuňte nalezené soubory jinam a zkuste to znovu. Pokud tam žádný není, pošlete protokol spouštěče (%APPDATA%\\sf4e\\logs\\launcher.log)."
 
+msgid "launcher.game_blocked_by_windows"
+msgstr "Windows zablokoval jeden ze souborů hry dříve, než se Ember mohl spustit (řízení aplikací). Inteligentní řízení aplikací neumí povolit jediný program: pokud je v Zabezpečení Windows zapnuté, Ember poběží až po jeho vypnutí. Na počítači spravovaném organizací požádejte jejího správce o povolení Emberu."
+
 msgid "recovery.window"
 msgstr "Obnovení Ember"
 
@@ -198,6 +201,24 @@ msgstr "Spustit SF4"
 msgid "updates.start_game_detail"
 msgstr "Zavřít aktualizace a spustit SF4 s Ember."
 
+msgid "updates.launch_heading"
+msgstr "K dispozici je aktualizace"
+
+msgid "updates.launch_text"
+msgstr "Je k dispozici verze {0}. Máte verzi {1}. Aktualizovat teď zavře hru a nainstaluje aktualizaci."
+
+msgid "updates.launch_now"
+msgstr "Aktualizovat teď"
+
+msgid "updates.launch_later"
+msgstr "Později"
+
+msgid "updates.launch_skip"
+msgstr "Přeskočit tuto verzi"
+
+msgid "updates.offer_changed"
+msgstr "Aktualizace se změnila po vaší volbě. Před instalací zkontrolujte verzi níže."
+
 msgid "recovery.close_cancels_detail"
 msgstr "Zavřením se probíhající operace zruší."
 
@@ -283,17 +304,77 @@ msgstr "Otevřeno v prohlížeči. Přepněte na něj a připojte se k serveru."
 msgid "services.community_failed"
 msgstr "Prohlížeč se nepodařilo otevřít. Připojte se na {0}."
 
+msgid "services.opening_steam_profile"
+msgstr "Profil na Steamu se otevírá v prohlížeči..."
+
+msgid "services.steam_profile_opened"
+msgstr "Otevřeno v prohlížeči."
+
+msgid "services.steam_profile_failed"
+msgstr "Prohlížeč se nepodařilo otevřít."
+
 msgid "settings.language"
 msgstr "Jazyk"
 
 msgid "settings.language.detail"
 msgstr "Vyberte ze seznamu, nebo přepínejte vlevo/vpravo. Automatický výběr se řídí jazykem hry a poté Windows."
 
+msgid "settings.country"
+msgstr "Země"
+
+msgid "settings.country_detail"
+msgstr "Vlajka vedle vašeho jména v místnostech a na kartě hráče. Místnosti, do kterých od teď vstoupíte, ji zobrazí."
+
+msgid "settings.country.automatic"
+msgstr "Automaticky"
+
+msgid "settings.country.automatic_value"
+msgstr "Automaticky ({0})"
+
+msgid "settings.country.hidden"
+msgstr "Skryto"
+
+msgid "settings.country.current"
+msgstr "Aktuální"
+
+msgid "country.search"
+msgstr "Hledat"
+
+msgid "country.search_value"
+msgstr "Hledat: {0}"
+
+msgid "country.search_detail"
+msgstr "Napište část názvu země, abyste zúžili seznam. Napsané písmeno také přejde na země, které jím začínají, a Vlevo a Vpravo přecházejí mezi písmeny."
+
+msgid "country.automatic_detail"
+msgstr "Podle oblasti nastavené ve Windows: {0}."
+
+msgid "country.automatic_none"
+msgstr "Windows neuvádí žádnou oblast, pro kterou má Ember vlajku, takže se vlajka nezobrazí."
+
+msgid "country.hidden_detail"
+msgstr "Vedle vašeho jména se nezobrazí žádná vlajka."
+
+msgid "country.choose_detail"
+msgstr "Zobrazit tuto vlajku vedle vašeho jména."
+
+msgid "country.none"
+msgstr "Žádná země neodpovídá"
+
+msgid "country.none_detail"
+msgstr "Změňte hledání, abyste viděli více zemí."
+
 msgid "settings.language.system_with"
 msgstr "Automaticky: {0}"
 
 msgid "settings.language_save_failed"
 msgstr "Volbu jazyka se nepodařilo uložit. Pro tuto relaci zůstává aktivní."
+
+msgid "settings.update_check"
+msgstr "Hledat aktualizace při spuštění"
+
+msgid "settings.update_check_detail"
+msgstr "Při spuštění hry hledá novou verzi, nejvýše jednou za 6 hodin. Než cokoli změní, zeptá se."
 
 msgid "menu.edit_detail"
 msgstr "Vyberte pro úpravu. Pište nebo vložte text; Enter potvrdí, Zpět zruší."
@@ -619,6 +700,27 @@ msgstr "Vrátit se do aktuální místnosti."
 msgid "home.fighter_select"
 msgstr "Výběr postavy"
 
+msgid "home.selection_costume_color"
+msgstr "Kostým, barva"
+
+msgid "home.selection_ultra"
+msgstr "Ultra"
+
+msgid "home.selection_alternate"
+msgstr "Alt. {0}"
+
+msgid "home.selection_appearance"
+msgstr "{0}, barva {1}"
+
+msgid "home.selection_ultra_one"
+msgstr "U1"
+
+msgid "home.selection_ultra_two"
+msgstr "U2"
+
+msgid "home.selection_ultra_double"
+msgstr "Double"
+
 msgid "home.selection_locked"
 msgstr "Aktuální stav výběru najdete u svého stolu."
 
@@ -687,6 +789,12 @@ msgstr "Ukládat sledované zápasy"
 
 msgid "replays.save_watched_detail"
 msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
+
+msgid "settings.watched_picture"
+msgstr "Sledovaná hra v rohu"
+
+msgid "settings.watched_picture_detail"
+msgstr "Když otevřete menu Emberu nad hrou, kterou sledujete, zobrazí ji zmenšenou v pravém horním rohu nad plným menu místo ztlumené za ním."
 
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"
@@ -858,6 +966,12 @@ msgstr "Hlavní postava"
 msgid "profile.main_character_detail"
 msgstr "{0}. Zobrazuje se na kartě hráče bez ohledu na výběr pro zápas."
 
+msgid "profile.share_steam"
+msgstr "Ukázat můj profil na Steamu"
+
+msgid "profile.share_steam_detail"
+msgstr "Členové místnosti mohou otevřít váš profil na Steamu na obrazovce člena. Projeví se při příštím připojení do místnosti."
+
 msgid "profile.record"
 msgstr "Bilance výher a proher"
 
@@ -1002,11 +1116,7 @@ msgstr "Rychlejší obraz (o 1 snímek dříve)"
 msgid "player.faster_display_detail"
 msgstr "Hra zobrazí každý snímek, jakmile je hotový, ne o snímek později. Pokud hra na tomto počítači klesne pod 60 snímků za sekundu, vypněte to. Týká se jen tohoto počítače: druhý hráč to zapínat nemusí. Změna se projeví při příštím spuštění hry."
 
-msgid "player.native_menus"
-msgstr "Otevřít nabídky hry"
 
-msgid "player.native_menus_detail"
-msgstr "Ember se zavře. Bojová tlačítka nastavíte ve hře v nabídce Možnosti."
 
 msgid "settings.interface_title"
 msgstr "ROZHRANÍ"
@@ -1076,6 +1186,9 @@ msgstr "Nahoře vlevo"
 
 msgid "hud_position.top_right"
 msgstr "Nahoře vpravo"
+
+msgid "hud_position.top_center"
+msgstr "Nahoře uprostřed"
 
 msgid "settings.edge_spacing"
 msgstr "Odstup od okraje"
@@ -1156,7 +1269,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači podržte View nebo Select a stiskněte Start."
+msgstr "Xbox: A vybírá a B se vrací. PlayStation: Kříž vybírá a Kruh se vrací. Switch: B vybírá a A se vrací, stejně jako v nabídce hry. Ovladač nastavený v Ember: Tlačítko zvolené pro Lehký kop vybírá a tlačítko pro Střední kop se vrací bez ohledu na rozložení tlačítek. Klávesnice: šipky, Enter a Escape. Směrový kříž pohybuje; Vlevo a Vpravo mění hodnotu. Návrat na Domů skryje Ember. F10 nebo Start na ovladači jej znovu otevře v hlavní nabídce hry.\n\nV místnosti vám A na stole umožní vybrat místo, A na vlastním místě vás připraví a B opustí místo nebo frontu (na jiných ovladačích tlačítka na stejných pozicích). Na Xbox X otevře Bojovníka, Y Možnosti a View Chat; dalším stiskem se vrátíte do místnosti. PlayStation používá Čtverec, Trojúhelník a Share nebo Create; Switch Y, X a Minus.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači držte View (Share, Create nebo Minus) a stiskněte Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
@@ -1267,7 +1380,7 @@ msgid "room.table_closed"
 msgstr "Stůl zavřen"
 
 msgid "controller.disconnected"
-msgstr "Ovladač odpojen. Znovu jej připojte nebo přiřaďte."
+msgstr "Ovladač odpojen. Připojte jej znovu nebo vyberte jiný v Nastavení > Hráč a ovladač."
 
 msgid "controller.none"
 msgstr "Vyberte herní zařízení"
@@ -1277,6 +1390,12 @@ msgstr "Klávesnice"
 
 msgid "controller.numbered"
 msgstr "Ovladač {0}"
+
+msgid "controller.using_for_now"
+msgstr "{0} není připojen. Zatím používáte {1}."
+
+msgid "controller.connected_adopted"
+msgstr "{0} je připojen. Hrajete s ním."
 
 msgid "controller.disconnected_name"
 msgstr "{0} (odpojeno)"
@@ -1334,6 +1453,15 @@ msgstr "Zpoždění"
 
 msgid "match.spectating"
 msgstr "Sledování"
+
+msgid "match.behind"
+msgstr "Pozadu"
+
+msgid "match.delay_own"
+msgstr "Vlastní"
+
+msgid "match.up_next"
+msgstr "Jste další na řadě"
 
 msgid "match.preview_spacing"
 msgstr "Odstup {0} / vzorové hodnoty"
@@ -1491,14 +1619,11 @@ msgstr "Při vstávání"
 msgid "training.reply.any"
 msgstr "Vždy po zotavení"
 
-msgid "training.reply.slot"
-msgstr "Pozice odpovědi"
+msgid "training.reply.recordings"
+msgstr "Nahrávky"
 
-msgid "training.reply.slot.detail"
-msgstr "Nahrávka figuríny přehraná jako odpověď, dokud jsou Údery odpovědi prázdné, od prvního stisku."
-
-msgid "training.reply.slot_empty"
-msgstr "Pozice {0} je prázdná, soupeř nemá čím odpovědět. Nahrajte ji, nebo vyberte pohyb."
+msgid "training.reply.no_recordings_on"
+msgstr "Žádná zapnutá nahrávka se nehodí jako odpověď"
 
 msgid "training.reply.chance"
 msgstr "Šance na odpověď"
@@ -1516,13 +1641,13 @@ msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole použije pozici odpovědi."
+msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole odpoví zapnutou nahrávkou."
 
 msgid "training.reply.move"
 msgstr "Předvolba odpovědi"
 
 msgid "training.reply.move.detail"
-msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Pozice odpovědi přehraje nahrávku; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
+msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Nahrávky odpovídají zapnutou nahrávkou; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
 
 msgid "training.reply.custom"
 msgstr "Vlastní"
@@ -1632,8 +1757,14 @@ msgstr "Pozice {0}"
 msgid "training.slot_selected"
 msgstr "Pozice {0} / VYBRÁNA"
 
-msgid "training.recorded_frames"
-msgstr "Nahrané snímky: {0}. Nahrávky vydrží do konce tohoto souboje."
+msgid "training.slot.detail"
+msgstr "Nahráno snímků: {0}. Vybrat pozici zapne nebo vypne: Přehrát a odpověď figuríny používají zapnuté pozice. Pozice zůstanou u této figuríny, dokud se hra nezavře."
+
+msgid "training.slot.empty"
+msgstr "Prázdná"
+
+msgid "training.slot.empty_detail"
+msgstr "Nic nenahráno. Vybrat zvolí tuto pozici pro Nahrát."
 
 msgid "training.record"
 msgstr "Nahrát"
@@ -1641,26 +1772,38 @@ msgstr "Nahrát"
 msgid "training.record.overwrite"
 msgstr "Přepsat obsazenou pozici a vrátit se k tréninku."
 
-msgid "training.record.detail"
-msgstr "Nahrát ovládání 1H jako 2H a vrátit se k tréninku."
+msgid "training.record.choose"
+msgstr "Vlevo a vpravo volí pozici pro nahrávání; řádky níže ji používají také."
+
+msgid "training.record.standby_detail"
+msgstr "Pohotovost: P1 ovládá figurínu a trénink pokračuje. {0} nebo {1} spustí nahrávání, totéž znovu ho zastaví."
 
 msgid "training.play"
 msgstr "Přehrát"
 
-msgid "training.play.detail"
-msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Nahrávky se řídí stranou, kam se figurína dívá. Vlevo a Vpravo volí, zda se opakuje."
+msgid "training.play.on_detail"
+msgstr "Přehraje zapnutou pozici podle pořadí přehrávání a vrátí se k tréninku. Nahrávky sledují stranu, kam figurína hledí. Vlevo a vpravo volí, zda se opakuje; každé opakování vybírá znovu."
+
+msgid "training.order"
+msgstr "Pořadí přehrávání"
+
+msgid "training.order.random"
+msgstr "Náhodně"
+
+msgid "training.order.in_order"
+msgstr "Postupně"
+
+msgid "training.order.detail"
+msgstr "Jak Přehrát a odpověď figuríny vybírají mezi zapnutými pozicemi."
 
 msgid "training.play.once"
 msgstr "Jednou"
 
-msgid "training.slot_empty"
-msgstr "Tato pozice je prázdná."
+msgid "training.no_recordings_on"
+msgstr "Žádná nahrávka není zapnutá"
 
 msgid "training.stop"
 msgstr "Zastavit"
-
-msgid "training.stop.detail"
-msgstr "Zastavit nahrávání nebo přehrávání."
 
 msgid "training.loop"
 msgstr "Opakovat přehrávání"
@@ -1689,11 +1832,17 @@ msgstr "Vymazat ukazatel a historii vstupů obou hráčů."
 msgid "training.practice_ready"
 msgstr "Trénink připraven"
 
+msgid "training.standby_status"
+msgstr "Pohotovost: P1 ovládá figurínu. {0} nebo {1} spustí nahrávání."
+
+msgid "training.standby"
+msgstr "Pohotovost"
+
 msgid "training.recording_suspended"
 msgstr "Nahrávání je pozastaveno, dokud je otevřené ovládání"
 
 msgid "training.playback_suspended"
-msgstr "Přehrávání běží; nahrávání čeká na zavření ovládání"
+msgstr "Přehrávání běží"
 
 msgid "training.applying"
 msgstr "Provádění příkazu..."
@@ -1721,6 +1870,15 @@ msgstr "Zásah"
 
 msgid "training.meter.block"
 msgstr "Blok"
+
+msgid "training.meter.focus_forward"
+msgstr "Focus cancel, dash vpřed"
+
+msgid "training.meter.focus_back"
+msgstr "Focus cancel, dash vzad"
+
+msgid "training.meter.cancelled"
+msgstr "Zrušeno"
 
 msgid "training.meter.whiff"
 msgstr "Mimo"
@@ -1755,11 +1913,47 @@ msgstr "Šikmý"
 msgid "training.meter.style.flat"
 msgstr "Plochý"
 
+msgid "training.meter.style.classic"
+msgstr "Klasický"
+
 msgid "training.meter.frames_shown"
 msgstr "Zobrazené snímky"
 
 msgid "training.meter.frames_shown.detail"
-msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají; 120 ukáže celou historii. Když je měřič zastavený, kolečko myši nad pruhy jí listuje zpět."
+msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají. Delší výměna pokračuje znovu od levého okraje. Když je měřič zastavený, kolečko myši nad pruhy listuje zpět po stránkách."
+
+msgid "training.meter.history"
+msgstr "Historie měřiče"
+
+msgid "training.meter.history_seconds"
+msgstr "{0} s"
+
+msgid "training.meter.history.detail"
+msgstr "Jak dlouho měřič uchovává, co se stalo. Když je zastavený, kolečko myši nad pruhy se vrací po stránkách; delší historie sahá na začátek dlouhého komba."
+
+msgid "training.meter.after_pause"
+msgstr "Po pauze"
+
+msgid "training.meter.after_pause.start_over"
+msgstr "Začít znovu"
+
+msgid "training.meter.after_pause.continue"
+msgstr "Pokračovat"
+
+msgid "training.meter.after_pause.detail"
+msgstr "Co měřič udělá, když se po klidu obou bojovníků znovu něco pohne. Začít znovu vyprázdní pruhy pro novou výměnu jako Street Fighter 6. Pokračovat naváže na předchozí, takže historie sahá přes několik."
+
+msgid "training.meter.scroll"
+msgstr "Posun měřiče"
+
+msgid "training.meter.scroll.pages"
+msgstr "Stránky"
+
+msgid "training.meter.scroll.smooth"
+msgstr "Plynulý"
+
+msgid "training.meter.scroll.detail"
+msgstr "Jak pruhy pokračují. Stránky otočí celou stránku a začnou znovu vlevo. Plynulý drží nejnovější snímek u pravého okraje a posouvá; kolečko nad zastaveným měřičem se vrací o deset snímků na krok."
 
 msgid "training.meter.hud_recovery"
 msgstr "Zotavení na HUD"
@@ -1782,6 +1976,33 @@ msgstr "Zkratky na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nahrávání na HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Vstupy na HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Páčka"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Šipky"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybrid"
+
+msgid "training.meter.classic_data"
+msgstr "Řádek dat na HUD"
+
+msgid "training.meter.classic_inputs"
+msgstr "Stopy vstupů"
+
+msgid "training.meter.classic_colors"
+msgstr "Barvy SF6 a meaty"
+
+msgid "training.meter.classic_extras"
+msgstr "Legenda, značky a lem"
+
+msgid "training.meter.classic_slant"
+msgstr "Šikmé buňky"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
 
@@ -1791,11 +2012,38 @@ msgstr "Velikost HUD"
 msgid "training.meter.hud_size.detail"
 msgstr "Nastaví velikost textu a pruhů tréninkového HUD. Zvětší ho i Velikost rozhraní."
 
+msgid "training.meter.settings"
+msgstr "Nastavení měřiče"
+
+msgid "training.meter.settings.detail"
+msgstr "Kde měřič je, jak daleko zpět uchovává a co dělá po pauze."
+
+msgid "training.meter.classic"
+msgstr "Klasický měřič"
+
+msgid "training.meter.classic.detail"
+msgstr "Výška pruhů klasického měřiče a jeho části."
+
+msgid "training.meter.position"
+msgstr "Poloha měřiče"
+
+msgid "training.meter.position.detail"
+msgstr "Jak nízko na obrazovce měřič je, měřeno k jeho spodnímu okraji. 82 % ho drží těsně nad ukazateli super; menší čísla ho posunou nahoru."
+
+msgid "training.meter.bar_height"
+msgstr "Výška pruhů"
+
+msgid "training.meter.bar_height.detail"
+msgstr "Výška pruhů klasického měřiče."
+
 msgid "training.recovery_frames"
 msgstr "Zot. {0} sn."
 
 msgid "training.recovery_unknown"
 msgstr "Zot. --"
+
+msgid "training.recovery_cancelled"
+msgstr "Zot. zrušeno"
 
 msgid "training.neutral"
 msgstr "Neutrál"
@@ -1841,6 +2089,12 @@ msgstr "Výhoda"
 
 msgid "training.last_advantage"
 msgstr "Poslední výhoda"
+
+msgid "training.last_focus_forward"
+msgstr "Poslední focus cancel, dash vpřed"
+
+msgid "training.last_focus_back"
+msgstr "Poslední focus cancel, dash vzad"
 
 msgid "selection.preview_unavailable"
 msgstr "Náhled\nnení dostupný"
@@ -2144,11 +2398,8 @@ msgstr "Nestabilní spojení. Hra běží podle předpovědi vstupů."
 msgid "runtime.connection_restored"
 msgstr "Spojení obnoveno."
 
-msgid "runtime.spectator_disconnected"
-msgstr "Divák se odpojil."
-
 msgid "runtime.spectator_stream_lost"
-msgstr "Přenos pro diváky se přerušil. Stiskněte Sledovat a připojte se k dalšímu zápasu."
+msgstr "Přenos pro diváky byl přerušen. Další zápas u tohoto stolu budete sledovat."
 
 msgid "runtime.match_connection_lost"
 msgstr "Spojení pro zápas se ztratilo."
@@ -2158,6 +2409,12 @@ msgstr "Soupeř se odpojil. Zápas skončil."
 
 msgid "runtime.leaving_spectator"
 msgstr "Ukončuje se sledování."
+
+msgid "runtime.spectator_sat_out"
+msgstr "Zápas začal, když jste nebyli v hlavním menu. Další budete sledovat."
+
+msgid "runtime.watching_hint"
+msgstr "Start nebo F10 otevře Ember, kde vás volba Přestat sledovat vrátí do místnosti."
 
 msgid "runtime.returning_room"
 msgstr "Návrat do místnosti."
@@ -2359,6 +2616,9 @@ msgstr " Vaše místo se uvolní."
 
 msgid "room.leave.queue"
 msgstr " Přijdete o místo ve frontě."
+
+msgid "room.leave.watching"
+msgstr " Váš pohled diváka skončí."
 
 msgid "room.leave.host"
 msgstr " Hostitelem se stane jiný člen."
@@ -2655,7 +2915,7 @@ msgid "room.ready_up"
 msgstr "Připraven"
 
 msgid "room.selected_delay.detail"
-msgstr "Nastavte 0 až 10 snímků, pod 0 je Auto. 0 nepřidává zpoždění a vyžaduje stabilní nízký ping."
+msgstr "Nastavte {0} až {1} snímků, pod 0 je Auto. 0 nepřidává zpoždění a vyžaduje stabilní nízký ping."
 
 msgid "room.selected_delay.locked"
 msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
@@ -2751,11 +3011,29 @@ msgstr "Ukončí tento cvičný zápas hned pro oba hráče. Výsledek se nezazn
 msgid "room.leave_queue"
 msgstr "Opustit frontu"
 
+msgid "room.leave_queue.watching"
+msgstr " Tento zápas budete sledovat až do konce."
+
 msgid "room.join_queue"
 msgstr "Do fronty"
 
 msgid "room.stop_watching"
 msgstr "Přestat sledovat"
+
+msgid "room.stop_watching.detail"
+msgstr "Přestane sledovat tento stůl a vrátí vás do místnosti. Hráči hrají dál."
+
+msgid "room.stop_watching.finished"
+msgstr "Místnost už tento zápas ukončila. Přestane sledovat jeho zbytek a vrátí vás do místnosti."
+
+msgid "room.leave_game"
+msgstr "Opustit tento zápas"
+
+msgid "room.leave_game.detail"
+msgstr "Přestane sledovat tento zápas a vrátí vás do místnosti. Místo ve frontě vám zůstane, hráči hrají dál."
+
+msgid "room.watching_ends"
+msgstr " Váš pohled diváka skončí; hráči hrají dál."
 
 msgid "room.watch_next"
 msgstr "Sledovat další zápas"
@@ -2874,6 +3152,15 @@ msgstr "Předat vedení"
 msgid "room.transfer_host.detail"
 msgstr "Předat vedení místnosti: {0}."
 
+msgid "room.steam_profile"
+msgstr "Profil na Steamu"
+
+msgid "room.steam_profile.detail"
+msgstr "Otevřít profil tohoto člena na Steamu."
+
+msgid "room.steam_profile.none"
+msgstr "Tento člen nesdílí profil na Steamu."
+
 msgid "room.compose_message"
 msgstr "Napsat zprávu"
 
@@ -2970,6 +3257,12 @@ msgstr "Síť se nepodařilo spustit. Hraní offline je dostupné."
 msgid "runtime.network_helper_unavailable"
 msgstr "Síťový pomocník není dostupný (chyba {0}). Hraní offline je dostupné."
 
+msgid "runtime.network_helper_missing"
+msgstr "Síť se nepodařilo spustit: ve složce Emberu chybí sf4-net.exe. Mohl ho odstranit bezpečnostní software. Přeinstalujte Ember a povolte jeho složku v antiviru. Hraní offline je dostupné."
+
+msgid "runtime.network_helper_blocked"
+msgstr "Síť se nepodařilo spustit: bezpečnostní software zablokoval sf4-net.exe. Povolte složku Emberu v antiviru a Ember spusťte znovu. Hraní offline je dostupné."
+
 msgid "discord.connecting"
 msgstr "Připojování k Discord..."
 
@@ -2980,7 +3273,7 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Herní ovladač se odpojil. Před dalším zápasem jej připojte."
 
 msgid "runtime.match_input_blocked"
-msgstr "Vstup zápasu je zablokován: znovu připojte {0}. Pokud se pozice změnila, vraťte se do místnosti a přiřaďte ho znovu."
+msgstr "{0} je odpojen. Váš bojovník nedostává žádný vstup, dokud jej znovu nepřipojíte."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Nepodařilo se ověřit přiřazení ovladače pro zápas. Před dalším pokusem jej přiřaďte znovu."
@@ -3014,6 +3307,9 @@ msgstr "Spojení s místností selhalo. Místnost se zavírá; nepotvrzené výs
 
 msgid "runtime.operation_busy"
 msgstr "Operace právě probíhá. Zkuste to znovu."
+
+msgid "runtime.steam_profile_failed"
+msgstr "Profil na Steamu se nepodařilo otevřít."
 
 msgid "discord.invitation_expired"
 msgstr "Pozvánka Discord vypršela. Požádejte o novou."
@@ -3909,6 +4205,21 @@ msgstr "{0}, {1}     Fronta: {2}     Sleduje: {3}"
 msgid "room.streak"
 msgstr "Sety v řadě: {0}"
 
+msgid "room.latency.estimate"
+msgstr "~{0} ms"
+
+msgid "room.latency.tip.value"
+msgstr "Odhadovaný ping: asi {0} ms."
+
+msgid "room.latency.tip.measuring"
+msgstr "Měření pingu..."
+
+msgid "room.latency.tip.unavailable"
+msgstr "Ping není k dispozici: k tomuto členovi zatím není spojení."
+
+msgid "room.latency.tip.in_match"
+msgstr "Ping je pozastaven, dokud tento člen hraje."
+
 msgid "screen.public_rooms"
 msgstr "Veřejné místnosti"
 
@@ -4586,3 +4897,1333 @@ msgstr "Odesílat vždy se nepodařilo zapnout, proto se toto hlášení neodesl
 
 msgid "reports.automatic_unavailable"
 msgstr "Dnešní automatická hlášení jsou vyčerpána nebo záznam odeslaných hlášení nelze přečíst, proto se toto hlášení neodeslalo. Zvolte Odeslat toto hlášení a odešlete ho z náhledu."
+
+msgid "player.button_prompts"
+msgstr "Zobrazení tlačítek"
+
+msgid "player.button_prompts_detail"
+msgstr "Obrázky tlačítek, které Ember ukazuje. Automaticky odpovídá ovladači, se kterým hrajete. Funkce tlačítek zůstávají stejné."
+
+msgid "player.prompts_auto"
+msgstr "Automaticky"
+
+
+msgid "controller.brand.stick"
+msgstr "Bojová tlačítka"
+
+msgid "controller.brand.xbox"
+msgstr "Xbox"
+
+msgid "controller.brand.playstation"
+msgstr "PlayStation"
+
+msgid "controller.brand.nintendo"
+msgstr "Nintendo"
+
+msgid "controller.connected"
+msgstr "{0} je připojen."
+
+msgid "controller.connected_keyboard"
+msgstr "{0} je připojen. Hrajete s klávesnicí; pro změnu použijte Změnit ovladač v Nastavení > Hráč a ovladač."
+
+msgid "controller.connected_unmapped"
+msgstr "{0} je připojen. Otevřete Ember a nastavte jeho tlačítka."
+
+msgid "controller.connected_full"
+msgstr "{0} je připojen, ale už se používají čtyři ovladače. Jeden odpojte, abyste mohli použít tento."
+
+msgid "controller.disconnected_named"
+msgstr "{0} je odpojen."
+
+msgid "controller.reconnected"
+msgstr "{0} je znovu připojen."
+
+msgid "controller.release_to_use"
+msgstr "Uvolněte tlačítko a hrajte s {0}."
+
+msgid "player.controllers"
+msgstr "Ovladače"
+
+msgid "player.controllers_value"
+msgstr "Připojeno: {0}"
+
+msgid "player.controllers_detail"
+msgstr "Hrajete s {0}. Prohlédněte si všechny připojené ovladače, vyzkoušejte jejich tlačítka a nastavte ty, které Ember ještě nezná."
+
+
+
+msgid "player.game_reads"
+msgstr "Nechat hru číst ovladače"
+
+msgid "player.game_reads_detail"
+msgstr "Vypnuto: Ember čte všechny ovladače a hra je vidí jako ovladače Xbox. Zapnuto: hra čte ovladače sama, jako bez Ember; ovladače PlayStation a Switch pak potřebují Steam Input. Změny platí od příštího spuštění hry."
+
+msgid "player.game_reads_pending"
+msgstr "Změnu použijete restartováním hry."
+
+msgid "player.prompts_showing"
+msgstr "Zobrazují se tlačítka {0}."
+
+msgid "controllers.title"
+msgstr "OVLADAČE"
+
+msgid "controllers.unavailable"
+msgstr "Podpora ovladačů je vypnutá"
+
+msgid "controllers.unavailable_detail"
+msgstr "Ember nemohl spustit podporu ovladačů, takže tentokrát je hra čte sama. Ovladače Xbox fungují jako obvykle; ostatní mohou potřebovat Steam Input. Podrobnosti jsou v sf4e.log."
+
+msgid "controllers.game_reads"
+msgstr "Hra čte ovladače"
+
+msgid "controllers.game_reads_detail"
+msgstr "Nechat hru číst ovladače je zapnuto, takže Ember ovladače nenastavuje ani netestuje. Vypněte tuto volbu v Hráč a ovladač a restartujte hru."
+
+msgid "controllers.none"
+msgstr "Žádné připojené ovladače"
+
+msgid "controllers.none_detail"
+msgstr "Připojte ovladač a objeví se zde. Klávesnice funguje i bez něj."
+
+msgid "controllers.value_yours"
+msgstr "Váš"
+
+msgid "controllers.value_steam"
+msgstr "Steam Input"
+
+msgid "controllers.value_unmapped"
+msgstr "Nenastavený"
+
+msgid "controllers.value_full"
+msgstr "Nepoužívá se"
+
+msgid "controllers.value_absent"
+msgstr "Nepřipojený"
+
+msgid "controllers.detail_yours"
+msgstr "Hrajete s tímto ovladačem. Herní slot {0}. Stiskněte jeho tlačítka a vyzkoušejte je."
+
+msgid "controllers.detail_other"
+msgstr "Herní slot {0}. Stiskněte tlačítka a vyzkoušejte je. Vyberte pro hraní s tímto ovladačem nebo nastavení tlačítek."
+
+msgid "controllers.detail_custom"
+msgstr "Používá vaše uložené nastavení tlačítek."
+
+msgid "controllers.detail_steam"
+msgstr "Tento ovladač spravuje Steam Input, takže jeho tlačítka odpovídají vašemu nastavení Steam. Pokud ho má spravovat Ember, spusťte Ember mimo Steam nebo vypněte Steam Input pro Ultra Street Fighter IV ve službě Steam."
+
+msgid "controllers.detail_unmapped"
+msgstr "Ember ještě nezná tlačítka tohoto ovladače. Dokud nebude nastaven, hra jej čte přímo a nabídky Ember používají tlačítka přiřazená k lehkému a střednímu kopu. Vyberte pro nastavení."
+
+msgid "controllers.detail_full"
+msgstr "Hra má místo pro čtyři ovladače. Odpojte jiný, abyste mohli použít tento."
+
+msgid "controllers.detail_absent"
+msgstr "Váš uložený ovladač. Připojte jej a hrajte s ním znovu."
+
+msgid "controllers.detail_game_read"
+msgstr "Hra čte tento ovladač sama."
+
+msgid "controllers.steam_name"
+msgstr "Ovladač Steam"
+
+msgid "controllers.test_heading"
+msgstr "Stiskněte tlačítka a vyzkoušejte je"
+
+msgid "controllers.test_raw"
+msgstr "Stisknuto: {0}"
+
+msgid "controllers.test_nothing"
+msgstr "Stisknuto: nic"
+
+msgid "controllers.choice_play"
+msgstr "Hrát s tímto ovladačem"
+
+msgid "controllers.choice_play_detail"
+msgstr "Použijte jej pro online hraní a nabídky Ember."
+
+msgid "controllers.choice_play_current"
+msgstr "S tímto ovladačem už hrajete."
+
+msgid "controllers.choice_setup"
+msgstr "Nastavit tlačítka"
+
+msgid "controllers.choice_setup_detail"
+msgstr "Postupně stiskněte každé tlačítko a řekněte Ember, co dělá."
+
+msgid "controllers.choice_setup_steam"
+msgstr "Tlačítka tohoto ovladače nastavuje Steam Input."
+
+msgid "controllers.choice_forget"
+msgstr "Zapomenout nastavení tlačítek"
+
+msgid "controllers.choice_forget_detail"
+msgstr "Vraťte ovladač k fungování před nastavením. Platí od příštího spuštění hry."
+
+msgid "controllers.now_playing"
+msgstr "Hrajete s {0}."
+
+msgid "controllers.forgotten"
+msgstr "Nastavení tlačítek zapomenuto. Platí od příštího spuštění hry."
+
+msgid "pad_setup.input.button"
+msgstr "Tlačítko {0}"
+
+msgid "pad_setup.input.hat_up"
+msgstr "Kříž nahoru"
+
+msgid "pad_setup.input.hat_right"
+msgstr "Kříž doprava"
+
+msgid "pad_setup.input.hat_down"
+msgstr "Kříž dolů"
+
+msgid "pad_setup.input.hat_left"
+msgstr "Kříž doleva"
+
+msgid "pad_setup.input.axis_plus"
+msgstr "Osa {0} +"
+
+msgid "pad_setup.input.axis_minus"
+msgstr "Osa {0} -"
+
+msgid "pad_setup.input.trigger"
+msgstr "Osa spouště {0}"
+
+msgid "controller.disconnected_room"
+msgstr "Ovladač odpojen. Připojte jej znovu nebo opusťte místnost a vyberte jiný."
+
+msgid "runtime.match_input_moved"
+msgstr "{0} je zpět, ale v jiném herním slotu. Znovu bude fungovat od příští hry."
+
+msgid "pad_setup.title"
+msgstr "NASTAVIT OVLADAČ"
+
+msgid "pad_setup.prompt_heading"
+msgstr "Nový ovladač"
+
+msgid "pad_setup.prompt_text"
+msgstr "Ember zatím nezná tlačítka ovladače {0}. Stiskněte na něm libovolné tlačítko a nastavte jej. Zabere to asi minutu."
+
+msgid "pad_setup.not_now"
+msgstr "Teď ne"
+
+msgid "pad_setup.step_count"
+msgstr "Krok {0} z {1}"
+
+msgid "pad_setup.step.up"
+msgstr "Nahoru"
+
+msgid "pad_setup.step.down"
+msgstr "Dolů"
+
+msgid "pad_setup.step.left"
+msgstr "Vlevo"
+
+msgid "pad_setup.step.right"
+msgstr "Vpravo"
+
+msgid "pad_setup.step.lp"
+msgstr "Lehký úder"
+
+msgid "pad_setup.step.mp"
+msgstr "Střední úder"
+
+msgid "pad_setup.step.hp"
+msgstr "Silný úder"
+
+msgid "pad_setup.step.lk"
+msgstr "Lehký kop"
+
+msgid "pad_setup.step.mk"
+msgstr "Střední kop"
+
+msgid "pad_setup.step.hk"
+msgstr "Silný kop"
+
+msgid "pad_setup.step.3p"
+msgstr "Všechny tři údery"
+
+msgid "pad_setup.step.3k"
+msgstr "Všechny tři kopy"
+
+msgid "pad_setup.step.ls"
+msgstr "Stisk levé páčky"
+
+msgid "pad_setup.step.rs"
+msgstr "Stisk pravé páčky"
+
+msgid "pad_setup.step.lx"
+msgstr "Levá páčka doprava"
+
+msgid "pad_setup.step.ly"
+msgstr "Levá páčka dolů"
+
+msgid "pad_setup.step.rx"
+msgstr "Pravá páčka doprava"
+
+msgid "pad_setup.step.ry"
+msgstr "Pravá páčka dolů"
+
+msgid "pad_setup.step.start"
+msgstr "Start"
+
+msgid "pad_setup.step.select"
+msgstr "Select"
+
+msgid "pad_setup.press_direction"
+msgstr "Pohněte páčkou nebo stiskněte tlačítko pro tento směr a potom pusťte."
+
+msgid "pad_setup.press_button"
+msgstr "Stiskněte tlačítko, které chcete pro tuto akci, a potom jej pusťte."
+
+msgid "pad_setup.optional"
+msgstr "Pokud ovladač nemá tlačítko pro tuto akci, přeskočte ji."
+
+msgid "pad_setup.optional_stick"
+msgstr "Pokud ovladač nemá páčku pro tuto akci, přeskočte ji."
+
+msgid "pad_setup.lk_selects"
+msgstr "Toto tlačítko také vybírá v nabídkách."
+
+msgid "pad_setup.mk_backs"
+msgstr "Toto tlačítko také vrací zpět v nabídkách."
+
+msgid "pad_setup.hold_cancel"
+msgstr "Držte dál pro zrušení nastavení."
+
+msgid "pad_setup.hold_to_cancel"
+msgstr "Podržet libovolné tlačítko: zrušit"
+
+msgid "pad_setup.back_step"
+msgstr "O krok zpět"
+
+msgid "pad_setup.skip"
+msgstr "Přeskočit"
+
+msgid "pad_setup.required"
+msgstr "Tato akce je potřeba."
+
+msgid "pad_setup.conflict"
+msgstr "{0} už je {1}. Použijte jiný vstup."
+
+msgid "pad_setup.idle_hint"
+msgstr "Zatím žádný vstup. Podržte libovolné tlačítko 3 sekundy pro zrušení nebo stiskněte Esc."
+
+msgid "pad_setup.reconnect"
+msgstr "Ovladač odpojen. Pro pokračování jej připojte do {0} sekund."
+
+msgid "pad_setup.skipped"
+msgstr "Přeskočeno"
+
+msgid "pad_setup.summary_detail"
+msgstr "Stiskněte tlačítko a uvidíte jeho krok. Lehký kop vybírá a Střední kop vrací zpět, stejně jako v každé nabídce."
+
+msgid "pad_setup.redo_detail"
+msgstr "Vyberte pro opětovné nastavení tohoto vstupu."
+
+msgid "pad_setup.save"
+msgstr "Uložit"
+
+msgid "pad_setup.save_detail"
+msgstr "Uložit nastavení a hned jej používat."
+
+msgid "pad_setup.start_over"
+msgstr "Začít znovu"
+
+msgid "pad_setup.start_over_detail"
+msgstr "Vymazat všechny kroky a začít znovu."
+
+msgid "pad_setup.cancel"
+msgstr "Zrušit nastavení"
+
+msgid "pad_setup.cancel_detail"
+msgstr "Odejít bez uložení."
+
+msgid "pad_setup.cancelled"
+msgstr "Nastavení zrušeno. Nic nebylo uloženo."
+
+msgid "pad_setup.saved_heading"
+msgstr "Ovladač nastaven"
+
+msgid "pad_setup.saved"
+msgstr "{0} je nastaven. Pro změnu útoků jeho tlačítek vyberte Rozložení tlačítek."
+
+msgid "pad_setup.save_failed"
+msgstr "Ember nemohl toto nastavení použít. Nic nebylo uloženo. Podrobnosti jsou v sf4e.log."
+
+msgid "pad_setup.stopped_disconnect"
+msgstr "Nastavení zastaveno, protože {0} byl odpojen. Nic nebylo uloženo."
+
+msgid "pad_setup.stopped_idle"
+msgstr "Nastavení zastaveno po minutě bez vstupu. Nic nebylo uloženo."
+
+msgid "player.button_layout"
+msgstr "Rozložení tlačítek"
+
+msgid "player.button_layout_detail"
+msgstr "Vyberte útoky tlačítek ovladače {0}. Pro soupeře se nic nemění."
+
+msgid "player.button_layout_setup"
+msgstr "Ember zatím ovladač {0} neobsluhuje. Vyberte pro nastavení jeho tlačítek."
+
+msgid "player.button_layout_keyboard"
+msgstr "Rozložení jsou pro ovladače. Pro klávesnici použijte Nastavení tlačítek hry."
+
+msgid "player.button_layout_game_reads"
+msgstr "Pro rozložení vypněte Nechat hru číst ovladače. Do té doby použijte Nastavení tlačítek hry."
+
+msgid "player.button_layout_failed"
+msgstr "Podpora ovladačů Ember se tentokrát nespustila. Použijte Nastavení tlačítek hry."
+
+msgid "player.game_buttons"
+msgstr "Nastavení tlačítek hry"
+
+msgid "player.game_buttons_detail"
+msgstr "Ember se zavře. V nabídce hry vyberte Možnosti a nastavení ovladače. Použijte je pro klávesnici a ovladače čtené hrou. Ovladač s rozložením Ember používá toto rozložení. Hra uloží rozložení pouze tehdy, když každá akce má tlačítko."
+
+msgid "controllers.choice_layout"
+msgstr "Rozložení tlačítek"
+
+msgid "controllers.choice_layout_detail"
+msgstr "Vyberte útoky každého tlačítka."
+
+msgid "controllers.choice_layout_setup"
+msgstr "Nejdříve nastavte tlačítka."
+
+msgid "controllers.detail_layout"
+msgstr "Rozložení tlačítek: {0}."
+
+msgid "button_layout.title"
+msgstr "ROZLOŽENÍ TLAČÍTEK"
+
+msgid "button_layout.button_title"
+msgstr "ZMĚNIT TLAČÍTKO"
+
+msgid "button_layout.test"
+msgstr "Vyzkoušejte tlačítka"
+
+msgid "button_layout.test_detail"
+msgstr "Stiskněte tlačítka ovladače {0} a uvidíte jejich útoky. Na tomto řádku ovládá nabídku pouze Zpět."
+
+msgid "button_layout.attacks"
+msgstr "Útoky"
+
+msgid "button_layout.throw"
+msgstr "Hod (LP+LK)"
+
+msgid "button_layout.focus"
+msgstr "Focus útok (MP+MK)"
+
+msgid "button_layout.red_focus"
+msgstr "Červený Focus útok (LP+MP+MK)"
+
+msgid "button_layout.row_detail"
+msgstr "Vyberte a stiskněte požadované tlačítko pro {0}. Pokud útok má jiné tlačítko, obě se prohodí."
+
+msgid "button_layout.row_missing"
+msgstr "Žádné tlačítko neprovádí pouze tento útok, takže jej nelze provést samostatně."
+
+msgid "button_layout.no_button"
+msgstr "Žádné tlačítko"
+
+msgid "button_layout.edit_button"
+msgstr "Změnit jedno tlačítko"
+
+msgid "button_layout.edit_button_detail"
+msgstr "Vyberte a stiskněte tlačítko pro přesnou volbu jeho útoků. Lze kombinovat libovolné útoky nebo tlačítko vypnout."
+
+msgid "button_layout.preset"
+msgstr "Předvolba"
+
+msgid "button_layout.preset_detail"
+msgstr "Vyberte připravené rozložení. Výchozí je rozložení samotné hry."
+
+msgid "button_layout.custom"
+msgstr "Vlastní"
+
+msgid "button_layout.game_layout"
+msgstr "Rozložení hry"
+
+msgid "button_layout.preset.default"
+msgstr "Výchozí"
+
+msgid "button_layout.preset.default_detail"
+msgstr "Rozložení hry. Vhodné pro většinu ovladačů a sticků s 8 tlačítky."
+
+msgid "button_layout.preset.triggers"
+msgstr "Trojité útoky na spouštích"
+
+msgid "button_layout.preset.triggers_detail"
+msgstr "Pro ovladače se šesti tlačítky. Silný úder na pravém horním tlačítku, silný kop na levém. Všechny tři údery na levé spoušti, všechny tři kopy na pravé."
+
+msgid "button_layout.preset.focus_throw"
+msgstr "Focus a hod"
+
+msgid "button_layout.preset.focus_throw_detail"
+msgstr "Jako Výchozí, ale levé horní tlačítko provádí Focus útok a levá spoušť hod. Na sticku s 8 tlačítky je to čtvrtý sloupec. Všechny tři údery a kopy se přesunou na stisky páček."
+
+msgid "button_layout.preset_applied"
+msgstr "Rozložení nastaveno na {0}."
+
+msgid "button_layout.remove"
+msgstr "Použít rozložení hry"
+
+msgid "button_layout.remove_detail"
+msgstr "Ember přestane měnit tlačítka tohoto ovladače. Opět platí rozložení z Nastavení tlačítek hry."
+
+msgid "button_layout.removed"
+msgstr "Pro tento ovladač opět platí rozložení hry."
+
+msgid "button_layout.press_for"
+msgstr "Stiskněte tlačítko pro {0}"
+
+msgid "button_layout.press_to_change"
+msgstr "Stiskněte tlačítko ke změně"
+
+msgid "button_layout.waiting"
+msgstr "Stiskněte tlačítko..."
+
+msgid "button_layout.press_cancel"
+msgstr "Pohněte páčkou nebo stiskněte Start pro zrušení."
+
+msgid "button_layout.assigned"
+msgstr "{0} je nyní na {1}."
+
+msgid "button_layout.swapped"
+msgstr "{0} je nyní na {1}. {2} místo toho provádí {3}."
+
+msgid "button_layout.swapped_nothing"
+msgstr "{0} je nyní na {1}. {2} nyní nedělá nic."
+
+msgid "button_layout.bit_detail"
+msgstr "Vlevo nebo Vpravo zapíná či vypíná {0} pro toto tlačítko."
+
+msgid "button_layout.clear"
+msgstr "Žádné útoky"
+
+msgid "button_layout.clear_detail"
+msgstr "Toto tlačítko v boji nedělá nic."
+
+msgid "button_layout.button_does"
+msgstr "V boji: {0}"
+
+msgid "button_layout.nothing"
+msgstr "Nic"
+
+msgid "button_layout.absent"
+msgstr "Nepřipojen"
+
+msgid "button_layout.absent_detail"
+msgstr "{0} není připojen. Rozložení je uloženo. Připojte jej pro změnu."
+
+msgid "button_layout.setup_first"
+msgstr "Nejdříve nastavte tlačítka"
+
+msgid "button_layout.setup_first_detail"
+msgstr "Hra čte {0} sama, takže Ember zatím nemůže měnit jeho tlačítka. Nastavte jej jednou a bude zde fungovat jako ostatní ovladače."
+
+msgid "button_layout.missing_heading"
+msgstr "Některé útoky nemají tlačítko"
+
+msgid "button_layout.missing_text"
+msgstr "Tyto útoky nemají vlastní tlačítko: {0}. Rozložení je uloženo."
+
+msgid "button_layout.keep_editing"
+msgstr "Pokračovat v úpravách"
+
+msgid "button_layout.leave"
+msgstr "Odejít"
+
+msgid "button_layout.menu_confirm"
+msgstr "Potvrzení v nabídkách"
+
+msgid "button_layout.menu_back"
+msgstr "Zpět v nabídkách"
+
+msgid "button_layout.menu_confirm_detail"
+msgstr "Vyberte a pak stiskněte tlačítko, které potvrzuje v nabídkách Emberu. Dokud žádné nezvolíte, je to tlačítko, kterým potvrzují nabídky hry."
+
+msgid "button_layout.menu_back_detail"
+msgstr "Vyberte a pak stiskněte tlačítko, které vrací zpět v nabídkách Emberu. Dokud žádné nezvolíte, je to tlačítko, kterým se vracejí nabídky hry."
+
+msgid "button_layout.menu_taken"
+msgstr "{0} už je: {1}. Zvolte jiné tlačítko."
+
+msgid "room.delay_policy"
+msgstr "Zpoždění vstupu v místnosti"
+
+msgid "room.delay_policy.shared"
+msgstr "Stejné pro oba"
+
+msgid "room.delay_policy.own"
+msgstr "Každého hráče vlastní"
+
+msgid "room.delay_policy.detail"
+msgstr "Stejné pro oba: každý zápas se hraje s vyšším ze zpoždění obou hráčů. Každého hráče vlastní: každý hráč hraje se zpožděním, které si zvolil, a rozdíl vyrovná rollback na druhé straně. Platí po celou dobu, kdy je místnost otevřená."
+
+msgid "room.rules_summary_own_delay"
+msgstr "{0}, vlastní zpoždění"
+
+msgid "room.table_footer_own_delay"
+msgstr "Vlastní zpoždění"
+
+msgid "room.input_delay.own"
+msgstr "Vaše zpoždění: {0}"
+
+msgid "public.own_delay"
+msgstr "Vlastní zpoždění"
+
+msgid "public.failure.own_delay_unsupported"
+msgstr "Tato služba zatím neumí vytvořit místnost s vlastním zpožděním každého hráče. Zvolte Stejné pro oba, nebo to zkuste později."
+
+#. Country names, generated by scripts/gen-countries.mjs from ICU. Do not edit by hand.
+
+msgid "country.AD"
+msgstr "Andorra"
+
+msgid "country.AE"
+msgstr "Spojené arabské emiráty"
+
+msgid "country.AF"
+msgstr "Afghánistán"
+
+msgid "country.AG"
+msgstr "Antigua a Barbuda"
+
+msgid "country.AI"
+msgstr "Anguilla"
+
+msgid "country.AL"
+msgstr "Albánie"
+
+msgid "country.AM"
+msgstr "Arménie"
+
+msgid "country.AO"
+msgstr "Angola"
+
+msgid "country.AQ"
+msgstr "Antarktida"
+
+msgid "country.AR"
+msgstr "Argentina"
+
+msgid "country.AS"
+msgstr "Americká Samoa"
+
+msgid "country.AT"
+msgstr "Rakousko"
+
+msgid "country.AU"
+msgstr "Austrálie"
+
+msgid "country.AW"
+msgstr "Aruba"
+
+msgid "country.AX"
+msgstr "Ålandy"
+
+msgid "country.AZ"
+msgstr "Ázerbájdžán"
+
+msgid "country.BA"
+msgstr "Bosna a Hercegovina"
+
+msgid "country.BB"
+msgstr "Barbados"
+
+msgid "country.BD"
+msgstr "Bangladéš"
+
+msgid "country.BE"
+msgstr "Belgie"
+
+msgid "country.BF"
+msgstr "Burkina Faso"
+
+msgid "country.BG"
+msgstr "Bulharsko"
+
+msgid "country.BH"
+msgstr "Bahrajn"
+
+msgid "country.BI"
+msgstr "Burundi"
+
+msgid "country.BJ"
+msgstr "Benin"
+
+msgid "country.BL"
+msgstr "Svatý Bartoloměj"
+
+msgid "country.BM"
+msgstr "Bermudy"
+
+msgid "country.BN"
+msgstr "Brunej"
+
+msgid "country.BO"
+msgstr "Bolívie"
+
+msgid "country.BQ"
+msgstr "Karibské Nizozemsko"
+
+msgid "country.BR"
+msgstr "Brazílie"
+
+msgid "country.BS"
+msgstr "Bahamy"
+
+msgid "country.BT"
+msgstr "Bhútán"
+
+msgid "country.BV"
+msgstr "Bouvetův ostrov"
+
+msgid "country.BW"
+msgstr "Botswana"
+
+msgid "country.BY"
+msgstr "Bělorusko"
+
+msgid "country.BZ"
+msgstr "Belize"
+
+msgid "country.CA"
+msgstr "Kanada"
+
+msgid "country.CC"
+msgstr "Kokosové ostrovy"
+
+msgid "country.CD"
+msgstr "Kongo – Kinshasa"
+
+msgid "country.CF"
+msgstr "Středoafrická republika"
+
+msgid "country.CG"
+msgstr "Kongo – Brazzaville"
+
+msgid "country.CH"
+msgstr "Švýcarsko"
+
+msgid "country.CI"
+msgstr "Pobřeží slonoviny"
+
+msgid "country.CK"
+msgstr "Cookovy ostrovy"
+
+msgid "country.CL"
+msgstr "Chile"
+
+msgid "country.CM"
+msgstr "Kamerun"
+
+msgid "country.CN"
+msgstr "Čína"
+
+msgid "country.CO"
+msgstr "Kolumbie"
+
+msgid "country.CR"
+msgstr "Kostarika"
+
+msgid "country.CU"
+msgstr "Kuba"
+
+msgid "country.CV"
+msgstr "Kapverdy"
+
+msgid "country.CW"
+msgstr "Curaçao"
+
+msgid "country.CX"
+msgstr "Vánoční ostrov"
+
+msgid "country.CY"
+msgstr "Kypr"
+
+msgid "country.CZ"
+msgstr "Česko"
+
+msgid "country.DE"
+msgstr "Německo"
+
+msgid "country.DJ"
+msgstr "Džibutsko"
+
+msgid "country.DK"
+msgstr "Dánsko"
+
+msgid "country.DM"
+msgstr "Dominika"
+
+msgid "country.DO"
+msgstr "Dominikánská republika"
+
+msgid "country.DZ"
+msgstr "Alžírsko"
+
+msgid "country.EC"
+msgstr "Ekvádor"
+
+msgid "country.EE"
+msgstr "Estonsko"
+
+msgid "country.EG"
+msgstr "Egypt"
+
+msgid "country.EH"
+msgstr "Západní Sahara"
+
+msgid "country.ER"
+msgstr "Eritrea"
+
+msgid "country.ES"
+msgstr "Španělsko"
+
+msgid "country.ET"
+msgstr "Etiopie"
+
+msgid "country.FI"
+msgstr "Finsko"
+
+msgid "country.FJ"
+msgstr "Fidži"
+
+msgid "country.FK"
+msgstr "Falklandské ostrovy"
+
+msgid "country.FM"
+msgstr "Mikronésie"
+
+msgid "country.FO"
+msgstr "Faerské ostrovy"
+
+msgid "country.FR"
+msgstr "Francie"
+
+msgid "country.GA"
+msgstr "Gabon"
+
+msgid "country.GB"
+msgstr "Spojené království"
+
+msgid "country.GD"
+msgstr "Grenada"
+
+msgid "country.GE"
+msgstr "Gruzie"
+
+msgid "country.GF"
+msgstr "Francouzská Guyana"
+
+msgid "country.GG"
+msgstr "Guernsey"
+
+msgid "country.GH"
+msgstr "Ghana"
+
+msgid "country.GI"
+msgstr "Gibraltar"
+
+msgid "country.GL"
+msgstr "Grónsko"
+
+msgid "country.GM"
+msgstr "Gambie"
+
+msgid "country.GN"
+msgstr "Guinea"
+
+msgid "country.GP"
+msgstr "Guadeloupe"
+
+msgid "country.GQ"
+msgstr "Rovníková Guinea"
+
+msgid "country.GR"
+msgstr "Řecko"
+
+msgid "country.GS"
+msgstr "Jižní Georgie a Jižní Sandwichovy ostrovy"
+
+msgid "country.GT"
+msgstr "Guatemala"
+
+msgid "country.GU"
+msgstr "Guam"
+
+msgid "country.GW"
+msgstr "Guinea-Bissau"
+
+msgid "country.GY"
+msgstr "Guyana"
+
+msgid "country.HK"
+msgstr "Hongkong – ZAO Číny"
+
+msgid "country.HM"
+msgstr "Heardův ostrov a McDonaldovy ostrovy"
+
+msgid "country.HN"
+msgstr "Honduras"
+
+msgid "country.HR"
+msgstr "Chorvatsko"
+
+msgid "country.HT"
+msgstr "Haiti"
+
+msgid "country.HU"
+msgstr "Maďarsko"
+
+msgid "country.ID"
+msgstr "Indonésie"
+
+msgid "country.IE"
+msgstr "Irsko"
+
+msgid "country.IL"
+msgstr "Izrael"
+
+msgid "country.IM"
+msgstr "Ostrov Man"
+
+msgid "country.IN"
+msgstr "Indie"
+
+msgid "country.IO"
+msgstr "Britské indickooceánské území"
+
+msgid "country.IQ"
+msgstr "Irák"
+
+msgid "country.IR"
+msgstr "Írán"
+
+msgid "country.IS"
+msgstr "Island"
+
+msgid "country.IT"
+msgstr "Itálie"
+
+msgid "country.JE"
+msgstr "Jersey"
+
+msgid "country.JM"
+msgstr "Jamajka"
+
+msgid "country.JO"
+msgstr "Jordánsko"
+
+msgid "country.JP"
+msgstr "Japonsko"
+
+msgid "country.KE"
+msgstr "Keňa"
+
+msgid "country.KG"
+msgstr "Kyrgyzstán"
+
+msgid "country.KH"
+msgstr "Kambodža"
+
+msgid "country.KI"
+msgstr "Kiribati"
+
+msgid "country.KM"
+msgstr "Komory"
+
+msgid "country.KN"
+msgstr "Svatý Kryštof a Nevis"
+
+msgid "country.KP"
+msgstr "Severní Korea"
+
+msgid "country.KR"
+msgstr "Jižní Korea"
+
+msgid "country.KW"
+msgstr "Kuvajt"
+
+msgid "country.KY"
+msgstr "Kajmanské ostrovy"
+
+msgid "country.KZ"
+msgstr "Kazachstán"
+
+msgid "country.LA"
+msgstr "Laos"
+
+msgid "country.LB"
+msgstr "Libanon"
+
+msgid "country.LC"
+msgstr "Svatá Lucie"
+
+msgid "country.LI"
+msgstr "Lichtenštejnsko"
+
+msgid "country.LK"
+msgstr "Srí Lanka"
+
+msgid "country.LR"
+msgstr "Libérie"
+
+msgid "country.LS"
+msgstr "Lesotho"
+
+msgid "country.LT"
+msgstr "Litva"
+
+msgid "country.LU"
+msgstr "Lucembursko"
+
+msgid "country.LV"
+msgstr "Lotyšsko"
+
+msgid "country.LY"
+msgstr "Libye"
+
+msgid "country.MA"
+msgstr "Maroko"
+
+msgid "country.MC"
+msgstr "Monako"
+
+msgid "country.MD"
+msgstr "Moldavsko"
+
+msgid "country.ME"
+msgstr "Černá Hora"
+
+msgid "country.MF"
+msgstr "Svatý Martin (Francie)"
+
+msgid "country.MG"
+msgstr "Madagaskar"
+
+msgid "country.MH"
+msgstr "Marshallovy ostrovy"
+
+msgid "country.MK"
+msgstr "Severní Makedonie"
+
+msgid "country.ML"
+msgstr "Mali"
+
+msgid "country.MM"
+msgstr "Myanmar (Barma)"
+
+msgid "country.MN"
+msgstr "Mongolsko"
+
+msgid "country.MO"
+msgstr "Macao – ZAO Číny"
+
+msgid "country.MP"
+msgstr "Severní Mariany"
+
+msgid "country.MQ"
+msgstr "Martinik"
+
+msgid "country.MR"
+msgstr "Mauritánie"
+
+msgid "country.MS"
+msgstr "Montserrat"
+
+msgid "country.MT"
+msgstr "Malta"
+
+msgid "country.MU"
+msgstr "Mauricius"
+
+msgid "country.MV"
+msgstr "Maledivy"
+
+msgid "country.MW"
+msgstr "Malawi"
+
+msgid "country.MX"
+msgstr "Mexiko"
+
+msgid "country.MY"
+msgstr "Malajsie"
+
+msgid "country.MZ"
+msgstr "Mosambik"
+
+msgid "country.NA"
+msgstr "Namibie"
+
+msgid "country.NC"
+msgstr "Nová Kaledonie"
+
+msgid "country.NE"
+msgstr "Niger"
+
+msgid "country.NF"
+msgstr "Norfolk"
+
+msgid "country.NG"
+msgstr "Nigérie"
+
+msgid "country.NI"
+msgstr "Nikaragua"
+
+msgid "country.NL"
+msgstr "Nizozemsko"
+
+msgid "country.NO"
+msgstr "Norsko"
+
+msgid "country.NP"
+msgstr "Nepál"
+
+msgid "country.NR"
+msgstr "Nauru"
+
+msgid "country.NU"
+msgstr "Niue"
+
+msgid "country.NZ"
+msgstr "Nový Zéland"
+
+msgid "country.OM"
+msgstr "Omán"
+
+msgid "country.PA"
+msgstr "Panama"
+
+msgid "country.PE"
+msgstr "Peru"
+
+msgid "country.PF"
+msgstr "Francouzská Polynésie"
+
+msgid "country.PG"
+msgstr "Papua-Nová Guinea"
+
+msgid "country.PH"
+msgstr "Filipíny"
+
+msgid "country.PK"
+msgstr "Pákistán"
+
+msgid "country.PL"
+msgstr "Polsko"
+
+msgid "country.PM"
+msgstr "Saint-Pierre a Miquelon"
+
+msgid "country.PN"
+msgstr "Pitcairnovy ostrovy"
+
+msgid "country.PR"
+msgstr "Portoriko"
+
+msgid "country.PS"
+msgstr "Palestinská území"
+
+msgid "country.PT"
+msgstr "Portugalsko"
+
+msgid "country.PW"
+msgstr "Palau"
+
+msgid "country.PY"
+msgstr "Paraguay"
+
+msgid "country.QA"
+msgstr "Katar"
+
+msgid "country.RE"
+msgstr "Réunion"
+
+msgid "country.RO"
+msgstr "Rumunsko"
+
+msgid "country.RS"
+msgstr "Srbsko"
+
+msgid "country.RU"
+msgstr "Rusko"
+
+msgid "country.RW"
+msgstr "Rwanda"
+
+msgid "country.SA"
+msgstr "Saúdská Arábie"
+
+msgid "country.SB"
+msgstr "Šalamounovy ostrovy"
+
+msgid "country.SC"
+msgstr "Seychely"
+
+msgid "country.SD"
+msgstr "Súdán"
+
+msgid "country.SE"
+msgstr "Švédsko"
+
+msgid "country.SG"
+msgstr "Singapur"
+
+msgid "country.SH"
+msgstr "Svatá Helena"
+
+msgid "country.SI"
+msgstr "Slovinsko"
+
+msgid "country.SJ"
+msgstr "Špicberky a Jan Mayen"
+
+msgid "country.SK"
+msgstr "Slovensko"
+
+msgid "country.SL"
+msgstr "Sierra Leone"
+
+msgid "country.SM"
+msgstr "San Marino"
+
+msgid "country.SN"
+msgstr "Senegal"
+
+msgid "country.SO"
+msgstr "Somálsko"
+
+msgid "country.SR"
+msgstr "Surinam"
+
+msgid "country.SS"
+msgstr "Jižní Súdán"
+
+msgid "country.ST"
+msgstr "Svatý Tomáš a Princův ostrov"
+
+msgid "country.SV"
+msgstr "Salvador"
+
+msgid "country.SX"
+msgstr "Svatý Martin (Nizozemsko)"
+
+msgid "country.SY"
+msgstr "Sýrie"
+
+msgid "country.SZ"
+msgstr "Eswatini"
+
+msgid "country.TC"
+msgstr "Turks a Caicos"
+
+msgid "country.TD"
+msgstr "Čad"
+
+msgid "country.TF"
+msgstr "Francouzská jižní území"
+
+msgid "country.TG"
+msgstr "Togo"
+
+msgid "country.TH"
+msgstr "Thajsko"
+
+msgid "country.TJ"
+msgstr "Tádžikistán"
+
+msgid "country.TK"
+msgstr "Tokelau"
+
+msgid "country.TL"
+msgstr "Východní Timor"
+
+msgid "country.TM"
+msgstr "Turkmenistán"
+
+msgid "country.TN"
+msgstr "Tunisko"
+
+msgid "country.TO"
+msgstr "Tonga"
+
+msgid "country.TR"
+msgstr "Turecko"
+
+msgid "country.TT"
+msgstr "Trinidad a Tobago"
+
+msgid "country.TV"
+msgstr "Tuvalu"
+
+msgid "country.TW"
+msgstr "Tchaj-wan"
+
+msgid "country.TZ"
+msgstr "Tanzanie"
+
+msgid "country.UA"
+msgstr "Ukrajina"
+
+msgid "country.UG"
+msgstr "Uganda"
+
+msgid "country.UM"
+msgstr "Menší odlehlé ostrovy USA"
+
+msgid "country.US"
+msgstr "Spojené státy"
+
+msgid "country.UY"
+msgstr "Uruguay"
+
+msgid "country.UZ"
+msgstr "Uzbekistán"
+
+msgid "country.VA"
+msgstr "Vatikán"
+
+msgid "country.VC"
+msgstr "Svatý Vincenc a Grenadiny"
+
+msgid "country.VE"
+msgstr "Venezuela"
+
+msgid "country.VG"
+msgstr "Britské Panenské ostrovy"
+
+msgid "country.VI"
+msgstr "Americké Panenské ostrovy"
+
+msgid "country.VN"
+msgstr "Vietnam"
+
+msgid "country.VU"
+msgstr "Vanuatu"
+
+msgid "country.WF"
+msgstr "Wallis a Futuna"
+
+msgid "country.WS"
+msgstr "Samoa"
+
+msgid "country.YE"
+msgstr "Jemen"
+
+msgid "country.YT"
+msgstr "Mayotte"
+
+msgid "country.ZA"
+msgstr "Jihoafrická republika"
+
+msgid "country.ZM"
+msgstr "Zambie"
+
+msgid "country.ZW"
+msgstr "Zimbabwe"
+
+#. End of the generated country names.

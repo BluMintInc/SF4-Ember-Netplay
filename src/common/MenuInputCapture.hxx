@@ -11,23 +11,30 @@ namespace sf4e { namespace input {
 // this PC fights in. Such a game ends only when its round time runs out, so
 // Start or F10 opens Ember's menu over the fight, where a fighter ends it
 // (End practice). The game has no pause under rollback for Start to open.
-enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch };
+// WatchedMatch: a room game this PC only watches, under rollback. Start or
+// F10 opens Ember's menu over it, where the spectator leaves the game (Stop
+// watching); the game keeps running underneath, as it does for the fighters.
+enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch };
+// A room game Ember's menu is shown over: the one place a fight does not keep it away.
+inline bool MenuOverFight(MenuContext context) {
+    return context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
+}
 // The pad drives Ember's menus at the main menu, the training controls in
 // offline Training (opened there by Back and Start, TrainingPad.hxx), and the
-// menu opened over an export or a Practice match. Start opens Ember at the
-// main menu and over a Practice match.
+// menu opened over an export or a fight. Start opens Ember at the main menu
+// and over a fight.
 inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable; }
 inline bool ControllerOpensMenu(MenuContext context) {
-    return context == MenuContext::MainMenu || context == MenuContext::PracticeMatch;
+    return context == MenuContext::MainMenu || MenuOverFight(context);
 }
 // Where Ember's menu can be shown: offline Training has its own controls.
 inline bool MenuShownIn(MenuContext context) {
-    return context == MenuContext::MainMenu || context == MenuContext::ReplayExport || context == MenuContext::PracticeMatch;
+    return context == MenuContext::MainMenu || context == MenuContext::ReplayExport || MenuOverFight(context);
 }
 // A room game being prepared or played keeps Ember's menu away, except one
 // where the menu is shown over the fight itself.
 inline bool FightKeepsMenuAway(bool fighting, MenuContext context) {
-    return fighting && context != MenuContext::PracticeMatch;
+    return fighting && !MenuOverFight(context);
 }
 // Native Pad::System publishes five adjacent uint32 input caches per player.
 // Keep assignment metadata and provider input untouched for overlay polling.

@@ -56,12 +56,23 @@ if(WIN32)
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(HelperRust loopback_udp_ports ember_processes)
             # The identity protocol and tournament bridge workspace. The bridge
-            # is not shipped to players; its tests still gate the build.
+            # is not shipped to players; its tests still gate the build. The SDK
+            # test builds into the same target directory and runs that bridge.
+            set(SF4E_EMBER_TARGET_DIR "${CMAKE_BINARY_DIR}/rust-ember-target")
             add_test(NAME EmberRust
-                COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
+                COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${SF4E_EMBER_TARGET_DIR}"
                     "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS}
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember")
             set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
+            sf4e_test_locks(EmberRust ember_processes)
+            find_program(SF4E_NPM_EXECUTABLE NAMES npm.cmd npm REQUIRED)
+            add_test(NAME BridgeSdk
+                COMMAND ${CMAKE_COMMAND} "-DSOURCE=${CMAKE_SOURCE_DIR}"
+                    "-DCARGO=${SF4E_CARGO_EXECUTABLE}" "-DNPM=${SF4E_NPM_EXECUTABLE}"
+                    "-DEMBER_TARGET=${SF4E_EMBER_TARGET_DIR}" "-DJOBS=${SF4E_CARGO_TEST_JOBS}"
+                    -P "${CMAKE_SOURCE_DIR}/cmake/RunSdkTests.cmake")
+            set_tests_properties(BridgeSdk PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
+            sf4e_test_locks(BridgeSdk ember_processes)
         endif()
     endif()
 endif()

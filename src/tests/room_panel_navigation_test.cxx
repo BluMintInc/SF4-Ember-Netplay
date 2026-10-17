@@ -264,11 +264,20 @@ int main() try {
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
         "Left from one frame did not choose 0 frames");
     view.selectedDelay = 0; frame();
-    Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::T("room.selected_delay.detail")) != std::string::npos,
+    Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::Tf("room.selected_delay.detail", MinimumInputDelay, MaximumInputDelay)) != std::string::npos &&
+        row("input-delay").detail.find("from 0 to 5 frames") != std::string::npos,
         "Input delay did not show 0 frames and what it needs");
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
         "Right from 0 frames did not choose one frame");
+    // The choice stops at MaximumInputDelay; a larger delay a room still holds shows as that.
+    view.selectedDelay = MaximumInputDelay; frame(); press(MenuInput::Right);
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == MaximumInputDelay,
+        "Right at the largest delay did not stay there");
+    view.selectedDelay = InputDelayWireCeiling; frame();
+    Check(row("input-delay").value == "5 frames",
+        "A held delay above the choice limit was not shown at the limit");
+    view.selectedDelay = 0; frame();
     // Auto sits before 0 frames. With it on, the row shows its bounds and,
     // once the opponent is measured, the delay it resolves to; Select no longer
     // takes the recommendation, and Right returns to 0 frames.
@@ -492,7 +501,21 @@ int main() try {
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
     focus("member-2"); press(MenuInput::Select); frame();
     Check(row("transfer-host").enabled, "Host member menu omitted Transfer host");
-    focus("transfer-host"); const auto beforeTransfer = actions.size(); press(MenuInput::Select);
+    // Steam profile: offered only for a member who showed one, and it asks the runtime to open exactly that ID.
+    Check(row("steam-profile").label == loc::T("room.steam_profile") && !row("steam-profile").enabled &&
+        row("steam-profile").detail == loc::T("room.steam_profile.none"), "A member who showed no Steam profile offered one");
+    {
+        const auto beforeSteam = actions.size(); focus("steam-profile"); press(MenuInput::Select);
+        Check(actions.size() == beforeSteam, "A disabled Steam profile row submitted something");
+        view.room.members[1].steamId = SteamId::Parsed("76561200000000000"); ++view.room.revision; frame();
+        Check(row("steam-profile").enabled && row("steam-profile").detail == loc::T("room.steam_profile.detail"), "A shared Steam profile was not offered");
+        focus("steam-profile"); press(MenuInput::Select);
+        Check(actions.size() == beforeSteam + 1 && actions.back().service == platform::ServiceAction::OpenSteamProfile &&
+            actions.back().steamProfile.ToString() == "76561200000000000", "Steam profile did not ask to open that member's profile");
+        view.room.members[1].steamId = SteamId(); ++view.room.revision; frame();
+        Check(!row("steam-profile").enabled, "A profile the member took away stayed offered");
+        view.room.members[1].steamId = SteamId::Parsed("76561200000000000"); ++view.room.revision; frame();
+    }    focus("transfer-host"); const auto beforeTransfer = actions.size(); press(MenuInput::Select);
     Check(actions.size() == beforeTransfer, "Transfer host confirmation did not default to Cancel");
     press(MenuInput::Right); press(MenuInput::Select);
     Check(actions.size() == beforeTransfer + 1 && actions.back().roomAction.kind == room::ActionKind::TransferHost &&
@@ -802,10 +825,10 @@ int main() try {
         shell.Navigation().Push("room-table"); frame();
         Check(menuStatus == Tf("room.hold.waiting_you", 4), "The status line did not say the start waits for this spectator");
         Check(row("lock-spectating").detail.find(Tf("room.hold.waiting_you", 4)) == std::string::npos, "The lock-in row repeated the status line");
-        // Released by the player: no notice. Cleared by the room: a notice says why.
-        // Cleared by the room, the lock-in gets a notice saying why; released
-        // by the player, none.
-        view.room.members[0].spectatorLocked = false; ++view.room.revision; frame();
+        // A failed view's release is told when the runtime counts it
+        // (lockInDrops); leaving the table is told whoever caused it. The
+        // player's own Release, still watching, is not.
+        view.room.members[0].spectatorLocked = false; view.lockInDrops = 1; ++view.room.revision; frame();
         Check(menuStatus == T("room.lock_in_ended.dropped"), "A lock-in the stream failure ended was not explained");
         view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
         view.room.members[0].spectatorLocked = false; held.spectators = {3}; ++view.room.revision; frame();

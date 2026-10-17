@@ -60,17 +60,22 @@ std::wstring PathKey(const fs::path& path) {
     std::transform(value.begin(),value.end(),value.begin(),[](wchar_t c){return static_cast<wchar_t>(std::towlower(c));});
     return value;
 }
-// Every path a package of any version may contain: this build's files,
-// optional ones, selection art, and the files earlier versions shipped.
-bool IsProductPath(const fs::path& relative) {
+bool IsObsolete(const fs::path& relative) {
     static const std::set<std::wstring> obsolete=[]{ std::set<std::wstring> keys; for(const auto* name:package::Obsolete) keys.insert(PathKey(name)); return keys; }();
-    return package::IsAllowed(relative.c_str()) || obsolete.count(PathKey(relative))>0;
+    return obsolete.count(PathKey(relative))>0;
+}
+// Every path a package of any version may contain: this build's files,
+// optional ones, selection, glyph and flag art by pattern, and the files
+// earlier versions shipped.
+bool IsProductPath(const fs::path& relative) {
+    return package::IsAllowed(relative.c_str()) || IsObsolete(relative);
 }
 // The files this build's inventory names one by one, current or obsolete.
-// Selection art is allowed by pattern instead, so a file there is Ember's only
-// when a manifest names it; otherwise it is the player's.
+// Selection, glyph and flag art is allowed by pattern too, so a file there
+// that the list does not name is Ember's only when a manifest names it;
+// otherwise it is the player's.
 bool InventoryNames(const fs::path& relative) {
-    return IsProductPath(relative) && !selection::IsSelectionAssetPath(relative.wstring());
+    return package::IsListed(relative.c_str()) || IsObsolete(relative);
 }
 bool UpdaterState(const std::wstring& key) {
     return key==PathKey(TransactionName) || key==PathKey(std::wstring(TransactionName)+L".failed") || key==PathKey(LockName) || key.find(L".ember-update-backups\\")==0;

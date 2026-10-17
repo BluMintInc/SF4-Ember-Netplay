@@ -42,7 +42,10 @@ $programExtensions = @('.dll', '.exe', '.asi', '.sys', '.ocx', '.cpl', '.drv')
 $ignored = @{}
 foreach ($file in Get-ChildItem -LiteralPath $package -File -Recurse) {
     $relative = $file.FullName.Substring($package.Length + 1)
-    if ($relative -in $allowed -or $relative -match '^assets\\selection\\') { continue }
+    # Glyph and flag art is also allowed by the pattern package::IsArtAssetPath
+    # applies (case-sensitive), so a later package's new art passes here too.
+    if ($relative -in $allowed -or $relative -match '^assets\\selection\\' -or
+        $relative -cmatch '^assets\\input\\[a-z0-9_-]{1,64}\.png\z|^assets\\flags\\[a-z0-9_-]{1,64}\.(png|json)\z') { continue }
     # The in-game updater's own backups and journal are never loaded.
     if (!$Strict -and $relative -match '^\.ember-update') { $ignored[$relative] = $true; continue }
     if ($Strict) { throw "Unexpected package file: $relative" }

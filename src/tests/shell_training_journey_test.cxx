@@ -20,7 +20,7 @@ void TrainingSettingsAndHome() {
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","defaults","interface","training-replays","discord","problem-reports","about"};
+ const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","discord","problem-reports","about"};
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
@@ -28,12 +28,19 @@ void TrainingSettingsAndHome() {
  Check(rows.size()==interfaceRows.size(),"Interface no longer has Stable's 11 rows");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
  h.Press(MenuInput::Back);h.Choose("training-replays");
- Check(rows.size()==3&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched","Training and replays settings order wrong");
+ Check(rows.size()==4&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="watched-picture","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
  h.Choose("match-frame-meter");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchFrameMeter,"Match frame meter did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ // Country opens its picker on the saved choice; a country saves and goes back to Settings.
+ h.Screen("settings");h.Choose("country");
+ Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");
+ h.shell.Navigation().Focus("country-JP",rows);h.Press(MenuInput::Select);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.country==CountryPreference::Of(CountryCode::Parsed("JP")),"A picked country did not save");
+ Check(h.shell.Navigation().Screen()=="settings","Choosing a country did not go back to Settings");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("home");
  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");
@@ -207,10 +214,81 @@ void PracticeRoomCreate() {
  Check(row("practice-room")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room");
  SetMenuEntriesProbe({});
 }
+// Create offers the room's delay policy: Same for both to begin with, kept with
+// the defaults once changed, carried by Create room, and offered to a public
+// room and on the gameplay defaults too.
+void DelayPolicyCreate() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ h.Screen("online");h.Choose("create");
+ Check(h.shell.Navigation().Screen()=="create"&&row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.shared"),
+  "Create did not open with the delay the same for both");
+ Check(row("delay-policy")->label==loc::T("room.delay_policy")&&row("delay-policy")->detail==loc::T("room.delay_policy.detail"),"The delay policy did not explain itself");
+ h.Choose("host");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay");
+ Check(!netplay::RoomPreferences(h.actions.back().preferences).contains("delay"),"A Shared delay was written to the saved defaults");
+ h.Screen("online");h.Choose("create");
+ h.FocusOn("delay-policy");h.Press(MenuInput::Right);
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy did not turn to each player's own");
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="own","The delay policy did not reach the saved defaults");
+ // Kept with the defaults: it is still chosen when Create opens again, and a Practice room has it too.
+ h.Screen("online");h.Choose("create");
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy was forgotten when Create opened again");
+ h.FocusOn("practice-room");h.Press(MenuInput::Right);
+ Check(row("delay-policy")!=rows.end(),"A Practice room's Create lost the delay policy");
+ h.Press(MenuInput::Left);
+ // A public room and the gameplay defaults offer it as well.
+ h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("delay-policy")!=rows.end()&&row("practice-room")==rows.end(),"Public Create did not offer the delay policy");
+ h.Press(MenuInput::Left);
+ h.FocusOn("delay-policy");h.Press(MenuInput::Left);
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn back");
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay again");
+ h.Screen("defaults");
+ Check(row("delay-policy")!=rows.end(),"Gameplay defaults did not offer the delay policy");
+ SetMenuEntriesProbe({});
+}
+// An Own room says so on its table page and in its rules, and the delay row
+// shows the player's own delay instead of a match value.
+void DelayPolicyInRoom() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ room::Member me,other;me.id=1;me.name="Me";other.id=2;other.name="Other";
+ JoinedRoom(h,9);h.view.session.control=netplay::Health::Healthy;
+ me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
+ h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
+ h.view.room.host=0;h.view.opponentDelay=4;h.Frame();
+ std::vector<MenuEntry> rows;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.Screen("room-table");
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ const auto& rules=h.view.room.tables[0].rules;
+ const auto shared=loc::Tf("room.rules_summary",static_cast<int>(rules.roundCount),static_cast<int>(rules.roundTime),loc::T(rules.editionSelect?"common.on":"common.off"));
+ Check(row("rules")!=rows.end()&&row("rules")->value==shared,"A Shared room's rules summary changed");
+ Check(row("input-delay")!=rows.end()&&row("input-delay")->detail.find(loc::Tf("room.input_delay.match",""))!=std::string::npos&&
+  row("input-delay")->detail.find(loc::Tf("room.input_delay.own",""))==std::string::npos,"A Shared room's delay row lost its match value");
+ h.view.room.delayPolicy=room::DelayPolicy::Own;h.Frame();
+ Check(row("rules")->value==loc::Tf("room.rules_summary_own_delay",shared),"An Own room's rules summary did not say so");
+ Check(row("input-delay")->detail.find(loc::Tf("room.input_delay.own",""))!=std::string::npos&&
+  row("input-delay")->detail.find(loc::Tf("room.input_delay.match",""))==std::string::npos,"An Own room's delay row showed a match value");
+ // The host edits the rules in place, so an Own room is named by its own read-only row.
+ Check(row("delay-policy")==rows.end(),"A player who is not the host was shown the host's delay row");
+ h.view.room.host=1;h.Frame();
+ Check(row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.own"),"An Own room's host was not told so");
+ h.view.room.delayPolicy=room::DelayPolicy::Shared;h.Frame();
+ Check(row("delay-policy")==rows.end(),"A Shared room's host was shown the delay row");
+ SetMenuEntriesProbe({});
+}
 void TrainingJourneys() {
  using namespace sf4e;
  HeadlessImGui imgui;auto& io=imgui.io;
- training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;
+ training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;v.on[0]=true;v.playable=v.replyable=1;
  std::vector<training::Command> commands;
  training::DummyPlan runtimePlan;
  bool queueOpen=true;
@@ -301,6 +379,26 @@ void TrainingJourneys() {
   commands.clear();choose("mirror");
   Check(commands.size()==1&&commands.back().action==training::Action::Mirror,"Mirror did not send its command");
   v.acks.Note(commands.back().requestId,true);frame();
+  // Select turns a recorded slot off and on, and chooses an empty one for
+  // Record. In the grid Up and Down keep to a column, so the slots are focused directly.
+  const auto slot=[&](const char* id){TrainingNavigation().Focus(id,rows);frame();Check(TrainingNavigation().Focus()==id,"Slot row unreachable");};
+  commands.clear();slot("slot-0");press(MenuInput::Select);
+  Check(commands.size()==1&&commands.back().action==training::Action::SlotOn&&commands.back().slot==0&&!commands.back().on,"Select did not turn the recorded slot off");
+  v.acks.Note(commands.back().requestId,true);frame();
+  commands.clear();slot("slot-1");press(MenuInput::Select);
+  Check(commands.size()==1&&commands.back().action==training::Action::Select&&commands.back().slot==1,"Select did not choose the empty slot for Record");
+  v.acks.Note(commands.back().requestId,true);frame();
+  // Left and Right on Record choose the slot it records into.
+  commands.clear();reach("record");press(MenuInput::Right);
+  Check(commands.size()==1&&commands.back().action==training::Action::Select&&commands.back().slot==1,"Right on Record did not choose the next slot");
+  v.acks.Note(commands.back().requestId,true);frame();
+  // The order row: Right picks in order, Left at random.
+  commands.clear();reach("order");press(MenuInput::Right);
+  Check(commands.size()==1&&commands.back().action==training::Action::PlayOrder&&commands.back().order==training::Order::InOrder,"Order Right did not pick in order");
+  v.acks.Note(commands.back().requestId,true);frame();
+  commands.clear();press(MenuInput::Left);
+  Check(commands.size()==1&&commands.back().action==training::Action::PlayOrder&&commands.back().order==training::Order::Random,"Order Left did not pick at random");
+  v.acks.Note(commands.back().requestId,true);frame();
   SetMenuEntriesProbe({});press(MenuInput::Back);
  }
  io.DisplaySize=ImVec2(1280,960);frame();
@@ -322,7 +420,7 @@ void TrainingJourneys() {
   !TrainingNavigation().ConfirmSelected(),"F7 on a recorded slot did not ask before overwriting");
  press(MenuInput::Select);Check(commands.empty()&&!TrainingNavigation().Confirming(),"The overwrite question did not default to Cancel");
  OpenTrainingRecordings(controls,controls.Sample());frame();frame();press(MenuInput::Right);press(MenuInput::Select);
- Check(commands.size()==1&&commands.back().action==training::Action::Record,"Confirming the overwrite did not send one Record");
+ Check(commands.size()==1&&commands.back().action==training::Action::AdvanceRecording,"Confirming the overwrite did not send one Record");
  TakeForwardedMenuAction();
  // The published action is the logical setting while a reply plays. The
  // row steps from Crouch to Jump, rather than from the temporary Stand.
@@ -377,8 +475,8 @@ void TrainingJourneys() {
   Check(runtimePlan.when==1&&!runtimePlan.moves.empty(),"The typed reply was not turned back on");
   Check(pick()==loc::T("training.reply.custom"),"A typed reply that is no preset did not show as Custom");
   focus("reply-move");commands.clear();press(MenuInput::Right);
-  Check(pick()==loc::T("training.reply.slot")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
-   runtimePlan.moves.empty(),"Custom did not step on to the reply slot");
+  Check(pick()==loc::T("training.reply.recordings")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
+   runtimePlan.moves.empty()&&!saved()["reply"].contains("slot"),"Custom did not step on to the recordings");
   press(MenuInput::Right);
   training::DummyPlan typed;std::string error;
   Check(training::BuildReplyPlan("623P",runtimePlan,typed,error),"The first preset is not notation");
@@ -435,6 +533,12 @@ void TrainingJourneys() {
   v.acks.Note(commands[2].requestId,false);frame();
   Check(told("training.command_rejected",true),"A refused reset read as done");
   v.checkpoint=hadCheckpoint;
+ }
+ // The pad's chord on standby asks for the recording to start, for its own battle.
+ {
+  commands.clear();input::TrainingPadEvent advance;advance.kind=input::TrainingPadEvent::Kind::Advance;advance.generation=v.generation;
+  ImGui::NewFrame();TrainingPadPosition(v,submit,advance);ImGui::Render();
+  Check(commands.size()==1&&commands[0].action==training::Action::AdvanceRecording&&commands[0].generation==v.generation,"The pad's chord on standby did not start the recording");
  }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));
  std::filesystem::remove(folder/"recordings");std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);

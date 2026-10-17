@@ -52,10 +52,20 @@ under the [SIL Open Font License 1.1](src/ui/fonts/OFL.txt). Font provenance and
 hashes are recorded in [src/ui/fonts/SOURCE.txt](src/ui/fonts/SOURCE.txt). The full
 license is also available in the interface's About page and packaged notices.
 
+For Japanese, Korean and Chinese text the interface embeds subsets of
+**Noto Sans CJK** (Sans2.004) by Adobe and Google, from
+[notofonts/noto-cjk](https://github.com/notofonts/noto-cjk), under the
+[SIL Open Font License 1.1](src/ui/fonts/NotoSansCJK-OFL.txt). Subset provenance
+and hashes are recorded in [src/ui/fonts/SOURCE.txt](src/ui/fonts/SOURCE.txt).
+Packages include the license in `notices/THIRD_PARTY_LICENSES.txt`.
+
 The embernetplay.link pages use a Latin subset of the same two Inter files,
 converted to WOFF2 by [scripts/build-web-assets.py](scripts/build-web-assets.py).
 Subsetting keeps Inter's name, which is not a Reserved Font Name. The license is
 served beside them as `/assets/fonts/OFL.txt`.
+
+Controller support links [SDL 3](https://www.libsdl.org/) statically into Sidecar.dll,
+under the zlib license. Its notice is in `notices/THIRD_PARTY_LICENSES.txt`.
 
 Problem-report redaction matches names with case folding and word-character
 tables generated from Unicode Character Database data
@@ -120,3 +130,14 @@ and the selected asset directories are recorded in `assets/input/README.md`.
 
 The Ember menu background was generated specifically for this project. Its
 generation prompt and content hash are recorded in `assets/brand/README.md`.
+
+## Country flags
+
+Country flags are rendered from the 4x3 SVGs of
+[flag-icons](https://github.com/lipis/flag-icons) v7.5.0 by Panayiotis Lipiridis,
+licensed MIT. The distributed license is `assets/flags/LICENSE`, also shipped as
+`notices/flag-icons-MIT.txt`; the release archive, its hash and how the atlas is
+built are recorded in `assets/flags/README.md`. Country names in `locales/*.po`
+come from the Unicode CLDR data in ICU, under the
+[Unicode License V3](src/platform/Unicode-License.txt). Packages include it in
+`notices/THIRD_PARTY_LICENSES.txt`.

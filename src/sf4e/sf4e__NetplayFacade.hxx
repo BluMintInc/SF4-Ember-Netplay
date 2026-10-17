@@ -9,12 +9,16 @@
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
+#include "../common/ControllerRequest.hxx"
+#include "../common/ControllerView.hxx"
 
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "../common/SteamId.hxx"
 #include "../common/MatchSide.hxx"
 #include "../platform/HelperProcess.hxx"
 #include "../netplay/SessionController.hxx"
+#include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
@@ -27,6 +31,7 @@
 #include "../common/TrainingEntry.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
+#include "../session/MemberLatency.hxx"
 #include <optional>
 #include "../common/NoticeSeverity.hxx"
 #include <vector>
@@ -58,6 +63,14 @@ namespace sf4e {
         bool spectator = false;
         // Members watching the local member's table (the HUD's "Watching N"); from the room snapshot.
         int spectators = 0;
+        // A spectator's frames behind its host stream, -1 before it runs.
+        int spectatorBacklog = -1;
+        // A spectator's game is played at each fighter's own delay (an Own room),
+        // not at appliedDelay; both are fixed when its stream starts.
+        bool ownDelays = false;
+        // From the room snapshot: the local member's place in its table's queue,
+        // from 1, of queueLength (0 when not queued).
+        int queuePosition = 0, queueLength = 0;
         // Live GGPO link state for the match HUD.
         bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
         bool predictionStalled = false;   // GGPO refused local input this frame
@@ -84,8 +97,13 @@ namespace sf4e {
             platform::ServiceAction service = platform::ServiceAction::None;
             // With ShowReplayFile: the archived replay whose folder opens.
             std::string servicePath;
+            // With UpdateNow or SkipUpdate: the launch offer the player saw.
+            launcher::InstallOffer updateOffer;
+            // With OpenSteamProfile: the member's profile to open.
+            SteamId steamProfile;
             reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
+            gamepads::ControllerRequest padAction;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
 			std::string displayName;
@@ -109,16 +127,34 @@ namespace sf4e {
             std::optional<room::Rules> createdRules;
             // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
             bool practiceRoom = false;
+            // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
+            room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;
             // Leave the main menu for Training (common/TrainingEntry.hxx). The
             // runtime judges it when it takes it and only then asks the menu.
             TrainingEntry training = TrainingEntry::None;
+            // Leave this watched game (Stop watching); empty for every other
+            // command. The runtime decides what leaving it takes when it runs.
+            netplay::WatchedGame leaveWatchedGame;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
+            // Retain the detected brand to preview Automatic before autosave.
+            gamepads::PromptBrand gameplayBrand, promptBrand;
+            gamepads::SetupSnapshot padSetup;
+            gamepads::Layer padLayer = gamepads::Layer::Failed;
+            bool padLayerPending = false, runningControllerLayer = true;
+            std::vector<gamepads::PadView> pads;
+            unsigned captureCandidate = 0;
+            std::uint64_t padHintUntil = 0;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
+            // The game this PC only watches now (MenuContext::WatchedMatch), by
+            // its own match rather than the table, which moves on first.
+            netplay::WatchedGame watchedGame;
+            // Lock-ins lost to a failure of this member's spectator view (Runtime::lockInDrops).
+            std::uint64_t lockInDrops = 0;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;
@@ -183,10 +219,16 @@ namespace sf4e {
             std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
             bool probeBenchmark=false;
             unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
+            // The ping to each other member while the room board is open.
+            session::MemberLatencyTable memberLatency;
 			netplay::PlayerPreferences preferences;
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
 			std::string languagePreference = "auto";
+			// The Settings row's value: check for an update at launch.
+			bool checkUpdatesAtLaunch = true;
+			// The country Automatic shows: Windows' region, or none.
+			CountryCode automaticCountry;
 			int localSlot = -1;
 			bool offlineRequested = false;
 			std::string displayName;
@@ -210,6 +252,7 @@ namespace sf4e {
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
+            std::string padHint;
             bool canChangeController = false, controllerReady = false;
             // The identity as the helper last reported it. identityTicket is the
             // interface's last request the runtime handled, and identityRequest
@@ -264,6 +307,14 @@ namespace sf4e {
 		// Any thread. False when the command is malformed, the queue is full,
 		// or no runtime is accepting commands.
 		bool SubmitRuntimeCommand(RuntimeCommand command);
+		// Any thread: the room board of room `roomGeneration` (room::Snapshot::roomEpoch)
+		// was drawn this frame. The runtime asks for each member's ping only
+		// while the board is drawn (netplay/LatencyBoard.hxx).
+		void NoteLatencyBoard(std::uint64_t roomGeneration);
+		// Any thread: Ember's fighter selector was drawn this frame in room
+		// `roomGeneration`. A player called back from Training does not lose
+		// the time they have to ready while choosing (session/TrainingCall.hxx).
+		void NoteFighterSelector(std::uint64_t roomGeneration);
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
 		// a Room entry, the same session at the main menu and the room's own gate
@@ -294,6 +345,11 @@ namespace sf4e {
 		// the session is being retired. Its battle then closes sessionless, and
 		// the runtime leaves that game instead of ending the view silently.
 		void NotifyRuntimeSpectatorStreamFailed();
+		// P1's GGPO dropped the spectator in this match slot. Ends its link so
+		// that spectator's client gives up at once (IrohMatchSession::EndSpectatorStream).
+		void EndRuntimeSpectatorStream(std::size_t slot);
+		// This PC watches the current or last match rather than playing it.
+		bool IsRuntimeSpectator();
 		// A rollback-confirmed native result, with the save frame it was
 		// captured at and the input frame confirmed when it was published.
 		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);

@@ -1,5 +1,6 @@
 #include "TrainingPanel.hxx"
 #include "Theme.hxx"
+#include "TextPill.hxx"
 #include "GameMenu.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuProbes.hxx"
@@ -50,13 +51,14 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     std::vector<Group> groups;
     const bool pad = device == input::PadXInput || device == input::PadDirectInput;
     // A DirectInput pad's labels are unknown, so its Back is named Select.
-    const std::string back = device == input::PadXInput ? "Back" : "Select";
+    const auto names = gamepads::ButtonPositionNames(device, MenuPromptBrand());
+    const std::string back = names.view;
     const auto hint = [&](Piece::Kind kind, std::string key, const char* label, bool shortens = false) {
         groups.push_back({{{kind, std::move(key), Between * unit}, {Piece::Label, label, Gap * unit}}, shortens});
     };
     if (shortcuts) {
         Group controls{{}, true};
-        if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, "Start", 2 * unit}};
+        if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, names.start, 2 * unit}};
         else controls.pieces = {{Piece::Key, "F6", 0}};
         controls.pieces.push_back({Piece::Chip, loc::T("training.controls_chip"), Gap * unit});
         groups.push_back(controls);
@@ -100,10 +102,12 @@ void DrawCap(const Piece& piece, const Layout& layout) {
     const float h = ImGui::GetTextLineHeight(), w = Width(piece, layout), unit = layout.unit;
     const ImVec2 at = ImGui::GetCursorScreenPos();
     auto* draw = ImGui::GetWindowDrawList();
-    // The name a little brighter than the dim label beside it, so the key is what the eye finds.
-    draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), IM_COL32(243, 235, 221, 130),
-        pill ? h / 2 : 3 * unit, 0, (std::max)(1.f, unit));
-    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + (pill ? PillPadding : CapPadding) * unit, at.y), IM_COL32(243, 235, 221, 215), piece.text.c_str());
+    if (pill) DrawButtonPill(draw, piece.text.c_str(), at, w, h, unit);
+    else {
+        draw->AddRect(ImVec2(at.x + .5f, at.y + .5f), ImVec2(at.x + w - .5f, at.y + h - .5f), IM_COL32(243, 235, 221, 130),
+            3 * unit, 0, (std::max)(1.f, unit));
+        draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + CapPadding * unit, at.y), IM_COL32(243, 235, 221, 215), piece.text.c_str());
+    }
     ImGui::Dummy(ImVec2(w, h));
 }
 TrainingStripShown shown;

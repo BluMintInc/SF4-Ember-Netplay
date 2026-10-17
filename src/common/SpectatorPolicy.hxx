@@ -57,10 +57,12 @@ public:
 	// RUNNING this long after its session started. P1's session starts only
 	// once P1 has loaded the battle, which on a slow disk or behind a slow
 	// opponent can take well over SyncDeadlineMs, so this is generous: giving
-	// up on a stream that would have come up is worse than a late notice. A
-	// spectator P1 dropped before it synchronized would otherwise wait
-	// forever: P1 answers sync requests for 5 s after the drop, then goes
-	// silent.
+	// up on a stream that would have come up is worse than a late notice. P1
+	// ends the link of a spectator it drops, which ends that spectator's wait
+	// within its peer-close grace; this bounds the wait when that end never
+	// arrives. Without either, a spectator P1 dropped before it synchronized
+	// would wait forever: P1 answers sync requests for 5 s after the drop,
+	// then goes silent.
 	static constexpr std::uint64_t StreamSyncTimeoutMs = 30000;
 
 	// A player enters a started match only from the main menu. A spectator that
@@ -152,6 +154,28 @@ public:
 private:
 	std::uint64_t startedMs_ = 0;
 	bool watching_ = false;
+};
+
+// P1's spectator handles and the match slot each one watches from. A
+// spectator GGPO drops, at the policy's request or on its own (its
+// DISCONNECTED_FROM_PEER event, also from inside a callback), is noted here,
+// and Take hands each dropped slot over once, outside callbacks, so its link
+// can be ended. Start, for every session started or retired, forgets the last
+// session's handles and any drop not yet taken.
+class SpectatorLinks {
+public:
+	void Start(std::map<int, std::size_t> slots = {}) { slots_ = std::move(slots); dropped_.clear(); }
+	void Dropped(int handle) {
+		const auto found = slots_.find(handle);
+		if (found == slots_.end()) return;
+		dropped_.push_back(found->second);
+		slots_.erase(found);
+	}
+	std::vector<std::size_t> Take() { std::vector<std::size_t> taken; taken.swap(dropped_); return taken; }
+
+private:
+	std::map<int, std::size_t> slots_;
+	std::vector<std::size_t> dropped_;
 };
 
 }

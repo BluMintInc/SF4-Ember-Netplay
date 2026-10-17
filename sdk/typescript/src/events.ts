@@ -1,5 +1,6 @@
 // Bridge events: CloudEvents 1.0 with an `emberseq` cursor (spec 20.2).
 import { parseStrict, type Json } from "./canonical.ts";
+import { counter, isBridgeOrigin, prefixedId } from "./signed.ts";
 
 export const EVENT_TYPES = [
   "identity.link.pending",
@@ -77,18 +78,18 @@ export function parseEvent(payload: string | Uint8Array | Json): BridgeEvent {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new EventError("an event is an object");
   const keys = Object.keys(value);
   if (keys.length !== FIELDS.length || !FIELDS.every((field) => keys.includes(field))) throw new EventError("unexpected event fields");
-  const event = value as unknown as BridgeEvent;
-  const valid =
-    event.specversion === "1.0" &&
-    /^evt_[0-9a-f-]{36}$/.test(event.id) &&
-    /^io\.ember\.[a-z_]+(\.[a-z_]+)+\.v1$/.test(event.type) &&
-    /^(0|[1-9][0-9]{0,19})$/.test(event.emberseq) &&
-    event.datacontenttype === "application/json" &&
-    typeof event.data === "object" &&
-    event.data !== null &&
-    !Array.isArray(event.data);
-  if (!valid) throw new EventError("invalid event envelope");
-  return event;
+  const { specversion, id, source, type, subject, time, datacontenttype, dataschema, emberseq, data } = value;
+  const sequence = counter(emberseq);
+  if (specversion !== "1.0" || typeof id !== "string" || !prefixedId(id, "evt") ||
+      typeof source !== "string" || !isBridgeOrigin(source) ||
+      typeof type !== "string" || type.length > 160 || !/^io\.ember\.[a-z_]+(\.[a-z_]+)+\.v1$/.test(type) ||
+      typeof subject !== "string" || subject.length === 0 || Buffer.byteLength(subject, "utf8") > 256 ||
+      typeof time !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/.test(time) ||
+      datacontenttype !== "application/json" || typeof dataschema !== "string" ||
+      Buffer.byteLength(dataschema, "utf8") > 512 || !/^(https:\/\/|urn:)/.test(dataschema) ||
+      typeof emberseq !== "string" || sequence === null || sequence === 0n ||
+      data === null || typeof data !== "object" || Array.isArray(data)) throw new EventError("invalid event envelope");
+  return { specversion, id, source, type, subject, time, datacontenttype, dataschema, emberseq, data };
 }
 
 /** One open room, as the room routes list it. */

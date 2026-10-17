@@ -3,6 +3,8 @@
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
 #include "RoomControls.hxx"
+#include "RoomCards.hxx"
+#include "LatencyMark.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -62,8 +64,6 @@ int OptionsTable(const ShellView& v, int selected) {
     const auto* local = Member(v.room, v.room.localMember);
     return local && local->table >= 0 && local->table < static_cast<int>(v.room.tables.size()) ? local->table : selected;
 }
-// The row a table card's banner takes, unscaled.
-constexpr float TableBannerHeight=22;
 // A draft with something in it besides spaces.
 bool HasChatText(const char* text) {
     for(;*text;++text)if(!std::isspace(static_cast<unsigned char>(*text)))return true;
@@ -97,13 +97,16 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     // activation can still reach an item ID. Recheck the room authority
     // boundary at dispatch so a lost or closed control stream never queues a
     // room mutation.
-    if (!RoomActionsAvailable(view) || !view.room.roomEpoch || !view.room.localMember) {
-        Refuse(RoomWaitReason(view), [](const ShellView& now) {
-            return !RoomActionsAvailable(now) || !now.room.roomEpoch || !now.room.localMember;
+    if (!RoomTakesNow(view, action.kind, action.table) || !view.room.roomEpoch || !view.room.localMember) {
+        Refuse(RoomWaitReason(view), [kind = action.kind, table = action.table](const ShellView& now) {
+            return !RoomTakesNow(now, kind, table) || !now.room.roomEpoch || !now.room.localMember;
         });
         return false;
     }
     if (action.table >= view.room.tables.size()) return false;
+    // An Unwatch of the game this PC watches is that game's leave, which the
+    // runtime scopes to the watched game when it runs.
+    if (action.kind == room::ActionKind::Unwatch && LeavesWatchedGame(view, action.table)) return LeaveWatchedGame(view, submit);
     const auto mine = room::PlaceOf(view.room, view.room.localMember);
     const auto& table = view.room.tables[action.table];
     if (TerminalFenced(view.room, action.kind, action.table)) {
@@ -113,7 +116,8 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
-    if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch) && localSeated) return false;
+    if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch ||
+        action.kind == room::ActionKind::Unwatch) && localSeated) return false;
     if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
         // The same rule B and the Leave seat row read.
@@ -124,14 +128,14 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     action.roomEpoch = view.room.roomEpoch;
     action.revision = view.room.revision;
     if (action.table < view.room.tables.size()) {
-        action.tableRevision = view.room.tables[action.table].revision;
+        action.tableRevision = table.revision;
 		const bool generationScoped = action.kind == room::ActionKind::RecordResult ||
 			action.kind == room::ActionKind::MatchFinished || action.kind == room::ActionKind::CancelResult ||
 			action.kind == room::ActionKind::AbortMatch ||
 			(action.kind == room::ActionKind::Unwatch &&
 				(table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Paused));
 		if (!action.matchGeneration && generationScoped)
-			action.matchGeneration = view.room.tables[action.table].matchGeneration;
+			action.matchGeneration = table.matchGeneration;
     }
     action.actionId = nextActionId_++;
     ShellAction request;
@@ -216,6 +220,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    // Over a Practice match it fights in, a fighter can end the game.
    if(mine.kind==Place::Kind::Seat&&AbandonableAt(v,s.tables[mine.table])==AbandonableGame::Practice)
     rows.push_back(ConfirmRow("end-practice",loc::T("room.end_practice"),loc::T("room.end_practice.detail"),mutableRoom));
+   // Over a game it only watches, a spectator can leave it; once the room has
+   // finished that game, the rest of its stream, which asks nothing of the room.
+   if(const auto leave=netplay::LeaveOfWatchedGame(s,v.watchedGame);leave!=netplay::WatchedLeave::None){
+    const bool leaveGame=leave==netplay::WatchedLeave::LeaveGame,viewOnly=leave==netplay::WatchedLeave::EndView;
+    rows.push_back(ConfirmRow("stop-watching",loc::T(leaveGame?"room.leave_game":"room.stop_watching"),
+     loc::T(viewOnly?"room.stop_watching.finished":leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),
+     viewOnly||RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(v.watchedGame.table))));
+   }
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
@@ -258,14 +270,18 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    if(!host||boundTable){
-    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(room::MatchRoundTime(s,t)),
-     loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
+    std::string summary=loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(room::MatchRoundTime(s,t)),
+     loc::T(t.rules.editionSelect?"common.on":"common.off"));
+    if(s.delayPolicy==room::DelayPolicy::Own)summary=loc::Tf("room.rules_summary_own_delay",summary);
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
    }
    RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
    if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
+   // The host edits the rules in place, so the summary above is not shown to them.
+   if(s.delayPolicy==room::DelayPolicy::Own)rows.push_back(ReadOnlyValue("delay-policy",loc::T("room.delay_policy"),loc::T("room.delay_policy.own"),loc::T("room.delay_policy.detail")));
   };
   if(seated){
    const bool ready=room::ReadyCancellable(t,place.seat);
@@ -294,13 +310,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     const int selectedDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
-    const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
+    const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=InputDelayWireCeiling;
     std::string delayDetail=loc::Tf("room.input_delay.recommended",check.value);
-    if(t.p1&&t.p2)delayDetail+="\n"+loc::Tf("room.input_delay.match",opponentReady?
-     FramesText(room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf(selectedDelay==1?"room.match_delay.at_least_one":"room.match_delay.at_least",selectedDelay));
+    // An Own room plays each fighter at their own delay, so there is no match value to show.
+    if(t.p1&&t.p2)delayDetail+="\n"+(s.delayPolicy==room::DelayPolicy::Own?loc::Tf("room.input_delay.own",FramesText(selectedDelay)):loc::Tf("room.input_delay.match",opponentReady?
+     FramesText(room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf(selectedDelay==1?"room.match_delay.at_least_one":"room.match_delay.at_least",selectedDelay)));
     if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);
     else{
-     delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):std::string(loc::T("room.selected_delay.detail")));
+     delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay));
      if(!recommended&&!autoDelay)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
     }
     const std::string delayFrames=FramesText(selectedDelay);
@@ -338,7 +355,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
      const bool fenced=TerminalFenced(s,kind,selectedTable_);
-     rows.push_back(Row(id,loc::T(label),fenced?TerminalPendingReason():reason,mutableRoom&&!elsewhere&&!fenced));
+     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
      queued?"room.leave_queue":"room.join_queue");
@@ -376,6 +393,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }else if(screen=="room-member"){
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
+   // Only a member who chose to show the room their profile has one to open.
+   const bool hasSteam=m&&m->steamId.Present();
+   rows.push_back(Row("steam-profile",loc::T("room.steam_profile"),
+    loc::T(!m?"room.member_left.detail":hasSteam?"room.steam_profile.detail":"room.steam_profile.none"),hasSteam));
    if(!tournamentRoom){
     rows.push_back(ConfirmRow("kick",loc::T("room.kick_member"),m?loc::Tf("room.kick_member.detail",m->name):loc::T("room.member_left.detail"),host&&other));
     rows.back().detailText=DetailText::Name;
@@ -414,6 +435,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
 }
 void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
                                      const MenuVisualFeedback& feedback) {
+ boardDrawn_=true;
  const float s=Scale(),gap=12*s;const bool wide=ImGui::GetContentRegionAvail().x>=820*s;
  const auto focus=nav.Focus();const bool changed=focus!=roomBoardFocus_;
  const unsigned unread=transcript_.Unread(muted_);
@@ -436,206 +458,88 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const bool leaveKey=action.kind==MenuAction::Shortcut&&action.delta==MenuInput::Leave;
  if(onOwnPlace&&((action.kind==MenuAction::Back&&!action.keyboard)||leaveKey))action={MenuAction::Activate,"leave-place"};
  std::string elided;
- const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){
-  if(width<=0)return;
-  auto* font=ImGui::GetFont();std::string label=value;
-  float measured=font->CalcTextSizeA(size,FLT_MAX,0,label.c_str()).x;
-  if(measured>width){
-   const char* end=nullptr;const float dots=font->CalcTextSizeA(size,FLT_MAX,0,"...").x;
-   font->CalcTextSizeA(size,(std::max)(1.f,width-dots),0,label.c_str(),nullptr,&end);
-   label=std::string(label.c_str(),end)+"...";
-   elided+=(elided.empty()?"":"\n")+value;
-   measured=font->CalcTextSizeA(size,FLT_MAX,0,label.c_str()).x;
-  }
-  if(centred)p.x+=(std::max)(0.f,(width-measured)*.5f);
-  ImGui::GetWindowDrawList()->AddText(font,size,p,color,label.c_str());
- };
+ const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){DrawCardText(elided,p,width,value,size,color,centred);};
  // Flushed once per row, while the row's button is still the hovered item.
- const auto tip=[&]{
-  if(!elided.empty()&&ImGui::IsItemHovered())ImGui::SetTooltip("%s",elided.c_str());
-  elided.clear();
- };
+ const auto tip=[&]{FlushCardTip(elided);};
  const auto press=[&](const MenuEntry& e,ImVec2 size){
-  ImGui::PushID(e.id.c_str());
-  ImGui::PushStyleColor(ImGuiCol_Button,e.id==focus?ImVec4(.40f,.23f,.12f,.9f):ImVec4(.10f,.09f,.08f,.94f));
-  // An open choice leaves only its own options live.
-  ImGui::BeginDisabled(nav.Choosing());
-  const bool clicked=ImGui::Button("##room-entry",size);
-  ImGui::EndDisabled();
-  ImGui::PopStyleColor();ImGui::PopID();
-  if(clicked&&!nav.Asking()&&!nav.Editing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
-  if(e.id==focus){
-   ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(),ImGui::GetItemRectMax(),palette::Ember,0,0,2*s);
-   if(changed)ImGui::SetScrollHereY(.5f);
-  }
+  if(DrawCardButton(e.id,size,e.id==focus,changed,nav.Choosing())&&!nav.Asking()&&!nav.Editing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
  };
  const auto fighter=[&](const room::Member* m){return m?(m->id==v.room.localMember?v.selectedFighter:m->fighter):-1;};
- const ImU32 bannerColor=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
  // The highlighted option of the entry's open choice, in full; empty otherwise.
  const auto choiceDetail=[&](const MenuEntry& e)->std::string{
   return nav.Choosing()&&nav.DialogId()==e.id&&nav.ChoiceIndex()<e.choices.size()?e.choices[nav.ChoiceIndex()].detail:std::string();
  };
- // Options over a card's footer. They are real buttons, submitted before the
- // card so they own the hover and popups still block them; the card is then
- // laid out from the same origin.
- struct Strip{std::vector<ImVec2> min,max;int clicked=-1,hovered=-1;};
- const auto stripButtons=[&](const MenuEntry& e,ImVec2 p,float width,float h,std::size_t count){
-  Strip strip;strip.min.resize(count);strip.max.resize(count);
-  const float stripHeight=26*s,y=p.y+h-stripHeight-3*s,optionWidth=(width-24*s-(count-1)*8*s)/count;
-  ImGui::PushID(e.id.c_str());
-  for(int i=0;i<static_cast<int>(count);++i){
-   strip.min[i]=ImVec2(p.x+12*s+i*(optionWidth+8*s),y);strip.max[i]=ImVec2(strip.min[i].x+optionWidth,y+stripHeight);
-   ImGui::SetCursorScreenPos(strip.min[i]);ImGui::PushID(i);
-   if(ImGui::InvisibleButton("##strip",ImVec2(optionWidth,stripHeight)))strip.clicked=i;
-   if(ImGui::IsItemHovered())strip.hovered=i;
-   ImGui::PopID();ReportMenuCard((e.id+"/"+std::to_string(i)).c_str(),strip.min[i],strip.max[i]);
-  }
-  ImGui::PopID();ImGui::SetCursorScreenPos(p);
-  return strip;
- };
- const auto drawStrip=[&](const Strip& strip,const std::vector<std::string>& labels,int chosen,const std::vector<bool>& live){
-  auto* d=ImGui::GetWindowDrawList();
-  for(int i=0;i<static_cast<int>(labels.size());++i){
-   const bool lit=chosen>=0?i==chosen:i==strip.hovered;
-   d->AddRectFilled(strip.min[i],strip.max[i],lit?IM_COL32(120,64,30,245):IM_COL32(20,19,18,240),4*s);
-   if(lit)d->AddRect(strip.min[i],strip.max[i],palette::Ember,4*s,0,2*s);
-   const float stripHeight=strip.max[i].y-strip.min[i].y,optionWidth=strip.max[i].x-strip.min[i].x;
-   // Our own action labels must fit; the probe holds every locale to that.
-   ReportMenuText(("board-strip-"+labels[i]).c_str(),14*s,stripHeight,
-    ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,labels[i].c_str()).x,optionWidth-12*s);
-   text(ImVec2(strip.min[i].x+6*s,strip.min[i].y+(stripHeight-14*s)*.5f),optionWidth-12*s,labels[i],14*s,live[i]?palette::Ivory:palette::Muted,true);
-  }
+ // A card's body press does what Select does on it. Its strip options are the card's callers' to answer.
+ const auto pressBody=[&](const MenuEntry& e,const CardInteraction& hit){
+  if(hit.kind==CardInteraction::Kind::Pressed&&hit.option<0&&!nav.Asking()&&!nav.Editing()){nav.Focus(e.id,rows);action=nav.Choose(rows);}
  };
  const auto tableCard=[&](const MenuEntry& e,float h){
-  const auto& t=v.room.tables[std::stoi(e.id.substr(6))];const auto p=ImGui::GetCursorScreenPos();
-  const float width=ImGui::GetContentRegionAvail().x;
-  // Names ask the atlas for glyphs only while their card is inside the clip.
-  const bool cardVisible=ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+h));
+  const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
   // The seat chooser, or on your own focused place what A and B do there.
   const bool choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
-  std::vector<std::string> labels;
-  if(choosing)for(const auto& c:e.choices)labels.push_back(c.label);
+  TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;
+  card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
+  if(choosing){
+   card.choosing=true;card.chosen=static_cast<int>(nav.ChoiceIndex());
+   for(const auto& c:e.choices){const auto* option=FindSeatOption(c.id);card.options.push_back({c.label,c.enabled,option?option->seat:-1});}
+  }
   // A strip option is half a card wide, so Unready drops its "unlock fighter".
   else if(ownPlace){
    const auto mine=room::PlaceOf(v.room,v.room.localMember);
-   const bool unready=mine.kind==room::Place::Kind::Seat&&DescribeReady(v,t,mine.seat).kind==ReadyControl::Unready;
-   labels={unready?std::string(loc::T("room.unready.short")):e.hint,place.label};
+   const bool seated=mine.kind==room::Place::Kind::Seat;
+   const auto ready=seated?DescribeReady(v,t,mine.seat):ReadyControl{};
+   card.options={{ready.kind==ReadyControl::Unready?std::string(loc::T("room.unready.short")):e.hint,shown(e)&&(!seated||ready.kind!=ReadyControl::None)},
+    {place.label,place.allowed}};
   }
-  const Strip strip=labels.empty()?Strip{}:stripButtons(e,p,width,h,labels.size());
-  press(e,ImVec2(width,h));ReportMenuCard(e.id.c_str(),p,ImVec2(p.x+width,p.y+h));
-  text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",t.id+1),16*s,palette::Ivory);
-  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t),14*s,palette::Ember);
-  // A full pair shows its running win count where "VS" would sit; the gap
-  // between the two sides grows to fit however long the rematch run gets.
-  const std::string middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
-  const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(18*s,FLT_MAX,0,middle.c_str()).x+12*s);
-  // A banner takes a row above the footer, so the option strip never hides it.
   const auto banner=DescribeTableBanner(v,t);
-  const float bannerHeight=banner.text.empty()?0:TableBannerHeight*s,bannerTop=p.y+h-32*s-bannerHeight;
-  // Portraits sit on the card's outer edges, mirrored, so neither crowds the
-  // score. The row fills and centres in the band between header and footer.
-  // The footer band holds the rules line or, over it, an option strip, so
-  // portraits and names never sit under the strip.
-  const float band=h-60*s-bannerHeight,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
-  const float top=p.y+28*s+(band-portrait)*.5f+portrait*.5f-20*s;
+  card.phase=PhaseName(t);card.banner=banner.text;
+  // A full pair shows its running win count where "VS" would sit.
+  card.middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
   const room::MemberId ids[]={t.p1,t.p2};
   for(int side=0;side<2;++side){
-   const float x=p.x+12*s+side*(half+gap);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
-   const float px=side?x+half-portrait:x,py=p.y+28*s+(band-portrait)*.5f;
-   if(m)DrawCharacterPortrait(id,ImVec2(px,py),ImVec2(px+portrait,py+portrait));
-   if(m&&banner.seat==side)ImGui::GetWindowDrawList()->AddRect(ImVec2(px-2*s,py-2*s),ImVec2(px+portrait+2*s,py+portrait+2*s),bannerColor,3*s,0,2*s);
-   // The link mark rides the portrait's inner lower corner on a dark disc.
-   if(m){
-    const float mark=14*s;const ImVec2 centre(side?px+10*s:px+portrait-10*s,py+portrait-10*s);
-    ImGui::GetWindowDrawList()->AddCircleFilled(centre,11*s,IM_COL32(20,19,18,225));
-    DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(centre.x-mark*.5f,centre.y-mark*.5f),mark,m->link);
-   }
+   const auto* m=Member(v.room,ids[side]);if(!m)continue;
+   auto& seat=card.seats[side];
+   seat.occupied=true;seat.name=m->name;seat.fighter=fighter(m);seat.link=m->link;seat.country=m->country;seat.marked=banner.seat==side;
+   seat.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
    // A readied fighter wears a badge on the portrait until the game starts.
-   if(m&&t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready)){
-    const char* badge=loc::T("room.status.ready");const float size=13*s;
-    const float badgeWidth=ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,badge).x+12*s;
-    const ImVec2 min(px+(portrait-badgeWidth)*.5f,py+4*s),max(min.x+badgeWidth,min.y+size+4*s);
-    ImGui::GetWindowDrawList()->AddRectFilled(min,max,palette::Ready,(size+4*s)*.5f);
-    ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),size,ImVec2(min.x+6*s,min.y+2*s),IM_COL32(20,19,18,255),badge);
-   }
-   const float tx=x+(m&&!side?portrait+8*s:0),tw=half-(m?portrait+8*s:0);
-   if(m&&cardVisible)NoteUserText(m->name);
-   // Names of different lengths read ragged when flush left; centre each
-   // in its own slot so the pair stays symmetric about VS.
-   text(ImVec2(tx,top),tw,m?m->name:loc::T("room.looking_for_fight"),18*s,m?palette::Ivory:palette::Muted,true);
-   const auto* f=selection::FindFighter(id);
-   // An empty seat already reads "Looking for a fight" above; a second
-   // "Open seat" underneath said nothing new.
-   std::string caption=m?(f?f->name:loc::T("room.fighter_not_shared")):std::string();
-   if(m&&m->id==v.room.localMember)caption+=loc::T("room.suffix_you");
-   if(!caption.empty())text(ImVec2(tx,top+23*s),tw,caption,14*s,palette::Muted,true);
-   // The fighter who has won sets back to back at this table. A banner takes
-   // this line's place when the card is too short for both.
-   const bool thirdLine=!bannerHeight||top+53*s<=bannerTop;
-   if(m&&thirdLine&&t.streakHolder==m->id&&t.streak>=2)text(ImVec2(tx,top+40*s),tw,loc::Tf("room.streak",t.streak),13*s,palette::Ember,true);
-   else if(m&&thirdLine&&!t.ready[side]){const auto idle=IdleText(*m);if(!idle.empty())text(ImVec2(tx,top+40*s),tw,idle,13*s,palette::Muted,true);}
+   seat.ready=t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready);
+   const auto* f=selection::FindFighter(seat.fighter);
+   seat.caption=f?f->name:loc::T("room.fighter_not_shared");
+   if(m->id==v.room.localMember)seat.caption+=loc::T("room.suffix_you");
+   if(t.streakHolder==m->id&&t.streak>=2)seat.streak=loc::Tf("room.streak",t.streak);
+   if(!t.ready[side])seat.idle=IdleText(*m);
   }
-  text(ImVec2(p.x+12*s+half,top+16*s),gap,middle,18*s,palette::Ember,true);
-  if(bannerHeight){
-   const ImVec2 min(p.x+8*s,bannerTop),max(p.x+width-8*s,bannerTop+bannerHeight-2*s);
-   ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(74,46,20,235),4*s);
-   ImGui::GetWindowDrawList()->AddRect(min,max,bannerColor,4*s,0,1*s);
-   if(cardVisible)NoteUserText(banner.text);
-   text(ImVec2(min.x+8*s,min.y+(max.y-min.y-13*s)*.5f),max.x-min.x-16*s,banner.text,13*s,bannerColor);
-   ReportMenuCard((e.id+"/banner").c_str(),min,max);
-  }
-  // An option strip covers the footer, so the footer gives way to it.
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
   const auto watching=t.spectators.size()+t.watchingNext.size();
-  const std::string footer=(v.room.practice?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
+  card.footer=(v.room.practice?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+
+   (v.room.delayPolicy==room::DelayPolicy::Own?std::string(loc::T("room.table_footer_own_delay"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
    ?loc::Tf("room.table_footer",t.rules.roundCount,room::MatchRoundTime(v.room,t),t.queue.size(),watching)
    :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
-  if(!choosing&&!ownPlace)text(ImVec2(p.x+12*s,p.y+h-22*s),width-24*s,footer,14*s,palette::Muted);
+  const auto hit=DrawTableCard(card);
+  pressBody(e,hit);
+  const bool optionPressed=hit.kind==CardInteraction::Kind::Pressed&&hit.option>=0;
   if(choosing){
-   // The chosen side follows the mouse, and the seat a sit option would take
-   // blinks.
-   // Only a moving mouse takes the choice; a resting cursor must not undo
-   // what the pad or keyboard just picked.
-   const auto& io=ImGui::GetIO();
-   if(strip.hovered>=0&&(io.MouseDelta.x!=0||io.MouseDelta.y!=0))nav.ChoiceIndex(static_cast<std::size_t>(strip.hovered));
-   const int chosen=static_cast<int>(nav.ChoiceIndex());
-   const auto* option=FindSeatOption(e.choices[chosen].id);
-   if(option&&option->seat>=0){
-    const float pulse=.55f+.45f*std::sin(static_cast<float>(ImGui::GetTime())*6.f);
-    const float x=p.x+12*s+option->seat*(half+gap);
-    ImGui::GetWindowDrawList()->AddRect(ImVec2(x-4*s,p.y+26*s),ImVec2(x+half+4*s,p.y+h-32*s),ImGui::GetColorU32(ImVec4(1.f,.53f,.22f,pulse)),4*s,0,3*s);
-   }
-   std::vector<bool> live;
-   for(const auto& c:e.choices)live.push_back(c.enabled);
-   drawStrip(strip,labels,chosen,live);
-   if(strip.clicked>=0)action=nav.Pick(static_cast<std::size_t>(strip.clicked),rows);
-  }else if(ownPlace){
-   const auto mine=room::PlaceOf(v.room,v.room.localMember);
-   const bool readyLive=mine.kind!=room::Place::Kind::Seat||DescribeReady(v,t,mine.seat).kind!=ReadyControl::None;
-   drawStrip(strip,labels,-1,{shown(e)&&readyLive,place.allowed});
-   if(strip.clicked==0){nav.Focus(e.id,rows);action=nav.Choose(rows);}
-   else if(strip.clicked==1)action={MenuAction::Activate,"leave-place"};
+   // The chosen side follows the mouse, but only a moving one takes the choice.
+   if(hit.option>=0&&hit.pointerMoved)nav.ChoiceIndex(static_cast<std::size_t>(hit.option));
+   if(optionPressed)action=nav.Pick(static_cast<std::size_t>(hit.option),rows);
+  }else if(ownPlace&&optionPressed){
+   if(hit.option==0){nav.Focus(e.id,rows);action=nav.Choose(rows);}
+   else if(hit.option==1)action={MenuAction::Activate,"leave-place"};
   }
-  tip();
  };
  const auto memberCard=[&](const MenuEntry& e){
   const auto* m=Member(v.room,std::stoull(e.id.substr(7)));if(!m)return;
-  const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
-  if(ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+58*s)))NoteUserText(m->name);
-  const int main=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
-  press(e,ImVec2(width,58*s));DrawCharacterPortrait(main,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
-  text(ImVec2(p.x+64*s,p.y+7*s),width-98*s,e.label,16*s,palette::Ivory);
-  DrawNetworkLinkGlyph(ImGui::GetWindowDrawList(),ImVec2(p.x+width-28*s,p.y+8*s),16*s,m->link);
-  // A controller player reads the mark (or the Members list); a mouse can
-  // also have it in words.
-  elided+=(elided.empty()?"":"\n")+std::string(NetworkLinkName(m->link));
+  MemberCardView card;card.id=e.id;card.name=m->name;card.label=e.label;card.link=m->link;card.country=m->country;
+  card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
+  card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+  card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
   const auto status=loc::Tf(m->table>=0?(m->host?"room.board_status_host_slot":"room.board_status_slot"):(m->host?"room.board_status_host":"room.board_status"),StatusName(m->status),m->table+1)+
    (m->spectatorLocked?loc::T("room.suffix_locked_in"):"");
   const auto idle=IdleText(*m);
-  text(ImVec2(p.x+64*s,p.y+31*s),width-76*s,idle.empty()?status:status+" \xC2\xB7 "+idle,14*s,palette::Muted);
-  tip();
+  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
+  pressBody(e,DrawMemberCard(card));
  };
  const auto button=[&](const MenuEntry& e,float width){
   const auto p=ImGui::GetCursorScreenPos();press(e,ImVec2(width,40*s));
@@ -651,7 +555,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  std::vector<const MenuEntry*> toolbar;
  for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
- ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.08f,.075f,.07f,.84f));
+ ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
  if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
   // room's actions share the right, and the focused row's explanation runs
@@ -770,6 +674,20 @@ void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {
  if(exit.unready){request.kind=room::ActionKind::Unready;request.seat=exit.seatIndex;}
  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
 }
+bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit) {
+ const auto leave=netplay::LeaveOfWatchedGame(v.room,v.watchedGame);if(leave==netplay::WatchedLeave::None)return false;
+ const auto table=static_cast<std::size_t>(v.watchedGame.table);selectedTable_=v.watchedGame.table;
+ // A leave the room still takes waits for it as any press does; the rest of a
+ // finished game's stream asks nothing of the room.
+ if(leave!=netplay::WatchedLeave::EndView&&!RoomTakesNow(v,room::ActionKind::Unwatch,table)){
+  Refuse(RoomWaitReason(v),[table](const ShellView& now){return LeavesWatchedGame(now,table)&&!RoomTakesNow(now,room::ActionKind::Unwatch,table);});
+  return false;
+ }
+ ShellAction request;request.command.generation=v.session.generation;request.leaveWatchedGame=v.watchedGame;
+ if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
+ error_.clear();
+ return true;
+}
 void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
  for(std::size_t i=0;i<liveGames_.size();++i){
   auto& game=liveGames_[i];const auto& table=v.room.tables[i];
@@ -777,22 +695,24 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
 }
+// Leaving the table the lock-in held says why whoever caused it. A lock-in that
+// ends while still watching that table is the player's own Release, or the
+// release a failed view owes, which the runtime counts instead.
 void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
  const auto* local=Member(v.room,v.room.localMember);
  int lockedAt=-1;
  if(local&&local->spectatorLocked)
   for(const auto& t:v.room.tables)if(room::WatchesByChoice(t,local->id)){lockedAt=t.id;break;}
- if(lockedInTable_>=0&&lockedAt<0&&local&&v.room.roomEpoch==lockInEpoch_&&now>=lockInReleasedUntil_){
-  // Still watching that table: the room ended it because the view dropped.
-  const bool watching=room::WatchesByChoice(v.room.tables[lockedInTable_],local->id);
-  const bool playing=room::PlaceOf(v.room,local->id).kind!=room::Place::Kind::None;
+ const char* reason=nullptr;
+ if(lockedInTable_>=0&&lockedAt<0&&local&&v.room.roomEpoch==lockInEpoch_&&!room::WatchesByChoice(v.room.tables[lockedInTable_],local->id)){
   bool elsewhere=false;
   for(const auto& t:v.room.tables)elsewhere=elsewhere||room::WatchesByChoice(t,local->id);
-  notice_=loc::T(watching?"room.lock_in_ended.dropped":playing?"room.lock_in_ended.playing":
-   elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped");
-  noticeTone_=Tone::Pending;noticeUntil_=now+8;
+  reason=room::PlaceOf(v.room,local->id).kind!=room::Place::Kind::None?"room.lock_in_ended.playing":
+   elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped";
  }
- lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;
+ if(v.lockInDrops>lockInDropsSeen_)reason="room.lock_in_ended.dropped";
+ if(reason){notice_=loc::T(reason);noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+ lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;lockInDropsSeen_=v.lockInDrops;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {
  return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
@@ -857,6 +777,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.id=="options"){OpenTableOptions(v,OptionsTable(v,selectedTable_));return;}
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
+ if(a.id=="stop-watching"){LeaveWatchedGame(v,submit);return;}
  if(a.id=="leave-place"){
   const auto exit=ExitFromPlace(v);if(exit.table<0)return;
   selectedTable_=exit.table;
@@ -912,6 +833,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
   return;
  }
+ if(a.id=="steam-profile"){
+  // The runtime opens Steam's overlay on the profile when it is up, and the browser page otherwise.
+  const auto* m=Member(v.room,selectedMember_);
+  if(!m||!m->steamId.Present()){error_=loc::T("room.member_left.detail");return;}
+  ShellAction open;open.command.generation=v.session.generation;
+  open.service=platform::ServiceAction::OpenSteamProfile;open.steamProfile=m->steamId;
+  if(!submit(std::move(open)))error_=loc::T("error.queue_failed");else error_.clear();
+  return;
+ }
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
@@ -924,8 +854,6 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="lock-spectating"){
    const auto* local=Member(v.room,v.room.localMember);
    request.kind=ActionKind::LockSpectating;request.locked=!(local&&local->spectatorLocked);
-   // The player's own release needs no notice of why it ended.
-   if(!request.locked)lockInReleasedUntil_=ImGui::GetTime()+5;
   }
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}

@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <cstdint>
 
 #include "Dimps__Event.hxx"
 #include "Dimps__Game.hxx"
@@ -21,6 +22,7 @@ using GameEvents::VsStageSelect;
 using Dimps::Platform::dString;
 
 MainMenu::__itemObserverMethods MainMenu::itemObserverMethods;
+MainMenu::__taskMethods MainMenu::taskMethods;
 MainMenu::__exitMethods MainMenu::exitMethods;
 MainMenu::__publicMethods MainMenu::publicMethods;
 MainMenu::__staticMethods MainMenu::staticMethods;
@@ -37,7 +39,16 @@ VsStageSelect::__publicMethods VsStageSelect::publicMethods;
 VsStageSelect::__staticMethods VsStageSelect::staticMethods;
 StageSelect::Control::__publicMethods StageSelect::Control::publicMethods;
 
+GameEvents::OptionUIController::Methods GameEvents::OptionUIController::methods;
+void GameEvents::OptionUIController::Locate(HMODULE module) {
+    const auto base = reinterpret_cast<std::uintptr_t>(module);
+    // Steam 1.05: thiscall constructor takes two dwords (ret 8);
+    // destructor takes only this (ret). Both run on the game thread.
+    *(PVOID*)&methods.Construct = (PVOID)(base + 0xCC280);
+    *(PVOID*)&methods.Destroy = (PVOID)(base + 0xCC0D0);
+}
 void GameEvents::Locate(HMODULE peRoot) {
+    OptionUIController::Locate(peRoot);
 	MainMenu::Locate(peRoot);
 	RootEvent::Locate(peRoot);
 	StageSelect::Locate(peRoot);
@@ -81,6 +92,7 @@ void MainMenu::Locate(HMODULE peRoot) {
 	*(PVOID*)&itemObserverMethods.OnModeSelected = (PVOID)(peRootOffset + 0x214cb0);
 	*(PVOID*)&itemObserverMethods.GetItemObserverState = (PVOID)(peRootOffset + 0x212c70);
 	*(PVOID*)&itemObserverMethods.GoToVersusMode = (PVOID)(peRootOffset + 0x2131a0);
+	*(PVOID*)&taskMethods.IdleTask = (PVOID)(peRootOffset + 0x213980);
 	exitMethods.GetApp = (void* (*)())(peRootOffset + 0xcf60);
 	*(PVOID*)&exitMethods.FadeOut = (PVOID)(peRootOffset + 0x286570);
 	*(PVOID*)&exitMethods.Close = (PVOID)(peRootOffset + 0x2d6b70);

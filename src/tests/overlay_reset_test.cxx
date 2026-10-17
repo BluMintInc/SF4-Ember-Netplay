@@ -3,6 +3,7 @@
 #include "../sf4e/sf4e__OverlayPrefs.hxx"
 #include "../sf4e/sf4e__ReplayCapture.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/PadKind.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
@@ -106,9 +107,36 @@ static int CheckPerFighterPicks() {
     Prefs::FromJson(Prefs::ToJson(many), manyBack);
     check(manyBack.randomPool.Excluded().size() == 100 && manyBack.randomPool == many.randomPool, "a long Random exclusion list lost stages");
     // The preferences compare field by field: a pool change counts, an identical copy doesn't.
-    Prefs::Data same = many, changed = many;
-    changed.randomPool.Toggle(1);
-    check(Prefs::Same(many, same) && !Prefs::Same(many, changed), "the preferences comparison missed the Random pool");
+    Prefs::Data same = many, poolChanged = many;
+    poolChanged.randomPool.Toggle(1);
+    check(many == same && many != poolChanged, "the preferences comparison missed the Random pool");
+
+    Prefs::Data controller;
+    controller.controllerLayer = false;
+    controller.deviceType = sf4e::input::PadXInput; controller.deviceIdx = 2;
+    controller.deviceIdentity = sf4e::gamepads::Identity{"guid", "DualSense-123", "usb-path", "DualSense"};
+    Prefs::Clamp(controller);
+    Prefs::Data restored;
+    Prefs::FromJson(Prefs::ToJson(controller), restored);
+    Prefs::Clamp(restored);
+    check(restored == controller, "controller layer and identity did not round-trip");
+    controller.controllerLayer = true;
+    Prefs::FromJson(Prefs::ToJson(controller), restored);
+    check(restored.controllerLayer, "enabled controller layer did not round-trip");
+    Prefs::Data defaults;
+    Prefs::FromJson({{"device", {{"type", sf4e::input::PadXInput}, {"idx", 1}}}}, defaults);
+    check(defaults.controllerLayer && !defaults.deviceIdentity, "old preferences did not use controller defaults");
+    restored.controllerLayer = false; restored.deviceIdentity = *controller.deviceIdentity;
+    Prefs::FromJson({{"device", nlohmann::json::object()}}, restored);
+    check(restored.controllerLayer && !restored.deviceIdentity, "missing controller keys retained stale values");
+    Prefs::FromJson({{"device", {{"identity", "old-concatenated-identity"}}}}, restored);
+    check(!restored.deviceIdentity, "legacy string was treated as an identity object");
+    const auto identityJson = Prefs::ToJson(controller)["device"]["identity"];
+    check(identityJson.is_object() && identityJson.size() == 4 && identityJson["name"] == "DualSense",
+        "saved identity was not a small object with its message name");
+    auto changed = controller;
+    changed.deviceIdentity->serial += "other";
+    check(changed != controller, "preference equality ignored the controller identity");
     return failures;
 }
 
@@ -134,6 +162,16 @@ int main() {
         if (!value) { ++failures; std::printf("FAIL: %s\n", message); }
     };
     namespace Overlay = sf4e::Overlay;
+    // A game that started without a Direct3D device: no overlay, and every
+    // entry point that later runs does nothing until a Reset brings one.
+    Overlay::InitializeOverlay(window, nullptr);
+    check(!ImGui::GetCurrentContext(), "an overlay started without a device");
+    bool pictured = false;
+    Overlay::DrawOverlay([&] { pictured = true; });
+    check(pictured, "a frame with no overlay skipped the picture");
+    check(Overlay::OverlayWindowFunc(window, WM_KEYDOWN, 'L', 0) == 0, "a key was swallowed with no overlay");
+    Overlay::FreeOverlay();
+    check(!ImGui::GetCurrentContext(), "freeing an overlay that never started made a context");
     Overlay::InitializeOverlay(window, device);
     Overlay::OverlayWindowFunc(window, WM_ACTIVATEAPP, TRUE, 0);
     check(Overlay::HasInputFocus(), "initial activation did not reach overlay");

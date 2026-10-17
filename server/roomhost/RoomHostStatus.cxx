@@ -83,6 +83,7 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	// numbers are the wire values (RoomDetails).
 	details.setFormat = static_cast<int>(snapshot.tables[0].rules.format);
 	details.rotation = static_cast<int>(snapshot.tables[0].rules.rotation);
+	details.ownDelay = snapshot.delayPolicy == room::DelayPolicy::Own;
 	return details;
 }
 
@@ -91,6 +92,8 @@ std::string StatusLine(std::size_t members, std::size_t tablesPlaying, const std
 	nlohmann::json detail{{"name", details.name}, {"capacity", details.capacity}, {"locked", details.locked},
 		{"fighters", details.fighters}, {"set_format", details.setFormat}, {"rotation", details.rotation}};
 	if (!details.hostName.empty()) detail["host_name"] = details.hostName;
+	// Written only for the room that has it, so any other room's line is what it was.
+	if (details.ownDelay) detail["own_delay"] = true;
 	// A room name that is not UTF-8 must not throw out of the host: replace it.
 	return nlohmann::json{{"type", "status"}, {"members", members}, {"tables_playing", tablesPlaying},
 		{"invitation", invitation}, {"banned", banned}, {"details", detail}}.dump(-1, ' ', false,

@@ -1,10 +1,14 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../common/ButtonLayoutJson.hxx"
+#include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
+#include "../common/NativeMenuLock.hxx"
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
+#include "sf4e__Steam.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -26,6 +30,7 @@ void ResetMatchEntry() {
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
+	runtime->enteredTable = -1;
 	runtime->sessionlessCloseGeneration = 0;
 	runtime->spectatorStreamFailedGeneration = 0;
 	runtime->entryDeferredGeneration = 0;
@@ -39,6 +44,13 @@ bool LocalIsSpectator() {
 	return runtime && runtime->match && runtime->match->LocalSlot() >= 2;
 }
 
+// The entry stays for as long as GGPO does: the session cannot take another
+// grant until GGPO has let go of its socket.
+netplay::WatchedGame WatchedGameNow() {
+	if (!Game::Battle::System::ggpo || !LocalIsSpectator() || !runtime->matchEntered) return {};
+	return {runtime->enteredTable, runtime->enteredGeneration};
+}
+
 bool AtMainMenu() {
 	// Platform initialization precedes the native event-system singleton. The
 	// getter dereferences that singleton before it can return a root pointer.
@@ -47,6 +59,32 @@ bool AtMainMenu() {
 	if (!root) return false;
 	char* query[] = { "MainMenu" };
 	return Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1) != nullptr;
+}
+
+// The native screen in front ("MainMenu", "Option", ...), empty while the
+// foreground is changing or before the event system is up. Game thread.
+static std::string NativeForegroundName() {
+	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return {};
+	auto* root = Dimps::App::GetRootEvent();
+	if (!root) return {};
+	using Dimps::Event::EventController;
+	auto* controller = (root->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)();
+	if (!controller || (controller->*EventController::publicMethods.GetForegroundEventStatus)() != EventController::EQS_FOREGROUND) return {};
+	auto* event = (controller->*EventController::publicMethods.GetForegroundEvent)();
+	return event ? std::string(Dimps::Event::EventBase::GetName(event)) : std::string();
+}
+
+// While a room is joined the native screen is logged whenever it changes, so
+// a log shows what was in front of the player's pad.
+static void NoteNativeScreen() {
+	static std::string last;
+	const auto state = runtime->controller.GetSnapshot();
+	if (state.room == netplay::RoomState::Idle) { last.clear(); return; }
+	const std::string now = NativeForegroundName();
+	if (now.empty() || now == last) return;
+	spdlog::info("Room: native screen {} (was {}), room {}, match {}", now, last.empty() ? "none seen" : last,
+		input::RoomStateName(state.room), input::MatchStateName(state.match));
+	last = now;
 }
 
 void CloseRoom() {
@@ -161,7 +199,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -177,6 +215,8 @@ void AttachRoom() {
 	UserApp::netplay->client.SetProfileLink(link);
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
+	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
+	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
     runtime->selectedDelay=runtime->preferences.inputDelay;
     UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
@@ -197,6 +237,9 @@ void StartHelper() {
 	runtime = new Runtime();
 	bridge::OpenCommands(runtime->commands);
     runtime->languagePreference = platform::LoadLanguagePreference();
+    runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
+    runtime->automaticCountry = platform::WindowsCountry();
+    spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
@@ -217,13 +260,17 @@ void StartHelper() {
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             netplay::ReadBoolPreferences(saved, runtime->preferences);
+            runtime->preferences.buttonPrompts = netplay::ReadButtonPrompts(saved);
+            runtime->preferences.controllerMappings = netplay::ReadControllerMappings(saved);
+            runtime->preferences.buttonLayouts = gamepads::ReadLayouts(saved, [](unsigned, gamepads::LayoutLoadError) {});
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
-            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
+            runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= netplay::MaxMatchHudAnchor ? hudAnchor : 0;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
+            runtime->preferences.country = netplay::ReadCountryPreference(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
@@ -373,11 +420,13 @@ static void TakeJoinLink() {
 }
 
 bool SubmitRuntimeCommand(RuntimeCommand command) {
-	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
+	if (command.padAction.layouts.size() > 32 || command.padAction.log.size() > 2048 || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
+		(command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
 		command.reportSubmission.comment.size() > 8000 ||
+		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
 		(command.createdRules && !command.createdRules->Valid())) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
@@ -389,8 +438,8 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
+		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
@@ -398,9 +447,12 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.servicePath.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
-		command.reportSubmission.comment.size();
-	return bridge::PushCommand(std::move(command), bytes);
+		command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
+		command.reportSubmission.comment.size() + command.padAction.log.size();
+    std::size_t layoutBytes = 0;
+    for (const auto& layout : command.padAction.layouts)
+        layoutBytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
+	return bridge::PushCommand(std::move(command), bytes + layoutBytes);
 }
 
 
@@ -542,6 +594,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
         replacement.practiceRoom=runtime->practiceRoom;
+        replacement.delayPolicy=runtime->delayPolicy;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }
@@ -569,8 +622,10 @@ static void CallOutOpponentReady() {
 // battle or its transitions. The log lines let a crash report show whether
 // and when it rang.
 void internal::PlayChallengerCall(int volumePercent) {
-	if (!AtMainMenu() || Game::Battle::System::ggpo) {
-		spdlog::info("Room: challenger call skipped outside the main menu");
+	const bool atMenu = AtMainMenu();
+	if (!atMenu || Game::Battle::System::ggpo) {
+		if (!atMenu) spdlog::info("Room: challenger call skipped outside the main menu (native screen '{}')", NativeForegroundName());
+		else spdlog::info("Room: challenger call skipped outside the main menu (a game session is still live)");
 		return;
 	}
 	if (!Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger, Dimps::Sound::SystemChannel::Voice, volumePercent / 100.f))
@@ -601,6 +656,10 @@ static void CallOutOfTraining() {
 	in.autoAccept = runtime->preferences.trainingAutoReady;
 	in.canReady = GetRuntimeSnapshotShared()->canReady;
 	in.generation = training::ReadPlace().generation;
+	in.choosingFighter = FighterSelectorShown(room.roomEpoch);
+	// From the press until its seat flag commits, it fails or its budget ends
+	// (ParkedIntent: parked, sent, or awaiting the commit).
+	in.readyInFlight = runtime->readyIntent.Active() || runtime->controller.GetSnapshot().readyPending;
 	const auto dropped = runtime->trainingCall.Dropped();
 	const auto result = runtime->trainingCall.Reconcile(room, in, GetTickCount64(), input::TrainingGoNow());
 	if (runtime->trainingCall.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");
@@ -615,7 +674,7 @@ static void CallOutOfTraining() {
 		break;
 	case room::TrainingCall::Step::Open:
 		++runtime->trainingCallSequence;
-		spdlog::info("Room: back from Training; {} s to ready", room::TrainingCall::ReadyWindowMs / 1000);
+		spdlog::info("Room: back from Training; {} s to ready", (runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
 		break;
 	case room::TrainingCall::Step::Ready:
 		++runtime->trainingReadySequence;
@@ -724,8 +783,10 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
+	NoteNativeScreen();
 	SayTraining();
 	TakeJoinLink();
+	TickMemberLatency();
 	PublishAndTickDiscordInvite();
 }
 

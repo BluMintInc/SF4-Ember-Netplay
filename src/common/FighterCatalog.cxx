@@ -216,9 +216,10 @@ std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability&
     }
     return result;
 }
-// The costume's own colors, or a custom color.
+// The costume's own colors, or a custom color, of a costume the fighter has.
 bool ColorInRange(int fighterId, int costumeId, int color) {
-    return color >= 0 && (color < ColorCount(fighterId, costumeId) || IsCustomColor(color));
+    const int count = ColorCount(fighterId, costumeId);
+    return count > 0 && color >= 0 && (color < count || IsCustomColor(color));
 }
 bool Valid(const Pick& pick, bool editionSelect) {
     // The native menus wrap PA over -1..9 and quotes over -1..10.

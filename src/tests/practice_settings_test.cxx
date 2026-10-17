@@ -48,7 +48,7 @@ int main() {
     const char* notation[] = {"MP+MK", "MP+MK", "LP+MP+MK", "LP+MP+MK", "MP+MK", "[MP+MK]", "[MP+MK]",
         "MP+MK", "[MP+MK]", "[MP+MK]", "LP+MP+MK", "[LP+MP+MK]", "[LP+MP+MK]",
         "LP+MP+MK", "[LP+MP+MK]", "[LP+MP+MK]", "LP+LK", "4LP+LK", "HP+HK", "66", "44", "8", "9", "7"};
-    DummyPlan settings; settings.when = 4; settings.slot = 3;
+    DummyPlan settings; settings.when = 4; settings.chance = 75;
     std::string error;
     for (std::size_t i = 0; i < sizeof(names) / sizeof(*names); ++i) {
         sf4e::combo::Step step;
@@ -58,7 +58,7 @@ int main() {
         CHECK(MigrateReplyMoves(migrated) == migrated);
         DummyPlan plan;
         CHECK(BuildReplyPlan(migrated, settings, plan, error));
-        CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves.empty());
+        CHECK(plan.when == 4 && plan.chance == 75 && !plan.moves.empty());
         // Made once, for the dummy facing right, as a slot holds it.
         sf4e::combo::Compiled compiled;
         CHECK(sf4e::combo::Synthesize({notation[i]}, true, compiled, error));
@@ -74,7 +74,7 @@ int main() {
     CHECK(MigrateReplyMoves("2MK > xx 623HP") == "2MK > xx 623HP");
     CHECK(MigrateReplyMoves("dash > Hadoken") == "dash > Hadoken");
     // Invalid saved text (including a nonempty separator-only line) cannot
-    // erase a typed reply and silently switch the command to its slot.
+    // erase a typed reply and silently switch the command to a recording.
     DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
     // A reply plays from its first pressed frame, so one starting with a wait
     // is refused, as are holds with no move to time the reply by and a
@@ -86,7 +86,7 @@ int main() {
         CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
         CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);
     }
-    CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.slot == 3);
+    CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.chance == 75);
     CHECK(BuildReplyPlan("[1] > 3HP", settings, result, error) && !result.moves.empty() && BuildReplyPlan("[2]30f > 5MK", settings, result, error));
     // The first move's own offset rides with the plan, and goes with typed moves.
     CHECK(BuildReplyPlan("[2]30f > 5MK@+3", settings, result, error) && result.offset == 3 && ValidDummyPlan(result));
@@ -121,16 +121,44 @@ int main() {
     for (const char* defaults : {"null", "{}", "[]", "true", R"({"style":"Flat","hud_recovery":"true"})", R"({"style":1,"hud_recovery":1})",
         R"({"style":"angled","hud_recovery":false})"}) {
         const auto options = ReadMeterOptions(json::parse(defaults));
-        CHECK(!options.flat && !options.recovery);
+        CHECK(options.style == MeterStyle::Angled && !options.recovery);
     }
-    CHECK(ReadMeterOptions(json::parse(R"({"style":"flat"})")).flat);
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"flat"})")).style == MeterStyle::Flat);
     for (const char* shown : {"{}", R"({"frames_shown":30})", R"({"frames_shown":"90"})", R"({"frames_shown":90.5})", R"({"frames_shown":-60})"})
         CHECK(ReadMeterOptions(json::parse(shown)).shown == 60);
     for (const int choice : MeterShownChoices) CHECK(ReadMeterOptions(json{{"frames_shown", choice}}).shown == choice);
     for (int bits = 0; bits < 4; ++bits) {
-        MeterOptions options; options.flat = (bits & 1) != 0; options.recovery = (bits & 2) != 0; options.shown = bits == 3 ? 120 : 90;
+        MeterOptions options; options.style = (bits & 1) ? MeterStyle::Flat : MeterStyle::Angled; options.recovery = (bits & 2) != 0; options.shown = bits == 3 ? 120 : 90;
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(options).dump()));
-        CHECK(read.flat == options.flat && read.recovery == options.recovery && read.shown == options.shown);
+        CHECK(read.style == options.style && read.recovery == options.recovery && read.shown == options.shown);
+    }
+    // The meter keeps 20 seconds unless one of the offered lengths is saved.
+    for (const char* history : {"{}", R"({"history_frames":500})", R"({"history_frames":"600"})", R"({"history_frames":-240})"})
+        CHECK(ReadMeterOptions(json::parse(history)).history == 1200);
+    for (const int choice : MeterHistoryChoices) {
+        MeterOptions saved; saved.history = choice;
+        CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).history == choice);
+    }
+    // The meter sits above the super meters at the standard bar height unless an offered place or height is saved.
+    CHECK(ReadMeterOptions(json::parse(R"({"position":50,"bar_height":"22"})")).position == 82 && ReadMeterOptions(json::parse(R"({"bar_height":17})")).barHeight == 16);
+    for (const int choice : MeterPositions) { MeterOptions saved; saved.position = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).position == choice); }
+    for (const int choice : ClassicBarHeights) { MeterOptions saved; saved.barHeight = choice; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).barHeight == choice); }
+    // The bars turn pages unless "smooth" is saved.
+    CHECK(!ReadMeterOptions(json::object()).smooth && !ReadMeterOptions(json::parse(R"({"scroll":true})")).smooth);
+    { MeterOptions sliding; sliding.smooth = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(sliding).dump())).smooth); }
+    // The meter starts over after a pause unless "continue" is saved.
+    CHECK(!ReadMeterOptions(json::object()).continuous && !ReadMeterOptions(json::parse(R"({"after_pause":true})")).continuous);
+    { MeterOptions going; going.continuous = true; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(going).dump())).continuous); }
+    // The classic style is its own choice: only "classic" picks it, never with
+    // flat, and its parts show unless saved as a literal false, each apart.
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"classic"})")).style == MeterStyle::Classic);
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"Classic"})")).style == MeterStyle::Angled);
+    { MeterOptions classic; classic.style = MeterStyle::Classic; CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(classic).dump())).style == MeterStyle::Classic); }
+    for (const auto& part : ClassicParts) {
+        CHECK(ReadMeterOptions(json::object()).*part.shown);
+        MeterOptions off; off.*part.shown = false;
+        const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
+        for (const auto& other : ClassicParts) CHECK(read.*other.shown == (other.key != part.key));
     }
     // Every part of the HUD shows unless it is saved as a literal false, and
     // a round trip keeps each one apart from the others.
@@ -139,6 +167,12 @@ int main() {
         MeterOptions off; off.*part.shown = false;
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
         for (const auto& other : HudParts) CHECK(read.*other.shown == (&other != &part));
+    }
+    // No input display unless one is saved by name, and a round trip keeps each.
+    for (const json& inputs : {json(), json("Stick"), json(1), json(true)}) CHECK(ReadMeterOptions(json{{"hud_inputs", inputs}}).inputs == InputDisplay::Off);
+    for (const auto inputs : {InputDisplay::Off, InputDisplay::Stick, InputDisplay::Arrows, InputDisplay::Both}) {
+        MeterOptions saved; saved.inputs = inputs;
+        CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).inputs == inputs);
     }
     // The HUD is standard size unless small (0) or large (2) is saved, and keeps its size through a round trip.
     for (const json& size : {json(), json(3), json(-1), json(1.5), json("2"), json(true)}) CHECK(ReadMeterOptions(json{{"hud_size", size}}).size == 1);

@@ -164,7 +164,21 @@ static void TestRoomListDetails() {
 	CHECK(!decode(Row(), {{"members", 9u}}));
 	// An admission carries the same row.
 	const auto admission = session::DecodeAdmission({{"room", Row()}, {"invitation", "sf4e3:x"}, {"ticket", {{"k", 1}}}});
-	CHECK(admission && admission->room.createdAt == 900);
+	CHECK(admission && admission->room.createdAt == 900 && !admission->room.ownDelay);
+	// A room's own delay is part of the room, not a detail: absent is the shared
+	// delay (an old bridge, or any room that does not have it), true is read
+	// without detail=1 and says nothing of details, and a key that is not a boolean is ignored.
+	CHECK(!plain.ownDelay && !old->rooms[0].ownDelay);
+	const auto own = room({{"own_delay", true}});
+	CHECK(own.ownDelay && !own.hasDetails && own.id == Hex32);
+	CHECK(!room({{"own_delay", false}}).ownDelay);
+	for (const json& bad : {json(1), json("yes"), json(nullptr), json::array({true}), json::object()}) {
+		const auto row = room({{"own_delay", bad}});
+		CHECK(!row.ownDelay && row.id == Hex32 && row.members == 3);
+	}
+	const auto admitted = session::DecodeAdmission({{"room", [] { auto row = Row(); row["own_delay"] = true; return row; }()},
+		{"invitation", "sf4e3:x"}, {"ticket", {{"k", 1}}}});
+	CHECK(admitted && admitted->room.ownDelay);
 }
 
 // The assignment rows' times and states: the bridge's created_at and expires_at

@@ -16,6 +16,11 @@
 //   them if they were open when Back went down. Back then neither resets nor
 //   saves when it is let go; a Start later than half a second comes after
 //   the save, which stands.
+// On the dummy's standby the chord that would open the controls starts the
+// recording instead, as the same buttons do in SF6, so a pad alone can
+// record (TrainingPadInput). While recording it opens them as ever, which
+// ends the recording and keeps it.
+//
 // Start first and Back after is the game's pause, so only a Start that goes
 // down while Back is already held counts, and a Back pressed during the
 // pause's Start does nothing here. With the controls open, Back alone
@@ -49,7 +54,9 @@ struct TrainingPadEvents {
     // Back went down this sample, whatever the press turns out to be: the
     // moment the press takes its owner (TrainingPadInput).
     bool pressed = false;
-    bool Any() const { return down || reset || save || open || close || goNow; }
+    // The chord on standby: it starts the recording and opens nothing.
+    bool advance = false;
+    bool Any() const { return down || reset || save || open || close || goNow || advance; }
 };
 class TrainingPadGesture {
 public:
@@ -95,12 +102,13 @@ private:
     double downAt_ = 0;
 };
 
-// The position the gesture asked for, one at a time and in order, for the drawing
-// thread: each with the Training battle (its generation) and the pad owner
-// (epoch) it was pressed under. A save keeps where the fighters stood as its
-// Back went down.
+// What the gesture asked for, one at a time and in order, for the drawing
+// thread: a position reset or save, or the next step of a recording (Advance,
+// the chord on standby); each with the Training battle (its generation) and
+// the pad owner (epoch) it was pressed under. A save keeps where the fighters
+// stood as its Back went down.
 struct TrainingPadEvent {
-    enum class Kind : std::uint8_t { Reset, Save };
+    enum class Kind : std::uint8_t { Reset, Save, Advance };
     Kind kind = Kind::Reset;
     std::uint64_t generation = 0;
     std::uint32_t epoch = 0;
@@ -219,7 +227,9 @@ struct PadOwner {
 // two polls, another battle), the gesture is dropped, so nothing it would ask
 // for, a reset, a save or the controls, acts under another owner. The chord
 // opens or closes the controls, accepted only for the owner it was pressed
-// under: one whose owner went during the update (focus lost) is refused.
+// under: one whose owner went during the update (focus lost) is refused. On
+// standby it opens nothing and asks for the recording instead (advance), the
+// one place that choice is made.
 class TrainingPadInput {
 public:
     struct Result {
@@ -228,13 +238,17 @@ public:
         PadOwner owner;
         float place[2] = {0, 0};
     };
-    Result Update(std::uint32_t physical, TrainingControls& controls, double now, TrainingCall call, const PadOwner& current, const float (&place)[2]) {
+    // standby: the dummy is on standby for a recording, as the game thread
+    // last published it (training::ChordStartsRecording).
+    Result Update(std::uint32_t physical, TrainingControls& controls, double now, TrainingCall call, const PadOwner& current, const float (&place)[2],
+        bool standby = false) {
         if (held_ && current != owner_) gesture_.Reset();
         Result result;
         result.events = gesture_.Update(physical, controls.Open(), now, call);
         if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
         held_ = (physical & PhysicalBack) != 0;
-        if ((result.events.open || result.events.close) && !controls.Accept(result.events.open, owner_.epoch))
+        if (result.events.open && standby) { result.events.open = false; result.events.advance = true; }
+        else if ((result.events.open || result.events.close) && !controls.Accept(result.events.open, owner_.epoch))
             result.events.open = result.events.close = false;
         result.owner = owner_; result.place[0] = place_[0]; result.place[1] = place_[1];
         return result;

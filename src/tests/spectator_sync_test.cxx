@@ -284,6 +284,87 @@ static void StaleEntryIsReleased() {
 	std::cout << "StaleEntryIsReleased passed\n";
 }
 
+// A parked room action goes again at the main menu with no match in hand. A
+// spectator in a live game sends its own leave and its chat at once; anything
+// else, and everything a fighter parked, waits for the menu. All of them wait
+// for a writable authority, and nothing goes over a lost control or a
+// recovery. The parked leave of the watched game does not wait for the
+// authority, as on its first send, and once the stream is gone it goes at
+// once, to end as nothing left to leave.
+static void ParkedActionRetryGate() {
+	using room::ActionKind;
+	const auto action = [](ActionKind kind, std::uint64_t generation = 0) {
+		room::Action value; value.kind = kind; value.matchGeneration = generation; return value;
+	};
+	netplay::RetryGate menu; menu.controlHealthy = menu.authorityWritable = menu.atMenuIdle = true;
+	netplay::RetryGate watching; watching.controlHealthy = watching.authorityWritable = watching.spectatorInGame = true;
+	netplay::RetryGate fighting; fighting.controlHealthy = fighting.authorityWritable = true;
+	for (const auto kind : {ActionKind::Unwatch, ActionKind::Unqueue, ActionKind::Chat}) {
+		CHECK(netplay::ParkedActionRetryable(action(kind), watching));
+		CHECK(!netplay::ParkedActionRetryable(action(kind), fighting));
+		CHECK(netplay::ParkedActionRetryable(action(kind), menu));
+	}
+	for (const auto kind : {ActionKind::Queue, ActionKind::Watch, ActionKind::LockSpectating, ActionKind::Kick}) {
+		CHECK(!netplay::ParkedActionRetryable(action(kind), watching));
+		CHECK(netplay::ParkedActionRetryable(action(kind), menu));
+	}
+	// A room catching up on its checkpoint: healthy control, authority not writable.
+	auto catchingUp = watching; catchingUp.authorityWritable = false;
+	for (const auto kind : {ActionKind::Unwatch, ActionKind::Unqueue, ActionKind::Chat, ActionKind::Queue}) {
+		CHECK(!netplay::ParkedActionRetryable(action(kind), catchingUp));
+		CHECK(!netplay::ParkedActionRetryable(action(kind, 9), catchingUp));
+	}
+	auto menuCatchingUp = menu; menuCatchingUp.authorityWritable = false;
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Chat), menuCatchingUp));
+	auto lost = catchingUp; lost.controlHealthy = false;
+	auto recovering = watching; recovering.recoveringMatch = true;
+	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Chat), recovering));
+	// The watched game's leave: not before the room's control can take its
+	// Unwatch while the stream plays, at once when the stream is gone.
+	CHECK(netplay::ParkedWatchedLeaveRetryable(watching) && netplay::ParkedWatchedLeaveRetryable(catchingUp));
+	CHECK(!netplay::ParkedWatchedLeaveRetryable(lost) && !netplay::ParkedWatchedLeaveRetryable(recovering));
+	auto gone = lost; gone.spectatorInGame = false; gone.recoveringMatch = true;
+	CHECK(netplay::ParkedWatchedLeaveRetryable(gone));
+	std::cout << "ParkedActionRetryGate passed\n";
+}
+
+// What leaving the watched game asks of the room. Member 7 watches table 1's
+// generation 4 by choice.
+static void WatchedLeaveRule() {
+	using Leave = netplay::WatchedLeave;
+	const netplay::WatchedGame game{1, 4};
+	auto snapshot = ReleaseSnapshot();
+	CHECK(netplay::LeaveOfWatchedGame(snapshot, {}) == Leave::None);
+	CHECK(netplay::LeaveOfWatchedGame(snapshot, game) == Leave::Unwatch);
+	// Queued for the table: this game alone, keeping the place.
+	snapshot.tables[1].queue.push_back(7);
+	CHECK(netplay::LeaveOfWatchedGame(snapshot, game) == Leave::LeaveGame);
+	// The room has finished the game, or moved on to the next: only the view ends.
+	for (const bool next : {false, true}) {
+		auto finished = ReleaseSnapshot();
+		if (next) finished.tables[1].matchGeneration = 5;
+		else finished.tables[1].phase = room::TablePhase::Waiting;
+		CHECK(netplay::LeaveOfWatchedGame(finished, game) == Leave::EndView);
+	}
+	auto unlisted = ReleaseSnapshot();
+	unlisted.tables[1].spectators.clear();
+	CHECK(netplay::LeaveOfWatchedGame(unlisted, game) == Leave::EndView);
+	// Rotated into a seat of the table's next live game: a fighter there has no
+	// spectator's exit.
+	auto seated = ReleaseSnapshot();
+	seated.members[0].seat = 1; seated.tables[1].p2 = 7; seated.tables[1].matchGeneration = 5;
+	CHECK(netplay::LeaveOfWatchedGame(seated, game) == Leave::None);
+	// A tournament's table takes no seating change, finished or not.
+	for (const bool finished : {false, true}) {
+		auto bound = ReleaseSnapshot();
+		bound.tournament.matchId = "m1";
+		bound.members[0].table = 0; bound.tables[0] = bound.tables[1]; bound.tables[0].id = 0;
+		if (finished) bound.tables[0].phase = room::TablePhase::Waiting;
+		CHECK(netplay::LeaveOfWatchedGame(bound, {0, 4}) == Leave::None);
+	}
+	std::cout << "WatchedLeaveRule passed\n";
+}
+
 int main() {
 	CatchUp();
 	BacklogWindow();
@@ -293,6 +374,8 @@ int main() {
 	SessionlessCloseRules();
 	SpectatorLockReleaseLifecycle();
 	StaleEntryIsReleased();
+	ParkedActionRetryGate();
+	WatchedLeaveRule();
 	std::cout << "Spectator sync tests passed\n";
 	return 0;
 }

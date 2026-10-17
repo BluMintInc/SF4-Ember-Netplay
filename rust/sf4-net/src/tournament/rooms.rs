@@ -42,8 +42,25 @@ const REASONS: [&str; 8] = [
     ROOM_LOCKED,
 ];
 
+/// A create that asked for each player's own input delay and was refused or
+/// answered without it: a bridge that does not know the option. It is told to
+/// the player as it is and never retried as a room with the shared delay.
+const OWN_DELAY_UNSUPPORTED: &str = "own_delay_unsupported";
+
 fn invalid_request() -> Failure {
     Failure::new("invalid_request")
+}
+
+/// A failed create, worded for the option it asked for. A bridge that predates
+/// `own_delay` refuses the body it does not know as an invalid request, which
+/// for such a create can be nothing else: the helper checked every other field
+/// before sending.
+fn create_failure(failure: Failure, own_delay: bool) -> Failure {
+    if own_delay && failure.0 == "invalid_request" {
+        Failure::new(OWN_DELAY_UNSUPPORTED)
+    } else {
+        failure
+    }
 }
 
 fn invalid_response() -> Failure {
@@ -159,12 +176,14 @@ pub async fn create(
     name: &str,
     capacity: u8,
     build: &str,
+    own_delay: bool,
 ) -> Outcome {
     let command = CreateRoom {
         name: name.to_owned(),
         capacity,
         build_id: build.to_owned(),
         region: (shared.home_region)().map(str::to_owned),
+        own_delay,
     };
     command.check().map_err(|error| match error {
         ProtocolError::InvalidField("name") => Failure::new(INVALID_NAME),
@@ -194,10 +213,19 @@ pub async fn create(
             if room.check().is_err() || !asked {
                 return Err(invalid_response());
             }
+            // A room made without what was asked for is not entered.
+            if room.own_delay != command.own_delay {
+                return Err(if command.own_delay {
+                    Failure::new(OWN_DELAY_UNSUPPORTED)
+                } else {
+                    invalid_response()
+                });
+            }
             Ok(Some(to_json(&room)?))
         }
     })
-    .await?;
+    .await
+    .map_err(|failure| create_failure(failure, own_delay))?;
     let room: RoomSummary = parse(created.ok_or_else(invalid_response)?)?;
     // A second session call, so a session that lapses between the two steps
     // renews without asking the bridge for another room.
@@ -276,10 +304,12 @@ mod tests {
     fn requests_have_the_shapes_the_game_sends() {
         let list = json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b1" });
         let create = json!({ "op": "room_create", "bridge_id": "brg_x", "name": "Friendly matches", "capacity": 8, "build": "b1" });
+        let own = json!({ "op": "room_create", "bridge_id": "brg_x", "name": "Friendly matches", "capacity": 8, "build": "b1", "own_delay": true });
         let ticket = json!({ "op": "room_ticket", "bridge_id": "brg_x", "room_id": "0123456789abcdef0123456789abcdef", "build": "b1" });
         for (value, op) in [
             (list, "room_list"),
             (create, "room_create"),
+            (own, "room_create"),
             (ticket, "room_ticket"),
         ] {
             let parsed = request(value.clone());
@@ -297,6 +327,8 @@ mod tests {
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 300, "build": "b" }),
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": "8", "build": "b" }),
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "build": "b" }),
+            json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "own_delay": 1 }),
+            json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "own_delay": "yes" }),
             json!({ "op": "room_ticket", "bridge_id": "brg_x", "build": "b" }),
         ];
         for value in bad {
@@ -304,6 +336,38 @@ mod tests {
                 serde_json::from_value::<Request>(value.clone()).is_err(),
                 "{value}"
             );
+        }
+    }
+
+    /// What an older bridge answers to a create with a field it does not know:
+    /// its own refusal of the body, as an invalid request.
+    fn old_bridge_refusal() -> Vec<u8> {
+        serde_json::to_vec(&json!({ "error": {
+            "code": "invalid_request", "message": "The request body is not valid.",
+            "retryable": false, "request_id": "req_1", "details": {},
+        }}))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_create_for_each_players_own_delay_fails_visibly_on_a_bridge_that_does_not_know_it() {
+        let refused = reply(400, &old_bridge_refusal(), 201).unwrap_err();
+        assert_eq!(refused.0, "invalid_request");
+        // Asked for the option, it is the option that is missing; it is never
+        // retried without it, so the player is told.
+        assert_eq!(create_failure(refused, true).0, OWN_DELAY_UNSUPPORTED);
+        // The shared delay asked for nothing, so the refusal stays what it was.
+        let refused = reply(400, &old_bridge_refusal(), 201).unwrap_err();
+        assert_eq!(create_failure(refused, false).0, "invalid_request");
+        // Every other failure keeps its own word, with or without the option.
+        for code in [
+            "room_limit",
+            "unsupported_build",
+            "invalid_name",
+            "unavailable",
+            "http_502",
+        ] {
+            assert_eq!(create_failure(Failure::new(code), true).0, code);
         }
     }
 

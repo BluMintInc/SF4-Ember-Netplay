@@ -36,6 +36,10 @@ struct Room {
 	// with none (the bridge's 255). At most MaxRoomFighters.
 	std::vector<int> fighters;
 	bool locked = false;
+	// Each fighter plays at their own input delay (room::DelayPolicy::Own). The
+	// bridge sends it only for such a room, so an absent key is the shared delay.
+	// Part of the room itself, not a detail: it comes without detail=1.
+	bool ownDelay = false;
 	// True when the bridge sent any of the details above or below.
 	bool hasDetails = false;
 	// Table 0's set length (0 unlimited, else first to 1 to 10) and rotation (0 winner

@@ -244,8 +244,14 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
         if (room.rotation >= 0) {
             const char* rotation = RotationText(static_cast<room::RotationMode>(room.rotation));
             chip = ChipWidth(rotation, limit - x);
-            if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), rotation, palette::Muted, ChipDark, "pr-chip-rotation", chip);
+            if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), rotation, palette::Muted, ChipDark, "pr-chip-rotation", chip); x += chip + 6 * s; }
         }
+    }
+    // Each fighter plays at their own input delay: said where there is room for it.
+    if (room.ownDelay) {
+        const char* own = loc::T("public.own_delay");
+        const float chip = ChipWidth(own, limit - x);
+        if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), own, palette::Muted, ChipDark, "pr-chip-own-delay", chip);
     }
     if (busy) DrawBusyBar(min, max, now);
     DrawFrame(min, max, focused);
@@ -332,7 +338,7 @@ void DrawSetup(const MenuEntry& e, const PublicSetupView& setup, ImVec2 min, ImV
 }
 
 bool PublicRoomBare(const Room& room) {
-    return !room.hasDetails && room.fighters.empty() && room.setFormat < 0 && !room.locked && !Full(room) && room.playing == 0;
+    return !room.hasDetails && room.fighters.empty() && room.setFormat < 0 && !room.locked && !Full(room) && room.playing == 0 && !room.ownDelay;
 }
 
 float DrawChip(ImVec2 at, const char* text, ImU32 foreground, ImU32 background, const char* probe, float maxWidth) {
@@ -424,21 +430,25 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
     float height = 2 * pad - 6 * s;
     int rowsCount = 0;
     const auto add = [&](float rowHeight) { height += rowHeight + 6 * s; ++rowsCount; };
-    if (rules) add(chipRow);
+    if (rules || room->ownDelay) add(chipRow);
     if (open >= 0) add(line);
     if (rowsCount == 0) return;
     const auto at = ImGui::GetCursorScreenPos();
     d->AddRectFilled(at, ImVec2(at.x + space.x, at.y + height), panelFill, rounding);
     float y = at.y + pad;
     const float inner = space.x - 2 * pad;
-    if (rules) {
-        const bool sets = room->setFormat != 0;
+    if (rules || room->ownDelay) {
+        const bool sets = rules && room->setFormat != 0;
         // The chip's text, not its edge, lines up with the lines under it.
         float x = at.x + pad - 7 * s;
-        const std::string set = SetLengthText(static_cast<room::SetFormat>(room->setFormat));
-        x += DrawChip(ImVec2(x, y), set.c_str(), sets ? palette::Ember : palette::Muted, ChipDark, "pr-preview-set", inner) + 6 * s;
+        if (rules) {
+            const std::string set = SetLengthText(static_cast<room::SetFormat>(room->setFormat));
+            x += DrawChip(ImVec2(x, y), set.c_str(), sets ? palette::Ember : palette::Muted, ChipDark, "pr-preview-set", inner) + 6 * s;
+        }
         if (sets && room->rotation >= 0)
-            DrawChip(ImVec2(x, y), RotationText(static_cast<room::RotationMode>(room->rotation)), palette::Muted, ChipDark, "pr-preview-rotation", at.x + space.x - pad - x);
+            x += DrawChip(ImVec2(x, y), RotationText(static_cast<room::RotationMode>(room->rotation)), palette::Muted, ChipDark, "pr-preview-rotation", at.x + space.x - pad - x) + 6 * s;
+        if (room->ownDelay)
+            DrawChip(ImVec2(x, y), loc::T("public.own_delay"), palette::Muted, ChipDark, "pr-preview-own-delay", at.x + space.x - pad - x);
         y += chipRow + 6 * s;
     }
     if (open >= 0) {

@@ -18,6 +18,8 @@
 #include "../common/RoomLimits.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/RoomRules.hxx"
+#include "../common/SteamId.hxx"
+#include "../common/Country.hxx"
 #include "TournamentBinding.hxx"
 
 // The room model is deliberately independent from the game and transport
@@ -142,6 +144,11 @@ struct MemberProfile {
 	// The player's Ember ID. Only server-owned rooms use it: it is the identity
 	// a kick and a duplicate join are keyed on. Never part of a snapshot.
 	std::string account;
+	// The player's Steam profile, only when they chose to show it to the room;
+	// none otherwise.
+	SteamId steamId;
+	// The country the player shows, or none when it is Hidden or unknown.
+	CountryCode country;
 };
 
 struct ConnectionRef {
@@ -178,8 +185,13 @@ struct Member {
     // How this member's network treats a direct connection, as its own helper
     // reported it when it joined. Unknown while that check was still running.
     NatClass nat = NatClass::Unknown;
+    // The Steam profile this member showed the room when it joined, or none.
+    SteamId steamId;
+    // The country this member showed when it joined, or none.
+    CountryCode country;
     // The selected delay belongs to this fighter until Ready captures it.
-    // Values are deliberately bounded by Action deserialization (0..10).
+    // Values are deliberately bounded by Action deserialization
+    // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.
     std::uint8_t selectedDelay = 2;
     std::uint8_t frozenDelay = 2;
     bool delayLocked = false;
@@ -392,6 +404,10 @@ struct Snapshot {
 	// round time. Chosen by the player who created a private room and fixed
 	// for its life; never a public or tournament room. Serialized only when true.
 	bool practice = false;
+	// Whose input delay a game is played at (DelayPolicy). Chosen when the room
+	// is created and fixed for its life, public or private. Serialized only
+	// when Own, so a Shared room's wire form is unchanged.
+	DelayPolicy delayPolicy = DelayPolicy::Shared;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -431,6 +447,21 @@ inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {
 	return room.practice ? PracticeRoundTime : table.rules.roundTime;
 }
 
+// The input delay `seat` of `table` plays its game at, from the delays captured
+// at Ready: the higher of the two in a Shared room, its own in an Own one.
+inline std::uint8_t SeatMatchDelay(const Snapshot& room, const Table& table, int seat) {
+	return room.delayPolicy == DelayPolicy::Own ? table.inputDelay[seat == 0 ? 0 : 1] : MatchDelay(table);
+}
+// The delay a spectator's HUD shows for the game it watches, from the seat
+// delays that game's grant carries (SeatMatchDelay): the Shared one, or Own
+// when each fighter plays at their own. Taken as the stream starts and kept
+// for all of it, since the table's delays belong to the next game as soon as
+// its fighters ready again.
+struct GameDelay { int frames = -1; bool own = false; };
+inline GameDelay WatchedGameDelay(DelayPolicy policy, std::uint8_t first, std::uint8_t second) {
+	return {MatchDelay(first, second), policy == DelayPolicy::Own};
+}
+
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	const auto found = std::find_if(snapshot.members.begin(), snapshot.members.end(),
 		[id](const Member& member) { return member.id == id; });
@@ -444,6 +475,8 @@ struct Place {
 	enum class Kind : std::uint8_t { None, Seat, Queue } kind = Kind::None;
 	int table = -1;
 	int seat = -1;
+	// In a queue: the place in it, from 1 for the member who plays next.
+	int position = 0;
 };
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	Place place;
@@ -453,11 +486,14 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 		place.kind = Place::Kind::Seat; place.table = member->table; place.seat = member->seat;
 		return place;
 	}
-	for (const auto& table : snapshot.tables)
-		if (std::find(table.queue.begin(), table.queue.end(), id) != table.queue.end()) {
+	for (const auto& table : snapshot.tables) {
+		const auto queued = std::find(table.queue.begin(), table.queue.end(), id);
+		if (queued != table.queue.end()) {
 			place.kind = Place::Kind::Queue; place.table = table.id;
+			place.position = static_cast<int>(queued - table.queue.begin()) + 1;
 			return place;
 		}
+	}
 	return place;
 }
 
@@ -544,9 +580,11 @@ struct Result {
 
 class RoomAuthority {
 public:
-	// practice is the room's for its life (Snapshot::practice); nothing changes it later.
+	// practice and delayPolicy are the room's for its life (Snapshot::practice,
+	// Snapshot::delayPolicy); nothing changes them later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
-		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false);
+		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
+		DelayPolicy delayPolicy = DelayPolicy::Shared);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }

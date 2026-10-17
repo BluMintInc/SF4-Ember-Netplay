@@ -1,11 +1,14 @@
 #include "TrainingRuntime.hxx"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include "TrainingCapture.hxx"
 #include "FighterPlacement.hxx"
 #include "BacFile.hxx"
 #include "GameFiles.hxx"
 #include "ConfirmedSamples.hxx"
+#include "DummyReply.hxx"
+#include "TrainingCommands.hxx"
 #include <atomic>
 #include "../common/FighterCatalog.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
@@ -43,6 +46,8 @@ static_assert(ActorStatus::Stand == NativeActor::AS_STAND && ActorStatus::Crouch
     ActorStatus::DamageGuard == NativeActor::AS_DAMAGE__GUARD && ActorStatus::DamageBlow == NativeActor::AS_DAMAGE__BLOW &&
     ActorStatus::Sequence == NativeActor::AS_SEQUENCE, "FrameMeter.hxx ActorStatus differs from Actor::Status");
 Session session;
+// The dummy fighters' slots, kept between battles (RecordingBanks).
+RecordingBanks banks;
 FrameMeter meter;
 std::uint64_t exportId = 0;
 int exportedSlot = -1;
@@ -64,6 +69,13 @@ int scriptFighter[2] = {-1, -1};
 // frames whose inputs are confirmed. watching is read on the game thread
 // and set from the overlay's.
 std::atomic<bool> watching{false};
+// The frames the meter keeps, as the Frame data page chose (SetMeterHistory).
+std::atomic<int> meterHistory{static_cast<int>(MeterHistory)};
+std::atomic<bool> meterContinuous{false};
+// Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
+void ApplyMeterSettings() {
+    meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
+}
 bool matchShown = false;
 ConfirmedSamples confirmed;
 // A Practice room's match. It has no shared checkpoint: the
@@ -73,10 +85,9 @@ std::atomic<bool> matchPractice{false};
 // offline practice only, so the random numbers need not be reproducible.
 DummyPlan dummyPlan;
 DummyWatch dummyWatch;
+ReplyDecision replies;
 ReplyTrace replyTrace;
 std::minstd_rand dummyRandom{std::random_device{}()};
-// The stretch of stun a reply was last decided for, so each gets one roll.
-unsigned decidedStretch = 0;
 DummyControl dummyControl;
 // Both fighters as the last update left them, which a playback's waits read
 // a hit against (AfterUpdate); a reset reseeds them from the restored state.
@@ -86,7 +97,7 @@ std::array<FighterSample, 2> playbackSeen;
 TrainingCapture* capture = nullptr;
 std::mutex mutex;
 View published;
-std::deque<Command> commands;
+CommandQueue commands;
 // Separate ownership from the GGPO pool and the developer save slot.
 Battle::SaveState checkpoint;
 Frame output;
@@ -102,6 +113,12 @@ Acks acks;
 // meter. Logged per battle: a large count explains a missing frame-advantage
 // readout (ledger F-006).
 std::uint64_t gapResets = 0;
+// Updates since the meter last took a frame that simulated frames all the
+// same: not ready (no fight running), or more than one frame each. A field
+// report of a meter that stopped moving then shows whether it was fed and
+// holding, or not fed at all; logged once a stretch, at MeterUnfedLogUpdates.
+constexpr std::uint64_t MeterUnfedLogUpdates = 600;
+std::uint64_t unfedUpdates = 0, unfedNotReady = 0, unfedMultiFrame = 0;
 // The root position the engine keeps for each fighter, which a Place moves
 // (MoveFighters: only x, on the ground; add y and facing if they are ever
 // needed) and the session's facing is read from.
@@ -150,7 +167,7 @@ bool RestoreCheckpoint(Native* system) {
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); ForgetStun(dummyWatch, session); replyTrace.Reset();
+    meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -159,13 +176,13 @@ bool RestoreCheckpoint(Native* system) {
 }
 // What Ember plays on the fighters, as the log names it.
 struct Playing {
-    Mode mode = Mode::Idle; int slot = 0, side = 1; bool reply = false;
+    Mode mode = Mode::Idle; int slot = -1, side = 1; bool reply = false;
     bool operator==(const Playing& other) const { return mode == other.mode && slot == other.slot && side == other.side && reply == other.reply; }
 };
 Playing playing;
 void LogPlaying(const Playing& what, const char* change) {
     if (what.mode == Mode::Idle) return;
-    const char* kind = what.mode == Mode::Recording ? "recording" : what.reply ? "reply" : "playback";
+    const char* kind = what.mode == Mode::Standby ? "standby" : what.mode == Mode::Recording ? "recording" : what.reply ? "reply" : "playback";
     if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
     else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
 }
@@ -186,7 +203,7 @@ void ReconcileDummy(Native* system) {
 // supplies: InputPlan::suppliesDummy.
 void FollowDummy(Native* system, bool supplies) {
     const auto& view = session.GetView();
-    const Playing now{view.mode, view.selected, view.playbackSide, session.Replying()};
+    const Playing now{view.mode, PadPlaysDummy(view.mode) ? view.selected : view.active, view.playbackSide, session.Replying()};
     if (!(now == playing)) { LogPlaying(playing, "ended"); LogPlaying(now, "started"); playing = now; }
     int* options = DummyOptions();
     int* control = Native::GetPlayerControl(system, 1);
@@ -236,6 +253,7 @@ Place ReadPlace() {
     Place place; place.generation = published.generation; place.x[0] = published.x[0]; place.x[1] = published.x[1];
     return place;
 }
+bool ChordStartsRecording() { std::lock_guard<std::mutex> lock(mutex); return ChordStartsRecording(published.mode); }
 bool ControlsAvailable() {
     if(!session.GetView().available || Battle::ggpo) return false;
     auto* system=Native::staticMethods.GetSingleton();
@@ -244,8 +262,8 @@ bool ControlsAvailable() {
 }
 bool Submit(Command command) {
     std::lock_guard<std::mutex> lock(mutex);
-    if (!published.available || command.generation != published.generation || commands.size() >= 32) return false;
-    commands.push_back(command); return true;
+    if (!published.available || command.generation != published.generation) return false;
+    return commands.Push(command);
 }
 bool ReadOverride(int side, Input& result) {
     if (!overriding || side < 0 || side >= 2) return false;
@@ -255,6 +273,7 @@ bool ReadOverride(int side, Input& result) {
 // The session checks every command once, for its battle and whether it can
 // apply now; only then is the game touched.
 std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
+int BattleFighter(Native* system, int side);
 static bool Dispatch(Native* system, const Command& command) {
     if (!session.Apply(command)) {
         // A position that was asked for and not saved or put back is the
@@ -303,13 +322,18 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         if (session.GetView().available) CloseBattle();
         return;
     }
-    if (!session.GetView().available) session.Enter();
+    // The dummy fighter's slots from its last battle (CloseBattle keeps them).
+    if (!session.GetView().available) {
+        const int fighter = BattleFighter(system, 1);
+        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom());
+        if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
+    }
     session.SetReady((system->*Native::publicMethods.IsFight)() &&
         *Native::GetReadyState(system) == Native::RS_FIGHT);
     ReconcileDummy(system);
-    std::deque<Command> pending;
-    { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
-    for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
+    std::deque<Command> taken; std::vector<std::uint64_t> replaced;
+    { std::lock_guard<std::mutex> lock(mutex); commands.Take(taken, replaced); }
+    RunBatch(PrepareBatch(taken, replaced, session.GetView().generation), acks, [system](const Command& command) { return Dispatch(system, command); });
     // The countdown follows the call that stands for this battle, before it
     // ticks, so a call that has ended can never take the battle away and a
     // go now taken for the call is never lost (TrainingSession.hxx).
@@ -416,6 +440,12 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
             if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
             if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
         }
+        // A focus or a dash, by the category of the command move the Skill plays,
+        // as the game tells its own (docs/design/FOCUS_CANCEL_MARKER.md).
+        const unsigned char* command = sample.status == Actor::AS_SKILL ? (actor->*Actor::publicMethods.GetCommandMove)() : nullptr;
+        std::uint32_t category = 0;
+        if (command) std::memcpy(&category, command + 0x28, sizeof category);
+        sample.actionClass = ResolveActionClass(true, sample.status, command != nullptr, category);
         (actor->*Actor::publicMethods.GetDamage)(&value);
         sample.damage = Dimps::Math::FixedToFloat(&value);
         (actor->*Actor::publicMethods.GetComboDamage)(&value);
@@ -436,6 +466,7 @@ void AfterUpdate(Native* system) {
     if (delta != 0) dummyControl.Simulated();
     if (sampling && delta == 1) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
+        if (commitInput) for (int side = 0; side < 2; ++side) fighters[side].input = output[side].raw & FightButtons;
         // The dummy as its stun is timed, for a reply's wait now and its decision below.
         const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
         // A playback's waiting frames read the fight: the fighter playing it
@@ -447,7 +478,7 @@ void AfterUpdate(Native* system) {
                 other.comboDamage > before.comboDamage);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
-            const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
+            const int boundary = MoveRecoveryEnd(own);
             const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             // A reply's leading hold gives way as its first move is due.
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
@@ -457,6 +488,7 @@ void AfterUpdate(Native* system) {
         // Recorded for the facing the input was prepared with, then the new positions.
         if (commitInput) session.Commit(output);
         FollowPositions(system);
+        ApplyMeterSettings();
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
         // The dummy is free again: it may reply, and it may change its stance.
         // Its stun is timed, so the reply's motion can go in before the free
@@ -464,21 +496,10 @@ void AfterUpdate(Native* system) {
         // to as it ends.
         {
             int* options = DummyOptions();
-            // Hit again: a reply already begun is dropped, and this stretch decides anew.
-            if (seen.held && seen.stretch != decidedStretch) session.StopReply();
-            // Typed or recorded, the reply is played for the way the dummy faces on each frame (Session::Prepare).
-            const bool typed = !dummyPlan.moves.empty();
-            const auto& frames = typed ? dummyPlan.moves : session.Slot(dummyPlan.slot);
-            const ReplySchedule schedule = PlanSchedule(dummyPlan, session.Slot(dummyPlan.slot));
-            const int cause = seen.held ? seen.held : seen.out;
-            if (cause && seen.stretch != decidedStretch && ReplyBegins(schedule, seen)) {
-                decidedStretch = seen.stretch;
-                if (DummyReplies(dummyPlan, cause, dummyRandom())) {
-                    // Ember plays the reply from the next update, and the dummy from the pad (FollowDummy).
-                    if (!(typed ? session.Reply(frames, schedule) : session.Reply(dummyPlan.slot, schedule)) && !typed && frames.empty())
-                        spdlog::info("Training: no reply, slot {} is empty", dummyPlan.slot + 1);
-                }
-            }
+            // Typed or recorded, the reply is played for the way the dummy
+            // faces on each frame (Session::Prepare), from the next update.
+            if (replies.Observe(dummyPlan, seen, session, dummyRandom()).none)
+                spdlog::info("Training: no reply, no recording that is on can be one");
             if (seen.freed && dummyPlan.varyStance && options) {
                 const int action = options[Manager::OPT_ACTION];
                 if (action == 0 || action == 1) dummyControl.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
@@ -498,8 +519,18 @@ void AfterUpdate(Native* system) {
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        meter.Reset(); ForgetStun(dummyWatch, session); replyTrace.Reset();
+        meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
         ++gapResets;
+    }
+    if (sampling && delta == 1) unfedUpdates = unfedNotReady = unfedMultiFrame = 0;
+    else if (delta != 0 && session.GetView().available) {
+        ++unfedUpdates; ++(sampling ? unfedMultiFrame : unfedNotReady);
+        if (unfedUpdates == MeterUnfedLogUpdates) {
+            const auto& view = meter.View();
+            spdlog::warn("Training: frame meter not fed for {} updates that simulated frames ({} not ready, {} more than one frame, "
+                "last step {}); held={} frames={} resets this battle={}",
+                unfedUpdates, unfedNotReady, unfedMultiFrame, delta, view.frozen, view.frames.size(), gapResets);
+        }
     }
     sampling = false; following = false;
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
@@ -514,7 +545,8 @@ unsigned ClearReservedInputBits(unsigned raw) {
     return matchPractice ? raw & ~ReservedInputBits : raw;
 }
 void WatchMatches(bool enabled) { watching = enabled; }
-void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
+void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
+void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
         if (!matchShown) return;
@@ -525,7 +557,9 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
     // No script-file fallback here, so a projectile move without attack
     // frames shows no startup in a match; the file read does not belong in a
     // rollback frame. Load it at battle start if it is missed.
-    const auto fighters = ReadFighters(system, false);
+    auto fighters = ReadFighters(system, false);
+    ApplyMeterSettings();
+    if (inputs) for (int side = 0; side < 2; ++side) fighters[side].input = inputs[side] & FightButtons;
     // A spectator plays confirmed inputs only and has no save frame to name one by.
     if (stateFrame <= 0) meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
     else {
@@ -535,19 +569,21 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
         do meter.Observe(frame, next); while (confirmed.Next(lastConfirmedInput, frame, next));
     }
     std::lock_guard<std::mutex> lock(mutex);
-    published.meter = meter.View(); published.watching = matchShown = true;
+    published.meter = meter.View(); published.watching = matchShown = true; published.replayInputs = inputs != nullptr;
 }
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
     if (session.GetView().available)
         spdlog::info("Training: frame meter reset {} times on multi-frame updates this battle", gapResets);
-    gapResets = 0; leaving.Reset();
+    gapResets = 0; unfedUpdates = unfedNotReady = unfedMultiFrame = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     if (dummyControl.Release()) if (Native* system = Native::staticMethods.GetSingleton()) ReturnDummyControl(system);
     playing = {};
+    // The slots stay with the dummy fighter for its next battle, a recording under way among them.
+    if (session.GetView().available) banks.Detach(session.TakeBank());
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; dummyWatch.Reset(); replyTrace.Reset(); playbackSeen = {};
-    std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
+    matchPractice = false; dummyWatch.Reset(); replies.Reset(); replyTrace.Reset(); playbackSeen = {};
+    std::lock_guard<std::mutex> lock(mutex); commands.Clear(); published = session.GetView();
 }
 } }

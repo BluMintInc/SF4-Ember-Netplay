@@ -12,6 +12,7 @@
 #include "../common/RoomLimits.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "TournamentAnswers.hxx"
+#include "MemberLatency.hxx"
 #include <array>
 #include <deque>
 #include <map>
@@ -209,6 +210,10 @@ public:
 	// Remove one authorized gameplay edge without ending the generation's other
 	// links. This is used when the room authority retires a spectator.
 	virtual bool EndPeer(const std::string& peer, std::uint64_t generation);
+	// EndPeer that does not fail the room when the helper's command queue is
+	// momentarily full: Busy then, and the caller tries again.
+	enum class PeerEnd { Ended, Busy, Refused };
+	virtual PeerEnd TryEndPeer(const std::string& peer, std::uint64_t generation);
 	virtual bool EndMatch(std::uint64_t generation);
 	// Stop waiting for game_closed on this generation's mappings. The helper
 	// clears them when it runs end_match, so only the lost event is skipped.
@@ -216,6 +221,16 @@ public:
 	virtual GameSnapshot Game(const std::string& peer) const;
 	std::unique_ptr<ServerTransport> Server();
 	std::unique_ptr<ClientTransport> Client();
+	// This member's latency route for the current room, from the helper's
+	// hosted or connected event; none until then and after every Host or Join.
+	const LatencyRoute& LocalLatency() const { return localLatency_; }
+	// The room board's latency subscription: on while `wanted` and the room is
+	// open, renewed every few seconds, and off otherwise (MemberLatency.hxx).
+	void WatchLatency(bool wanted);
+	// The ping to each other member for the active subscription; empty without one.
+	const MemberLatencyTable& MemberLatencies() const { return latency_.Table(); }
+	// The shared endpoint ID predicate (src/common/EndpointIdentity.hxx).
+	static bool IsEndpointIdentity(const std::string& identity);
 
 private:
 	class ServerAdapter;
@@ -228,7 +243,6 @@ private:
 	// Started participants may retain stable handles after leaving the room.
 	static constexpr std::size_t MaximumRemotePeers = room::MaxMembers - 1 + room::TableCount * room::MaxMatchParticipants;
 	static const std::string& NoInvitation() { static const std::string none; return none; }
-	static bool IsEndpointIdentity(const std::string& identity);
 	// Short, log-safe form of an endpoint identity.
 	static std::string PeerTag(const std::string& peer);
 	// One session of a remote endpoint. Its transitions live in
@@ -277,6 +291,7 @@ private:
 	std::size_t committedLiveMembers_ = 0;
 	bool Begin(bool host);
 	bool Command(const std::string& payload);
+	PeerEnd EndPeerCommand(const std::string& peer, std::uint64_t generation, bool failWhenFull);
 	SendResult SendRemote(Connection connection, const std::string& payload, std::int64_t* id);
 	bool Queue(std::deque<Message>& destination, Message message);
 	void Fail(const char* code);
@@ -375,6 +390,10 @@ private:
 	std::uint64_t shortFailures_ = 0;
 	std::string error_;
 	std::string localIdentity_;
+	LatencyRoute localLatency_;
+	LatencySubscription latency_;
+	// Applies the latency fields of a hosted or connected event when it has them.
+	void ReadLocalLatency(const nlohmann::json& event);
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
 	netplay::IdentityView identity_;

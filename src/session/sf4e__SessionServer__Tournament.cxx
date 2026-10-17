@@ -10,6 +10,7 @@ using nlohmann::json;
 
 void SessionServer::ForgetRoomMember(room::MemberId member) {
 	roomIncarnations.erase(member);
+	roomMemberRecords.erase(member);
 	for (auto entry = roomMembers.begin(); entry != roomMembers.end(); ++entry) {
 		if (entry->second != member) continue;
 		const auto connection = entry->first;

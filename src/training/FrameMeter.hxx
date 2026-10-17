@@ -33,6 +33,29 @@ struct ActorStatus {
         Damage = 21, DamageGuard = 22, DamageBlow = 23, Sequence = 24
     };
 };
+// What an action is, from the game's own move data: the category of the
+// command (.bcm) move a Skill plays, or a dash status. Focus is the game's
+// SAVING category, which its normal and red focus moves and their cancel
+// versions carry; a dash out of a focus is the command move DASH or
+// BACK_DASH, played as a Skill. Unknown: no sample, or a Skill that no
+// command move started. TrainingRuntime resolves it (ResolveActionClass);
+// docs/design/FOCUS_CANCEL_MARKER.md says how the marker was confirmed.
+enum class ActionClass : std::uint8_t { Unknown, Other, Focus, ForwardDash, BackDash };
+// Bits of a command move's category (its +0x28), named as the game's table names them.
+struct CommandCategory { enum : std::uint32_t { Saving = 0x80, Dash = 0x80000, BackDash = 0x100000 }; };
+// command: a Skill's command move was read, its category in category.
+inline ActionClass ResolveActionClass(bool valid, unsigned status, bool command, std::uint32_t category) {
+    if (!valid) return ActionClass::Unknown;
+    if (status == ActorStatus::FrontDash) return ActionClass::ForwardDash;
+    if (status == ActorStatus::BackDash) return ActionClass::BackDash;
+    if (status != ActorStatus::Skill) return ActionClass::Other;
+    if (!command) return ActionClass::Unknown;
+    if (category & CommandCategory::Saving) return ActionClass::Focus;
+    if (category & CommandCategory::Dash) return ActionClass::ForwardDash;
+    if (category & CommandCategory::BackDash) return ActionClass::BackDash;
+    return ActionClass::Other;
+}
+inline bool DashClass(ActionClass action) { return action == ActionClass::ForwardDash || action == ActionClass::BackDash; }
 inline Phase ClassifyStatus(unsigned status) {
     // Attack is kept whole: Skill does not distinguish startup, active and recovery.
     using S = ActorStatus;
@@ -75,12 +98,30 @@ struct FighterSample {
     // its total frames; -1 unknown.
     int interruptibleFrame = -1, totalFrames = -1;
     BoundaryProvenance boundaryProvenance = BoundaryProvenance::None;
+    ActionClass actionClass = ActionClass::Unknown;
     // Set by the meter, not the game: the thrower, still in a throw's
     // sequence after the fighter it threw has left it.
     bool throwRecovery = false;
     // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
+    // The side's pad this frame (FightButtons), for the classic meter's input lanes; 0 when none was read.
+    unsigned input = 0;
 };
+// The frame a move's recovery ends on: where the script says the fighter is
+// free again, its interruptible frame, else its end; -1 when neither is known.
+// The one boundary frame advantage's reply timing and the focus cancel share.
+inline int MoveRecoveryEnd(const FighterSample& move) {
+    if (move.interruptibleFrame > 0) return move.interruptibleFrame;
+    return move.totalFrames > 0 ? move.totalFrames : -1;
+}
+// Whether a move, as last sampled, still had recovery left: the one evidence
+// that a following action cut it short. A move sampled on or past its recovery
+// end finished, so what follows (a buffered focus) replaced nothing; with no
+// boundary known there is no evidence either way.
+inline bool RecoveryCutShort(const FighterSample& move) {
+    const int end = MoveRecoveryEnd(move);
+    return end > 0 && move.actionFrame < static_cast<float>(end);
+}
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
 // alone when the script gives none.
@@ -129,7 +170,33 @@ constexpr int MeterShownChoices[] = {60, 90, 120};
 // chip and its hint) and status (the strip a recording or a playback adds).
 // size: the HUD's, small, standard or large (0 to HudSizes - 1).
 constexpr int HudSizes = 3;
-struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1; };
+// classic: the first meter's style instead (TrainingMeter.cxx: ClassicMeter),
+// with its own parts, each on until it is turned off: the data line, the
+// input lanes, Street Fighter 6's colours with meaty frames, and the colour
+// key, scroll markers and trim.
+// The bars' style: angled, the default; Stable's flat bars; or the first meter's.
+enum class MeterStyle { Angled, Flat, Classic };
+constexpr int MeterStyles = 3;
+// Each fighter's input display beside the meter (InputDisplayChoices).
+enum class InputDisplay { Off, Stick, Arrows, Both };
+constexpr int InputDisplays = 4;
+struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
+    InputDisplay inputs = InputDisplay::Off;
+    bool classicData = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
+    // The frames the meter keeps, one of MeterHistoryChoices.
+    int history = 1200;
+    // After a pause the next exchange goes on after the last instead of starting over.
+    bool continuous = false;
+    // The bars slide a frame at a time, and a held meter steps back MeterSlideStep
+    // frames a notch, instead of a page at a time.
+    bool smooth = false;
+    // Where the meter's bottom edge sits, in percent of the screen's height
+    // from the top (MeterPositions; 82 is just above the super meters), and
+    // the classic bars' height (ClassicBarHeights, at the HUD's scale).
+    int position = 82, barHeight = 16; };
+constexpr int MeterPositions[] = {12, 25, 40, 55, 70, 82, 92};
+constexpr std::size_t MeterSlideStep = 10;
+constexpr int ClassicBarHeights[] = {12, 16, 22};
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
     switch (status) {
@@ -138,6 +205,21 @@ inline bool GroundedRecoveryState(unsigned status) {
     default: return false;
     }
 }
+// A focus cancel (FrameMeter::Observe): a move, a focus started before that
+// move recovered, then a forward or back dash out of the focus. side: whose.
+// startup, its provenance and reason, and active are the move's, taken as the
+// focus began, before the focus's own replaced them. focusFrames: the frames
+// the focus was seen in. dash: ForwardDash or BackDash. recoveryCancelled: the
+// move's recovery was cut short, so it has no recovery to show.
+struct CancelChain {
+    bool valid = false;
+    int side = -1;
+    int startup = -1, active = 0, focusFrames = 0;
+    BoundaryProvenance provenance = BoundaryProvenance::None;
+    MeasurementUnavailable startupUnavailable = MeasurementUnavailable::NoAttackBoundary;
+    ActionClass dash = ActionClass::Unknown;
+    bool recoveryCancelled = false;
+};
 struct FrameAdvantage {
     std::array<int, 2> frames{};
     bool valid = false, pending = false;
@@ -147,30 +229,56 @@ struct FrameAdvantage {
     int attacker = -1;
     bool blocked = false;
     MeasurementUnavailable unavailable = MeasurementUnavailable::NoContact;
+    // This exchange's focus cancel once its dash came out; it goes and stays
+    // with the frames above, so a reading never pairs one exchange's cancel
+    // with another's result.
+    CancelChain chain;
 };
+// The focus cancel of a reading made by side, or null.
+inline const CancelChain* ChainOf(const FrameAdvantage& reading, int side) {
+    return reading.chain.valid && reading.chain.side == side ? &reading.chain : nullptr;
+}
 // A fighter's last attack in advancing frames, hitstop left out: those inside
 // its attack boundary and those after it. Its startup is MeterView's
 // startupFrames, including the first active frame, as the game's frame data
 // counts it, so the move's total is startup - 1 + active + recovery. seen:
 // an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
-// The bars show MeterShown frames. The meter keeps one more, so the leftmost
-// cell can still tell whether a new action began on it.
-constexpr std::size_t MeterShown = 120, MeterHistory = MeterShown + 1;
-// Short histories align right; longer ones show only the newest cells.
-// window: the cells across the bar; back: how many of the newest frames lie
-// to the right of it, while a held meter is scrolled back.
-inline int MeterFrameIndex(std::size_t size, std::size_t cell, std::size_t window = MeterShown, std::size_t back = 0) {
-    const auto end = size > back ? size - back : 0;
-    const auto shown = (std::min)(end, window);
-    const int offset = static_cast<int>(cell) - static_cast<int>(window - shown);
-    return cell >= window || offset < 0 ? -1 : static_cast<int>(end - shown) + offset;
+// The bars show up to MeterShown frames. The meter keeps MeterHistory frames
+// unless the player chose another length on the Frame data page (4, 10, 20 or
+// 60 seconds), so a held meter can step back through a whole combo or
+// exchange, a page a notch.
+constexpr std::size_t MeterShown = 120, MeterHistory = 10 * MeterShown;
+constexpr int MeterHistoryChoices[] = {240, 600, 1200, 3600};
+// Both fighters quiet this many frames end an exchange and hold the bars.
+constexpr unsigned MeterIdleFrames = 4;
+// The bars fill from the left, as SF6's meter does: the frame at position pos
+// of the exchange (its first frame is 0) is drawn in cell pos % window of
+// page pos / window, so an exchange longer than the bars goes on from their
+// left edge. They show the newest frame's page, or the page back pages
+// before it while a held meter is stepped back. size: the frames kept;
+// length: the exchange's frames so far, the newest at length - 1 (taken as
+// size when smaller, for bars made by hand). The frames' index, or -1.
+inline int MeterFrameIndex(std::size_t size, std::size_t length, std::size_t cell, std::size_t window = MeterShown, std::size_t back = 0) {
+    length = (std::max)(length, size);
+    if (!size || !window || cell >= window || back > (length - 1) / window) return -1;
+    const auto pos = ((length - 1) / window - back) * window + cell, first = length - size;
+    return pos < first || pos >= length ? -1 : static_cast<int>(pos - first);
 }
-// How far back a held meter can scroll with window cells across the bar: to
-// the oldest of the MeterShown frames it keeps.
-inline std::size_t MeterBackLimit(std::size_t size, std::size_t window) {
-    const auto kept = (std::min)(size, MeterShown);
-    return kept > window ? kept - window : 0;
+// Smooth scrolling (MeterOptions::smooth): the bars show the window frames
+// that end back frames before the newest, the newest at their right edge once
+// they are full, and fill from the left until then. The frames' index, or -1.
+inline int MeterSlideIndex(std::size_t size, std::size_t cell, std::size_t window, std::size_t back = 0) {
+    if (back >= size) return -1;
+    const std::size_t end = size - back, start = end > window ? end - window : 0;
+    return start + cell < end ? static_cast<int>(start + cell) : -1;
+}
+// How far a smooth held meter steps back, in frames: to its oldest at the left edge.
+inline std::size_t MeterSlideLimit(std::size_t size, std::size_t window) { return size > window ? size - window : 0; }
+// How many pages a held meter can step back: to the oldest with a frame kept.
+inline std::size_t MeterBackLimit(std::size_t size, std::size_t length, std::size_t window) {
+    length = (std::max)(length, size);
+    return size && window ? (length - 1) / window - (length - size) / window : 0;
 }
 // What a bar cell shows, resolved once as its frame arrives, so a cell never
 // changes as older frames leave the history and the bars only draw it.
@@ -185,6 +293,11 @@ struct MeterCell {
     MeterKind kind = MeterKind::Unknown;
     Phase phase = Phase::Unknown;
     bool newAction = false, split = false;
+    // Set later, once, when the other fighter is seen up (FrameMeter::MarkMeaty):
+    // the frame a fighter could first be hit after a knockdown, or an attack's
+    // active frame that had passed before the one that met it. Only the
+    // classic style draws it.
+    bool meaty = false;
     // The status the guard this cell is part of began from, carried from
     // cell to cell, so a long guard stays what it began as.
     unsigned guardFrom = ~0u;
@@ -216,6 +329,17 @@ struct MeterFrame {
     std::array<MeterCell, 2> cells;
     int frame = 0;
 };
+// The fighter on side `up` is first seen up on the frame after the bars'
+// last. That last frame is the one it could first be hit on, and the other's
+// active frames before it, if it was met with an active frame too, are the
+// meaty ones (MeterCell::meaty).
+inline void MarkMeaty(std::deque<MeterFrame>& bars, int up) {
+    if (bars.empty()) return;
+    bars.back().cells[up].meaty = true;
+    const int attacker = 1 - up;
+    if (bars.back().cells[attacker].kind != MeterKind::Active) return;
+    for (auto at = bars.rbegin() + 1; at != bars.rend() && at->cells[attacker].kind == MeterKind::Active; ++at) at->cells[attacker].meaty = true;
+}
 // A frame added after the last of frames, its cells resolved after that one's
 // as the meter resolves them: for bars made by hand, a preview or a test.
 inline void AppendMeterFrame(std::deque<MeterFrame>& frames, const std::array<FighterSample, 2>& fighters, int frame) {
@@ -226,7 +350,9 @@ inline void AppendMeterFrame(std::deque<MeterFrame>& frames, const std::array<Fi
     frames.push_back(added);
 }
 struct MeterView {
+    // The exchange's newest frames, and how many it has had (MeterFrameIndex).
     std::deque<MeterFrame> frames;
+    std::size_t length = 0;
     std::array<FighterSample, 2> current;
     std::array<unsigned, 2> stateFrames{};
     std::array<unsigned, 2> actionFrames{};
@@ -259,7 +385,15 @@ inline const FrameAdvantage& ShownAdvantage(const MeterView& meter) {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); exchangeAt_ = 0; }
+    // Whether an exchange after a held meter goes on after what the bars hold
+    // (the classic way) instead of starting on clear bars, as SF6's does.
+    void SetContinuous(bool continuous) { continuous_ = continuous; }
+    // The frames kept from now on; a shorter length drops the oldest at once.
+    void SetHistory(std::size_t frames) {
+        history_ = (std::max)(MeterShown, frames);
+        while (view_.frames.size() > history_) view_.frames.pop_front();
+    }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -280,17 +414,17 @@ public:
         for (int side = 0; side < 2; ++side)
             fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
         const std::int64_t now = observedFrames_++;
-        const bool contact = ObserveAdvantage(now, fighters);
-        bool neutral = true;
+        ObserveAdvantage(now, fighters);
         std::array<MeterCell, 2> cells;
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
-            neutral = neutral && sample.valid && ClassifyStatus(sample.status) == Phase::Neutral;
             if (sample.valid && view_.current[side].valid && sample.status == view_.current[side].status)
                 ++view_.stateFrames[side];
             else view_.stateFrames[side] = sample.valid ? 1 : 0;
             const auto& previous = view_.current[side];
             const bool actionChanged = sample.action != previous.action || sample.actionFrame < previous.actionFrame;
+            // Before a focus's own startup and move replace the move's below.
+            WatchCancel(side, previous, sample);
             if (!sample.valid) {
                 view_.startupFrames[side] = -1; startupPending_[side] = false;
                 view_.startupUnavailable[side] = MeasurementUnavailable::InvalidSample;
@@ -354,7 +488,7 @@ public:
                 }
                 // The frame a meaty meets is the one before the fighter is seen up: a status is read
                 // after its update, so the fighter could already be hit in the frame that ended the rise.
-                if (sample.wake) { wakeAt_[side] = now - 1; Meaty(1 - side); }
+                if (sample.wake) { wakeAt_[side] = now - 1; Meaty(1 - side); MarkMeaty(view_.frames, side); }
             }
             if (sample.valid && previous.valid && sample.action >= 0 && sample.action == previous.action &&
                 sample.actionFrame >= previous.actionFrame) ++view_.actionFrames[side];
@@ -369,50 +503,74 @@ public:
             lastCells_[side] = cells[side];
             view_.current[side] = sample;
         }
-        if (neutral) ++idleFrames_;
-        else {
-            // Idle frames from before anything happened are not kept either.
-            if (!hadActivity_ && idleFrames_ >= 30) view_.frames.clear();
-            idleFrames_ = 0; hadActivity_ = true;
-        }
-        // Half a second of both fighters idle holds the bars. They stay as
-        // they are until a fighter is hit or blocks (or is thrown), so a whiff,
-        // a walk or a jump never takes the last exchange away, and the bars and
-        // the advantage beside them always tell of the same one. Meanwhile the
-        // frames are kept aside, from the first move after both were last idle
-        // with no attack under way; contact puts them in the bars' place, so the
-        // new exchange shows from its first move. An attack waiting for its
-        // contact (ObserveAdvantage's armed exchange), a projectile in flight
-        // among them, keeps them through idle frames until it lands or is given
-        // up: one held while the bars run goes on from the bars into the frames
-        // kept aside when they are held, from the frame it began.
+        // Both fighters quiet, as their cells show them: standing, crouching,
+        // a jump or a guard in the air, or missing.
+        bool neutral = true;
+        for (const auto& cell : cells) neutral = neutral && (cell.kind == MeterKind::Neutral || cell.kind == MeterKind::Unknown);
+        idleFrames_ = neutral ? idleFrames_ + 1 : 0;
+        // The bars run from an exchange's first active frame; idle frames
+        // before it are not kept. MeterIdleFrames quiet frames hold them,
+        // ending on the exchange's last active frame, and any action after
+        // that starts the next exchange on clear bars. An attack still waiting
+        // for its contact when they are held (ObserveAdvantage's armed
+        // exchange), a projectile in flight among them, goes on in frames
+        // kept aside from the frame it began; the other's guard, block or hit
+        // puts them in the bars' place, so that exchange shows whole.
         const MeterFrame latest{fighters, cells, frame};
         const bool attacking = (armed_[0] || armed_[1]) && !view_.advantage.valid;
-        if (!view_.frozen && hadActivity_ && idleFrames_ >= 30) {
-            view_.frozen = true;
-            if (attacking) {
-                const auto since = (std::min)(view_.frames.size(), static_cast<std::size_t>(now - exchangeAt_));
-                aside_.assign(view_.frames.end() - static_cast<std::ptrdiff_t>(since), view_.frames.end());
-                if (!aside_.empty()) for (auto& cell : aside_.front().cells) cell.newAction = cell.split = false;
-            }
-        }
         if (view_.frozen) {
-            if (neutral && !attacking) aside_.clear();
-            else if (!neutral || !aside_.empty()) Append(aside_, latest);
-            if (contact) { view_.frames.swap(aside_); aside_.clear(); view_.frozen = false; }
-        } else Append(view_.frames, latest);
+            if (neutral) {
+                if (attacking && !aside_.empty()) Append(aside_, asideLength_, latest);
+                else aside_.clear();
+                return;
+            }
+            // The other's guard, block or hit while the attack is quiet (a
+            // projectile on its way) goes on with the exchange kept aside.
+            const int attacker = armed_[0] ? 0 : 1;
+            const auto other = cells[1 - attacker].kind;
+            const bool reaction = cells[attacker].kind == MeterKind::Neutral && (other == MeterKind::Guard || other == MeterKind::Hit ||
+                other == MeterKind::Down || other == MeterKind::Sequence);
+            if (reaction && attacking && !aside_.empty()) {
+                Append(aside_, asideLength_, latest);
+                // Continuing, the bars keep what they had and take on the
+                // frames kept aside since they were held.
+                if (continuous_) for (std::size_t at = asideKept_; at < aside_.size(); ++at) Append(view_.frames, view_.length, aside_[at]);
+                else { view_.frames.swap(aside_); view_.length = asideLength_; }
+            } else {
+                if (!continuous_) { view_.frames.clear(); view_.length = 0; }
+                Append(view_.frames, view_.length, latest);
+            }
+            aside_.clear(); view_.frozen = false;
+            return;
+        }
+        if (neutral && view_.frames.empty()) return;
+        Append(view_.frames, view_.length, latest);
+        if (idleFrames_ < MeterIdleFrames) return;
+        view_.frozen = true;
+        if (attacking) {
+            const auto since = (std::min)(view_.length, static_cast<std::size_t>(now - exchangeAt_ + 1));
+            aside_.assign(view_.frames.end() - static_cast<std::ptrdiff_t>((std::min)(since, view_.frames.size())), view_.frames.end());
+            asideLength_ = since;
+            if (!aside_.empty()) for (auto& cell : aside_.front().cells) cell.newAction = cell.split = false;
+        }
+        // The quiet frames after the last active one leave the bars.
+        unsigned quiet = 0;
+        for (; quiet < idleFrames_ && view_.frames.size() > 1; ++quiet) { view_.frames.pop_back(); --view_.length; }
+        // What the bars still hold of the frames kept aside; the rest are added when continuing.
+        asideKept_ = aside_.size() - (std::min)(aside_.size(), static_cast<std::size_t>(quiet));
     }
 private:
-    static void Append(std::deque<MeterFrame>& bars, MeterFrame added) {
+    void Append(std::deque<MeterFrame>& bars, std::size_t& length, MeterFrame added) const {
         // The first cell of the bars has nothing before it to part from.
         if (bars.empty()) for (auto& cell : added.cells) cell.newAction = cell.split = false;
-        bars.push_back(added);
-        if (bars.size() > MeterHistory) bars.pop_front();
+        bars.push_back(added); ++length;
+        while (bars.size() > history_) bars.pop_front();
     }
     // Whether a fighter was hit, blocked or thrown this frame.
     bool ObserveAdvantage(std::int64_t frame, const std::array<FighterSample, 2>& fighters) {
+        // A cleared reading takes its focus cancel, and one still forming, with it.
         auto clear = [&](MeasurementUnavailable reason) {
-            view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}};
+            view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}}; cancelling_ = {};
         };
         for (const auto& sample : fighters) {
             if (!sample.valid || sample.action < 0 || sample.status > ActorStatus::Sequence ||
@@ -486,6 +644,34 @@ private:
         }
         return contact;
     }
+    // A focus cancel forms only as a move, a focus that began while the move
+    // still played (no frame between them out of Skill, and the move short of
+    // the end of its recovery: RecoveryCutShort), then a dash straight
+    // out of the focus. The move's readings are taken as the focus begins;
+    // the dash puts the chain in this exchange's reading. Anything else after
+    // the focus drops it, and another attack after the dash takes it out of
+    // the reading, which no longer ends on the cancel.
+    void WatchCancel(int side, const FighterSample& previous, const FighterSample& sample) {
+        auto& chain = cancelling_[side];
+        const bool focus = sample.valid && sample.status == ActorStatus::Skill && sample.actionClass == ActionClass::Focus;
+        const bool attack = sample.valid && sample.status == ActorStatus::Skill && !DashClass(sample.actionClass) && previous.valid &&
+            (previous.status != ActorStatus::Skill || sample.action != previous.action || sample.actionFrame < previous.actionFrame);
+        if (attack && ChainOf(view_.advantage, side)) view_.advantage.chain = CancelChain{};
+        if (chain.side >= 0) {
+            if (focus) { ++chain.focusFrames; return; }
+            if (sample.valid && DashClass(sample.actionClass)) {
+                chain.dash = sample.actionClass; chain.recoveryCancelled = chain.valid = true;
+                view_.advantage.chain = chain;
+            }
+            chain = {};
+            return;
+        }
+        if (!focus || !previous.valid || previous.status != ActorStatus::Skill || previous.actionClass != ActionClass::Other ||
+            !RecoveryCutShort(previous)) return;
+        chain.side = side; chain.focusFrames = 1;
+        chain.startup = view_.startupFrames[side]; chain.provenance = view_.startupBoundaryProvenance[side];
+        chain.startupUnavailable = view_.startupUnavailable[side]; chain.active = view_.moves[side].active;
+    }
     void Meaty(int attacker) {
         const auto active = firstActiveAt_[attacker], wake = wakeAt_[1 - attacker];
         if (active < 0 || wake < 0 || active - wake > 60) return;
@@ -495,20 +681,25 @@ private:
     std::array<bool, 2> thrower_{};
     // The last cell each side was given (ResolveMeterCell).
     std::array<MeterCell, 2> lastCells_{};
-    // What a held meter has seen since both fighters were last idle (Observe).
+    // What a held meter has seen of an exchange still waiting for its
+    // contact, and that exchange's frames so far (Observe).
     std::deque<MeterFrame> aside_;
+    std::size_t asideLength_ = 0;
+    std::size_t history_ = MeterHistory, asideKept_ = 0;
+    bool continuous_ = false;
     // When the armed exchange began, on the clock of accepted observations.
     std::int64_t exchangeAt_ = 0;
     // On the clock of accepted observations; -1 none.
     std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};
+    // A focus cancel each side may be forming (WatchCancel): side -1 none.
+    std::array<CancelChain, 2> cancelling_{};
     std::array<bool, 2> startupPending_{};
     std::array<int, 2> startupElapsed_{};
     std::array<int, 2> recoveryCells_{};
     std::array<std::int64_t, 2> recovered_{{-1, -1}};
     std::int64_t observedFrames_ = 0, contactFrame_ = 0;
     unsigned idleFrames_ = 0;
-    bool hadActivity_ = false;
     std::uint16_t lastFrame_ = 0;
     bool hasFrame_ = false;
 };

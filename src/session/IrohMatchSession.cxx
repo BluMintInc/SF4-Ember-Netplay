@@ -18,7 +18,7 @@ IrohMatchSession::~IrohMatchSession() {
 }
 void IrohMatchSession::ClearLinks() {
 	for (auto& link : links_) SecureZeroMemory(link.capability.data(), link.capability.size());
-	links_.clear();
+	links_.clear(); spectatorEnds_.clear();
 }
 ULONGLONG IrohMatchSession::Now() const {
 	return clock_ ? clock_() : GetTickCount64();
@@ -207,6 +207,7 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	pendingGrantTerm_ = room_ && room_->Coordination().active ? room_->Coordination().term : 0;
 	readySent_ = mappingsPrepared_ = endSent_ = false;
 	roomEndReceived_ = false;
+	spectatorEnds_.clear();
 	spectatorsOptional_ = message.value("spectators_optional", false);
 	fighterReadyAt_ = 0;
 	fighterClosedAt_ = 0;
@@ -224,6 +225,8 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 }
 
 void IrohMatchSession::End() {
+	// The match's own teardown ends every link that is left.
+	spectatorEnds_.clear();
 	if (phase_ != Phase::Idle && phase_ != Phase::Failed) {
 		pendingAcks_.clear();
 		phase_ = Phase::Ending;
@@ -254,6 +257,7 @@ bool IrohMatchSession::Abort() {
 	phase_ = Phase::Ending;
 	teardown_.RequestEnd();
 	roomEndReceived_ = true;
+	spectatorEnds_.clear();
 	pendingGrant_ = nullptr;
 	waitingForProjection_ = false;
 	pendingAcks_.clear();
@@ -342,6 +346,9 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 					return candidate.slot == peerSlot;
 				});
 				if (link == links_.end()) continue; // Tolerate a late duplicate event.
+				// A started match ends it with P1's own drops (EndSpectatorStream),
+				// later this Tick: a full helper queue waits instead of failing the room.
+				if (phase_ == Phase::Started) { QueueSpectatorEnd(peerSlot); continue; }
 				if (!DropSpectatorLink(link)) return false;
 				continue;
 			}
@@ -466,6 +473,7 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			phase_ = Phase::Prepared;
 		}
 	}
+	if (phase_ == Phase::Started) FlushSpectatorEnds();
 	if (phase_ == Phase::Connecting || phase_ == Phase::Started) {
 		const bool optionalSpectators = slot_ == 0 && (phase_ == Phase::Started || spectatorsOptional_);
 		bool fighterReady = true, spectatorsReady = true;
@@ -473,6 +481,8 @@ bool IrohMatchSession::Tick(bool ggpoOwnsSocket) {
 			const auto state = room_->Game(link->peer).state;
 			const bool closed = state == IrohRoom::GameState::Closed || state == IrohRoom::GameState::Closing;
 			if (closed && optionalSpectators && link->slot >= 2) {
+				// Started: through the pending ends, on the next Tick's flush.
+				if (phase_ == Phase::Started) { QueueSpectatorEnd(link->slot); ++link; continue; }
 				if (!DropSpectatorLink(link)) return false;
 				continue;
 			}
@@ -521,6 +531,40 @@ bool IrohMatchSession::DropSpectatorLink(std::vector<Link>::iterator& link) {
 	SecureZeroMemory(link->capability.data(), link->capability.size());
 	link = links_.erase(link);
 	return true;
+}
+
+bool IrohMatchSession::EndSpectatorStream(std::size_t slot) {
+	if (slot_ != 0 || slot < 2 || phase_ != Phase::Started || !room_) return false;
+	const bool live = std::any_of(links_.begin(), links_.end(), [&](const Link& link) { return link.slot == slot; });
+	if (!live) return false;
+	QueueSpectatorEnd(slot);
+	FlushSpectatorEnds();
+	if (std::find(spectatorEnds_.begin(), spectatorEnds_.end(), slot) != spectatorEnds_.end())
+		spdlog::info("Match: helper queue full; ending spectator slot {} generation={} on a later tick", slot, generation_);
+	return true;
+}
+
+void IrohMatchSession::QueueSpectatorEnd(std::size_t slot) {
+	if (std::find(spectatorEnds_.begin(), spectatorEnds_.end(), slot) == spectatorEnds_.end()) spectatorEnds_.push_back(slot);
+}
+
+void IrohMatchSession::FlushSpectatorEnds() {
+	for (auto pending = spectatorEnds_.begin(); pending != spectatorEnds_.end();) {
+		const auto slot = *pending;
+		const auto link = std::find_if(links_.begin(), links_.end(), [&](const Link& candidate) { return candidate.slot == slot; });
+		const auto result = link == links_.end() ? IrohRoom::PeerEnd::Ended : room_->TryEndPeer(link->peer, generation_);
+		// The helper's queue is full this tick; the next one tries again.
+		if (result == IrohRoom::PeerEnd::Busy) { ++pending; continue; }
+		// Unlike DropSpectatorLink, a refusal does not fail this match. The
+		// room is not Ready, and the spectator's own handling ends its wait.
+		if (result == IrohRoom::PeerEnd::Refused)
+			spdlog::warn("Match: the room refused to end spectator slot {} generation={}", slot, generation_);
+		else if (link != links_.end()) {
+			SecureZeroMemory(link->capability.data(), link->capability.size());
+			links_.erase(link);
+		}
+		pending = spectatorEnds_.erase(pending);
+	}
 }
 
 bool IrohMatchSession::StreamSourceClosed() const {

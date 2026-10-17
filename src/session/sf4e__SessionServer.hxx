@@ -88,12 +88,8 @@ namespace sf4e {
 		// Direct lobby data manipulation utilities
 		SessionProtocol::JoinResult RegisterToWait(
 			const session::Connection& conn,
-			const uint16_t& port,
-			const std::string& sidecarHash,
-			const std::string& name,
-			const std::string& peerAddr,
 			SessionProtocol::ConnectionID& cid,
-			const room::MemberProfile& profile = {}
+			const SessionProtocol::AdmissionRequest& request
 		);
 		void HandleResults(int loserSide);
 
@@ -113,10 +109,12 @@ namespace sf4e {
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
 		// Enables the multi-table room authority while retaining the legacy
 		// two-player path until this method is called by the room bootstrap.
-		// practice makes it a Practice room for its life (room::Snapshot::practice).
+		// practice makes it a Practice room for its life (room::Snapshot::practice);
+		// delayPolicy fixes whose input delay its games are played at (room::Snapshot::delayPolicy).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false);
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false,
+			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared);
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that
@@ -124,7 +122,8 @@ namespace sf4e {
 		// the account. False when the room could not be created in that mode.
 		bool EnableServerOwnedRooms(const std::string& name = "Public room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules());
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(),
+			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared);
 		void SetConnectionAccount(session::Connection connection, std::string account);
 		// The moderation view: the accounts banned as of the last committed state.
 		// A kick still in an uncommitted recovery candidate is not in it, so what
@@ -221,6 +220,9 @@ namespace sf4e {
 		// is tracked separately so UI/native projections remain CID-compatible.
 		std::map<room::MemberId, std::string> roomPeerIdentities;
 		std::map<room::MemberId, std::uint64_t> roomIncarnations;
+		// The member's data as admitted or as the last canonical restore validated it.
+		// Client rows are projections of it for one connection handle.
+		std::map<room::MemberId, SessionProtocol::MemberData> roomMemberRecords;
 		// A member can leave while a match authority still names it: a Started
 		// spectator keeps its frozen slot, and one that left before the start stays
 		// a departed participant until the generation ends. Keep that stable
@@ -310,6 +312,10 @@ namespace sf4e {
 		bool RestoreRecoveryState(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp* authority);
 		void CaptureFrozenMember(room::MemberId member, const room::Snapshot& prior);
+		// Stores the admitted row's data as the member's stable record. A latency
+		// route whose endpoint ID another record, a frozen row or a peer identity
+		// already holds is stored as none, in the row and in the record.
+		void AdmitMemberRecord(room::MemberId member, SessionMember& row);
 		// Whether any match authority still names this endpoint as a participant.
 		bool MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const;
 		// Drops a member the room removed: its connection, identity and slots.

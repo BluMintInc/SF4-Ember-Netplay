@@ -12,9 +12,11 @@ namespace sf4e { namespace netplay {
 // on. The game always writes both (OverlayPrefs::QueuePlayerPreferences).
 //
 // - "inputDelay" is a whole number from MinimumInputDelay to
-//   MaximumInputDelay, 0 included. Anything else (missing, another type, a
-//   fraction, out of range) is DefaultInputDelay, never 0: the type and range
-//   are checked before the value is converted to int.
+//   MaximumInputDelay, 0 included. A profile from a build that allowed more
+//   (up to InputDelayWireCeiling) loads as MaximumInputDelay. Anything else
+//   (missing, another type, a fraction, out of range) is DefaultInputDelay,
+//   never 0: the type and range are checked before the value is converted
+//   to int.
 // - A profile from before Auto (1.0.2 and older) has no "autoInputDelay": it
 //   is on Auto, whatever number it kept, 0 included. Auto never readies with
 //   that number (AutoInputDelay), and leaving Auto starts at
@@ -27,7 +29,8 @@ inline int ReadSavedInputDelay(const nlohmann::json& saved) {
     // signed range reads as negative, so it is out of range too.
     const auto delay = saved.find("inputDelay");
     const std::int64_t number = delay != saved.end() && delay->is_number_integer() ? delay->get<std::int64_t>() : -1;
-    return number >= MinimumInputDelay && number <= MaximumInputDelay ? static_cast<int>(number) : DefaultInputDelay;
+    return number < MinimumInputDelay || number > InputDelayWireCeiling ? DefaultInputDelay :
+        number > MaximumInputDelay ? MaximumInputDelay : static_cast<int>(number);
 }
 
 inline void ReadInputDelayPreference(const nlohmann::json& saved, PlayerPreferences& value) {

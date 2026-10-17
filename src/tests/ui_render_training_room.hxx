@@ -75,6 +75,13 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
     layers.challenger.goNowGlyph="Enter";draw("training-call-go-now-keyboard");
     Require(ImGui::GetForegroundDrawList()->VtxBuffer.Size>0,"The challenger banner was not drawn");
     layers.challenger.goNowGlyph="View";draw("training-call-go-now-pad");
+    const auto savedBrand=MenuPromptBrand();
+    for(const auto brand:{gamepads::PromptBrand{gamepads::Brand::PlayStation,gamepads::PlayStationArt::PS5},
+                          gamepads::PromptBrand{gamepads::Brand::Nintendo},gamepads::PromptBrand{gamepads::Brand::Stick}}) {
+        SetMenuPromptBrand(brand);
+        draw(brand.brand==gamepads::Brand::PlayStation?"challenger-prompts-ps5":brand.brand==gamepads::Brand::Nintendo?"challenger-prompts-nintendo":"challenger-prompts-stick");
+    }
+    SetMenuPromptBrand(savedBrand);
     Require(!ImGui::GetIO().WantCaptureKeyboard&&!ImGui::GetIO().WantCaptureMouse,"The challenger banner captured input");
     // Go now is not offered under an open window: the banner alone.
     layers.challenger.goNowGlyph=nullptr;layers.shellVisible=true;draw();
@@ -101,7 +108,7 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
             Require(MenuPromptDevice()==(pad?input::PadXInput:input::PadKeyboard),"The HUD's prompts did not follow the device");
             layers.challenger.goNowGlyph=GoNowGlyph(MenuPromptDevice());
             for(const int shown:training::MeterShownChoices)for(const bool flat:{false,true})for(const bool recovery:{false,true}){
-                training::MeterOptions options;options.flat=flat;options.recovery=recovery;options.shown=shown;SetTrainingMeterOptions(options);
+                training::MeterOptions options;options.style=flat?training::MeterStyle::Flat:training::MeterStyle::Angled;options.recovery=recovery;options.shown=shown;SetTrainingMeterOptions(options);
                 const bool shot=shown==60&&!recovery;
                 draw(shot?(pad?(flat?"training-call-hud-flat-pad":"training-call-hud-angled-pad"):(flat?"training-call-hud-flat":"training-call-hud-angled")):nullptr);
                 Require(WindowDrawn("Training room status")&&WindowDrawn("Training frame meter"),"The called member's training HUD was not drawn whole");
@@ -124,6 +131,16 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
                 Require(meter.second.y<=size.h*TrainingHudBottom+1,"The meter covers the game's super meters");
             }
         }
+        // A meter the player moved sits where they put it.
+        {
+            training::MeterOptions moved;moved.position=40;SetTrainingMeterOptions(moved);
+            std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+            SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){cards[id]={from,to};});
+            draw();
+            SetMenuCardProbe({});
+            const auto bar=cards.find("training-bar-2");
+            Require(bar!=cards.end()&&bar->second.second.y<=size.h*.40f+1&&bar->second.second.y>=size.h*.25f,"A moved meter did not sit where it was put");
+        }
         SetTrainingMeterOptions(savedOptions);SetMenuGlyphs(3,0x40000,0x20000);
         // Back to the keyboard prompts the fixture came with: a function key
         // pressed last, as the training fixture leaves them.
@@ -137,8 +154,8 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
 }
 // A Practice room's table page: the host edits its rules there, but every
 // game takes the longest round time, so there is no round time row.
-template<class Draw>
-void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw) {
+template<class Draw,class Page>
+void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
     using namespace sf4e;using namespace ui;
     std::vector<MenuEntry> ruleRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ruleRows=rows;});
@@ -148,6 +165,13 @@ void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw) {
     Require(has("rounds")&&!has("time"),"A Practice room's table offered a round time");
     view.room.practice=false;draw();
     Require(has("rounds")&&has("time"),"A plain room's table lost its round time");
+    // A room whose fighters each play at their own delay: the board's table cards and
+    // the table page say so, and so does Create's row.
+    view.room.delayPolicy=room::DelayPolicy::Own;
+    page("room");draw("room-own-delay");page("room-table");draw("table-own-delay");
+    view.preferences.roomDelayPolicy=room::DelayPolicy::Own;page("create");draw("create-own-delay");
+    view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;view.room.delayPolicy=room::DelayPolicy::Shared;
+    page("room-table");draw();
     SetMenuEntriesProbe({});
 }
 }

@@ -479,7 +479,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
     actor.opening = true;
     let invite =
         Invite::create(own.id(), test_relay(), BUILD.into(), now().unwrap(), 3600).unwrap();
-    actor.completed_hosted(1, Ok(invite)).await.unwrap();
+    actor.completed_hosted(1, Ok(invite), None).await.unwrap();
     assert!(matches!(
         events.recv().await.unwrap(),
         Event::Error { ref code, .. } if code == "coordination_unavailable"
@@ -498,6 +498,8 @@ fn connected_serializes_as_before_without_an_account() {
         room: [7; 16],
         control: 9,
         account: None,
+        latency: None,
+        latency_relay: None,
     };
     let peer_text = serde_json::to_string(&peer).unwrap();
     let room = serde_json::to_string(&[7u8; 16]).unwrap();
@@ -512,6 +514,8 @@ fn connected_serializes_as_before_without_an_account() {
         room: [7; 16],
         control: 9,
         account: Some(account.clone()),
+        latency: None,
+        latency_relay: None,
     };
     assert_eq!(
         serde_json::to_string(&event).unwrap(),
@@ -653,7 +657,7 @@ async fn a_public_host_opens_its_room_under_the_id_it_was_asked_for() {
     actor.epoch = 1;
     actor.opening = true;
     actor.public = Some(PublicRoom::Host(host_state()));
-    actor.completed_hosted(1, Ok(invite)).await.unwrap();
+    actor.completed_hosted(1, Ok(invite), None).await.unwrap();
     let Event::Hosted {
         room, invitation, ..
     } = next(&mut events, "hosted").await

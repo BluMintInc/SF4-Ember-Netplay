@@ -1,8 +1,9 @@
 //! Identity store behavior, named after the spec's ID-xx acceptance tests
-//! where one applies. DPAPI tests use the real current-user DPAPI.
+//! where one applies. DPAPI tests use the real current-user DPAPI on Windows.
+//! Passphrase/crash tests run on both platforms; non-Windows DPAPI fails closed.
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -45,7 +46,8 @@ fn id(store: &Identity) -> EmberId {
     store.status().ember_id.expect("an ember id")
 }
 
-fn retired_folders(dir: &Path) -> usize {
+#[cfg(windows)]
+fn retired_folders(dir: &std::path::Path) -> usize {
     fs::read_dir(dir.join(RETIRED_DIR)).map_or(0, |entries| entries.count())
 }
 
@@ -58,8 +60,23 @@ fn fresh_store_is_disabled_and_creates_nothing() {
     assert!(!dir.0.exists());
 }
 
+#[test]
+#[cfg(not(windows))]
+fn dpapi_is_refused_without_creating_a_key_on_other_platforms() {
+    let dir = Dir::new();
+    let mut store = dir.store();
+    assert_eq!(
+        store.enable(Protection::Default),
+        Err(Failure::DecryptFailed)
+    );
+    assert!(!dir.path(KEY_FILE).exists());
+    assert!(!dir.path(STATE_FILE).exists());
+    assert_eq!(dir.store().status().state, State::Disabled);
+}
+
 // ID-02, ID-04
 #[test]
+#[cfg(windows)]
 fn dpapi_identity_survives_restart() {
     let dir = Dir::new();
     let mut store = dir.store();
@@ -122,6 +139,7 @@ fn wine_requires_a_passphrase() {
 
 // ID-06
 #[test]
+#[cfg(windows)]
 fn concurrent_enable_installs_one_identity() {
     let dir = Dir::new();
     let path = dir.0.clone();
@@ -154,6 +172,12 @@ fn concurrent_enable_installs_one_identity() {
 // ID-07
 #[test]
 fn crash_at_any_step_never_replaces_an_established_key() {
+    check_crash_at_any_step(Protection::Passphrase("crash passphrase"));
+    #[cfg(windows)]
+    check_crash_at_any_step(Protection::Default);
+}
+
+fn check_crash_at_any_step(protection: Protection<'_>) {
     for step in [
         Step::WriteTemp,
         Step::FlushTemp,
@@ -161,49 +185,44 @@ fn crash_at_any_step_never_replaces_an_established_key() {
         Step::ReadBack,
         Step::WriteContinuity,
     ] {
-        for protection in [
-            Protection::Default,
-            Protection::Passphrase("crash passphrase"),
-        ] {
-            let dir = Dir::new();
-            let mut store = dir.store();
-            store.set_faults(move |at| at == step);
-            let outcome = store.enable(protection);
-            let mut reopened = dir.store();
-            if matches!(protection, Protection::Passphrase(_))
-                && reopened.status().state == State::Locked
-            {
-                reopened.unlock("crash passphrase").unwrap();
-            }
-            let state = reopened.status().state;
-            match &outcome {
-                Ok(status) => {
-                    assert_eq!(state, State::Ready, "{step:?}");
-                    assert_eq!(reopened.status().ember_id, status.ember_id, "{step:?}");
-                }
-                // A failed read-back of an installed passphrase file still
-                // leaves that file as the identity, unlocked above.
-                Err(_) => assert!(matches!(state, State::Disabled | State::Ready), "{step:?}"),
-            }
-            // Whatever happened, enabling again ends with exactly one ID, and
-            // a key that was installed is the one kept.
-            let before = reopened.status().ember_id;
-            if state == State::Disabled {
-                reopened.enable(protection).unwrap();
-            }
-            let after = dir.store().status().ember_id;
-            if before.is_some() {
-                assert_eq!(after, before, "{step:?}");
-            }
-            assert!(after.is_some());
-            assert!(
-                fs::read_dir(&dir.0)
-                    .unwrap()
-                    .flatten()
-                    .all(|entry| !entry.file_name().to_string_lossy().starts_with(TEMP_PREFIX)),
-                "{step:?} left a temporary file"
-            );
+        let dir = Dir::new();
+        let mut store = dir.store();
+        store.set_faults(move |at| at == step);
+        let outcome = store.enable(protection);
+        let mut reopened = dir.store();
+        if matches!(protection, Protection::Passphrase(_))
+            && reopened.status().state == State::Locked
+        {
+            reopened.unlock("crash passphrase").unwrap();
         }
+        let state = reopened.status().state;
+        match &outcome {
+            Ok(status) => {
+                assert_eq!(state, State::Ready, "{step:?}");
+                assert_eq!(reopened.status().ember_id, status.ember_id, "{step:?}");
+            }
+            // A failed read-back of an installed passphrase file still
+            // leaves that file as the identity, unlocked above.
+            Err(_) => assert!(matches!(state, State::Disabled | State::Ready), "{step:?}"),
+        }
+        // Whatever happened, enabling again ends with exactly one ID, and
+        // a key that was installed is the one kept.
+        let before = reopened.status().ember_id;
+        if state == State::Disabled {
+            reopened.enable(protection).unwrap();
+        }
+        let after = dir.store().status().ember_id;
+        if before.is_some() {
+            assert_eq!(after, before, "{step:?}");
+        }
+        assert!(after.is_some());
+        assert!(
+            fs::read_dir(&dir.0)
+                .unwrap()
+                .flatten()
+                .all(|entry| !entry.file_name().to_string_lossy().starts_with(TEMP_PREFIX)),
+            "{step:?} left a temporary file"
+        );
     }
 }
 
@@ -219,6 +238,7 @@ fn leftover_temporary_files_are_not_identities() {
 
 // ID-08
 #[test]
+#[cfg(windows)]
 fn unreadable_keys_are_reported_and_kept() {
     let dir = Dir::new();
     let mut store = dir.store();
@@ -276,6 +296,7 @@ fn unreadable_keys_are_reported_and_kept() {
 
 // ID-09
 #[test]
+#[cfg(windows)]
 fn missing_key_with_continuity_needs_recovery() {
     let dir = Dir::new();
     let mut store = dir.store();
@@ -298,6 +319,7 @@ fn missing_key_with_continuity_needs_recovery() {
 
 // ID-10
 #[test]
+#[cfg(windows)]
 fn missing_continuity_is_repaired_from_the_key() {
     let dir = Dir::new();
     let mut store = dir.store();
@@ -315,6 +337,7 @@ fn missing_continuity_is_repaired_from_the_key() {
 }
 
 #[test]
+#[cfg(windows)]
 fn continuity_for_another_key_needs_recovery() {
     let (a, b) = (Dir::new(), Dir::new());
     a.store().enable(Protection::Default).unwrap();
@@ -329,6 +352,7 @@ fn continuity_for_another_key_needs_recovery() {
 
 // ID-11
 #[test]
+#[cfg(windows)]
 fn backup_restores_the_same_id_elsewhere() {
     let (a, b, backup_dir) = (Dir::new(), Dir::new(), Dir::new());
     let mut source = a.store();
@@ -394,6 +418,7 @@ fn backup_restores_the_same_id_elsewhere() {
 
 // ID-12 (file-level cases live in envelope tests)
 #[test]
+#[cfg(windows)]
 fn import_fails_closed_without_touching_the_store() {
     let (a, b) = (Dir::new(), Dir::new());
     let mut source = a.store();
@@ -427,6 +452,7 @@ fn import_fails_closed_without_touching_the_store() {
 
 // ID-14
 #[test]
+#[cfg(windows)]
 fn different_identity_import_requires_confirmation_and_keeps_the_old_store() {
     let (a, b) = (Dir::new(), Dir::new());
     let mut source = a.store();
@@ -471,6 +497,7 @@ fn different_identity_import_requires_confirmation_and_keeps_the_old_store() {
 // ID-07 for a replacement: a crash after the old key moves aside, before the
 // new one is installed, must not leave a store that reads as never created.
 #[test]
+#[cfg(windows)]
 fn crash_during_replacement_needs_recovery() {
     let (a, b) = (Dir::new(), Dir::new());
     let mut source = a.store();
@@ -511,6 +538,7 @@ fn crash_during_replacement_needs_recovery() {
 // Start over retires only the ID the player confirmed, even when another
 // helper replaced it after this one last looked.
 #[test]
+#[cfg(windows)]
 fn reset_confirms_against_the_store_on_disk() {
     let (a, b) = (Dir::new(), Dir::new());
     let mut source = a.store();
@@ -570,6 +598,7 @@ fn backup_replaces_a_forgotten_local_passphrase() {
 
 // A replacement whose continuity write fails still opens as the new ID.
 #[test]
+#[cfg(windows)]
 fn replacement_with_a_failed_continuity_write_is_repaired() {
     let (a, b) = (Dir::new(), Dir::new());
     let mut source = a.store();
@@ -593,6 +622,7 @@ fn replacement_with_a_failed_continuity_write_is_repaired() {
 }
 
 #[test]
+#[cfg(windows)]
 fn backup_recovers_a_missing_key() {
     let dir = Dir::new();
     let mut store = dir.store();
@@ -619,6 +649,7 @@ fn backup_recovers_a_missing_key() {
 }
 
 #[test]
+#[cfg(windows)]
 fn reset_retires_and_allows_a_new_identity() {
     let dir = Dir::new();
     let mut store = dir.store();
@@ -640,6 +671,7 @@ fn reset_retires_and_allows_a_new_identity() {
 
 // ID-15
 #[test]
+#[cfg(windows)]
 fn no_seed_in_exports_status_or_debug() {
     let dir = Dir::new();
     let mut store = dir.store();

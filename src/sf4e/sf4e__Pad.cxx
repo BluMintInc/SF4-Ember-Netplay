@@ -4,6 +4,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__Gamepads.hxx"
 #include "sf4e__InputLag.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Overlay.hxx"
@@ -15,6 +16,7 @@
 #include "../common/TrainingCallInput.hxx"
 #include "../common/BattlePause.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/KeyboardSlots.hxx"
 #include <spdlog/spdlog.h>
 #include <atomic>
 
@@ -32,11 +34,48 @@ std::atomic<bool> inputBlocked{false};
 // (BackgroundPlay::HidesInput), decided once where it was published: the
 // caches are cleared and the getters give the game nothing.
 std::atomic<bool> hiddenInput{false};
+bool keyboardHookFailed = false;
 }
 bool fPad::MenuInputBlocked() { return inputBlocked.load(); }
 
 void fPad::Install() {
 	System::Install();
+	Keyboards::Install();
+}
+
+void fPad::Keyboards::Install() {
+	int (Keyboards::* scan)() = &ScanDevices;
+	// Before logging is up, so a failure is only kept for LogFirstScan.
+	keyboardHookFailed = DetourAttach((PVOID*)&rPad::System_RawInput::publicMethods.ScanDevices, *(PVOID*)&scan) != NO_ERROR;
+}
+
+namespace {
+// Game thread. The first scan runs inside Main::Initialize, before logging is
+// up, so its result waits for LogFirstScan; later ones (a device change) log
+// at once. The line says how many keyboards a crash report's PC had.
+sf4e::input::KeyboardTrim s_firstScan;
+bool s_scanned = false, s_logging = false;
+void LogScan(const sf4e::input::KeyboardTrim& trim) {
+	if (trim.dropped)
+		spdlog::warn("Keyboards: the game listed {} and has room for {}; the last {} are left out", trim.found,
+			sf4e::input::KeyboardSlotLayout::Capacity, trim.dropped);
+	else spdlog::info("Keyboards: the game listed {}", trim.found);
+}
+}
+
+int fPad::Keyboards::ScanDevices() {
+	const int out = (this->*rPad::System_RawInput::publicMethods.ScanDevices)();
+	const auto trim = sf4e::input::TrimKeyboardSlots(reinterpret_cast<std::uint8_t*>(this));
+	if (s_logging) LogScan(trim);
+	else { s_firstScan = trim; s_scanned = true; }
+	return out;
+}
+
+void fPad::Keyboards::LogFirstScan() {
+	if (s_logging) return;
+	s_logging = true;
+	if (keyboardHookFailed) spdlog::warn("Keyboards: the scan could not be hooked; the game keeps every keyboard it lists");
+	else if (s_scanned) LogScan(s_firstScan);
 }
 
 void fSystem::Install() {
@@ -46,6 +85,17 @@ void fSystem::Install() {
     unsigned int (fSystem:: * _fGetButtons_RawOn)(int) = &GetButtons_RawOn;
     DetourAttach((PVOID*)&rSystem::publicMethods.GetButtons_MappedOn, *(PVOID*)&_fGetButtons_MappedOn);
     DetourAttach((PVOID*)&rSystem::publicMethods.GetButtons_RawOn, *(PVOID*)&_fGetButtons_RawOn);
+    void (fSystem::* load)() = &LoadButtonConfig;
+    DetourAttach((PVOID*)&rSystem::publicMethods.LoadButtonConfig, *(PVOID*)&load);
+}
+
+// The game's .ctrlsav loader reads and writes the game's own tables: Ember's
+// layouts are set aside while it runs, and whatever it leaves becomes the
+// table each owned slot returns to (GameTableSwap).
+void fSystem::LoadButtonConfig() {
+    sf4e::Gamepads::LendGameTables(sf4e::gamepads::GameTableUse::ConfigLoad);
+    (this->*rSystem::publicMethods.LoadButtonConfig)();
+    sf4e::Gamepads::ReturnGameTables(sf4e::gamepads::GameTableUse::ConfigLoad);
 }
 
 void fSystem::UpdateInputs() {
@@ -85,10 +135,10 @@ void fSystem::UpdateInputs() {
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
     constexpr unsigned PhysicalStart=sf4e::input::NativeStart;
     const bool focused=focus.focused;
-    // Start opens Ember at the main menu, and over a Practice match this PC
-    // fights in, with the window in front or behind: the pads are polled
-    // there for it. The request holds the pads at once, so the press is
-    // cleared below before the game or the fight reads it.
+    // Start opens Ember at the main menu, over a Practice match this PC
+    // fights in and over a game it only watches, with the window in front or
+    // behind: the pads are polled there for it. The request holds the pads at
+    // once, so the press is cleared below before the game or the fight reads it.
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
     if(!connected||!sf4e::input::ControllerOpensMenu(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||
@@ -103,7 +153,8 @@ void fSystem::UpdateInputs() {
     // The chord opens or closes the controls in their controller at once, and
     // the capture follows that controller, so the caches cleared below hide
     // its Start from native pause in this same frame; a chord that opens
-    // nothing (under the call) still owns its Start, cleared there as well.
+    // nothing (under the call, or on standby, where it starts the recording)
+    // still owns its Start, cleared there as well.
     // Behind another window the gesture is read only while a call offers go
     // now, for go now: the reset, save and controls it asks for there are
     // refused without the focus (PostTrainingPad, TrainingControls::Accept).
@@ -127,7 +178,7 @@ void fSystem::UpdateInputs() {
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
         sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
-        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x);
+        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording());
         const auto& events=result.events;
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus
@@ -136,8 +187,8 @@ void fSystem::UpdateInputs() {
             sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,offeredCall,goNowGate,sf4e::input::GoNowGate::Source::Pad,free)?"taken":"not taken",
             focused?"":" behind another window");
         using Kind=sf4e::input::TrainingPadEvent::Kind;
-        for(const Kind kind:{Kind::Reset,Kind::Save}) {
-            if(kind==Kind::Reset?!events.reset:!events.save) continue;
+        for(const Kind kind:{Kind::Reset,Kind::Save,Kind::Advance}) {
+            if(!(kind==Kind::Reset?events.reset:kind==Kind::Save?events.save:events.advance)) continue;
             sf4e::input::TrainingPadEvent event;
             event.kind=kind;event.generation=result.owner.generation;event.epoch=result.owner.epoch;
             event.place[0]=result.place[0];event.place[1]=result.place[1];

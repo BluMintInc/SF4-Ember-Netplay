@@ -152,6 +152,9 @@ namespace Dimps {
                         int (Actor::* GetBasicActionInhibit)();
                         // Resolves an action ID in the actor's current BAC bank.
                         const unsigned short* (Actor::* GetActionScript)(int action);
+                        // The command (.bcm) move the actor's Skill plays (actor +0x2188),
+                        // null on any other status; its category is at +0x28.
+                        const unsigned char* (Actor::* GetCommandMove)();
 
 						void (Actor::* GetVitalityAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetVitalityMax_FixedPoint)(Dimps::Math::FixedPoint* out);

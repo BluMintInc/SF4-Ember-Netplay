@@ -137,6 +137,15 @@ pub enum Command {
     ShortInvite {
         epoch: u64,
     },
+    /// The room board is open (`on`) or closed. `view` numbers the
+    /// subscription; an open one is renewed every few seconds and lapses
+    /// without it. Answered by `Event::MemberLatency` while it lasts.
+    LatencyWatch {
+        epoch: u64,
+        room: [u8; 16],
+        view: u64,
+        on: bool,
+    },
     /// Identity and tournament-bridge requests. The IPC reader hands these
     /// to `crate::tournament`; they never reach the room actor.
     Tournament {
@@ -272,6 +281,12 @@ pub enum Event {
         epoch: u64,
         invitation: String,
         room: [u8; 16],
+        /// This helper's latency endpoint for the room, and the region code
+        /// of its relay when it has a known one. Absent without one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency: Option<EndpointId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency_relay: Option<String>,
     },
     Connected {
         epoch: u64,
@@ -283,6 +298,19 @@ pub enum Event {
         /// under. Absent in a private room.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         account: Option<String>,
+        /// As in `Hosted`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency: Option<EndpointId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        latency_relay: Option<String>,
+    },
+    /// The latency to each other member of the room, for the board
+    /// subscription `view`. Sent whole when it changes, and droppable.
+    MemberLatency {
+        epoch: u64,
+        room: [u8; 16],
+        view: u64,
+        members: Vec<MemberLatencyRow>,
     },
     Message {
         epoch: u64,
@@ -418,6 +446,96 @@ pub enum Event {
     Stopped,
 }
 
+/// Why a member's latency is unavailable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LatencyUnavailable {
+    Unreachable,
+    Refused,
+    InMatch,
+    NoLatencyRoute,
+    RoomUnavailable,
+}
+
+/// What is known of one member's latency. A value always carries its
+/// estimate and an unavailable state always carries its reason.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LatencyState {
+    Measuring,
+    Value { rtt_ms: u16 },
+    Unavailable { reason: LatencyUnavailable },
+}
+
+/// One member's latency. On the wire `state` is `measuring`, `value` with
+/// `rtt_ms`, or `unavailable` with a `reason`, and a row with any other
+/// combination is refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(into = "MemberLatencyWire", try_from = "MemberLatencyWire")]
+pub struct MemberLatencyRow {
+    pub member: u64,
+    pub incarnation: u64,
+    pub state: LatencyState,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum LatencyStateName {
+    Measuring,
+    Value,
+    Unavailable,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemberLatencyWire {
+    member: u64,
+    incarnation: u64,
+    state: LatencyStateName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rtt_ms: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reason: Option<LatencyUnavailable>,
+}
+
+impl From<MemberLatencyRow> for MemberLatencyWire {
+    fn from(row: MemberLatencyRow) -> Self {
+        let (state, rtt_ms, reason) = match row.state {
+            LatencyState::Measuring => (LatencyStateName::Measuring, None, None),
+            LatencyState::Value { rtt_ms } => (LatencyStateName::Value, Some(rtt_ms), None),
+            LatencyState::Unavailable { reason } => {
+                (LatencyStateName::Unavailable, None, Some(reason))
+            }
+        };
+        Self {
+            member: row.member,
+            incarnation: row.incarnation,
+            state,
+            rtt_ms,
+            reason,
+        }
+    }
+}
+
+impl TryFrom<MemberLatencyWire> for MemberLatencyRow {
+    type Error = &'static str;
+
+    fn try_from(wire: MemberLatencyWire) -> Result<Self, Self::Error> {
+        let state = match (wire.state, wire.rtt_ms, wire.reason) {
+            (LatencyStateName::Measuring, None, None) => LatencyState::Measuring,
+            (LatencyStateName::Value, Some(rtt_ms), None) => LatencyState::Value { rtt_ms },
+            (LatencyStateName::Unavailable, None, Some(reason)) => {
+                LatencyState::Unavailable { reason }
+            }
+            _ => return Err("a latency row's fields do not match its state"),
+        };
+        Ok(Self {
+            member: wire.member,
+            incarnation: wire.incarnation,
+            state,
+        })
+    }
+}
+
 /// Native C++ payloads are JSON text. Serializing that text as a JSON
 /// `String` doubles every quote and can push an otherwise valid near-limit
 /// message over the 64 KiB control frame bound. Keep the public Rust field a
@@ -472,5 +590,75 @@ impl<'de> Deserialize<'de> for NativeControlMessage {
             message_id: wire.message_id,
             payload,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn row(state: LatencyState) -> MemberLatencyRow {
+        MemberLatencyRow {
+            member: 2,
+            incarnation: 7,
+            state,
+        }
+    }
+
+    #[test]
+    fn every_latency_state_serializes_as_the_native_reader_expects() {
+        let cases = [
+            (
+                row(LatencyState::Measuring),
+                json!({"member": 2, "incarnation": 7, "state": "measuring"}),
+            ),
+            (
+                row(LatencyState::Value { rtt_ms: 62 }),
+                json!({"member": 2, "incarnation": 7, "state": "value", "rtt_ms": 62}),
+            ),
+        ];
+        for (row, wire) in cases {
+            assert_eq!(serde_json::to_value(row).unwrap(), wire);
+            assert_eq!(serde_json::from_value::<MemberLatencyRow>(wire).unwrap(), row);
+        }
+        for (reason, name) in [
+            (LatencyUnavailable::Unreachable, "unreachable"),
+            (LatencyUnavailable::Refused, "refused"),
+            (LatencyUnavailable::InMatch, "in_match"),
+            (LatencyUnavailable::NoLatencyRoute, "no_latency_route"),
+            (LatencyUnavailable::RoomUnavailable, "room_unavailable"),
+        ] {
+            let row = row(LatencyState::Unavailable { reason });
+            let wire = json!({"member": 2, "incarnation": 7, "state": "unavailable", "reason": name});
+            assert_eq!(serde_json::to_value(row).unwrap(), wire);
+            assert_eq!(serde_json::from_value::<MemberLatencyRow>(wire).unwrap(), row);
+        }
+    }
+
+    #[test]
+    fn the_field_order_of_a_row_is_unchanged() {
+        let text = serde_json::to_string(&row(LatencyState::Value { rtt_ms: 5 })).unwrap();
+        assert_eq!(text, r#"{"member":2,"incarnation":7,"state":"value","rtt_ms":5}"#);
+    }
+
+    #[test]
+    fn a_row_whose_fields_do_not_match_its_state_is_refused() {
+        for wire in [
+            json!({"member": 2, "incarnation": 7, "state": "value"}),
+            json!({"member": 2, "incarnation": 7, "state": "value", "rtt_ms": 5, "reason": "refused"}),
+            json!({"member": 2, "incarnation": 7, "state": "unavailable"}),
+            json!({"member": 2, "incarnation": 7, "state": "unavailable", "rtt_ms": 5}),
+            json!({"member": 2, "incarnation": 7, "state": "unavailable", "reason": "gone"}),
+            json!({"member": 2, "incarnation": 7, "state": "measuring", "rtt_ms": 5}),
+            json!({"member": 2, "incarnation": 7, "state": "measuring", "reason": "refused"}),
+            json!({"member": 2, "incarnation": 7, "state": "fast"}),
+            json!({"member": 2, "incarnation": 7, "state": "measuring", "extra": 1}),
+        ] {
+            assert!(
+                serde_json::from_value::<MemberLatencyRow>(wire.clone()).is_err(),
+                "{wire}"
+            );
+        }
     }
 }

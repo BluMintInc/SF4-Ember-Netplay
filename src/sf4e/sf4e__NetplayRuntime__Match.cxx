@@ -29,7 +29,9 @@ bool ArmSpectatorLockRelease(std::uint64_t generation, bool checkFinished) {
 	if (!netplay::SpectatorFailureOwesLockRelease(member->seat < 0, generation, finished)) return false;
 	if (runtime->spectatorLockRelease.Pending() && runtime->spectatorLockRelease.Generation() == generation) return true;
 	runtime->spectatorLockRelease.Arm(table, generation, snapshot.roomEpoch, GetTickCount64());
-	spdlog::info("Room: spectator failed generation={} table={}; lock release armed", generation, table);
+	// The one place that knows a lock-in ends because the view failed, not by the player's choice.
+	if (member->spectatorLocked) ++runtime->lockInDrops;
+	spdlog::info("Room: spectator failed generation={} table={} locked={}; lock release armed", generation, table, member->spectatorLocked);
 	return true;
 }
 
@@ -121,6 +123,7 @@ static void ObserveDeferredEntry() {
 	// a stream it no longer serves. The room still lists it for the next game.
 	spdlog::info("Match: spectator sits out generation {} (not at the main menu within {} ms)", generation, SpectatorPolicy::SyncDeadlineMs);
 	runtime->match->End();
+	PushAlert(loc::T("runtime.spectator_sat_out"), NoticeSeverity::Info);
 }
 }
 
@@ -152,6 +155,18 @@ void NotifyRuntimeSpectatorStreamFailed() {
 	// before the battle closes must not cancel it. Arm it now for the tick.
 	ArmSpectatorLockRelease(runtime->enteredGeneration, false);
 }
+
+void EndRuntimeSpectatorStream(std::size_t slot) {
+	if (!runtime || !runtime->match) return;
+	const bool ended = runtime->match->EndSpectatorStream(slot);
+	// Not ending: the link was already gone (the spectator left first, or the
+	// match is no longer started). A refusal or a full helper queue is logged
+	// by the match session.
+	spdlog::info("Room: {} spectator slot {} generation={}", ended ? "ending the link of" : "no live link to end for",
+		slot, runtime->match->Generation());
+}
+
+bool IsRuntimeSpectator() { return LocalIsSpectator(); }
 
 void NotifyRuntimeMatchEnded() {
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
@@ -266,14 +281,20 @@ void CancelLocalMatch(GgpoEnd end) {
 	// or any later one, nothing of the match.
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	CancelDeferredGgpoClose();
-	if (end.retire) Game::Battle::System::RetireGgpoSession(end.text);
-	else if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(end.text, end.severity);
+	using fSystem = Game::Battle::System;
+	if (end.how == GgpoEnd::How::Retire) fSystem::RetireGgpoSession(end.text);
+	else if (fSystem::ggpo) fSystem::AbortGgpoMatch(end.text, end.severity,
+		end.how == GgpoEnd::How::Leave ? fSystem::AbortCause::Left : fSystem::AbortCause::Failure);
 	if (runtime->match) runtime->match->Abort();
 }
 
-void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
-	CancelLocalMatch(GgpoEnd::Abort(reason, severity));
+void AbortLocalMatch(GgpoEnd end) {
+	CancelLocalMatch(end);
 	runtime->recoveringMatch = true;
+}
+
+void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+	AbortLocalMatch(GgpoEnd::Abort(reason, severity));
 }
 
 // The room ended the game this PC is in with no result (Abort or Cancel). The
@@ -298,6 +319,49 @@ void RetireFinishedMatch(const char* label) {
 	CancelDeferredGgpoClose();
 	Game::Battle::System::RetireGgpoSession(label);
 	runtime->match->End();
+}
+
+netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& asked) {
+	const auto game = WatchedGameNow();
+	// The stream ended before the press was taken (the spectator drain, a
+	// failure, an earlier press): nothing is left to leave or to tell the room.
+	if (!UserApp::netplay || !(game == asked)) {
+		spdlog::info("Room: Stop watching generation {} table={} found no live view", asked.generation, asked.table);
+		return netplay::DispatchOutcome::Dropped;
+	}
+	auto& client = UserApp::netplay->client;
+	const auto& room = client.GetRoomSnapshot();
+	auto leave = netplay::LeaveOfWatchedGame(room, game);
+	// The game's end event can come before the snapshot shows it.
+	if (leave != netplay::WatchedLeave::None && runtime->committedEndGeneration == game.generation) leave = netplay::WatchedLeave::EndView;
+	if (leave == netplay::WatchedLeave::None) return netplay::DispatchOutcome::Dropped;
+	if (leave == netplay::WatchedLeave::EndView) {
+		// The room needs nothing: the rest of the stream ends the way the
+		// spectator drain ends it (PollSpectatorExit).
+		spdlog::info("Room: closing the spectator view of generation {} table={}; the room needs no leave", game.generation, game.table);
+		RetireFinishedMatch("spectator_left");
+		// Retiring the session clears a transient notice, so this comes after it.
+		PushAlert(loc::T("runtime.leaving_spectator"), NoticeSeverity::Info);
+		return netplay::DispatchOutcome::Dispatched;
+	}
+	room::Action unwatch;
+	unwatch.kind = room::ActionKind::Unwatch;
+	unwatch.table = static_cast<std::uint8_t>(game.table);
+	unwatch.matchGeneration = game.generation;
+	unwatch.keepWatching = leave == netplay::WatchedLeave::LeaveGame;
+	unwatch.roomEpoch = room.roomEpoch; unwatch.revision = room.revision;
+	unwatch.tableRevision = room.tables[game.table].revision;
+	// Sent before the stream retires, so P1 receives game_peer_end while the
+	// generation is still current.
+	if (client.SendRoomAction(unwatch) != session::SendResult::Queued) {
+		runtime->error = loc::T("runtime.spectator_action_retrying");
+		return netplay::DispatchOutcome::Deferred;
+	}
+	// The player chose to leave: a passing note, not an error, and no stream
+	// failure, whose lock release would race the Unwatch that already ends the
+	// lock-in.
+	AbortLocalMatch(GgpoEnd::Leave(loc::T("runtime.leaving_spectator")));
+	return netplay::DispatchOutcome::Dispatched;
 }
 
 void RetryPendingAbort() {
@@ -461,7 +525,9 @@ void TickMatch() {
 			HandleSessionlessClose(closedGeneration);
 		}
 		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
-			runtime->error = loc::T("runtime.match_connection_lost");
+			// A spectator in the game lost its one link, to P1: its stream, not a seat.
+			runtime->error = loc::T(LocalIsSpectator() && runtime->matchEntered ?
+				"runtime.spectator_stream_lost" : "runtime.match_connection_lost");
 			// A spectator has no seat to lose: a control reconnect that briefly
 			// empties the projection must not turn its stream failure into a room exit.
 			if (UserApp::netplay && (LocalIsSpectator() || UserApp::netplay->client.GetRoomSnapshot().roomEpoch)) {
@@ -516,7 +582,12 @@ void TickMatch() {
 				Apply(netplay::EventKind::GameplayReady);
 				const auto entry = UserApp::EnterAuthorizedMatch();
 				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
-				if (runtime->matchEntered) runtime->enteredGeneration = runtime->match->Generation();
+				if (runtime->matchEntered) {
+					runtime->enteredGeneration = runtime->match->Generation();
+					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+					const auto* local = room::FindMember(room, room.localMember);
+					runtime->enteredTable = local ? local->table : -1;
+				}
 				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
 				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}

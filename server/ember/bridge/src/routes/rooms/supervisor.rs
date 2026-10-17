@@ -55,6 +55,10 @@ pub struct Create<'a> {
     pub bridge_id: &'a str,
     pub ticket_key: &'a str,
     pub ticket_kid: &'a str,
+    /// Each fighter plays at their own input delay. Written only when true, so
+    /// the request for a room with the shared delay is what it always was.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub own_delay: bool,
 }
 
 #[derive(Deserialize)]

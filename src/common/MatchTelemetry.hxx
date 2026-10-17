@@ -8,7 +8,13 @@ class MatchTelemetry {
     int ping_ = -1;
 public:
     int appliedDelay = -1;
+    // A spectator's game is played at each fighter's own delay (an Own room),
+    // not at appliedDelay.
+    bool ownDelays = false;
     bool spectator = false;
+    // A spectator's frames behind its host stream at its last update
+    // (SpectatorCatchUp); -1 until the stream runs.
+    int backlog = -1;
     // Every ping Sample took this session, for Auto to read at its end.
     GamePing pings;
     void Reset(bool watching = false) { *this = {}; spectator = watching; }
@@ -27,5 +33,8 @@ public:
     }
     int Ping(std::uint64_t now) const { return spectator || ping_ < 0 || now - lastSample_ > 2000 ? -1 : ping_; }
     void AppliedDelay(int frames, bool success) { appliedDelay = success ? frames : -1; }
+    // A spectator applies no delay of its own: it shows the one the game it
+    // watches was granted with (room::WatchedGameDelay).
+    void GrantedDelay(int frames, bool own) { appliedDelay = frames; ownDelays = own; }
 };
 }

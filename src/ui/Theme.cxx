@@ -37,8 +37,9 @@ const float BodySize = 18.f;
 constexpr std::size_t ScriptFontCount = std::size(fonts::ScriptFonts);
 
 // An atlas holds Inter's ranges and each script font's native language names,
-// which never change, plus the whole catalog of the active locale when a script
-// font draws it. That locale, or none, is all that tells two atlases apart.
+// which never change, plus the active locale's catalog but its country names
+// (loc::InterfaceText) when a script font draws it. That locale, or none, is
+// all that tells two atlases apart.
 std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
     for (const auto& font : fonts::ScriptFonts)
         if (font.script == loc::ScriptOf(active)) return active;
@@ -113,7 +114,7 @@ void BuildScriptRanges(std::optional<loc::Locale> catalog, const std::vector<ImW
             if (loc::ScriptOf(static_cast<loc::Locale>(locale)) == fonts::ScriptFonts[i].script)
                 builder.AddText(loc::NativeName(static_cast<loc::Locale>(locale)));
         if (catalog && loc::ScriptOf(*catalog) == fonts::ScriptFonts[i].script)
-            builder.AddText(loc::DisplayText(*catalog).c_str());
+            builder.AddText(loc::InterfaceText(*catalog).c_str());
         for (const auto glyph : glyphs) builder.AddChar(glyph);
         scriptRanges[i].clear();
         builder.BuildRanges(&scriptRanges[i]);

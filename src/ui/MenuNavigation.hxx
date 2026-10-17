@@ -76,6 +76,7 @@ struct MenuEntry {
     float height = 0;
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
+    bool valueHighlighted = false;
     // A match's row (a replay): each side's fighter as a small native
     // portrait at that end of the row, player 1 on the left. -1 for both
     // draws none; -1 for one draws an unknown fighter on that side. Two
@@ -83,6 +84,10 @@ struct MenuEntry {
     // ({{"a"},{"b"}}) whose type has an array member initializer.
     int fighter1 = -1, fighter2 = -1;
     bool Match() const { return fighter1 >= 0 || fighter2 >= 0; }
+    // Home draws these, when there are any, in place of detail on its help
+    // line: each label over its value, one column per pair (Fighter select's
+    // fighter, costume and color, Ultra). detail still says it all in one line.
+    std::vector<std::pair<std::string, std::string>> columns;
 };
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a

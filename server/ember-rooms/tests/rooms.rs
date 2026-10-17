@@ -784,3 +784,52 @@ async fn a_drain_with_no_rooms_returns_at_once() {
         .expect("nothing to wait for");
     assert!(harness.supervisor.is_draining());
 }
+
+/// A room that asks for each fighter's own input delay reaches its room host as
+/// `own_delay: true` in the configuration line; every other request, with the
+/// key absent or false, reaches it as it always did.
+#[tokio::test]
+async fn a_rooms_own_delay_reaches_its_room_host_and_defaults_to_the_shared_delay() {
+    let harness = harness(|_, _| {});
+    let shared = format!(
+        "inv:{}:45800:45801:b1:emb_creator:brg_test:a2V5a2V5:kid1:helper-path:8",
+        room_id(1)
+    );
+    // No key: the shared delay, and nothing in what the host was given.
+    let (code, created) = harness.create(1, "normal").await;
+    assert_eq!(code, StatusCode::CREATED);
+    assert_eq!(created["invitation"], shared);
+
+    // An explicit false is the same.
+    let mut request = body(2, "normal");
+    request["own_delay"] = json!(false);
+    let (code, created) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!(code, StatusCode::CREATED);
+    assert!(
+        !created["invitation"]
+            .as_str()
+            .unwrap()
+            .ends_with(":own-delay")
+    );
+
+    // True is passed on.
+    let mut request = body(3, "normal");
+    request["own_delay"] = json!(true);
+    let (code, created) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!(code, StatusCode::CREATED);
+    let invitation = created["invitation"].as_str().unwrap();
+    assert!(invitation.ends_with(":own-delay"), "{invitation}");
+    assert!(invitation.starts_with(&format!("inv:{}:", room_id(3))));
+    let rooms = harness.list().await;
+    assert_eq!(rooms[2]["invitation"], created["invitation"]);
+
+    // Anything but a boolean is refused and makes no room.
+    for bad in [json!("yes"), json!(1), json!(null)] {
+        let mut request = body(4, "normal");
+        request["own_delay"] = bad.clone();
+        let (code, reply) = harness.call(Method::POST, "/rooms", Some(request)).await;
+        assert_eq!(code, StatusCode::BAD_REQUEST, "{bad}");
+        assert_eq!(reply["reason"], "invalid_request");
+    }
+    assert_eq!(harness.supervisor.room_count(), 3);
+}

@@ -15,7 +15,7 @@ cache = (args.build_dir / 'CMakeCache.txt').read_text()
 installed = Path(re.search(r'^VCPKG_INSTALLED_DIR:[^=]+=(.+)$', cache, re.M)[1])
 triplet = re.search(r'^VCPKG_TARGET_TRIPLET:[^=]+=(.+)$', cache, re.M)[1]
 sections = ['SF4 Ember Netplay — dependency notices\nGenerated from the resolved Windows build.\n']
-native = ['cli11', 'detours', 'fmt', 'ggpo', 'imgui', 'nlohmann-json', 'spdlog', 'wil', 'zlib']
+native = ['cli11', 'detours', 'fmt', 'ggpo', 'imgui', 'nlohmann-json', 'sdl3', 'spdlog', 'wil', 'zlib']
 for name in native:
     license_path = installed / triplet / 'share' / name / 'copyright'
     sections.append(f'\n=== {name} (vcpkg) ===\n' + license_path.read_text(encoding='utf-8'))
@@ -55,9 +55,12 @@ for package in sorted(metadata['packages'], key=lambda item: (item['name'], item
 # ride in this file rather than as files of their own, so a package keeps the
 # file set that older installed builds accept from an update.
 embedded = [('Unicode Character Database data (problem-report redaction tables, '
-             'src/platform/ReportUnicodeTables.hxx)', repo / 'src' / 'platform' / 'Unicode-License.txt')]
+             'src/platform/ReportUnicodeTables.hxx) and Unicode CLDR data via ICU '
+             '(country names in locales/*.po)', repo / 'src' / 'platform' / 'Unicode-License.txt'),
+            ('Noto Sans CJK subsets (src/ui/fonts/NotoSansCJK{jp,kr,sc}-Subset.otf, embedded in the '
+             'interface)', repo / 'src' / 'ui' / 'fonts' / 'NotoSansCJK-OFL.txt')]
 for name, license_path in embedded:
     sections.append(f'\n=== {name} ===\n' + license_path.read_text(encoding='utf-8'))
 args.output.parent.mkdir(parents=True, exist_ok=True)
 args.output.write_text('\n'.join(sections), encoding='utf-8')
-print(f'Collected notices for {len(native)} native packages, {len(embedded)} embedded data set and {count} Rust dependencies.')
+print(f'Collected notices for {len(native)} native packages, {len(embedded)} embedded data sets and {count} Rust dependencies.')

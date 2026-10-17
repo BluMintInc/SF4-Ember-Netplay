@@ -1,4 +1,5 @@
 #pragma once
+#include <imgui.h>
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -6,6 +7,7 @@
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
 #include "../netplay/SessionController.hxx"
+#include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/MemberView.hxx"
 #include "../netplay/IdentityView.hxx"
@@ -14,6 +16,7 @@
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
+#include "../session/MemberLatency.hxx"
 #include <array>
 #include <functional>
 #include <vector>
@@ -23,10 +26,15 @@
 #include <optional>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
+#include "../common/ControllerView.hxx"
+#include "../common/ControllerRequest.hxx"
+#include "../common/ButtonLayoutCapture.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "ReplaysPanel.hxx"
 #include "ProblemReportPanel.hxx"
+#include "UpdatePrompt.hxx"
+#include "CountryPicker.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -59,6 +67,8 @@ struct ShellView {
     std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
     bool probeBenchmark=false;
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
+    // The ping to each other member while the room board is open, by member.
+    session::MemberLatencyTable memberLatency;
     int localSlot = -1;
     std::string invitation, error, settingsError, build;
     // The room's short link, empty until the helper has one. A failure bumps
@@ -73,6 +83,10 @@ struct ShellView {
     // enough to join by itself.
     bool pendingJoinDirect = false;
     std::string languagePreference = "auto";
+    // The Settings row "Check for updates at launch", as saved.
+    bool checkUpdatesAtLaunch = true;
+    // The country Automatic shows: Windows' region, or none.
+    CountryCode automaticCountry;
     // This PC's clock, unix seconds, to tell a match past its expiry (0 when unknown).
     std::uint64_t unixNow = 0;
     // The game's own config.ini as read at launch, and whether the player has
@@ -83,17 +97,33 @@ struct ShellView {
     netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
     platform::ServiceSnapshot services;
     std::string controller;
+    std::string padHint;
+    std::uint64_t padHintUntil = 0;
+    gamepads::Layer padLayer = gamepads::Layer::Active;
+    bool padLayerPending = false, runningControllerLayer = true;
+    std::vector<gamepads::PadView> pads;
+    unsigned captureCandidate = 0;
+    gamepads::SetupSnapshot padSetup;
+    bool atMainMenu = true;
+    // gameplayBrand is detected; promptBrand is resolved by the runtime.
+    // The local unsaved setting can resolve against gameplayBrand immediately.
+    gamepads::PromptBrand gameplayBrand, promptBrand;
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
+    // The gameplay controller's menu buttons and glyphs (Pad::MenuButtons).
+    input::MenuButtons menuButtons;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
     // The chosen fighter, Ultra, appearance, fighter options and stage, for
     // the table page's rows; ultraSteps and colorSteps when there is more than
     // one to step through.
     std::string fighterName, ultraName, appearanceName, fighterOptionsName, stageName;
+    // Home's Fighter select hint in short forms ("Ken", "Alt 1, color 3",
+    // "U1"); none when no fighter is chosen, and Home shows selectionSummary.
+    std::string hintFighter, hintAppearance, hintUltra;
     bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight (parked, sent or awaiting commit), and the
@@ -115,6 +145,19 @@ struct ShellView {
     // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
     // Ember's menu is open over the fight, and End practice ends the game.
     bool practiceFight = false;
+    // The room game this PC only watches now (RuntimeSnapshot::watchedGame,
+    // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
+    // watching leaves it. Empty when nothing is watched.
+    netplay::WatchedGame watchedGame;
+    // That game's picture, for the menu's top right corner over an opaque
+    // menu (PlayerPreferences::watchedPicture); null when it is not wanted or
+    // could not be taken.
+    ImTextureID watchedPicture{};
+    // Ember's menu shows the watched game through itself, dimmed, instead.
+    bool SeeThrough() const { return watchedGame.Active() && !watchedPicture; }
+    // Lock-ins lost to a failure of this member's spectator view
+    // (RuntimeSnapshot::lockInDrops); each new count is told once.
+    std::uint64_t lockInDrops = 0;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -142,8 +185,13 @@ struct ShellAction {
     platform::ServiceAction service = platform::ServiceAction::None;
     // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
     std::string servicePath;
+    // With UpdateNow or SkipUpdate: the launch offer the player was shown.
+    launcher::InstallOffer updateOffer;
+    // With OpenSteamProfile: the member's profile to open.
+    SteamId steamProfile;
     reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
+    gamepads::ControllerRequest padAction;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
     netplay::PlayerPreferences preferences;
@@ -156,6 +204,10 @@ struct ShellAction {
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
+    // Leave the game this PC watches (ShellView::watchedGame), named as the
+    // press saw it; sent alone. The runtime decides, when it takes it, whether
+    // the room still needs an Unwatch or only the rest of the stream ends.
+    netplay::WatchedGame leaveWatchedGame;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -173,6 +225,8 @@ struct ShellAction {
     std::optional<room::Rules> createdRules;
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
+    // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // What the Replays screen asks of the game: an archived replay (its
     // file, as its row names it) to add or to watch, the game's own list, or
     // no to a replay link. Nothing is sent to the room.
@@ -191,7 +245,10 @@ public:
               const DrawSelection& developer = {});
     void ShowPlay() {
         // Reopening after battle must retain the active room's navigation.
-        if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
+        if(previousRoomState_==netplay::RoomState::Idle) {
+            if(reopenScreen_)menu_.navigation.Push(*reopenScreen_);
+            else menu_.navigation.Home();
+        }
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
@@ -203,6 +260,10 @@ public:
     std::uint64_t ReplayInputsRevision() const { return replays_.InputsRevision(); }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
+    // The last Draw drew the room board, whose ping the runtime asks for only while it is drawn.
+    bool BoardDrawn() const { return boardDrawn_; }
+    // The last Draw drew the fighter selector.
+    bool SelectionDrawn() const { return selectionDrawn_; }
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
@@ -229,6 +290,9 @@ public:
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
     void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
+    // Where the "Check for updates at launch" choice is written; the platform store unless a test supplies its own.
+    using UpdateCheckSaver = std::function<bool(bool enabled, std::string& diagnostic)>;
+    void SetUpdateCheckSaver(UpdateCheckSaver saver) { updateCheckSaver_ = std::move(saver); }
     // Where chat availability changes are written; nowhere unless the overlay or a test supplies one.
     void SetChatLog(std::function<void(const std::string&)> log) { chatLog_ = std::move(log); }
     // Where the tournament matches already announced are kept; the platform store unless a test supplies its own.
@@ -237,11 +301,13 @@ public:
     }
 private:
     LanguageSaver languageSaver_;
+    UpdateCheckSaver updateCheckSaver_;
     GameMenu menu_;
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
     ReplaysPanel replays_;
     ProblemReportPanel reportPanel_;
+    CountryPicker countryPicker_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);
@@ -257,6 +323,34 @@ private:
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
     void SetLanguage(std::string preference);
+    // A notice's buttons carry results, not actions (GameMenu::TakeNoticeResult). Every
+    // draw of the menu is followed by AnswerDialog, which does what the result says with
+    // what the notice's owner left in dialogContext_.
+    void AnswerDialog(const Submit& submit);
+    // The launch-time update check and its question (ApplicationShell__Updates.cxx).
+    // UpdateLaunchCheck asks the service for the check on the first Home and puts the
+    // question up when the offer is due and the player is free to answer; a closed
+    // notice is the question's answer (FinishUpdatePrompt).
+    void UpdateLaunchCheck(const ShellView& view,double now,const Submit& submit);
+    void FinishUpdatePrompt(NoticeResult result,const Submit& submit);
+    void SetLaunchCheck(bool enabled);
+    UpdatePrompt updatePrompt_;
+    netplay::Generation updateGeneration_;
+    // The failed skips the service had counted when the view was last drawn.
+    unsigned skipFailuresSeen_=0;
+    double launchCheckAskedAt_=-1e9;
+    // The failure of Update now (the Launcher would not start) has been said.
+    bool updateNowReported_=false;
+    // The Settings row's value, seeded from the view once and then the shell's own.
+    bool launchCheck_=true,launchCheckSeeded_=false;
+    std::string launchCheckSaveError_;
+    struct DialogContext {
+        // The pad the Button layout button opens.
+        std::optional<gamepads::PadView> pad;
+        // What leaving a layout with unassigned attacks logs, and for which session.
+        std::string log;
+        netplay::Generation generation;
+    } dialogContext_;
     // Whether the selector the shell is about to show was opened just now, not
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
@@ -275,6 +369,11 @@ private:
         const auto kind=publicRooms_.OpeningKind();
         return kind?*kind==PublicRoomsPanel::OpenKind::Create:view.session.isHost;
     }
+    // The Create screen and its neighbours (ApplicationShell__Create.cxx).
+    // RoomSetupRows builds Create and Defaults, which edit the same room settings.
+    std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
+    void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
+    bool CreateAdjust(const MenuAction& action);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
@@ -293,16 +392,19 @@ private:
     void ToggleReady(const ShellView& view, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
+    // Leaves the game this PC watches (Stop watching, or the table's own
+    // Unwatch of it), once confirmed: the press names the game, and the
+    // runtime decides what leaving it takes. False when nothing was sent.
+    bool LeaveWatchedGame(const ShellView& view, const Submit& submit);
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
-    // A lock-in the room cleared other than by the player's Release (they
-    // stopped watching, moved, or their spectator view dropped) gets a notice
-    // saying why.
+    // A lock-in that ended gets a notice saying why: the player stopped
+    // watching, moved, or took a place, or their spectator view dropped
+    // (ShellView::lockInDrops). The player's own Release gets none.
     void TrackLockIn(const ShellView& view, double now);
     int lockedInTable_=-1;
-    std::uint64_t lockInEpoch_=0;
-    double lockInReleasedUntil_=0;
+    std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
@@ -359,6 +461,8 @@ private:
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
+    bool boardDrawn_ = false;
+    bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
     // Create's Practice room choice for the private room it opens. Never saved:
@@ -414,6 +518,42 @@ private:
     std::uint64_t joinLinkSeen_=0;
     // Ember was hidden on the last frame (Background): the next drawn one opens it.
     bool hidden_=true;
+    std::optional<std::string> reopenScreen_;
+    std::optional<gamepads::PadView> setupPad_, setupPrompt_;
+    std::vector<gamepads::Identity> setupPrompted_;
+    std::set<unsigned> setupPromptHeld_;
+    bool setupStarting_=false, setupPromptReleased_=false, setupFromLayout_=false;
+    std::uint64_t setupRevision_=0, setupMenuSequence_=0;
+    gamepads::SetupMode setupPreviousMode_=gamepads::SetupMode::Capture;
+    std::optional<gamepads::PadView> layoutPad_;
+    bool layoutChanged_ = false, layoutAbsent_ = false;
+    unsigned layoutButton_ = 0;
+    // An index into LayoutFunctions, MenuConfirmCapture or MenuBackCapture; none for a pick.
+    std::optional<unsigned> layoutCaptureFunction_;
+    gamepads::LayoutCapture layoutCapture_;
+    bool layoutNeutral_ = false;
+    // The row that just took a press, shown in Ember until layoutFlashUntil_.
+    std::string layoutFlash_;
+    double layoutFlashUntil_ = 0;
+    void SyncLayoutPaths(const ShellView& view);
+    void SetGameplayLayoutPrompts(const ShellView& view);
+    void CancelLayoutCapture(const ShellView& view, const Submit& submit);
+    void OpenButtonLayout(const gamepads::PadView& pad);
+    bool DrawButtonLayout(const ShellView& view, const Submit& submit);
+    bool ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit);
+    bool SavePreferences(const ShellView& view, const Submit& submit);
+    // menu replaces the pad's menu binding; none keeps it.
+    bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
+        const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::MenuBinding>& menu = {});
+    // Binds Menu confirm (back false) or Menu back to a layout button, refusing the other's button.
+    void ChangeMenuButton(const gamepads::PadView& pad, bool back, unsigned button, const ShellView& view, const Submit& submit);
+    void LayoutLog(const ShellView& view, const Submit& submit, std::string text);
+    void BeginPadSetup(const gamepads::PadView& pad,const ShellView& view,const Submit& submit);
+    void UpdatePadSetup(const ShellView& view,const Submit& submit,bool visible);
+    bool DrawPadSetup(const ShellView& view,const Submit& submit);
+    void SetupControl(gamepads::SetupCommand command,const ShellView& view,const Submit& submit,int step=0);
+    void ClosePadSetup(const ShellView& view,bool controllers=false);
+
     // The training call's sequences as last acted on.
     std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;

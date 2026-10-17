@@ -68,10 +68,15 @@ namespace sf4e {
 					// The game that ended a set leaves the table at 0-0 for the next
 					// one; its final score stays on screen until the next game begins.
 					const auto& table = room.tables[m.table];
-						st.spectators = static_cast<int>(table.spectators.size());
+					st.spectators = static_cast<int>(table.spectators.size());
 					const bool decided = table.lastSet.generation != 0 && table.lastSet.generation == table.matchGeneration;
 					for (int side = 0; side < 2; ++side) liveScore[side] = decided ? table.lastSet.score[side] : table.score[side];
 				}
+			const auto place = room::PlaceOf(room, room.localMember);
+			if (place.kind == room::Place::Kind::Queue) {
+				st.queuePosition = place.position;
+				st.queueLength = static_cast<int>(room.tables[place.table].queue.size());
+			}
 			st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->startScoreKnown,
 				fUserApp::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
 			st.rollbackFrames = fSystem::RecentRollbackFrames();
@@ -86,7 +91,9 @@ namespace sf4e {
 			if (fSystem::ggpo) {
 				st.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
 				st.appliedDelay = fSystem::matchTelemetry.appliedDelay;
+				st.ownDelays = fSystem::matchTelemetry.ownDelays;
 				st.spectator = fSystem::matchTelemetry.spectator;
+				st.spectatorBacklog = fSystem::matchTelemetry.backlog;
 			}
 		}
 		return st;

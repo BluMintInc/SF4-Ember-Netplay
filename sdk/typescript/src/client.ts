@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { parseStrict, type Json } from "./canonical.ts";
 import { parseEvent, type BridgeEvent, type ConnectionRoom } from "./events.ts";
+import { isBridgeOrigin } from "./signed.ts";
 
 export interface BridgeClientOptions {
   /** The bridge origin, e.g. `https://bridge.example`. */
@@ -228,7 +229,7 @@ export class BridgeClient {
   readonly #fetch: typeof fetch;
 
   constructor(options: BridgeClientOptions) {
-    if (!/^https:\/\/[^/?#@]+$/.test(options.origin) && !/^http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(options.origin)) {
+    if (!isBridgeOrigin(options.origin)) {
       throw new TypeError("origin must be a bare https origin, or http on loopback for local testing");
     }
     this.origin = options.origin;

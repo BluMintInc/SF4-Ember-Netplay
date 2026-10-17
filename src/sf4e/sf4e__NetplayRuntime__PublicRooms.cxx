@@ -68,10 +68,12 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 		FinishAdmission(create ? "invalid_name" : "room_not_found");
 		return;
 	}
-	const auto request = create ?
+	auto request = create ?
 		json{{"op", "room_create"}, {"bridge_id", command.bridgeId}, {"name", command.roomName},
 			{"capacity", command.capacity}, {"build", sf4e::sidecarHash}} :
 		json{{"op", "room_ticket"}, {"bridge_id", command.bridgeId}, {"room_id", command.roomId}, {"build", sf4e::sidecarHash}};
+	// Only a room that asks for each player's own delay says so; the helper reads an absent key as the shared one.
+	if (create && command.ownDelay) request["own_delay"] = true;
 	const auto id = helperReady ? Send(request) : 0;
 	if (!id) { FinishAdmission("helper_unavailable"); return; }
 	runtime->admissionRequest = id;

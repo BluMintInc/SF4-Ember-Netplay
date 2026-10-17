@@ -381,3 +381,87 @@ fn auxiliary_threads_fill_the_budget_exactly_in_order() {
     assert!(measured < budget);
     assert!(measured + 1 + thread >= budget);
 }
+
+#[test]
+fn dumpless_crash_takes_its_module_from_the_crash_log() {
+    let fingerprint = |report: &intake::Report| {
+        let event: Value = serde_json::from_slice(&event::build(
+            &id(&"c".repeat(32)),
+            report,
+            &Walk::default(),
+            None,
+        ))
+        .unwrap();
+        (
+            event["fingerprint"].clone(),
+            event["exception"]["values"][0]["stacktrace"]["frames"][0].clone(),
+        )
+    };
+    let mut report = report();
+    report.meta.crash_address = Some("0x6CAB16B4".into());
+    // An older crash at another load address, then this one.
+    report.logs.insert(
+        "sf4e-crash.log".into(),
+        "[secret] code=0xC0000005 (access violation) address=0x64B016B4 module=Other.dll+0x10 thread=1 message=read of 0x00000000\n\
+         last log lines:\n\
+         [2026-10-15 19:10:27.199] [sf4e] [critical] Crash: [secret] code=0xC0000005 (access violation) address=0x6CAB16B4 module=Sidecar.dll+0x1716B4 thread=328 message=read of 0x00000000\n"
+            .into(),
+    );
+    let (print, frame) = fingerprint(&report);
+    assert_eq!(print, json!(["{{ default }}", "Sidecar.dll+0x1716b4"]));
+    assert_eq!(frame["package"], "Sidecar.dll");
+    assert_eq!(frame["in_app"], true);
+    assert_eq!(frame["instruction_addr"], "0x6cab16b4");
+    // Another load of the same DLL groups with it.
+    report.meta.crash_address = Some("0x514D16B4".into());
+    report.logs.insert(
+        "sf4e-crash.log".into(),
+        "x address=0x514D16B4 module=Sidecar.dll+0x1716B4 thread=2\n".into(),
+    );
+    assert_eq!(
+        fingerprint(&report).0,
+        json!(["{{ default }}", "Sidecar.dll+0x1716b4"])
+    );
+    // No line for this address, or a name that is not a module: the raw address.
+    for log in [
+        "x address=0x11111111 module=Sidecar.dll+0x1716B4\n",
+        "x address=0x514D16B4 module=C:\\path\\Sidecar.dll+0x1716B4\n",
+        "x address=0x514D16B4 module=+0x1716B4\n",
+        "x address=0x514D16B4 module=Sidecar.dll\n",
+    ] {
+        report.logs.insert("sf4e-crash.log".into(), log.into());
+        assert_eq!(
+            fingerprint(&report).0,
+            json!(["{{ default }}", "unknown+0x514d16b4"])
+        );
+    }
+    // Only the newest line at this address counts: an older crash there never
+    // names this one, whether the newest names another module or none.
+    report.logs.insert(
+        "sf4e-crash.log".into(),
+        "x address=0x514D16B4 module=Other.dll+0x10\nx address=0x514D16B4 module=Sidecar.dll+0x1716B4\n"
+            .into(),
+    );
+    assert_eq!(
+        fingerprint(&report).0,
+        json!(["{{ default }}", "Sidecar.dll+0x1716b4"])
+    );
+    for newest in [
+        "x address=0x514D16B4 module=?+0x0\n",
+        "x address=0x514D16B4 module=Sidecar.dll\n",
+    ] {
+        report.logs.insert(
+            "sf4e-crash.log".into(),
+            format!("x address=0x514D16B4 module=Sidecar.dll+0x1716B4\n{newest}"),
+        );
+        assert_eq!(
+            fingerprint(&report).0,
+            json!(["{{ default }}", "unknown+0x514d16b4"])
+        );
+    }
+    report.logs.clear();
+    assert_eq!(
+        fingerprint(&report).0,
+        json!(["{{ default }}", "unknown+0x514d16b4"])
+    );
+}

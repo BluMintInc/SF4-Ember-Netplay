@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/Country.hxx"
 #include <imgui.h>
 #include <functional>
 #include <memory>
@@ -39,6 +40,10 @@ public:
     SelectionImage Stage(int nativeId);
     SelectionImage MenuBackdrop();
     SelectionImage InputPrompt(const std::string& name);
+    // A country's flag: its cell of the flag atlas (assets/flags/flags.png),
+    // which is decoded at its own size and never resized. Empty for none;
+    // missing when the atlas is absent or not the size Countries.hxx lays out.
+    SelectionImage Flag(const CountryCode& country);
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <thread>
 #include "test_support.hxx"
 // A reader of the hold, on the game thread, while the drawing thread answers
@@ -91,28 +92,42 @@ int main() {
     OverlayPresentation late;
     late.Update(MenuContext::MainMenu, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
     late.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
-    // A Practice match this PC fights is a place for the menu: once its fight
-    // runs, Start or F10 opens it there. Any other fight, and the practice
-    // fight's own end, still hide it at once; the game's end brings the board
-    // back as after any game.
+    // A Practice match this PC fights, and a game it only watches, are places
+    // for the menu: once the fight runs, Start or F10 opens it there. Any other
+    // fight, and that fight's own end (a spectator's leave retires its stream),
+    // still hide it at once; the game's end brings the board back as after any game.
+    for (const auto context : {MenuContext::PracticeMatch, MenuContext::WatchedMatch}) {
+        OverlayPresentation over;
+        over.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        over.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
+        CHECK(!over.Available() && !over.Visible());
+        over.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        over.Open(); CHECK(!over.Available() && !over.Visible());
+        over.Update(context, MatchState::Playing, false, true);
+        CHECK(over.Available() && !over.Visible());
+        over.Open(); CHECK(over.Visible());
+        over.Toggle(); CHECK(!over.Visible());
+        over.Toggle(); CHECK(over.Visible());
+        over.Update(context, MatchState::Playing, false, false); CHECK(over.Visible());
+        over.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        CHECK(!over.Visible() && !over.Available());
+        over.Open(); CHECK(!over.Visible());
+        over.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
+        CHECK(over.Visible() && over.Reopened());
+    }
+    // The log says why the shell showed or hid.
     {
-        OverlayPresentation practice;
-        practice.Update(MenuContext::MainMenu, MatchState::None, false, true);
-        practice.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
-        CHECK(!practice.Available() && !practice.Visible());
-        practice.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
-        practice.Open(); CHECK(!practice.Available() && !practice.Visible());
-        practice.Update(MenuContext::PracticeMatch, MatchState::Playing, false, true);
-        CHECK(practice.Available() && !practice.Visible());
-        practice.Open(); CHECK(practice.Visible());
-        practice.Toggle(); CHECK(!practice.Visible());
-        practice.Toggle(); CHECK(practice.Visible());
-        practice.Update(MenuContext::PracticeMatch, MatchState::Playing, false, false); CHECK(practice.Visible());
-        practice.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
-        CHECK(!practice.Visible() && !practice.Available());
-        practice.Open(); CHECK(!practice.Visible());
-        practice.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
-        CHECK(practice.Visible() && practice.Reopened());
+        OverlayPresentation why;
+        why.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        CHECK(std::string(why.Why()) == "the main menu is in front");
+        why.Toggle(); CHECK(!why.Visible() && std::string(why.Why()) == "F10");
+        why.Open("Start"); CHECK(why.Visible() && std::string(why.Why()) == "Start");
+        why.Close("Back on Ember's Home"); CHECK(!why.Visible() && std::string(why.Why()) == "Back on Ember's Home");
+        why.Open(); CHECK(std::string(why.Why()) == "opened");
+        why.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
+        CHECK(!why.Visible() && std::string(why.Why()) == "a game is starting or running");
+        why.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
+        CHECK(why.Visible() && std::string(why.Why()) == "a match ended");
     }
     // Game-thread open requests wait for the drawing thread and coalesce, Play first.
     {
@@ -175,23 +190,41 @@ int main() {
         // prepared; Start is the game's pause there, so only a shown menu takes them.
         pads.Place(MenuContext::ReplayExport, true); CHECK(!pads.Holds());
         pads.Place(MenuContext::ReplayExport, false); CHECK(pads.Holds() && !pads.StartOpens());
-        // Over a Practice match this PC fights, Start opens the menu and its
-        // request holds the pads at once, so neither the press nor anything
-        // after it reaches the fight while the menu is up; the fighter gives
-        // the game neutral input. The fight's end gives the pads back at once.
-        MenuPads practice; practice.Place(MenuContext::PracticeMatch, true);
-        CHECK(!practice.Holds() && practice.Takes() && practice.StartOpens());
-        practice.Request(MenuPads::Kind::Controls); CHECK(practice.Holds());
-        practice.Publish(true, practice.Take()); CHECK(practice.Holds());
-        practice.Place(MenuContext::PracticeMatch, true); CHECK(practice.Holds());
-        practice.Place(MenuContext::Unavailable, true); CHECK(!practice.Holds() && !practice.Takes() && !practice.StartOpens());
-        practice.Place(MenuContext::PracticeMatch, true); practice.Publish(false, practice.Take()); CHECK(!practice.Holds());
+        // Over a Practice match this PC fights, and over a game it only
+        // watches, Start opens the menu and its request holds the pads at
+        // once, so neither the press nor anything after it reaches the fight
+        // while the menu is up; the fighter gives the game neutral input. The
+        // fight's end gives the pads back at once.
+        for (const auto context : {MenuContext::PracticeMatch, MenuContext::WatchedMatch}) {
+            MenuPads over; over.Place(context, true);
+            CHECK(!over.Holds() && over.Takes() && over.StartOpens());
+            over.Request(MenuPads::Kind::Controls); CHECK(over.Holds());
+            over.Publish(true, over.Take()); CHECK(over.Holds());
+            over.Place(context, true); CHECK(over.Holds());
+            over.Place(MenuContext::Unavailable, true); CHECK(!over.Holds() && !over.Takes() && !over.StartOpens());
+            over.Place(context, true); over.Publish(false, over.Take()); CHECK(!over.Holds());
+        }
         // A display reset drops the opens waiting and what was shown, until a frame says again.
         MenuPads reset; reset.Place(MenuContext::MainMenu, false);
         reset.Request(MenuPads::Kind::Play); reset.Publish(true, MenuPads::Taken{});
         CHECK(reset.Holds());
         reset.Reset();
         CHECK(!reset.Holds() && reset.Take().kind == MenuPads::Kind::None && reset.Takes());
+    }
+    {
+        // A watched game's hint: for its first ten seconds, whatever the clock read when it began,
+        // not again while it lasts, and again for the next game.
+        sf4e::ui::TimedHint hint(10);
+        CHECK(!hint.Due(false, 0));
+        CHECK(hint.Due(true, 5) && hint.Due(true, 14.9) && !hint.Due(true, 15) && !hint.Due(true, 60));
+        CHECK(!hint.Due(false, 61));
+        CHECK(hint.Due(true, 62) && !hint.Due(true, 72));
+        sf4e::ui::TimedHint first(10);
+        CHECK(first.Due(true, 0) && first.Due(true, 9.9) && !first.Due(true, 10));
+        // On a clock that keeps going (the process clock, not ImGui's, which a DX9
+        // reset restarts), the same watched game stays expired however long it runs.
+        sf4e::ui::TimedHint resumed(10);
+        CHECK(resumed.Due(true, 1000) && !resumed.Due(true, 1011) && !resumed.Due(true, 1012) && !resumed.Due(true, 5000));
     }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";

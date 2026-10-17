@@ -1,3 +1,5 @@
+#include "../netplay/ControllerMappings.hxx"
+#include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
@@ -6,6 +8,8 @@
 #include "../netplay/JsonFileStore.hxx"
 #include "../platform/DurableFile.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
+#include "../netplay/ButtonPromptPreference.hxx"
+#include "../netplay/CountryPreferenceJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -66,9 +70,16 @@ static void InputDelayMigrations(const Path& root) {
     CHECK(automatic.autoInputDelay && automatic.inputDelay == 1);
     // A number chosen after Auto existed stays that number, 0 included: the
     // flag tells a chosen 0 from a 1.0.x one.
-    for (int chosen : {0, 1, 2, 5, sf4e::MaximumInputDelay}) {
+    for (int chosen : {0, 1, 2, 3, sf4e::MaximumInputDelay}) {
         const auto manual = LoadDelay(root, L"delay-chosen-" + std::to_wstring(chosen), {{"inputDelay", chosen}, {"autoInputDelay", false}});
         CHECK(!manual.autoInputDelay && manual.inputDelay == chosen && manual.Valid());
+    }
+    // An earlier build let a fighter choose up to the wire ceiling: those
+    // load as the choice limit, in the game and in the launcher.
+    for (int saved = sf4e::MaximumInputDelay + 1; saved <= sf4e::InputDelayWireCeiling; ++saved) {
+        const auto clamped = LoadDelay(root, L"delay-saved-" + std::to_wstring(saved), {{"inputDelay", saved}, {"autoInputDelay", false}});
+        CHECK(!clamped.autoInputDelay && clamped.inputDelay == sf4e::MaximumInputDelay && clamped.Valid());
+        CHECK(sf4e::netplay::ReadSavedInputDelay({{"inputDelay", saved}}) == sf4e::MaximumInputDelay);
     }
     // A value the game never writes under autoInputDelay is Auto.
     const auto odd = LoadDelay(root, L"delay-odd", {{"inputDelay", 3}, {"autoInputDelay", 0}});
@@ -187,11 +198,14 @@ static void BoolPreferenceRoundTrips(const Path& root) {
     const struct { const char* key; bool PlayerPreferences::* member; bool fallback; } expected[] = {
         {"showMatchHud", &PlayerPreferences::showMatchHud, true}, {"matchHudRaised", &PlayerPreferences::matchHudRaised, false},
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
+        {"watchedPicture", &PlayerPreferences::watchedPicture, false},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true},
+        {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
-        {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false}};
+        {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false},
+        {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
     for (const auto& entry : expected) {
         const auto found = std::find_if(std::begin(sf4e::netplay::BoolPreferences), std::end(sf4e::netplay::BoolPreferences),
@@ -240,6 +254,79 @@ static void BoolPreferenceRoundTrips(const Path& root) {
     CHECK(threw);
 }
 
+static void ButtonPromptRoundTrips(const Path& root) {
+    using namespace sf4e;
+    for (int choice=0;choice<4;++choice) {
+        const auto folder=root/(L"prompts-"+std::to_wstring(choice));
+        CHECK(std::filesystem::create_directory(folder));
+        SettingsStore store(folder.wstring()); std::string error;
+        netplay::PlayerPreferences prefs; prefs.buttonPrompts=static_cast<gamepads::ButtonPrompts>(choice);
+        Json saved; netplay::WriteButtonPrompts(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        const Json document=Json::parse(Read(folder/L"settings.json"));
+        CHECK(document["netplay"]["buttonPrompts"]==choice);
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadButtonPrompts(loaded)==prefs.buttonPrompts);
+    }
+    const auto oldFolder=root/L"prompts-migration";
+    CHECK(std::filesystem::create_directory(oldFolder));
+    SettingsStore oldStore(oldFolder.wstring()); std::string error;
+    CHECK(oldStore.SaveLauncher({{"fasterDisplay",false}},error));
+    Json old; CHECK(oldStore.LoadLauncher(old,error));
+    CHECK(!old.contains("buttonPrompts")&&!old["fasterDisplay"].get<bool>());
+    CHECK(netplay::ReadButtonPrompts(old)==gamepads::ButtonPrompts::Automatic);
+    for (const Json& bad : {Json(-1),Json(4),Json(4294967296ULL),Json(18446744073709551615ULL),Json(-4294967296LL),
+            Json(1.5),Json("Xbox"),Json(false),Json(nullptr),Json::array({1})})
+        CHECK(netplay::ReadButtonPrompts({{"buttonPrompts",bad}})==gamepads::ButtonPrompts::Automatic);
+    netplay::PlayerPreferences invalid; invalid.buttonPrompts=static_cast<gamepads::ButtonPrompts>(4); CHECK(!invalid.Valid());
+}
+
+// The country is kept in the netplay section as "auto", "hidden" or a code;
+// an older profile has none and anything else loads as Automatic.
+static void CountryRoundTrips(const Path& root) {
+    using namespace sf4e;
+    const auto folder=root/L"country";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    for (const auto& choice : {CountryPreference::Hidden(), CountryPreference::Of(CountryCode::Parsed("NZ")), CountryPreference::Automatic()}) {
+        netplay::PlayerPreferences prefs; prefs.country=choice; CHECK(prefs.Valid());
+        Json saved; netplay::WriteCountryPreference(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["country"]==choice.ToString());
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadCountryPreference(loaded)==choice);
+    }
+    CHECK(netplay::ReadCountryPreference(Json::object())==CountryPreference::Automatic());
+    for (const Json& bad : {Json("nz"),Json("XK"),Json(""),Json(64),Json(nullptr),Json::array({"NZ"})})
+        CHECK(netplay::ReadCountryPreference({{"country",bad}})==CountryPreference::Automatic());
+    netplay::PlayerPreferences invalid; invalid.country.kind=CountryPreference::Kind::Code; CHECK(!invalid.Valid());
+}
+
+static void ControllerLayerRoundTrip(const Path& root) {
+    SettingsStore store((root / L"controller-layer").wstring());
+    std::string error; Json saved;
+    CHECK(store.SaveOverlay({{"controllerLayer", false}}, error));
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerLayer"] == false);
+    sf4e::netplay::PlayerPreferences preferences;
+    sf4e::netplay::ReadBoolPreferences(saved, preferences);
+    CHECK(!preferences.controllerLayer);
+    CHECK(store.SaveLauncher({{"controllerLayer", true}, {"controllerMappings", {{"guid", "mapping"}}}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true);
+    // A delayed overlay edit cannot overwrite Player's canonical choice.
+    CHECK(store.SaveOverlay({{"controllerLayer", false}, {"stageID", 4}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == true && saved["stageID"] == 4);
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"]["guid"] == "mapping");
+    CHECK(sf4e::netplay::ReadControllerMappings(saved).at("guid") == "mapping");
+    CHECK(sf4e::netplay::ReadControllerMappings({{"deviceType", 0}, {"deviceIdx", 2}}).empty());
+    const std::vector<sf4e::gamepads::StoredLayout> layouts = {{{"guid", "serial", "path", "Pad"}, sf4e::gamepads::DefaultLayout, 1234}};
+    CHECK(store.SaveLauncher({{"buttonLayouts", sf4e::gamepads::LayoutsToJson(layouts)}}, error));
+    CHECK(store.LoadLauncher(saved, error));
+    CHECK(sf4e::gamepads::ReadLayouts(saved, [](unsigned, sf4e::gamepads::LayoutLoadError) {}) == layouts);
+    CHECK(store.LoadOverlay(saved, error) && !saved.contains("buttonLayouts"));
+    CHECK(store.SaveLauncher({{"controllerLayer", false}, {"controllerMappings", Json::object()}}, error));
+    CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == false);
+    CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"].empty());
+}
 int main() {
     // Each run owns a fresh temporary subtree; never consult real AppData.
     const auto root = MakeTempRoot(L"sf4e-settings-test-");
@@ -249,7 +336,7 @@ int main() {
     const Json launcher = {{"displayName", "Saved player"}, {"inputDelay", 3}, {"roundCount", 7},
         {"roundTimeIntegral", 300}, {"editionSelect", 1}, {"sessionPort", 23456},
         {"relayHostSecret", "old-test-secret"}, {"relayRoomCode", "OLD1"}, {"relaySessionPort", 30001},
-        {"unknownPreference", "retain"}};
+        {"unknownPreference", "retain"}, {"buttonLayouts", sf4e::gamepads::LayoutsToJson({{{"migration-guid", "", "migration-path", "Pad"}, sf4e::gamepads::DefaultLayout, 12}})}};
     const Json overlay = {{"diagnostics", {{"heapCheckInterval", 1}}}, {"stageID", 12}, {"lobby", {{"charaID", 23}, {"color", 7}}},
         {"mainMenu", {{"p2", {{"charaID", 9}}}}}, {"device", {{"idx", 2}, {"type", 1}}}};
     Write(path / L"config.json", launcher.dump(4));
@@ -262,6 +349,7 @@ int main() {
     CHECK(result["displayName"] == "Saved player" && result["inputDelay"] == 3);
     CHECK(!result.contains("relayHostSecret") && !result.contains("relayRoomCode") && !result.contains("relaySessionPort"));
     CHECK(result["unknownPreference"] == "retain");
+    CHECK(sf4e::gamepads::ReadLayouts(result, [](unsigned, sf4e::gamepads::LayoutLoadError) {}).size() == 1);
     auto activeOverlay = overlay; activeOverlay.erase("mainMenu");
     CHECK(store.LoadOverlay(result, error) && result == activeOverlay);
     CHECK(store.LoadLauncher(result, error) && !result.contains("sessionPort"));
@@ -300,11 +388,20 @@ int main() {
     CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",4294967298ull}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",-4294967294ll}})==0);
     CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",18446744073709551615ull}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",2.0}})==0);
     discordDefaults.matchHudAnchor=-1;CHECK(!discordDefaults.Valid());
-    discordDefaults.matchHudAnchor=5;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudAnchor=sf4e::netplay::MaxMatchHudAnchor+1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudAnchor=4;CHECK(discordDefaults.Valid());
+    // Top center is the last position, 5.
+    CHECK(sf4e::netplay::MaxMatchHudAnchor==5);
+    discordDefaults.matchHudAnchor=5;CHECK(discordDefaults.Valid());
+    discordDefaults.matchHudAnchor=6;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudAnchor=4;
     CHECK(store.SaveLauncher({{"matchHudAnchor",4}},error));
     CHECK(store.LoadLauncher(result,error)&&result["matchHudAnchor"]==4);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==4);
+    CHECK(store.SaveLauncher({{"matchHudAnchor",5}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudAnchor"]==5);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==5);
+    CHECK(store.SaveLauncher({{"matchHudAnchor",4}},error));
     discordDefaults.matchHudAnchor=0;
     CHECK(discordDefaults.matchHudLayout==1); // Split by default.
     discordDefaults.matchHudLayout=-1;CHECK(!discordDefaults.Valid());
@@ -330,7 +427,8 @@ int main() {
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
-    discordDefaults.inputDelay = 10; CHECK(discordDefaults.Valid());
+    discordDefaults.inputDelay = sf4e::MaximumInputDelay; CHECK(discordDefaults.Valid());
+    discordDefaults.inputDelay = sf4e::MaximumInputDelay + 1; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = -1; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = 11; CHECK(!discordDefaults.Valid());
     CHECK(store.SaveLauncher({{"inputDelay", 0}}, error));
@@ -502,6 +600,30 @@ int main() {
         CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules == restored.tableRules &&
             fromOlder.publicTableRules == restored.publicTableRules);
     }
+    // The room's delay policy is a room default: written only when Own, and a
+    // document without the key (or with "shared") reads as Shared.
+    {
+        CHECK(!result["roomDefaults"].contains("delay") && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        auto own = defaults;
+        own.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
+        const Json ownDocument{{"roomDefaults", sf4e::netplay::RoomPreferences(own)}};
+        CHECK(ownDocument["roomDefaults"].at("delay") == "own");
+        sf4e::netplay::PlayerPreferences fromOwn;
+        CHECK(sf4e::netplay::ReadRoomPreferences(ownDocument, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Own &&
+            fromOwn.tableRules == restored.tableRules);
+        // Own is not remembered by a document that leaves the key out.
+        auto without = ownDocument;
+        without["roomDefaults"].erase("delay");
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        without["roomDefaults"]["delay"] = "shared";
+        fromOwn.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        for (const Json& invalid : {Json(1), Json(true), Json("mine"), Json(nullptr)}) {
+            auto bad = ownDocument;
+            bad["roomDefaults"]["delay"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        }
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},
@@ -513,6 +635,9 @@ int main() {
     InputDelayMigrations(root);
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);
+    ButtonPromptRoundTrips(root);
+    CountryRoundTrips(root);
+    ControllerLayerRoundTrip(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

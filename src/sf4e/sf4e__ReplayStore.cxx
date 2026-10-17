@@ -21,6 +21,7 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__Steam.hxx"
 
 namespace {
 
@@ -54,31 +55,15 @@ void SaveController::Start(int channel) {
  (this->*SaveDataController::publicMethods.Start)(channel);
 }
 
-// Request a fixed interface version so write, delete and exists have known
-// vtable positions, independent of the game's default storage version.
+// The adapter (sf4e__Steam.hxx) asks for a fixed interface version, so write,
+// delete and exists have known vtable positions, independent of the game's
+// default storage version.
 struct RemoteStorage {
 	bool FileWrite(const char* name, const void* data, std::int32_t size);
 	bool FileDelete(const char* name);
 	bool FileExists(const char* name);
 };
-struct SteamClient {
-	RemoteStorage* GetRemoteStorage(int user, int pipe, const char* version);
-};
-
-RemoteStorage* Storage() {
-	const HMODULE steam = GetModuleHandleW(L"steam_api.dll");
-	if (!steam) return nullptr;
-	using ClientAccessor = SteamClient* (*)();
-	using HandleAccessor = int (*)();
-	const auto clientAccessor = reinterpret_cast<ClientAccessor>(GetProcAddress(steam, "SteamClient"));
-	const auto user = reinterpret_cast<HandleAccessor>(GetProcAddress(steam, "SteamAPI_GetHSteamUser"));
-	const auto pipe = reinterpret_cast<HandleAccessor>(GetProcAddress(steam, "SteamAPI_GetHSteamPipe"));
-	SteamClient* const client = clientAccessor ? clientAccessor() : nullptr;
-	if (!client || !user || !pipe) return nullptr;
-	RemoteStorage* (SteamClient::* get)(int, int, const char*);
-	*reinterpret_cast<PVOID*>(&get) = (*reinterpret_cast<PVOID**>(client))[17];
-	return (client->*get)(user(), pipe(), "STEAMREMOTESTORAGE_INTERFACE_VERSION016");
-}
+RemoteStorage* Storage() { return static_cast<RemoteStorage*>(sf4e::steam::RemoteStorage()); }
 
 bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
 	RemoteStorage* const storage = Storage();
