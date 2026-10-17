@@ -99,6 +99,39 @@ static void TestHostPublishesAndBinds() {
 	CHECK(again && again->invitation == "sf4e3:renewed" && again->leaseId.empty());
 }
 
+// A casual game under way at the match's table holds the room's first
+// binding back, so the game does not offer it, and the room builds no
+// checkpoint for a binding it would refuse, until that game ends. It is
+// offered on the first tick after.
+static void TestACasualGameHoldsTheFirstBinding() {
+	TournamentPlay play;
+	play.Start("brg_x", "emt_x", 0);
+	play.Tick(0, {});
+	ClaimReply lease;
+	lease.role = ClaimReply::Role::Host;
+	lease.leaseId = "lse_1";
+	lease.fence = "1";
+	play.OnRoom(Kind::Claim, lease, 100);
+	play.Tick(200, {});
+	room::Snapshot snapshot;
+	play.Tick(400, Joined(RoomA, &snapshot));
+	play.OnRoom(Kind::Publish, Room(RoomA, MakeBinding(RoomA, 0)), 600);
+	auto& table = snapshot.tables[room::TournamentTable];
+	std::uint64_t now = 700;
+	for (const auto phase : {room::TablePhase::Ready, room::TablePhase::Playing, room::TablePhase::Paused}) {
+		table.phase = phase;
+		for (int tick = 0; tick < 4; ++tick, now += 700) CHECK(Count(play.Tick(now, Joined(RoomA, &snapshot)), Kind::Bind) == 0);
+	}
+	table.phase = room::TablePhase::Idle;
+	CHECK(Count(play.Tick(now, Joined(RoomA, &snapshot)), Kind::Bind) == 1);
+	// A newer binding for a room already bound is still offered mid-game: the
+	// room keeps the score played and only swaps the fighters' endpoints.
+	snapshot.tournament = MakeBinding(RoomA, 0).room;
+	table.phase = room::TablePhase::Playing;
+	play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0, 2)), now + 100);
+	CHECK(Count(play.Tick(now + 200, Joined(RoomA, &snapshot)), Kind::Bind) == 1);
+}
+
 // The second fighter waits, then joins the room the bridge names; it does not
 // bind the room while another game leads it.
 static void TestGuestJoins() {
@@ -436,6 +469,7 @@ static void TestReadyGoesWithTheClaim() {
 
 int main() {
 	TestHostPublishesAndBinds();
+	TestACasualGameHoldsTheFirstBinding();
 	TestGuestJoins();
 	TestLeaseMoved();
 	TestPermitsAndReports();
