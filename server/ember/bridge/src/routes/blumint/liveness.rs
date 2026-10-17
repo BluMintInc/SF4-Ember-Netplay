@@ -58,7 +58,8 @@ pub fn claim(
 
 /// The open matches a claim lapsed on since the last sweep, which is then
 /// recorded at `now`. Each lapse is swept once, so a pass reads only the
-/// claims that lapsed since the one before.
+/// claims that lapsed since the one before. With no match open there is
+/// nothing to sweep, and an idle bridge's pass writes nothing.
 pub fn sweep(tx: &Transaction<'_>, now: u64) -> Result<Vec<String>> {
     let swept_at: Option<u64> = tx.query_row(
         "SELECT swept_at FROM bridge_liveness WHERE id = 1",
@@ -77,7 +78,8 @@ pub fn sweep(tx: &Transaction<'_>, now: u64) -> Result<Vec<String>> {
         )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     tx.execute(
-        "UPDATE bridge_liveness SET swept_at = ?1 WHERE id = 1",
+        "UPDATE bridge_liveness SET swept_at = ?1 WHERE id = 1
+           AND EXISTS (SELECT 1 FROM matches WHERE state NOT IN ('completed', 'cancelled', 'failed', 'expired'))",
         [now],
     )?;
     Ok(ids)
@@ -85,18 +87,17 @@ pub fn sweep(tx: &Transaction<'_>, now: u64) -> Result<Vec<String>> {
 
 /// The latest time a stopped bridge is known to have been running: its last
 /// sweep, claim or observed status, never after `now`. `None` for a bridge
-/// that never swept, which has no claims.
+/// that has done none of these, which has no claims.
 pub fn last_alive(tx: &Transaction<'_>, now: u64) -> Result<Option<u64>> {
-    Ok(tx
-        .query_row(
-            "SELECT MIN(?1, MAX(swept_at,
-                 COALESCE((SELECT MAX(claimed_at) FROM match_claims), 0),
-                 COALESCE((SELECT MAX(observed_at) FROM blumint_status), 0)))
-             FROM bridge_liveness WHERE id = 1 AND swept_at IS NOT NULL",
-            [now],
-            |row| row.get(0),
-        )
-        .optional()?)
+    let last: u64 = tx.query_row(
+        "SELECT MIN(?1, MAX(COALESCE(swept_at, 0),
+             COALESCE((SELECT MAX(claimed_at) FROM match_claims), 0),
+             COALESCE((SELECT MAX(observed_at) FROM blumint_status), 0)))
+         FROM bridge_liveness WHERE id = 1",
+        [now],
+        |row| row.get(0),
+    )?;
+    Ok((last > 0).then_some(last))
 }
 
 /// Records that the bridge starts again at `now`, before it serves, having

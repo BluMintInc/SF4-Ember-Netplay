@@ -51,7 +51,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(tx
         .query_row(
             "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id, tournament_id, delivery_state, base_p1, base_p2
+                    lobby_id, tournament_id, delivery_state, starting_wins_p1, starting_wins_p2
              FROM matches WHERE id = ?1",
             [id],
             |row| {
@@ -132,7 +132,7 @@ pub fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<V
 /// starting wins plus its accepted games, and the accepted attempts.
 pub fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
     let mut wins: [u8; 2] = tx.query_row(
-        "SELECT base_p1, base_p2 FROM matches WHERE id = ?1",
+        "SELECT starting_wins_p1, starting_wins_p2 FROM matches WHERE id = ?1",
         [id],
         |row| Ok([row.get(0)?, row.get(1)?]),
     )?;

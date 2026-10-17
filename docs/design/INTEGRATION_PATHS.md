@@ -73,6 +73,7 @@ pub struct Policy {
     pub own_api_only: bool,        // kind blumint
     pub reviews_disputes: bool,    // disputes == "review"
     pub reports_progress: bool,    // kind blumint: told when a set starts and after each game
+    pub max_lifetime_secs: Option<u64>, // kind blumint: 24 hours, stored as matches.ends_by
 }
 ```
 

@@ -1,8 +1,8 @@
-//! How the bridge refuses a BluMint match creation or close: BluMint reads only a
-//! `code` at the top level of the body (plus `players` where the code names
-//! players) and files any other 400 or 409 as an answer it cannot read, which
-//! is final. So these routes answer in BluMint's registry format instead of
-//! the bridge's `{ "error": ... }` envelope. A refusal is an `Err`, so
+//! How the bridge refuses a BluMint match creation or close: BluMint reads
+//! only a `code` at the top level of the body (plus `players` where the code
+//! names players) and files any other 400 or 409 as an answer it cannot read,
+//! which is final. So these routes answer in BluMint's registry format
+//! instead of the bridge's `{ "error": ... }` envelope. A refusal is an `Err`, so
 //! `matches::idempotent` never stores it against the key.
 //!
 //! The bridge's own failures (a database it cannot reach, a credential it
@@ -17,6 +17,8 @@ use serde_json::json;
 
 use crate::error::ApiFailure;
 
+/// Why a creation or close was refused, as BluMint's registry names it, or
+/// the bridge's own failure.
 pub enum BluMintRefusal {
     /// The body is not the JSON BluMint documents, or breaks its rules.
     InvalidRequest,

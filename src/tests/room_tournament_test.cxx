@@ -655,14 +655,9 @@ static void TestNativeStartWindow() {
 	CHECK(!other.RestoreCheckpoint(forged));
 }
 
-// One game at the bound table, from both fighters' Ready to the result both
-// acknowledge.
-static void PlayBoundGame(RoomAuthority& authority, MemberId a, MemberId b, MatchResult result) {
-	ReadyBoth(authority);
-	CHECK(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
-	CHECK(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
-	const auto generation = authority.SnapshotView().tables[0].permitGeneration;
-	CHECK(authority.BeginMatch(0, a, b).accepted);
+// Ends the table's game `generation` with `result`, which every fighter
+// acknowledges.
+static void EndGame(RoomAuthority& authority, std::uint64_t generation, MatchResult result) {
 	CHECK(authority.EndMatch(0, generation, result).accepted);
 	for (const auto member : authority.TerminalMembers(0, generation)) {
 		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
@@ -671,12 +666,23 @@ static void PlayBoundGame(RoomAuthority& authority, MemberId a, MemberId b, Matc
 	}
 }
 
+// One game at the bound table, from both fighters' Ready to the result both
+// acknowledge.
+static void PlayBoundGame(RoomAuthority& authority, MemberId a, MemberId b, MatchResult result) {
+	ReadyBoth(authority);
+	CHECK(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
+	CHECK(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
+	const auto generation = authority.SnapshotView().tables[0].permitGeneration;
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	EndGame(authority, generation, result);
+}
+
 // A set its platform asked for again starts from the score it carries and is
 // won in that many fewer games. A newer binding for the same set, after a
 // fighter's endpoint changed, keeps the score the table has played to. The
 // snapshot names the starting score only when it is not 0-0, so a set from
 // the start keeps the bytes it always had.
-static void TestStartingWins() {
+static void TestASetStartsFromItsStartingWins() {
 	RoomAuthority authority("Match", 8, 1);
 	authority.AdvanceTime(1000);
 	const MemberId a = JoinAs(authority, "A", EndpointA, true);
@@ -736,13 +742,7 @@ static void TestLeavingKeepsThePlayedScore() {
 		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	ReadyBoth(authority);
 	CHECK(authority.BeginMatch(0, a, b).accepted);
-	const auto casual = authority.SnapshotView().tables[0].matchGeneration;
-	CHECK(authority.EndMatch(0, casual, MatchResult::P1Win).accepted);
-	for (const auto member : authority.TerminalMembers(0, casual)) {
-		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
-		acknowledgment.matchGeneration = casual;
-		CHECK(authority.Apply(member, acknowledgment).accepted);
-	}
+	EndGame(authority, authority.SnapshotView().tables[0].matchGeneration, MatchResult::P1Win);
 	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
 	CHECK(authority.BindTournament(Binding()).accepted);
 	CHECK(authority.SnapshotView().tables[0].score[0] == 0 && authority.SnapshotView().tables[0].score[1] == 0);
@@ -777,13 +777,7 @@ static void TestACasualGameDelaysTheFirstBinding() {
 	CHECK(authority.BeginMatch(0, a, b).accepted);
 	refused = authority.BindTournament(carried);
 	CHECK(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
-	const auto casual = authority.SnapshotView().tables[0].matchGeneration;
-	CHECK(authority.EndMatch(0, casual, MatchResult::P1Win).accepted);
-	for (const auto member : authority.TerminalMembers(0, casual)) {
-		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
-		acknowledgment.matchGeneration = casual;
-		CHECK(authority.Apply(member, acknowledgment).accepted);
-	}
+	EndGame(authority, authority.SnapshotView().tables[0].matchGeneration, MatchResult::P1Win);
 	CHECK(authority.BindTournament(carried).accepted);
 	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
 	CHECK(authority.SnapshotView().tables[0].lastSet.generation == 0);
@@ -853,7 +847,7 @@ int main() {
 	TestNativeStartWindow();
 	TestCasualRoomsNeedNoPermit();
 	TestPracticeRoomsTakeNoBinding();
-	TestStartingWins();
+	TestASetStartsFromItsStartingWins();
 	TestLeavingKeepsThePlayedScore();
 	TestACasualGameDelaysTheFirstBinding();
 	TestALockedMatchRoomAdmitsItsFighters();

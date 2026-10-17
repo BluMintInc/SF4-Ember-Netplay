@@ -284,7 +284,7 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, base_p1, base_p2, ends_by)
+            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, starting_wins_p1, starting_wins_p2, ends_by)
          VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15,
             ?16, ?17, ?18)",
         params![
