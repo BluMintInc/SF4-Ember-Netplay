@@ -3,6 +3,7 @@ pub mod discord;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
+pub mod idempotency;
 pub mod ledger;
 pub mod links;
 pub mod lobbies;
@@ -28,7 +29,7 @@ use axum::{
 };
 use rusqlite::params;
 
-use crate::{AppState, ctx::Ctx, linking, mock};
+use crate::{AppState, ctx::Ctx, delivery, linking, mock};
 
 /// Form bodies (mock pages only); JSON routes cap their own bodies.
 const FORM_LIMIT: usize = 16 * 1024;
@@ -76,10 +77,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/assignments", get(matches::assignments))
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))
-        .route(
-            blumint::STATUS_PATH,
-            get(blumint::status).post(blumint::status),
-        )
+        .route(blumint::CLOSE_PATH, post(blumint::close))
         .route(
             discord::START_PATH,
             post(discord::start).delete(discord::cancel),
@@ -165,8 +163,32 @@ async fn access_log(request: Request, next: Next) -> Response {
     response
 }
 
-/// Runs `maintenance_once` forever.
-pub async fn maintenance(state: AppState) {
+/// Ends the open BluMint matches an older bridge made, which BluMint cannot
+/// close (`blumint::end_unkeyed`), records that the bridge starts again
+/// (`delivery::status::resume`), says so on `resumed`, then runs
+/// `maintenance_once` forever.
+pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<()>) {
+    let ctx = Ctx::of(&state);
+    match state
+        .db
+        .write(move |tx| blumint::end_unkeyed(tx, &ctx))
+        .await
+    {
+        Ok(()) => state.committed(),
+        Err(error) => {
+            eprintln!("maintenance: could not end the unkeyed BluMint matches: {error:?}")
+        }
+    }
+    let now = state.now();
+    match state
+        .db
+        .write(move |tx| delivery::status::resume(tx, now))
+        .await
+    {
+        Ok(()) => state.committed(),
+        Err(error) => eprintln!("maintenance: could not record the restart: {error:?}"),
+    }
+    let _ = resumed.send(());
     loop {
         maintenance_once(&state).await;
         tokio::time::sleep(Duration::from_secs(MAINTENANCE_SECS)).await;
@@ -174,17 +196,22 @@ pub async fn maintenance(state: AppState) {
 }
 
 /// Expires link intents, holds games whose reports did not arrive, expires
-/// matches nobody played, and removes stale challenges, sessions and replay records. Durable domain
-/// records (links, matches, attempts, reports, events) stay.
+/// matches nobody played, observes the fighters whose claims lapsed, and
+/// removes stale challenges, sessions, replay records and refused BluMint
+/// keys. Durable domain records (links, matches, attempts, reports, events)
+/// stay, and with each BluMint match the key it was made under, its
+/// `external_match_id`.
 pub async fn maintenance_once(state: &AppState) {
-    let now = state.now();
-    let cutoff = now.saturating_sub(RETENTION_SECS);
+    // One clock read for the whole pass, so its steps agree on the time.
     let ctx = Ctx::of(state);
+    let now = ctx.now;
+    let cutoff = now.saturating_sub(RETENTION_SECS);
     let done = state
         .db
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
             expiry::expire_stale(tx, &ctx)?;
+            delivery::status::observe_lapsed(tx, now)?;
             linking::expire(tx, now)?;
             discord::expire(tx, now)?;
             tx.execute(
@@ -200,6 +227,7 @@ pub async fn maintenance_once(state: &AppState) {
                 "DELETE FROM idempotency_records WHERE created_at <= ?1",
                 params![cutoff],
             )?;
+            blumint::keys::forget(tx, cutoff)?;
             Ok(())
         })
         .await;

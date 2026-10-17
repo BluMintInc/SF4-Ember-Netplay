@@ -13,7 +13,7 @@ use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
     json,
-    matches::{Rules, games_to_win_valid},
+    matches::{Rules, games_to_win_valid, starts_at_zero},
     report::{GameReport, Outcome},
     sign::Domain,
 };
@@ -56,6 +56,9 @@ pub fn roster_digest(p1: &EmberId, p2: &EmberId) -> Result<String> {
     json::digest(&[p1, p2])
 }
 
+/// The capabilities feature of a bridge that reads a claim's `ready`.
+pub const CLAIM_READY_FEATURE: &str = "matches.claim_ready";
+
 /// `match.claim`: an assigned fighter offers this helper run's endpoint.
 /// Claiming again renews the claim and any provisioning lease it holds.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +67,11 @@ pub struct Claim {
     pub endpoint_id: String,
     pub helper_instance_id: String,
     pub build_id: String,
+    /// Whether the fighter has pressed Ready at the match's table. Sent only
+    /// to a bridge that lists `CLAIM_READY_FEATURE`, since an older one
+    /// refuses a field it does not know; a claim without it is not ready.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready: Option<bool>,
 }
 
 impl Claim {
@@ -167,12 +175,25 @@ pub struct Binding {
     /// By slot: P1, then P2.
     pub fighters: [BoundFighter; 2],
     pub issued_at: u64,
+    /// Games each slot has already won when the set starts, P1 first: a set
+    /// its platform asked for again after it was cut short carries on from
+    /// its score. Left out at 0-0, so such a binding is the bytes a helper
+    /// that predates the field accepts; that helper refuses one carrying it
+    /// as an unknown field rather than seat the set at 0-0.
+    #[serde(default, skip_serializing_if = "starts_at_zero")]
+    pub starting_wins: [u8; 2],
 }
 
 impl Binding {
     pub fn check(&self) -> Result<()> {
         let fields = [
             (self.version == VERSION, "version"),
+            (
+                self.starting_wins
+                    .iter()
+                    .all(|&wins| wins < self.games_to_win),
+                "starting_wins",
+            ),
             (is_prefixed_id(&self.bridge_id, "brg"), "bridge_id"),
             (is_prefixed_id(&self.match_id, "emt"), "match_id"),
             (
@@ -589,6 +610,7 @@ mod tests {
                 },
             ],
             issued_at: 100,
+            starting_wins: [0, 0],
         };
         assert!(binding.check().is_ok());
         assert_eq!(binding.slot_of(&"b".repeat(64)), Some(1));
@@ -598,6 +620,60 @@ mod tests {
         binding.fighters[1].endpoint_id = "b".repeat(64);
         binding.fighters.swap(0, 1);
         assert_eq!(binding.check(), Err(Error::Mismatch("roster_digest")));
+    }
+
+    // A set that starts at 0-0, a set asked for again after a reset among
+    // them, keeps the binding every released helper accepts, byte for byte.
+    // One that carries on from a score names it, under the same version.
+    #[test]
+    fn a_binding_names_its_starting_wins_only_when_the_set_does_not_start_at_zero() {
+        let (a, b) = (key(1), key(2));
+        let mut binding = Binding {
+            version: VERSION,
+            bridge_id: "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11".into(),
+            match_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12".into(),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(1),
+            room_id: "0123456789abcdef0123456789abcdef".into(),
+            build_id: "build".into(),
+            games_to_win: 2,
+            rules_digest: rules_digest(&rules()).unwrap(),
+            roster_digest: roster_digest(a.ember_id(), b.ember_id()).unwrap(),
+            fighters: [
+                BoundFighter {
+                    ember_id: a.ember_id().clone(),
+                    endpoint_id: "a".repeat(64),
+                },
+                BoundFighter {
+                    ember_id: b.ember_id().clone(),
+                    endpoint_id: "b".repeat(64),
+                },
+            ],
+            issued_at: 100,
+            starting_wins: [0, 0],
+        };
+        let at_zero = json::to_value(&binding).unwrap();
+        let mut released = serde_json::to_value(&binding).unwrap();
+        assert!(released.get("starting_wins").is_none(), "{released}");
+        assert_eq!(released["version"], 1);
+        // What a released bridge signs reads back as a set from 0-0, and
+        // signs the same bytes again.
+        released.as_object_mut().unwrap().remove("starting_wins");
+        let read: Binding = serde_json::from_value(released).unwrap();
+        assert_eq!(read.starting_wins, [0, 0]);
+        assert_eq!(json::to_value(&read).unwrap(), at_zero);
+        assert!(binding.check().is_ok());
+
+        binding.starting_wins = [1, 0];
+        assert!(binding.check().is_ok());
+        let carried = serde_json::to_value(&binding).unwrap();
+        assert_eq!(carried["starting_wins"], serde_json::json!([1, 0]));
+        assert_eq!(carried["version"], 1);
+        let signed = binding.sign(&key(9), "k1").unwrap();
+        assert_eq!(signed.verify(&key(9).public_key(), "k1").unwrap(), &binding);
+
+        binding.starting_wins = [0, 2];
+        assert_eq!(binding.check(), Err(Error::InvalidField("starting_wins")));
     }
 
     #[test]
@@ -631,6 +707,29 @@ mod tests {
             ..refresh
         };
         assert!(replacing.check().is_ok());
+    }
+
+    #[test]
+    fn a_claim_carries_ready_only_when_its_helper_sets_it() {
+        let older = serde_json::json!({
+            "endpoint_id": "a".repeat(64),
+            "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
+            "build_id": "build",
+        });
+        let claim: Claim = serde_json::from_value(older.clone()).unwrap();
+        assert_eq!(claim.ready, None);
+        // Unset, the claim is byte for byte what an older bridge reads.
+        assert_eq!(serde_json::to_value(&claim).unwrap(), older);
+        let ready = Claim {
+            ready: Some(true),
+            ..claim
+        };
+        let sent = serde_json::to_value(&ready).unwrap();
+        assert_eq!(sent["ready"], true);
+        assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), ready);
+        let mut unknown = older;
+        unknown["seat"] = 0.into();
+        assert!(serde_json::from_value::<Claim>(unknown).is_err());
     }
 
     /// Seeded mutation fuzzing of what a helper or the bridge reads from the
@@ -702,6 +801,7 @@ mod tests {
                     },
                 ],
                 issued_at: 100,
+                starting_wins: [0, 0],
             }
         }
 

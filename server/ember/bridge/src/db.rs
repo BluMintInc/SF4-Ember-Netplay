@@ -37,6 +37,19 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (17, include_str!("../migrations/017_creator_region.sql")),
     (18, include_str!("../migrations/018_room_own_delay.sql")),
+    (19, include_str!("../migrations/019_blumint_progress.sql")),
+    (
+        20,
+        include_str!("../migrations/020_match_starting_wins.sql"),
+    ),
+    (21, include_str!("../migrations/021_blumint_status.sql")),
+    (
+        22,
+        include_str!("../migrations/022_match_claim_refusals.sql"),
+    ),
+    (23, include_str!("../migrations/023_claim_liveness.sql")),
+    (24, include_str!("../migrations/024_blumint_keys.sql")),
+    (25, include_str!("../migrations/025_claim_ready.sql")),
 ];
 
 #[derive(Clone)]
@@ -260,6 +273,97 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(own_delay("old"), 0);
+    }
+
+    #[test]
+    fn blumint_matches_open_before_the_lifetime_cap_end_a_day_after_creation() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..17]).unwrap();
+        // A game at hour 20 moved each deadline to hour 44.
+        let late = 1000 + 44 * 3600;
+        connection
+            .execute_batch(&format!(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('bm', 't', 'blumint', 'staging', 'BluMint', 1), ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at, expires_at, expiry_secs)
+                   VALUES ('emt_open', 't', 'bm', 'open', '', 3, 1, 'between_games', 2, '{{}}', '', '{{}}', 'queued', 1000, 73000, {late}, 86400),
+                          ('emt_short', 't', 'bm', 'short', '', 1, 1, 'awaiting_players', 2, '{{}}', '', '{{}}', 'queued', 1000, 1000, 1000 + 3600, 3600),
+                          ('emt_done', 't', 'bm', 'done', '', 4, 1, 'completed', 2, '{{}}', '', '{{}}', 'queued', 1000, 73000, {late}, 86400),
+                          ('emt_direct', 't', 'c', 'direct', '', 3, 1, 'between_games', 2, '{{}}', '', '{{}}', 'not_required', 1000, 73000, {late}, 86400);"
+            ))
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let expires = |id: &str| -> (i64, i64, [i64; 2], Option<i64>) {
+            connection
+                .query_row(
+                    "SELECT expires_at, expiry_secs, starting_wins_p1, starting_wins_p2, ends_by FROM matches WHERE id = ?1",
+                    [id],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            [row.get(2)?, row.get(3)?],
+                            row.get(4)?,
+                        ))
+                    },
+                )
+                .unwrap()
+        };
+        let capped = Some(1000 + 86400);
+        assert_eq!(expires("emt_open"), (1000 + 86400, 86400, [0, 0], capped));
+        assert_eq!(expires("emt_short"), (1000 + 3600, 3600, [0, 0], capped));
+        assert_eq!(expires("emt_done"), (late, 86400, [0, 0], None));
+        assert_eq!(expires("emt_direct"), (late, 86400, [0, 0], None));
+    }
+
+    #[test]
+    fn blumint_matches_from_before_keys_were_kept_take_the_key_their_answer_names() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..23]).unwrap();
+        // emt_kept's answer is still stored; emt_gone's was removed after a
+        // day; emt_shut's was replaced when BluMint closed its key; another
+        // connection's answer names emt_other, which is not BluMint's.
+        connection
+            .execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('bm', 't', 'blumint', 'staging', 'BluMint', 1), ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at, expires_at, expiry_secs)
+                   VALUES ('emt_kept', 't', 'bm', 'kept', '', 1, 1, 'awaiting_players', 2, '{}', '', '{}', 'queued', 1000, 1000, 87400, 86400),
+                          ('emt_gone', 't', 'bm', 'gone', '', 1, 1, 'awaiting_players', 2, '{}', '', '{}', 'queued', 1000, 1000, 87400, 86400),
+                          ('emt_shut', 't', 'bm', 'shut', '', 1, 1, 'cancelled', 2, '{}', '', '{}', 'not_required', 1000, 1000, 87400, 86400),
+                          ('emt_other', 't', 'c', 'other', '', 1, 1, 'awaiting_players', 2, '{}', '', '{}', 'not_required', 1000, 1000, 87400, 86400);
+                 INSERT INTO idempotency_records (actor, method, path, idempotency_key, command_digest, status, response, created_at)
+                   VALUES ('connection:bm', 'POST', '/v1/blumint/matches', 'set-1', 'd', 200, CAST('{\"matchId\":\"emt_kept\",\"matchUrl\":\"u\"}' AS BLOB), 1000),
+                          ('connection:bm', 'POST', '/v1/blumint/matches', 'set-3', 'refused', 409, CAST('{\"code\":\"idempotency_conflict\"}' AS BLOB), 1000),
+                          ('cred_c', 'POST', '/v1/matches', 'direct-1', 'd', 200, CAST('{\"matchId\":\"emt_other\"}' AS BLOB), 1000);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let key = |id: &str| -> Option<String> {
+            connection
+                .query_row(
+                    "SELECT external_match_id FROM matches WHERE id = ?1",
+                    [id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert_eq!(key("emt_kept").as_deref(), Some("blumint:set-1"));
+        assert_eq!(key("emt_gone").as_deref(), Some("gone"));
+        assert_eq!(key("emt_shut").as_deref(), Some("shut"));
+        assert_eq!(key("emt_other").as_deref(), Some("other"));
     }
 
     #[test]

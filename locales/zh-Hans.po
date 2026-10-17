@@ -4119,7 +4119,7 @@ msgid "tournament.stopped_notice"
 msgstr "赛事对局已停止。{0}"
 
 msgid "tournament.failure.build"
-msgstr "此游戏的版本不是赛事要求的版本。"
+msgstr "你的 Ember 版本与对手不同。请更新 Ember，并请对手也更新。"
 
 msgid "tournament.failure.rules"
 msgstr "此对局的规则无法通过 Ember 进行。"

@@ -81,7 +81,7 @@ static json Value(Random& random, int depth = 0) {
 		static const std::vector<std::string> keys = {"role", "lease_id", "fence", "retry_after", "room_id", "invitation", "binding",
 			"state", "permit_id", "match_generation", "assignments", "match_id", "slot", "games_to_win", "wins", "opponent",
 			"fingerprint", "native_rules_profile", "provider", "round_label", "assignment_generation", "binding_revision",
-			"fighters", "endpoint_id", "ember_id", "local_slot", "op", "request_id", "ok", "reason", "data"};
+			"fighters", "endpoint_id", "ember_id", "local_slot", "starting_wins", "op", "request_id", "ok", "reason", "data"};
 		json object = json::object();
 		for (std::uint64_t i = random.Below(8); i; --i) object[random.Pick(keys)] = Value(random, depth + 1);
 		return object;
@@ -209,6 +209,25 @@ static void TestPrepareWindow() {
 		CHECK(!session::DecodePrepareReply(missing));
 		CHECK(!decode({{key, "1000"}}) && !decode({{key, -5}}));
 	}
+}
+
+// A binding from a helper that predates starting wins starts at 0-0. One that
+// names them takes both, each short of the set.
+static void TestStartingWins() {
+	const auto decode = [](const json& wins) {
+		json room = GoodRoom();
+		// Parsed JSON gives counts unsigned, as the decoder requires.
+		room["binding"]["games_to_win"] = 2u;
+		room["binding"]["local_slot"] = 0u;
+		if (!wins.is_null()) room["binding"]["starting_wins"] = wins;
+		return session::DecodeClaimReply(room);
+	};
+	const auto plain = decode(nullptr);
+	CHECK(plain && plain->binding && plain->binding->room.startingWins == (std::array<std::uint8_t, 2>{0, 0}));
+	const auto carried = decode(json::array({1u, 0u}));
+	CHECK(carried && carried->binding && carried->binding->room.startingWins == (std::array<std::uint8_t, 2>{1, 0}));
+	for (const auto& refused : {json::array({2u, 0u}), json::array({0u, 300u}), json::array({1u}), json::array({-1, 0u}), json(1u)})
+		CHECK(!decode(refused));
 }
 
 static void TestAssignmentTimes() {
@@ -623,6 +642,7 @@ int main() {
 	TestRoomListDetails();
 	TestAssignmentTimes();
 	TestPrepareWindow();
+	TestStartingWins();
 	FuzzAnswers(random);
 	FuzzLinks(random);
 	FuzzRoomLinks(random);

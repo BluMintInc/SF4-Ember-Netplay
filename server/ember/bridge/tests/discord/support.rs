@@ -118,6 +118,33 @@ pub async fn bridge_with_discord() -> Bridge {
 
 /// A bridge configured for Discord and BluMint, with these secrets.
 pub async fn bridge_with_discord_secret(secrets: Secrets) -> Bridge {
+    bridge_with_discord_sites(secrets, Vec::new()).await
+}
+
+/// A site that finds players by Discord account and hands a disputed match
+/// to its organizer, as a connection's disputes are by default.
+pub fn reviewing_site(name: &str) -> config::Tenant {
+    config::Tenant {
+        id: "cup".into(),
+        name: name.into(),
+        connections: vec![config::Connection {
+            id: "cup-site".into(),
+            kind: "direct".into(),
+            environment: "staging".into(),
+            display_name: format!("{name} (test)"),
+            enabled: true,
+            api_base: None,
+            discord_lookup: true,
+            disputes: None,
+            results_url: None,
+            rooms: None,
+        }],
+    }
+}
+
+/// A bridge configured for Discord and BluMint, with these secrets, and
+/// these other tenants.
+pub async fn bridge_with_discord_sites(secrets: Secrets, others: Vec<config::Tenant>) -> Bridge {
     let api_base = fake_discord().await;
     Bridge::start_with(
         |config| {
@@ -142,6 +169,7 @@ pub async fn bridge_with_discord_secret(secrets: Secrets) -> Bridge {
                     rooms: None,
                 }],
             });
+            config.tenants.extend(others);
         },
         secrets,
     )
@@ -281,6 +309,24 @@ pub async fn lookup(bridge: &Bridge, provider: &str, users: &[&str]) -> Json {
         .await;
     assert_eq!(status, StatusCode::OK, "{found}");
     found
+}
+
+/// BluMint's request for a first to 2 between these two Ember IDs.
+pub async fn blumint_match(
+    bridge: &Bridge,
+    provider: &str,
+    one: &str,
+    two: &str,
+) -> (StatusCode, Json) {
+    let team = |id: &str| json!({ "players": [ { "identities": [ { "inGameId": id } ] } ] });
+    bridge
+        .post_keyed(
+            provider,
+            "/v1/blumint/matches",
+            json!({ "teams": [team(one), team(two)], "spectators": [], "matchSettings": {}, "series": { "gamesToWin": 2 } }),
+            Some(&format!("{one}-{two}")),
+        )
+        .await
 }
 
 /// The active links on BluMint's connection: Ember ID and the claim that

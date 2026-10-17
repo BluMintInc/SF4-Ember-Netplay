@@ -4119,7 +4119,7 @@ msgid "tournament.stopped_notice"
 msgstr "대회 경기가 중지되었습니다. {0}"
 
 msgid "tournament.failure.build"
-msgstr "이 게임의 버전은 대회가 요구하는 버전이 아닙니다."
+msgstr "Ember 버전이 상대와 다릅니다. Ember를 업데이트하고 상대에게도 업데이트를 요청하세요."
 
 msgid "tournament.failure.rules"
 msgstr "이 경기의 규칙은 Ember로 플레이할 수 없습니다."

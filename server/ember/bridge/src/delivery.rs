@@ -5,10 +5,14 @@
 //! overwrites the one that replaced it. Retries follow one schedule with
 //! jitter until a day has passed since the first attempt.
 //!
-//! Two queues use it: signed webhooks from the outbox (`webhooks`), and
-//! match results sent to the platform that created the match
-//! (`results`).
+//! Four queues use it: signed webhooks from the outbox (`webhooks`), match
+//! results sent to the platform that created the match (`results`), and,
+//! for a platform that hears how a set stands while it is played
+//! (`Policy::reports_progress`, BluMint), the set's score (`progress`) and
+//! the match's status (`status`).
+pub mod progress;
 pub mod results;
+pub mod status;
 pub mod webhooks;
 
 use std::{future::Future, sync::Arc, time::Duration};
@@ -114,7 +118,13 @@ pub async fn pass<Q: Queue>(state: &AppState, queue: &Arc<Q>) -> bool {
         .db
         .write(move |tx| leasing.lease(tx, now, now + LEASE_SECS))
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|error| {
+            eprintln!(
+                "delivery: {} could not lease: {error:?}",
+                std::any::type_name::<Q>()
+            );
+            Vec::new()
+        });
     let busy = !due.is_empty();
     futures_util::stream::iter(due)
         .for_each_concurrent(CONCURRENCY, |leased| async move {

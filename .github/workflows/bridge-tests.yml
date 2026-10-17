@@ -1,0 +1,107 @@
+name: Bridge and room tests
+on:
+  push:
+    branches: [release]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+# A newer push to the same pull request or branch makes a run still going
+# pointless, so it is cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Incremental state and full debug info only grow the cache in CI.
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    steps:
+      - name: Check out exact public commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            server/ember/target
+            rust/sf4-net/target
+          # A new toolchain rebuilds everything, so only a lock change reuses
+          # an older cache.
+          key: ${{ runner.os }}-cargo-${{ hashFiles('server/ember/rust-toolchain.toml', 'rust/sf4-net/rust-toolchain.toml') }}-${{ hashFiles('server/ember/Cargo.lock', 'rust/sf4-net/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('server/ember/rust-toolchain.toml', 'rust/sf4-net/rust-toolchain.toml') }}-
+      - name: Install the pinned Rust toolchain
+        working-directory: server/ember
+        run: rustup toolchain install
+      - name: Check bridge formatting
+        working-directory: server/ember
+        run: cargo fmt --all -- --check
+      - name: Lint the bridge workspace
+        working-directory: server/ember
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Run the bridge workspace tests
+        working-directory: server/ember
+        run: cargo test --locked
+      # The SDK asks for Node 22.18 or later, newer than some runner images.
+      - name: Install Node for the SDK tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # The same gate as the BridgeSdk ctest (cmake/RunSdkTests.cmake): the
+      # SDK suite against the bridge this commit builds.
+      - name: Run the SDK tests against the bridge
+        working-directory: sdk/typescript
+        run: |
+          set -euo pipefail
+          # From server/ember, so rustup picks its pinned toolchain.
+          (cd ../../server/ember && cargo build --locked -p ember-bridge)
+          npm ci --ignore-scripts
+          npm run build
+          EMBER_BRIDGE_TEST_BINARY="$GITHUB_WORKSPACE/server/ember/target/debug/ember-bridge" npm test
+      - name: Run the helper's tournament tests
+        working-directory: rust/sf4-net
+        run: cargo test --locked --lib tournament
+  room:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out exact public commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Install nlohmann-json
+        # The runner's package lists usually have it; refresh them only if not.
+        run: sudo apt-get install -y nlohmann-json3-dev || { sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev; }
+      - name: Build and run the room and tournament suites
+        run: |
+          set -euo pipefail
+          RM="src/session/RoomModel.cxx src/session/RoomModelActions.cxx src/session/RoomModelJson.cxx src/session/RoomModelTournament.cxx src/session/RoomModelServerOwned.cxx src/session/RoomDigest.cxx"
+          mkdir -p build/room
+          g++ -std=c++17 -O1 -pthread -o build/room/room_tournament_test src/tests/room_tournament_test.cxx $RM &
+          room=$!
+          g++ -std=c++17 -O1 -pthread -o build/room/tournament_fuzz_test src/tests/tournament_fuzz_test.cxx src/session/TournamentAnswers.cxx src/netplay/TournamentPlay.cxx $RM &
+          fuzz=$!
+          g++ -std=c++17 -O1 -pthread -o build/room/tournament_play_test src/tests/tournament_play_test.cxx src/netplay/TournamentPlay.cxx $RM &
+          play=$!
+          wait "$room"
+          wait "$fuzz"
+          wait "$play"
+          build/room/room_tournament_test
+          build/room/tournament_fuzz_test
+          build/room/tournament_play_test

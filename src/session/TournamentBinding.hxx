@@ -47,10 +47,15 @@ struct TournamentBinding {
 	std::uint8_t gamesToWin = 0;
 	// By slot: P1, then P2.
 	std::array<TournamentFighter, 2> fighters;
+	// Games each slot had already won when the set started, P1 first: a set
+	// its platform asked for again after its match was cut short carries on
+	// from that score. Each is below gamesToWin.
+	std::array<std::uint8_t, 2> startingWins{};
 
 	bool Active() const { return !matchId.empty(); }
-	// Well formed: a match, two distinct 64-hex endpoints and Ember IDs, and a
-	// set of first to 1 through room::MaxSetLength.
+	// Well formed: a match, two distinct 64-hex endpoints and Ember IDs, a
+	// set of first to 1 through room::MaxSetLength, and starting wins short
+	// of it.
 	bool Valid() const;
 	// The slot `endpoint` holds, or -1.
 	int SlotOf(const std::string& endpoint) const;

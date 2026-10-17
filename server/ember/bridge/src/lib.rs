@@ -29,6 +29,7 @@ use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
 
 pub use config::Config;
 pub use db::Db;
+pub use routes::blumint::liveness::LEASE_SECS as PRESENCE_LEASE_SECS;
 pub use secrets::Keys;
 pub use util::Clock;
 
@@ -105,7 +106,11 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     install_crypto_provider();
     let address = listener.local_addr()?;
     let app = routes::router(state.clone());
+    let (resumed, serving) = tokio::sync::oneshot::channel();
     let server = tokio::spawn(async move {
+        // No claim is read before the restart is recorded, or the time the
+        // bridge was down would count against it.
+        let _ = serving.await;
         let _ = axum::serve(
             listener,
             app.into_make_service_with_connect_info::<SocketAddr>(),
@@ -114,10 +119,18 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     });
     let mut workers = vec![
         tokio::spawn(delivery::run(state.clone(), delivery::webhooks::Webhooks)),
-        tokio::spawn(routes::maintenance(state.clone())),
+        tokio::spawn(routes::maintenance(state.clone(), resumed)),
         tokio::spawn(delivery::run(
             state.clone(),
             delivery::results::Results::new(&state),
+        )),
+        tokio::spawn(delivery::run(
+            state.clone(),
+            delivery::progress::Progress::new(&state),
+        )),
+        tokio::spawn(delivery::run(
+            state.clone(),
+            delivery::status::Status::new(&state),
         )),
     ];
     if routes::rooms::enabled(&state) {
@@ -145,10 +158,13 @@ pub async fn poll_rooms(state: &AppState) {
     routes::rooms::poll(state).await;
 }
 
-/// One pass of sending finished matches' results to their platforms; tests
-/// call it.
+/// One pass of sending finished matches' results to their platforms, and
+/// the reports on sets in play and on matches' status to the platforms that
+/// hear them; tests call it.
 pub async fn deliver_results(state: &AppState) {
     delivery::pass(state, &Arc::new(delivery::results::Results::new(state))).await;
+    delivery::pass(state, &Arc::new(delivery::progress::Progress::new(state))).await;
+    delivery::pass(state, &Arc::new(delivery::status::Status::new(state))).await;
 }
 
 /// Tells BluMint where the connection's endpoints are (`routes::blumint`).
@@ -215,6 +231,20 @@ pub async fn issue_credential(
     tenant: Option<&str>,
     label: &str,
 ) -> Result<String, error::ApiFailure> {
+    Ok(
+        issue_identified_credential(state, connection, tenant, label)
+            .await?
+            .1,
+    )
+}
+
+/// `issue_credential`, returning the credential's id with its token.
+pub(crate) async fn issue_identified_credential(
+    state: &AppState,
+    connection: Option<&str>,
+    tenant: Option<&str>,
+    label: &str,
+) -> Result<(String, String), error::ApiFailure> {
     let (tenant_id, connection_id, role) = match (connection, tenant) {
         (Some(connection), None) => {
             let (tenant, _) = state
@@ -314,26 +344,37 @@ pub async fn revoke_credential(state: &AppState, id: &str) -> Result<bool, error
                 None => Err(error::ApiFailure::invalid("unknown credential")),
                 Some(Some(_)) => Ok(false),
                 Some(None) => {
-                    tx.execute(
-                        "UPDATE service_credentials SET revoked_at = ?1 WHERE id = ?2",
-                        rusqlite::params![now, id],
-                    )?;
-                    tx.execute(
-                        "UPDATE delivery_outbox SET state = 'cancelled' WHERE state = 'pending'
-                           AND subscription_id IN (SELECT id FROM webhook_subscriptions WHERE owner_credential = ?1)",
-                        [&id],
-                    )?;
-                    tx.execute(
-                        "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = COALESCE(disabled_at, ?1),
-                            secret_sealed = x'', previous_secret_sealed = NULL, previous_expires_at = NULL
-                         WHERE owner_credential = ?2",
-                        rusqlite::params![now, id],
-                    )?;
+                    revoke_in(tx, &id, now)?;
                     Ok(true)
                 }
             }
         })
         .await
+}
+
+/// Revokes the unrevoked credential `id` inside `tx`, as `revoke_credential`
+/// describes.
+pub(crate) fn revoke_in(
+    tx: &rusqlite::Transaction<'_>,
+    id: &str,
+    now: u64,
+) -> Result<(), error::ApiFailure> {
+    tx.execute(
+        "UPDATE service_credentials SET revoked_at = ?1 WHERE id = ?2",
+        rusqlite::params![now, id],
+    )?;
+    tx.execute(
+        "UPDATE delivery_outbox SET state = 'cancelled' WHERE state = 'pending'
+           AND subscription_id IN (SELECT id FROM webhook_subscriptions WHERE owner_credential = ?1)",
+        [id],
+    )?;
+    tx.execute(
+        "UPDATE webhook_subscriptions SET enabled = 0, disabled_at = COALESCE(disabled_at, ?1),
+            secret_sealed = x'', previous_secret_sealed = NULL, previous_expires_at = NULL
+         WHERE owner_credential = ?2",
+        rusqlite::params![now, id],
+    )?;
+    Ok(())
 }
 
 /// rustls uses ring, the provider iroh already ships, rather than aws-lc.

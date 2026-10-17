@@ -409,7 +409,10 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	if (snapshot_.serverOwned) host = false;
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
 	if (snapshot_.members.size() >= snapshot_.capacity) return Reject(RejectReason::RoomFull);
-	if (snapshot_.locked && !host) return Reject(RejectReason::AdmissionLocked);
+	// A bound fighter comes back to the set whatever the lock: a bound room
+	// admits nobody else anyway.
+	const bool boundFighter = snapshot_.tournament.Active() && snapshot_.tournament.SlotOf(connection.user) >= 0;
+	if (snapshot_.locked && !host && !boundFighter) return Reject(RejectReason::AdmissionLocked);
 	if (snapshot_.host == 0 && !host && !snapshot_.serverOwned) return Reject(RejectReason::Unauthorized);
 	if (name.empty() || name.size() > 32 || !IsValidUtf8(name) || !IsSingleLineText(name)) return Reject(RejectReason::NameTaken);
 	if (kicked_.count(connection)) return Reject(RejectReason::MemberKicked);
@@ -607,7 +610,9 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			table.resultPending = false;
 			resultReporter_[table.id] = 0;
 			resultPendingSince_[table.id] = 0;
-			table.score[0] = table.score[1] = 0;
+			// A bound table plays one set, so a fighter who drops rejoins at the
+			// score it has played to. Only a casual table starts over.
+			if (!BoundTable(table)) table.score[0] = table.score[1] = 0;
 			if (live) CloseLiveGeneration(table);
 			KeepStreak(table);
 			// A departed seat always leaves a vacancy. Clear the transient phase

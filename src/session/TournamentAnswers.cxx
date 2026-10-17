@@ -164,6 +164,16 @@ Binding DecodeBinding(const json& view) {
 		binding.room.fighters[slot].endpoint = Text(fighters.at(slot), "endpoint_id", 64);
 		binding.room.fighters[slot].emberId = Text(fighters.at(slot), "ember_id", 64);
 	}
+	// A helper that predates starting wins sends none: the set starts at 0-0.
+	if (const auto found = view.find("starting_wins"); found != view.end()) {
+		if (!found->is_array() || found->size() != 2) throw std::invalid_argument("starting_wins");
+		for (std::size_t slot = 0; slot < 2; ++slot) {
+			const auto& wins = found->at(slot);
+			if (!wins.is_number_unsigned() || wins.get<std::uint64_t>() >= binding.room.gamesToWin)
+				throw std::invalid_argument("starting_wins");
+			binding.room.startingWins[slot] = static_cast<std::uint8_t>(wins.get<std::uint64_t>());
+		}
+	}
 	const auto& slot = view.at("local_slot");
 	if (!slot.is_number_unsigned() || slot.get<std::uint64_t>() > 1) throw std::invalid_argument("local_slot");
 	binding.localSlot = static_cast<int>(slot.get<std::uint64_t>());

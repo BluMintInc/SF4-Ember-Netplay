@@ -309,6 +309,7 @@ fn advance(
             required_build_id: &lobby.required_build_id,
             metadata: &metadata,
             participants: [&roster[0], &roster[1]],
+            starting_wins: [0, 0],
             lobby_id: Some(&lobby.id),
             tournament_id: None,
         },

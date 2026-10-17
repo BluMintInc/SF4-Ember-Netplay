@@ -3,7 +3,9 @@
 //! browser. All keys and seeds here are throwaway test values.
 #![allow(dead_code)]
 
+pub mod blumint;
 pub mod league;
+pub mod play;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;
@@ -126,17 +128,27 @@ impl Bridge {
 
     /// Stops the service and starts a new one over the same database, secrets
     /// file and configuration, on a new port, as a process restart would. The
-    /// per-process state starts empty; sessions and rooms are as stored.
+    /// per-process state starts empty; sessions and rooms are as stored. The
+    /// bridge's origin is the new port's, so proofs made after it hold. It
+    /// returns once the new one serves, so it has recorded its restart.
     pub async fn restart(&mut self, integrations: ember_bridge::integrations::Secrets) {
         let running = self.running.take().unwrap();
-        let config = (*running.state.config).clone();
+        let mut config = (*running.state.config).clone();
         running.abort();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         self.origin = format!("http://{}", listener.local_addr().unwrap());
+        config.origin = self.origin.clone();
         let keys = Keys::load(&config.secrets).unwrap();
         let db = Db::open(&config.database).unwrap();
         let state = AppState::new(config, keys, integrations, db, self.clock.clone());
         self.running = Some(ember_bridge::start(state, listener).unwrap());
+        let served = self
+            .client
+            .get(self.url("/.well-known/ember-bridge.json"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(served.status(), StatusCode::OK);
     }
 
     pub fn state(&self) -> &AppState {

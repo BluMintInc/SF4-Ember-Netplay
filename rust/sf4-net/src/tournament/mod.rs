@@ -120,6 +120,9 @@ pub enum Request {
         bridge_id: String,
         match_id: String,
         build: String,
+        /// The fighter has pressed Ready at the match's table.
+        #[serde(default)]
+        ready: bool,
     },
     RoomPublish {
         bridge_id: String,
@@ -655,7 +658,8 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             bridge_id,
             match_id,
             build,
-        } => play::claim_match(shared, &bridge_id, &match_id, &build).await,
+            ready,
+        } => play::claim_match(shared, &bridge_id, &match_id, &build, ready).await,
         Request::RoomPublish {
             bridge_id,
             match_id,

@@ -200,11 +200,20 @@ static void TestOnlyTheConnectLinkIsAccepted() {
 	CHECK(ParseConnectPasted(page) == bridge && ParseConnectPasted(" \"" + page + "/\" ") == bridge);
 	CHECK(ParseConnectPasted("HTTPS://EmberNetplay.link/START#" + bridge) == bridge);
 	CHECK(ParseConnectPasted("\"" + link + "\"") == bridge);
+	// The site's name a site sends after the bridge ID is read past, escaped
+	// as a browser or mail client copies it.
+	const std::string named[] = {
+		page + "/BluMint", " \"" + page + "/BluMint/\" ", page + "/x", page + "/Start.gg%20EU",
+		page + "/BluMint%20(staging)", page + "/%E3%83%96%E3%83%AB",
+	};
+	for (const auto& text : named) CHECK(ParseConnectPasted(text) == bridge);
 	const std::string refusedPages[] = {
 		"", "hello", bridge, "https://embernetplay.link/start", "https://embernetplay.link/start#",
 		"https://embernetplay.link/start#" + std::string(Match), "https://embernetplay.link/m#" + bridge,
-		"https://example.com/start#" + bridge, "http://embernetplay.link/start#" + bridge, page + "/x", page + " x",
-		"https://embernetplay.link/start#" + bridge.substr(0, 39),
+		"https://example.com/start#" + bridge, "http://embernetplay.link/start#" + bridge, page + " x",
+		page + "?x=1", page + "//", page + "/a/b", page + "/Blu Mint", page + "/x\n",
+		"https://embernetplay.link/start#" + bridge.substr(0, 39) + "/BluMint",
+		"https://embernetplay.link/start#" + bridge.substr(0, 39), page + "/" + std::string(256, 'A'),
 	};
 	for (const auto& text : refusedPages) CHECK(ParseConnectPasted(text).empty());
 	CHECK(!ParsePasted(page).Valid());

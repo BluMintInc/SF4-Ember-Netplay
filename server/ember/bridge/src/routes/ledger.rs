@@ -14,6 +14,7 @@ use serde_json::json;
 
 use crate::{
     ctx::Ctx,
+    delivery::{progress, status},
     error::{ApiFailure, Result},
     events::{NewEvent, emit},
     routes::{expiry, lobbies},
@@ -42,13 +43,15 @@ pub struct Match {
     pub tournament_id: Option<String>,
     /// Whether, and how far, its result has been sent to its platform.
     pub delivery: DeliveryState,
+    /// Games each slot had won when the match started, P1 first.
+    pub starting_wins: [u8; 2],
 }
 
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(tx
         .query_row(
             "SELECT id, tenant_id, connection_id, external_match_id, revision, assignment_generation, state, games_to_win,
-                    lobby_id, tournament_id, delivery_state
+                    lobby_id, tournament_id, delivery_state, starting_wins_p1, starting_wins_p2
              FROM matches WHERE id = ?1",
             [id],
             |row| {
@@ -64,6 +67,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
                     row.get::<_, Option<String>>(8)?,
                     row.get::<_, Option<String>>(9)?,
                     row.get::<_, String>(10)?,
+                    [row.get::<_, u8>(11)?, row.get::<_, u8>(12)?],
                 ))
             },
         )
@@ -80,6 +84,7 @@ pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
             lobby_id: row.8,
             tournament_id: row.9,
             delivery: DeliveryState::parse(&row.10).unwrap_or(DeliveryState::Ambiguous),
+            starting_wins: row.11,
         }))
 }
 
@@ -123,9 +128,14 @@ pub fn participants(tx: &Transaction<'_>, id: &str, generation: u64) -> Result<V
     .collect()
 }
 
-/// Accepted wins per slot, from the ledger rather than any room score.
+/// Wins per slot, from the ledger rather than any room score: the match's
+/// starting wins plus its accepted games, and the accepted attempts.
 pub fn scores(tx: &Transaction<'_>, id: &str) -> Result<([u8; 2], Vec<String>)> {
-    let mut wins = [0u8; 2];
+    let mut wins: [u8; 2] = tx.query_row(
+        "SELECT starting_wins_p1, starting_wins_p2 FROM matches WHERE id = ?1",
+        [id],
+        |row| Ok([row.get(0)?, row.get(1)?]),
+    )?;
     let mut accepted = Vec::new();
     let rows = tx
         .prepare("SELECT id, outcome FROM attempts WHERE match_id = ?1 AND state = 'accepted' ORDER BY seq")?
@@ -150,6 +160,9 @@ pub fn stale(current: u64) -> ApiFailure {
     .detail("current_revision", current.to_string())
 }
 
+/// Moves the match to `state` under its next revision. A game starting or
+/// ending moves it, so its platform's status of it is observed again
+/// (`delivery::status`).
 pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) -> Result<u64> {
     let revision = found.revision + 1;
     let changed = tx.execute(
@@ -159,7 +172,29 @@ pub fn bump(tx: &Transaction<'_>, found: &Match, state: MatchState, now: u64) ->
     if changed != 1 {
         return Err(stale(found.revision));
     }
+    // A claim's `ready` is otherwise left as the fighter last said
+    // (`unready_before`). Each Ember claims a change of its own seat's Ready
+    // within seconds.
+    status::observe(tx, &found.id, now)?;
     Ok(revision)
+}
+
+/// Takes back the Ready of every claim on the match from no later than the
+/// first report of `attempt_id`, a game just decided. The room clears both
+/// seats when it ends a decided game, before either fighter reports it, so
+/// such a Ready is from before the game ended, and the Ember's own claim
+/// saying so may still be on its way. A later claim stays as it is: a fighter
+/// may press Ready for the next game before this one is decided. A called-off
+/// game does not come here, since the room then leaves Ready to the fighter
+/// who did not take it back.
+pub fn unready_before(tx: &Transaction<'_>, match_id: &str, attempt_id: &str) -> Result<()> {
+    tx.execute(
+        "UPDATE match_claims SET ready = 0
+         WHERE match_id = ?1 AND ready = 1
+           AND claimed_at <= (SELECT MIN(received_at) FROM game_reports WHERE attempt_id = ?2)",
+        params![match_id, attempt_id],
+    )?;
+    Ok(())
 }
 
 pub fn match_event(
@@ -296,9 +331,11 @@ pub fn settle(
             }
         }
     }
+    progress::keep_reported_wins(tx, found, wins_before, wins)?;
     let revision = bump(tx, found, next, ctx.now)?;
-    // A decided game is activity: the match gets a whole lifetime from now.
+    // A decided game is activity, which moves the match's deadline.
     expiry::extend(tx, ctx.now, &found.id)?;
+    progress::game_settled(tx, found, wins_before, wins, next, accepted.len() as u64)?;
     // The reopened match now holds its players; the ones a bracket
     // correction released from later sets can be picked up elsewhere.
     if !freed.is_empty() {
@@ -366,6 +403,7 @@ pub fn settle(
                 Cause::Players { report_ids } => report_ids.clone(),
             },
             provider_delivery_state: found.delivery,
+            starting_wins: found.starting_wins,
         };
         completed.check().map_err(|_| ApiFailure::unavailable())?;
         match_event(

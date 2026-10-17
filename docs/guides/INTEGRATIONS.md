@@ -126,7 +126,9 @@ A match does not wait forever. Its `created_at` and `expires_at` (unix
 seconds) are on `GET /v1/matches/{id}` and in the players' assignments, and
 `expires_at` is the match's current deadline: `match_expiry_hours` after
 creation, a day unless the operator changed it, and again that long after each
-game that starts or is decided. A provider cannot choose it per match yet.
+game that starts or is decided. On a BluMint connection games move it the
+same way, but never past 24 hours after the match's creation, whatever
+`match_expiry_hours` says. A provider cannot choose it per match yet.
 
 Once `expires_at` has passed, the bridge's maintenance pass (every ten
 seconds) moves the match to the terminal state `expired`, frees its players,
@@ -144,9 +146,13 @@ A match is only expired when nothing is happening in it:
   started, or settled by agreeing reports, an organizer's result, a voided game
   or a correction), so `expires_at` moves to a full lifetime after each of those
   and a set being played is never cut off, even when an organizer decides a
-  held game after the old deadline;
+  held game after the old deadline (on a BluMint connection, see above, never
+  past a day after creation);
 - a match waiting for an organizer in `needs_review` never expires, since a
   person owns it;
+- a BluMint match expires 24 hours after its creation whatever is happening
+  in it, and a game still open then is called off, since BluMint counts its
+  players free from then;
 - lobby and tournament sets never expire (their `expires_at` is null); they
   end with their lobby or bracket.
 
@@ -157,9 +163,8 @@ and their last update, so old stale ones expired the first time the bridge ran
 its maintenance.
 
 A platform with a `results_url` is sent the result with outcome `expired`
-(no winner; scores are what was recorded), never `restart`. BluMint is sent
-nothing for an expired match, because its result format has only a score or a
-restart; its status call answers `cancelled`.
+(no winner; scores are what was recorded), never `restart`. BluMint is sent an
+abort it must not retry (`retryable: false`), so its host takes the match.
 
 ## Matches played in Ember
 
@@ -223,10 +228,20 @@ offered by the page `https://embernetplay.link/start#<bridge_id>`, opens
 Ember's Connect Discord screen for that bridge. At an idle menu it creates the
 Ember ID if needed, trusts Ember's own bridge unless the player removed it,
 and opens Discord's page by itself; a link that arrives during play asks
-first.
+first. A platform may add its own name after the bridge ID
+(`/start#<bridge_id>/<name>`, such as `/BluMint`), which the page shows the
+player as the site that finds them. The page shows a name of 1 to 40
+letters, digits, spaces and `.`, `'`, `&` or `-`, starting with a letter or
+digit (percent-encoded in the link, as `%20` for a space); it drops any
+other name without saying so and speaks of "the tournament you signed up
+for" instead. It keeps only the bridge ID in its address and in the link it
+copies. The bridge's Discord pages name the sites that find players by
+Discord account by their tenants' `name`.
 Where the browser cannot open Ember, the player pastes the page's link into
-Connect Discord (Paste link) instead. The link names a bridge only; Ember
-never trusts one by itself. The sign-in:
+Connect Discord (Paste link) instead. Ember reads the link with or without
+the name, though an Ember from before it read the name takes only the link
+without it, as the page's Copy link gives it. The link names a bridge only;
+Ember never trusts one by itself. The sign-in:
 
 1. Ember's helper calls `POST /v1/discord/start` with a `discord.connect`
    proof and opens the returned Discord page in the browser.
@@ -236,11 +251,17 @@ never trusts one by itself. The sign-in:
    minutes. Starting a sign-in ends the Ember ID's earlier ones, and
    `DELETE /v1/discord/start` (a `discord.cancel` proof, sent by Cancel in
    Ember) ends the one in flight, so a page left open connects nothing.
+   Ember does not send a cancel that failed again, so until such a sign-in
+   lapses, its page can still finish it.
 3. If that Discord account is connected to another Ember ID, nothing moves
    yet: the page names both Ember IDs, says that the tournament links the
-   account made for the other one end, and asks. The player's answer
-   (`POST /v1/discord/callback`, carrying the sign-in's state) moves it or
-   keeps it where it is.
+   account made for the other one end, along with the matches they hold, and
+   asks. If the Ember ID being connected already has another Discord
+   account, the page names it and says it is disconnected and its links end
+   too. The player's answer (`POST /v1/discord/callback`) carries a secret
+   made for that question and shown only on that page, never the sign-in's
+   state, which the Ember that started the sign-in also holds. It moves the
+   account or keeps it where it is.
 4. `GET /v1/discord` (player session) shows the connected account and
    `DELETE /v1/discord` (a `discord.remove` proof) disconnects it.
 
@@ -258,7 +279,7 @@ always see and disconnect an account connected earlier.
 
 ## BluMint
 
-A connection of kind `blumint` serves BluMint's game partner API (v1.3.0) with
+A connection of kind `blumint` serves BluMint's game partner API (2.0.0) with
 the connection's provider credential as `Authorization: Bearer`:
 
 - `POST /v1/blumint/lookup` answers `discord` with the Ember IDs connected to
@@ -266,26 +287,53 @@ the connection's provider credential as `Authorization: Bearer`:
   `discord`) so matches can be created for it. An Ember ID already linked
   there by a code keeps that link.
 - `POST /v1/blumint/matches` creates an `ember-room-v1` set from two teams of
-  one and answers `matchId` and the match's `play_url` as `matchUrl`.
-- `GET` (or `POST`) `/v1/blumint/matches/status?matchId=` maps the match to
-  `pending`, `running`, `complete` or `cancelled`, with each player's presence
-  and score. A match nobody played before it expired reads `cancelled`.
+  one, of `series.gamesToWin`, starting from the teams' `startingWins`, and
+  answers `matchId` and the match's `play_url` as `matchUrl`. Every request
+  under one `Idempotency-Key` answers the same match for a day, and the key
+  is the match's `external_match_id` (`blumint:<key>`), so it makes no other
+  match for as long as the bridge keeps that one. Refusals answer
+  BluMint's registry codes at the top level (`invalid_request`,
+  `match_unsupported`, `key_reused`, `player_unlinked` and `423`
+  `player_busy`), never the bridge's error envelope.
+- `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
+  ends the match made under that creation key, however old, and closes the
+  key to every later creation. A key whose every creation was refused is
+  kept a day for a close (`blumint_refused_keys`); a key the bridge holds
+  nothing under answers `404 unknown_match`, and is closed all the same.
 
-The bridge posts each completed match's score to BluMint, and `mustRestart`
-for a cancelled match. BluMint has no review step, so a match that would go
-to `needs_review` (the two games disagree, a report never arrives, a player's
-link ends) is cancelled instead. A match nobody plays expires after a day and
-is sent nothing: BluMint's result format has no way to say "not played", and
-`mustRestart` would ask it to restart a match it may have meant to drop.
-Posts need BluMint's API key for the
-connection in the integration secrets; a match that ends before the key is
-there is posted once it is. Posts are retried for a day; the match's
-`provider_delivery_state` says how it went. BluMint takes one result per
-match, so once the bridge starts posting it (`delivering`) an organizer can
-no longer correct it. `ember-bridge
+The bridge reports each match to BluMint: a `status` with each player's
+presence, under a rising `revision`, as each player opens or leaves the
+match, presses Ready or takes it back (each claim's `ready`, sent to a
+bridge that lists `matches.claim_ready`), as each game starts and as each
+game ends with another to come; a
+`progress` after each game won that does not end
+the set; and the `result`, each team with its `wins`. A cancelled match is an `abort` with
+the wins so far and `retryable: true`, which BluMint answers by asking for
+the set again with those wins as `startingWins`. BluMint has no review step,
+so a match that would go to `needs_review` (the two games disagree, a report
+never arrives, a player's link ends) is cancelled instead. A match nobody
+plays expires after a day at most and is an `abort` with `retryable: false`, so
+BluMint's host takes it. Posts need BluMint's API key for the connection in
+the integration secrets; a match that ends before the key is there is posted
+once it is. Posts are retried for a day; the match's
+`provider_delivery_state` says how its result went. BluMint takes one result
+per match, so once the bridge starts posting it (`delivering`) an organizer
+can no longer correct it. BluMint also refuses a report below the wins an
+earlier one gave a team, so once a `progress` report has been posted an
+organizer can no longer void a game of the set. A closed match is sent nothing more. `ember-bridge
 blumint-register <bridge.json> <connection>` registers the three endpoints
 with BluMint, handing over a new provider credential that is never shown.
+Once all three are registered it revokes the callback credential an earlier
+registration handed over; one that fails partway leaves it in place.
 `BLUMINT_QUICKSTART.md` is the guide for BluMint's side.
+
+A match BluMint asks for again from a score carries `starting_wins` in its
+`match.completed` data, P1 first, and leaves it out at 0-0. Its `scores`
+count those wins, so each player's wins are their starting wins plus the
+games they won in this match, and `accepted_attempt_ids` lists only the
+games played in it. EMBER-TB-001's `MatchCompletedData` schema does not list
+the field, so a subscriber that validates events against
+`docs/design/identity-bridge/schemas/core.schema.json` must allow it.
 
 A `blumint` connection makes matches only through BluMint's create
 callback; the generic match, lobby and tournament routes refuse it, so every
@@ -473,8 +521,11 @@ matches on its connection, an organizer every match in its tenant, and a player
 only their own record, without other players' account IDs.
 
 Records are worked out from the accepted games each time they are read, so a
-voided game or other correction shows straight away. Lobby standings work the
-same way; only a lobby player's best streak is kept as sets are played.
+voided game or other correction shows straight away. A set a platform asked
+for again from a score (BluMint's `startingWins`) counts that score in the
+set's result and its recent score, but only the games played in it in games
+won and lost. Lobby standings work the same way; only a lobby player's best
+streak is kept as sets are played.
 
 ## Receive events
 

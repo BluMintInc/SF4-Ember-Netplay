@@ -207,8 +207,21 @@ async fn a_platforms_links_follow_the_discord_account() {
     assert_eq!(platform_links(&bridge).await, both);
 
     // Kate's account moves to the second Ember ID, replacing Sam's there: the
-    // links both sign-ins approved end at once.
-    move_here(&bridge, &two, "kate").await;
+    // page names Sam's account as the one it disconnects, and the links both
+    // sign-ins approved end at once.
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    let replacing = |name: &str| {
+        format!(
+            "connected to Discord account <strong>{name}</strong> now. Connecting this one disconnects it"
+        )
+    };
+    assert!(
+        page.contains("Move this Discord account?") && page.contains(&replacing("sam")),
+        "{page}"
+    );
+    let page = decide(&bridge, &confirmation(&page), "move").await;
+    assert!(page.contains("Discord connected"), "{page}");
     assert_eq!(platform_links(&bridge).await, vec![]);
     assert_eq!(
         lookup(&bridge, &provider, &[KATE, SAM]).await,
@@ -219,14 +232,22 @@ async fn a_platforms_links_follow_the_discord_account() {
         vec![(two_id.clone(), claim(KATE))]
     );
     // The first Ember ID can no longer be put in a match there.
-    let (status, refused) = bridge
-        .post(
-            &provider,
-            "/v1/blumint/matches",
-            json!({ "teams": [ { "players": [ { "inGameId": one_id } ] }, { "players": [ { "inGameId": two_id } ] } ] }),
-        )
-        .await;
+    let (status, refused) = blumint_match(&bridge, &provider, &one_id, &two_id).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_unlinked", "players": [one_id] })
+    );
+
+    // Connecting an account no Ember ID has names the one it would replace.
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-sam&state={state}")).await;
+    assert!(
+        page.contains("Connect this Discord account?") && page.contains(&replacing("kate")),
+        "{page}"
+    );
+    decide(&bridge, &confirmation(&page), "refuse").await;
+    assert_eq!(account(&bridge, &two).await["user_id"], KATE);
 
     // Signing in again with the same account keeps its link.
     connect(&bridge, &two, "kate").await;
@@ -275,14 +296,13 @@ async fn a_link_the_player_removed_stays_removed_until_they_sign_in_again() {
     }
     assert_eq!(platform_links(&bridge).await, vec![]);
     let other = player(&bridge, 2).await;
-    let (status, _) = bridge
-        .post(
-            &provider,
-            "/v1/blumint/matches",
-            json!({ "teams": [ { "players": [ { "inGameId": kate_id } ] }, { "players": [ { "inGameId": other.id() } ] } ] }),
-        )
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let other_id = other.id().to_string();
+    let (status, refused) = blumint_match(&bridge, &provider, &kate_id, &other_id).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_unlinked", "players": [kate_id, other_id] })
+    );
 
     // Signing in with Discord again gives the consent again.
     connect(&bridge, &kate, "kate").await;
@@ -438,14 +458,17 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     let kept = vec![(one_id.clone(), format!("discord:{KATE}"))];
 
     // Signing in from the second Ember ID moves nothing yet: the page names
-    // both Ember IDs and what moving ends.
+    // both Ember IDs and what moving ends, and names the site that finds
+    // players by Discord account as the tenant names itself.
     let state = start(&bridge, &two).await;
     let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
     assert!(
         page.contains("Move this Discord account?")
             && page.contains(&one.id().fingerprint())
             && page.contains(&two.id().fingerprint())
-            && page.contains("links it made"),
+            && page.contains("BluMint will then find")
+            && page.contains("your tournament links on")
+            && page.contains("BluMint will start the match again from the games already won."),
         "{page}"
     );
     assert_eq!(account(&bridge, &one).await["user_id"], KATE);
@@ -500,7 +523,9 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     // Moving it does what the page said, once.
     let page = decide(&bridge, &asked, "move").await;
     assert!(
-        page.contains("Discord connected") && page.contains(&two.id().fingerprint()),
+        page.contains("Discord connected")
+            && page.contains(&two.id().fingerprint())
+            && page.contains("go back to BluMint."),
         "{page}"
     );
     assert!(
@@ -514,6 +539,36 @@ async fn moving_an_account_from_another_ember_id_asks_first() {
     assert_eq!(
         lookup(&bridge, &provider, &[KATE]).await,
         json!({ "discord": [two.id()] })
+    );
+}
+
+// A site that hands a disputed match to its organizer may keep the match
+// and count its game in progress, so the move page tells its players only
+// BluMint's match ends without that game.
+#[tokio::test]
+async fn the_move_page_says_what_each_site_does_with_a_stopped_match() {
+    let bridge = bridge_with_discord_sites(
+        Secrets {
+            discord_client_secret: Some(zeroize::Zeroizing::new("test-secret".into())),
+            ..Default::default()
+        },
+        vec![reviewing_site("Ember Cup")],
+    )
+    .await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect(&bridge, &one, "kate").await;
+    let state = start(&bridge, &two).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(
+        page.contains("BluMint and Ember Cup will then find")
+            && page.contains("That stops any tournament match you are playing on")
+            && page.contains("At BluMint, the match ends and a game in progress does not count.")
+            && page.contains(
+                "At Ember Cup, the match may wait for an organizer, who decides how it goes on, \
+                 a game in progress included."
+            )
+            && page.matches("does not count").count() == 1,
+        "{page}"
     );
 }
 

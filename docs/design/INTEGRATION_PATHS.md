@@ -72,7 +72,8 @@ pub struct Policy {
     pub results: Results,          // None | BluMint | Signed
     pub own_api_only: bool,        // kind blumint
     pub reviews_disputes: bool,    // disputes == "review"
-    pub silent_expiry: bool,       // kind blumint: told nothing of an expired match
+    pub reports_progress: bool,    // kind blumint: told when a set starts and after each game
+    pub max_lifetime_secs: Option<u64>, // kind blumint: 24 hours, stored as matches.ends_by
 }
 ```
 
@@ -136,19 +137,25 @@ permit or settles a game (agreeing reports, an organizer's result, a voided
 game, a correction), `expires_at` becomes the later of itself and that moment
 plus `expiry_secs`. So a set the players are working through is cut off only
 after a whole lifetime without a game, even when an organizer decides a held
-game after the old deadline. The maintenance pass moves a match to the terminal
-state `expired` when `expires_at` has passed, it is not `needs_review`, it has
-no open game (`permitted` or `review` attempt) and no live provisioning lease.
+game after the old deadline. A connection's policy may cap a match's
+lifetime (`Policy::max_lifetime_secs`); a BluMint connection's is 24 hours
+(`BLUMINT_MATCH_LIFETIME_SECS`), since BluMint frees a player held by a
+match it could not close only for 24 hours after the match was made. Such a
+match stores the end of that cap as `ends_by` when it is created: its
+lifetime is the lesser of `match_expiry_hours` and the cap, and games move
+the deadline, but never past `ends_by`. The maintenance pass moves a match
+to the terminal state `expired` when `expires_at` has passed, it is not
+`needs_review`, it has no open game (`permitted` or `review` attempt) and no
+live provisioning lease, or once its `ends_by` has passed whatever is open;
+its open game is then aborted.
 The match then follows the cancellation path: revision bumped, its
 players freed, `match.expired` emitted (`match_id`, `match_revision`, `state`,
 `reason: "not_played"`, `expires_at`). It is never `cancelled`, and a platform
 is never sent `restart` for it.
 
-Delivery: a `results_url` connection gets outcome `expired`. BluMint's result
-format takes a score or `mustRestart` only, so a BluMint match that expires is
-sent nothing (its `delivery_state` becomes `not_required`) and its status
-reads `cancelled`, the only ended-without-a-result word its API has. To be
-confirmed with BluMint.
+Delivery: a `results_url` connection gets outcome `expired`. BluMint gets an
+abort with `reason: "insufficientPlayers"` and `retryable: false`, so it does
+not ask for the match again and its host takes it.
 
 `GET /v1/assignments` rows and `GET /v1/matches/{id}` carry `created_at` and
 `expires_at`, and an expired match stays in the assignments for a day.

@@ -63,8 +63,8 @@ flowchart LR
   browser -->|"Discord sign-in"| discord
   browser -->|"redirect to /v1/discord/callback"| nginx
   bridge -->|"code exchange"| discord
-  blumint -->|"lookup, match creation,<br/>match status"| nginx
-  bridge -->|"POST match results"| blumint
+  blumint -->|"lookup, match creation,<br/>match close"| nginx
+  bridge -->|"POST match reports"| blumint
   launcher -->|"update checks"| github
 ```
 

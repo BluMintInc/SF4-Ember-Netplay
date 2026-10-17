@@ -31,13 +31,16 @@ use crate::{
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
     routes::{
         expiry::{self, EXPIRED_LISTED_SECS},
-        ledger::{Cause, Match, bump, load, match_event, release, settle, stale},
+        ledger::{Cause, Match, bump, load, match_event, release, settle, stale, unready_before},
         lobbies, policy,
     },
     tournament,
 };
 
-pub use crate::routes::ledger::{busy, participants, release_players, scores};
+pub use crate::routes::{
+    idempotency::idempotent,
+    ledger::{busy, participants, release_players, scores},
+};
 
 /// Results entered by an organizer; Ember plays no part in the match.
 pub const ORGANIZER_PROFILE: &str = "organizer-reported-v1";
@@ -90,44 +93,6 @@ pub fn service_viewer(service: &Service) -> Result<Viewer> {
             tenant_id: service.tenant_id.clone(),
         },
     })
-}
-
-/// Replays a stored response for a retried request, or records a new one
-/// (spec 10.2, 19.1). The key is scoped to the authenticated actor.
-pub fn idempotent(
-    tx: &Transaction<'_>,
-    actor: &str,
-    path: &str,
-    key: &str,
-    digest: &str,
-    now: u64,
-    work: impl FnOnce(&Transaction<'_>) -> Result<(StatusCode, serde_json::Value)>,
-) -> Result<(StatusCode, serde_json::Value)> {
-    let stored: Option<(String, u16, Vec<u8>)> = tx
-        .query_row(
-            "SELECT command_digest, status, response FROM idempotency_records
-             WHERE actor = ?1 AND method = 'POST' AND path = ?2 AND idempotency_key = ?3",
-            params![actor, path, key],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .optional()?;
-    if let Some((stored_digest, status, body)) = stored {
-        if stored_digest != digest {
-            return Err(ApiFailure::new(
-                ErrorCode::IdempotencyConflict,
-                "This Idempotency-Key was used for a different request.",
-            ));
-        }
-        let body = serde_json::from_slice(&body).map_err(|_| ApiFailure::unavailable())?;
-        return Ok((StatusCode::from_u16(status).unwrap_or(StatusCode::OK), body));
-    }
-    let (status, body) = work(tx)?;
-    tx.execute(
-        "INSERT INTO idempotency_records (actor, method, path, idempotency_key, command_digest, status, response, created_at)
-         VALUES (?1, 'POST', ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![actor, path, key, digest, status.as_u16(), serde_json::to_vec(&body).unwrap_or_default(), now],
-    )?;
-    Ok((status, body))
 }
 
 fn respond((status, body): (StatusCode, serde_json::Value)) -> Response {
@@ -221,6 +186,7 @@ fn create_match(
             required_build_id: &command.required_build_id,
             metadata: &command.metadata,
             participants: command.by_slot(),
+            starting_wins: [0, 0],
             lobby_id: None,
             tournament_id: None,
         },
@@ -240,6 +206,8 @@ pub struct NewMatch<'a> {
     pub metadata: &'a BTreeMap<String, String>,
     /// Ordered by slot.
     pub participants: [&'a Assigned; 2],
+    /// Games each slot has already won when the match starts (`019`).
+    pub starting_wins: [u8; 2],
     pub lobby_id: Option<&'a str>,
     pub tournament_id: Option<&'a str>,
 }
@@ -303,13 +271,22 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     } else {
         "not_required"
     };
-    let lifetime = expiry::lifetime(ctx, new.lobby_id.is_some() || new.tournament_id.is_some());
+    let policy = policy::of(tx, new.connection_id)?;
+    let lifetime = expiry::lifetime(
+        ctx,
+        new.lobby_id.is_some() || new.tournament_id.is_some(),
+        policy,
+    );
     let expires_at = lifetime.map(|secs| ctx.now + secs);
+    let ends_by = lifetime
+        .and(policy.max_lifetime_secs)
+        .map(|cap| ctx.now + cap);
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15)",
+            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, starting_wins_p1, starting_wins_p2, ends_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15,
+            ?16, ?17, ?18)",
         params![
             id,
             new.tenant_id,
@@ -325,7 +302,10 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             new.tournament_id,
             delivery,
             expires_at,
-            lifetime
+            lifetime,
+            new.starting_wins[0],
+            new.starting_wins[1],
+            ends_by
         ],
     )?;
     for participant in new.participants {
@@ -793,6 +773,7 @@ fn apply_adjudication(
                         "UPDATE attempts SET state = 'accepted', outcome = ?1, adjudication_id = ?2 WHERE id = ?3",
                         params![outcome, adjudication_id, open_id],
                     )?;
+                    unready_before(tx, &found.id, &open_id)?;
                     (open_id, seq)
                 }
                 (Some(_), _) => {

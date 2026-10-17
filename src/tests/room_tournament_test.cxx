@@ -655,6 +655,163 @@ static void TestNativeStartWindow() {
 	CHECK(!other.RestoreCheckpoint(forged));
 }
 
+// Ends the table's game `generation` with `result`, which every fighter
+// acknowledges.
+static void EndGame(RoomAuthority& authority, std::uint64_t generation, MatchResult result) {
+	CHECK(authority.EndMatch(0, generation, result).accepted);
+	for (const auto member : authority.TerminalMembers(0, generation)) {
+		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
+		acknowledgment.matchGeneration = generation;
+		CHECK(authority.Apply(member, acknowledgment).accepted);
+	}
+}
+
+// One game at the bound table, from both fighters' Ready to the result both
+// acknowledge.
+static void PlayBoundGame(RoomAuthority& authority, MemberId a, MemberId b, MatchResult result) {
+	ReadyBoth(authority);
+	CHECK(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
+	CHECK(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
+	const auto generation = authority.SnapshotView().tables[0].permitGeneration;
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	EndGame(authority, generation, result);
+}
+
+// A set its platform asked for again starts from the score it carries and is
+// won in that many fewer games. A newer binding for the same set, after a
+// fighter's endpoint changed, keeps the score the table has played to. The
+// snapshot names the starting score only when it is not 0-0, so a set from
+// the start keeps the bytes it always had.
+static void TestASetStartsFromItsStartingWins() {
+	RoomAuthority authority("Match", 8, 1);
+	authority.AdvanceTime(1000);
+	const MemberId a = JoinAs(authority, "A", EndpointA, true);
+	auto carried = Binding();
+	carried.startingWins = {1, 0};
+	CHECK(authority.BindTournament(carried).accepted);
+	MemberId b = JoinAs(authority, "B", EndpointB);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	// A fighter who drops before the first game comes back to the starting score.
+	CHECK(authority.Leave(b).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	b = JoinAs(authority, "B", EndpointB);
+	CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	auto rebound = carried;
+	rebound.bindingRevision = 2;
+	CHECK(authority.BindTournament(rebound).accepted);
+	CHECK(authority.SnapshotView().tournament.bindingRevision == 2);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	CHECK(nlohmann::json(authority.SnapshotView().tournament)["starting_wins"] == nlohmann::json::array({1, 0}));
+	CHECK(!nlohmann::json(Binding()).contains("starting_wins"));
+	Snapshot copy;
+	nlohmann::json(authority.SnapshotView()).get_to(copy);
+	CHECK(copy.tournament.startingWins == carried.startingWins);
+	// A newer binding that moves a fighter to another endpoint sends the old
+	// one away, and the set keeps the 1-1 it has played to.
+	auto moved = Binding(3, EndpointC);
+	moved.startingWins = carried.startingWins;
+	CHECK(authority.BindTournament(moved).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	b = JoinAs(authority, "B", EndpointC);
+	CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	PlayBoundGame(authority, a, b, MatchResult::P1Win);
+	const auto& table = authority.SnapshotView().tables[0];
+	CHECK(table.lastSet.score[0] == 2 && table.lastSet.score[1] == 1 && table.lastSet.winnerSeat == 0);
+	// A starting score that would already have won the set binds nothing.
+	auto won = Binding();
+	won.startingWins = {0, 2};
+	RoomAuthority other("Match", 8, 1);
+	CHECK(JoinAs(other, "A", EndpointA, true));
+	CHECK(!other.BindTournament(won).accepted && !other.SnapshotView().tournament.Active());
+}
+
+// A bound table plays one set, so a fighter who drops mid-set rejoins at the
+// score played. The bridge's own count stays the set's score of record; the
+// room shows the set as it stands. A set from 0-0 starts there even when a
+// casual game was scored at the table before it was bound.
+static void TestLeavingKeepsThePlayedScore() {
+	RoomAuthority authority("Match", 8, 1);
+	authority.AdvanceTime(1000);
+	const MemberId a = JoinAs(authority, "A", EndpointA, true);
+	MemberId b = JoinAs(authority, "B", EndpointB);
+	for (const auto member : {a, b})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	ReadyBoth(authority);
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	EndGame(authority, authority.SnapshotView().tables[0].matchGeneration, MatchResult::P1Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	CHECK(authority.BindTournament(Binding()).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 0 && authority.SnapshotView().tables[0].score[1] == 0);
+	PlayBoundGame(authority, a, b, MatchResult::P1Win);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	CHECK(authority.Leave(b).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	b = JoinAs(authority, "B", EndpointB);
+	CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	const auto& table = authority.SnapshotView().tables[0];
+	CHECK(table.lastSet.score[0] == 1 && table.lastSet.score[1] == 2 && table.lastSet.winnerSeat == 1);
+}
+
+// A casual game still under way when the binding first arrives is not the
+// set's: the binding waits for it to end, so its result is not added to the
+// set's starting score, and is accepted once it has.
+static void TestACasualGameDelaysTheFirstBinding() {
+	RoomAuthority authority("Match", 8, 1);
+	authority.AdvanceTime(1000);
+	const MemberId a = JoinAs(authority, "A", EndpointA, true);
+	const MemberId b = JoinAs(authority, "B", EndpointB);
+	for (const auto member : {a, b})
+		CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	ReadyBoth(authority);
+	auto carried = Binding();
+	carried.startingWins = {1, 0};
+	auto refused = authority.BindTournament(carried);
+	CHECK(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	refused = authority.BindTournament(carried);
+	CHECK(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
+	EndGame(authority, authority.SnapshotView().tables[0].matchGeneration, MatchResult::P1Win);
+	CHECK(authority.BindTournament(carried).accepted);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+	CHECK(authority.SnapshotView().tables[0].lastSet.generation == 0);
+	PlayBoundGame(authority, a, b, MatchResult::P2Win);
+	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+}
+
+// A locked room still admits its bound fighters, so one who drops comes back
+// to the set, whether the lock came before the binding or after it.
+static void TestALockedMatchRoomAdmitsItsFighters() {
+	for (const bool lockFirst : {true, false}) {
+		RoomAuthority authority("Match", 8, 1);
+		authority.AdvanceTime(1000);
+		const MemberId a = JoinAs(authority, "A", EndpointA, true);
+		const auto applyLock = [&] {
+			Action lock = TableAction(authority, a, 0, ActionKind::Lock);
+			lock.locked = true;
+			CHECK(authority.Apply(a, lock).accepted);
+		};
+		if (lockFirst) applyLock();
+		CHECK(authority.BindTournament(Binding()).accepted);
+		if (!lockFirst) applyLock();
+		CHECK(authority.SnapshotView().locked);
+		MemberId b = JoinAs(authority, "B", EndpointB);
+		CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+		PlayBoundGame(authority, a, b, MatchResult::P1Win);
+		CHECK(authority.Leave(b).accepted);
+		b = JoinAs(authority, "B", EndpointB);
+		CHECK(b && authority.SnapshotView().tables[0].p2 == b);
+		CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
+		CHECK(!JoinAs(authority, "C", EndpointC));
+	}
+}
+
 // Casual rooms are unchanged: Ready starts the game with no permit.
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
@@ -690,6 +847,10 @@ int main() {
 	TestNativeStartWindow();
 	TestCasualRoomsNeedNoPermit();
 	TestPracticeRoomsTakeNoBinding();
+	TestASetStartsFromItsStartingWins();
+	TestLeavingKeepsThePlayedScore();
+	TestACasualGameDelaysTheFirstBinding();
+	TestALockedMatchRoomAdmitsItsFighters();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");
 	return failures ? 1 : 0;

@@ -232,17 +232,33 @@ pub struct Policy {
     /// connection restarts disputes: it is cancelled instead, which the
     /// platform hears as a restart.
     pub reviews_disputes: bool,
-    /// The platform's result format has no way to say a match expired unplayed
-    /// (BluMint's takes a score or a restart), so it is sent nothing for one.
-    pub silent_expiry: bool,
+    /// The platform hears how a set stands while it is played: its status
+    /// as each player arrives or leaves, as each game starts and as each game
+    /// ends with another to come (`delivery::status`), and its score after
+    /// each game that does not end it (`delivery::progress`). BluMint.
+    pub reports_progress: bool,
+    /// The longest a match lives after it was made, however it is played:
+    /// games move its deadline as on any connection, but never past that
+    /// (`matches.ends_by`). None when only `match_expiry_hours` applies.
+    /// BluMint's is `BLUMINT_MATCH_LIFETIME_SECS`.
+    pub max_lifetime_secs: Option<u64>,
 }
+
+/// The longest a match on a BluMint connection lives,
+/// whatever `match_expiry_hours` says. BluMint excuses a player kept busy by a
+/// match it could not close only for a bounded window: this cap, plus its own
+/// create retry span and a minute for this bridge's maintenance sweep. A match
+/// still open past the cap would keep its players busy after BluMint counts
+/// them free to be disqualified.
+pub const BLUMINT_MATCH_LIFETIME_SECS: u64 = 24 * 60 * 60;
 
 impl Policy {
     pub fn of(kind: &str, disputes: Disputes) -> Self {
         Self {
             own_api_only: kind == BLUMINT,
             reviews_disputes: disputes == Disputes::Review,
-            silent_expiry: kind == BLUMINT,
+            reports_progress: kind == BLUMINT,
+            max_lifetime_secs: (kind == BLUMINT).then_some(BLUMINT_MATCH_LIFETIME_SECS),
         }
     }
 }

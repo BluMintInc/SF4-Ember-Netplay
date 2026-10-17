@@ -30,6 +30,7 @@ use crate::{
     AppState,
     auth::{self, Player},
     ctx::Ctx,
+    delivery::status,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json as respond},
     routes::{
@@ -225,6 +226,7 @@ fn binding(
         return Ok(None);
     };
     let [p1, p2] = [&fighter.roster[0].ember_id, &fighter.roster[1].ember_id];
+    let starting_wins = fighter.found.starting_wins;
     let binding = Binding {
         version: play::VERSION,
         bridge_id: ctx.config.bridge_id.clone(),
@@ -247,6 +249,7 @@ fn binding(
             },
         ],
         issued_at: ctx.now,
+        starting_wins,
     };
     Ok(Some(
         ctx.keys
@@ -305,37 +308,70 @@ pub async fn claim_route(
         })
         .await?;
     state.committed();
-    Ok(respond(StatusCode::OK, &answer))
+    Ok(respond(StatusCode::OK, &answer?))
 }
 
+/// The claim's answer, or its refusal for the fighter's build as the inner
+/// error: the refusal is kept, so the transaction commits it.
 fn claim(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     match_id: &str,
     ember_id: &EmberId,
     command: &Claim,
-) -> Result<ClaimAnswer> {
-    let mut fighter = fighter(tx, match_id, ember_id)?;
+) -> Result<Result<ClaimAnswer>> {
+    let fighter = fighter(tx, match_id, ember_id)?;
     finished(&fighter.found)?;
     let other = claims(tx, match_id)?
         .into_iter()
         .find(|claim| claim.ember_id != *ember_id);
-    // A room admits one build, so both fighters must run the same one.
+    // A room admits one build, so both fighters must run the same one. The
+    // refused fighter opened the match, so their platform hears they are
+    // present.
     if other
         .as_ref()
         .is_some_and(|other| other.build_id != command.build_id)
     {
-        return Err(ApiFailure::new(
+        tx.execute(
+            "INSERT INTO match_claim_refusals (match_id, ember_id, refused_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT (match_id, ember_id) DO UPDATE SET refused_at = ?3",
+            params![match_id, ember_id.as_str(), ctx.now],
+        )?;
+        status::observe(tx, match_id, ctx.now)?;
+        return Ok(Err(ApiFailure::new(
             ErrorCode::IncompatibleBuild,
             "The two players run different Ember builds. Both need the same version to play this match.",
-        ));
+        )));
     }
     tx.execute(
-        "INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-         ON CONFLICT (match_id, ember_id) DO UPDATE SET endpoint_id = ?3, helper_instance_id = ?4, build_id = ?5, claimed_at = ?6",
-        params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now],
+        "INSERT INTO match_claims (match_id, ember_id, endpoint_id, helper_instance_id, build_id, claimed_at, ready)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT (match_id, ember_id) DO UPDATE SET endpoint_id = ?3, helper_instance_id = ?4, build_id = ?5, claimed_at = ?6, ready = ?7",
+        params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now, command.ready == Some(true)],
     )?;
+    // A claim taken ends an earlier refusal: from now on the fighter is
+    // present while they keep claiming, like the other.
+    tx.execute(
+        "DELETE FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2",
+        params![match_id, ember_id.as_str()],
+    )?;
+    let answer = seat(tx, ctx, match_id, ember_id, fighter)?;
+    // Only the first claim moves the match's revision, so the other
+    // fighter's arrival, and each change of a fighter's Ready, is observed
+    // here.
+    status::observe(tx, match_id, ctx.now)?;
+    Ok(Ok(answer))
+}
+
+/// What a fighter whose claim was taken is to do: join the room, wait for
+/// its host, or host it.
+fn seat(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    match_id: &str,
+    ember_id: &EmberId,
+    mut fighter: Fighter,
+) -> Result<ClaimAnswer> {
     let claimed = claims(tx, match_id)?;
     let current = room(tx, match_id)?;
     if current.room_id.is_some() {
@@ -717,8 +753,8 @@ fn issue(
         [match_id],
     )?;
     let revision = bump(tx, &fighter.found, MatchState::Running, ctx.now)?;
-    // A game starting is activity: the match gets a whole lifetime from now.
-    expiry::extend(tx, ctx.now, match_id)?;
+    // A game starting is activity, which moves the match's deadline.
+    expiry::extend(tx, ctx.now, &fighter.found.id)?;
     match_event(
         tx,
         ctx,

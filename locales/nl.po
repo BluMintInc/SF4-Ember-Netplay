@@ -4119,7 +4119,7 @@ msgid "tournament.stopped_notice"
 msgstr "Toernooiwedstrijd gestopt. {0}"
 
 msgid "tournament.failure.build"
-msgstr "De versie van dit spel is niet de versie die het toernooi vereist."
+msgstr "Je Ember-versie verschilt van die van je tegenstander. Werk Ember bij en vraag je tegenstander hetzelfde te doen."
 
 msgid "tournament.failure.rules"
 msgstr "De regels van deze wedstrijd kunnen niet via Ember worden gespeeld."

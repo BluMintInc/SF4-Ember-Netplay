@@ -1,207 +1,18 @@
 //! BluMint's partner API against a stand-in BluMint: player lookup by Discord
-//! account, match creation with a Play link, status, result submission with
-//! retries and restarts, and registration of the three endpoints.
+//! account, match creation with a Play link and its refusals, closes, and
+//! registration of the three endpoints. tests/blumint_reports.rs covers what
+//! the bridge reports to BluMint.
 mod common;
 
-use std::sync::{Arc, Mutex};
-
-use axum::{
-    Router,
-    body::Bytes,
-    extract::State,
-    http::{HeaderMap, StatusCode as AxumStatus, Uri},
-    routing::post,
+use common::{
+    Player,
+    blumint::*,
+    play::{BUILD, claim, endpoint},
+    results,
 };
-use common::{Bridge, Player, results};
-use ember_bridge::{AppState, Keys, config, integrations::Secrets};
+use ember_bridge::{config, integrations::Secrets};
 use reqwest::StatusCode;
-use serde_json::{Value as Json, json};
-use zeroize::Zeroizing;
-
-const KATE: &str = "274220342558756145";
-const SAM: &str = "1725265127372152396";
-const CONNECTION: &str = "blumint-test";
-
-/// What the stand-in BluMint was sent, and how many calls to refuse with 500 first.
-#[derive(Default)]
-struct Received {
-    calls: Vec<(String, String, Json)>,
-    fail: usize,
-}
-
-type Shared = Arc<Mutex<Received>>;
-
-async fn fake_blumint() -> (String, Shared) {
-    async fn record(
-        State(shared): State<Shared>,
-        uri: Uri,
-        headers: HeaderMap,
-        body: Bytes,
-    ) -> AxumStatus {
-        let mut received = shared.lock().unwrap();
-        if received.fail > 0 {
-            received.fail -= 1;
-            return AxumStatus::INTERNAL_SERVER_ERROR;
-        }
-        let key = headers
-            .get("x-api-key")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_owned();
-        received.calls.push((
-            uri.path().to_owned(),
-            key,
-            serde_json::from_slice(&body).unwrap(),
-        ));
-        AxumStatus::OK
-    }
-    let shared = Shared::default();
-    let app = Router::new()
-        .route("/api/tournaments/match/submit", post(record))
-        .route("/api/tournaments/setLookupPlayer", post(record))
-        .route("/api/tournaments/match/setCreate", post(record))
-        .route("/api/tournaments/match/setRetrieveStatus", post(record))
-        .with_state(shared.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}/api", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, app).await });
-    (base, shared)
-}
-
-struct Fixture {
-    bridge: Bridge,
-    blumint: Shared,
-    provider: String,
-    organizer: String,
-    kate: Player,
-    sam: Player,
-}
-
-fn keyed() -> Secrets {
-    Secrets {
-        api_keys: [(CONNECTION.to_owned(), Zeroizing::new("bm-key".to_owned()))].into(),
-        ..Default::default()
-    }
-}
-
-async fn fixture() -> Fixture {
-    fixture_with(keyed()).await
-}
-
-/// The fixture with these integration secrets.
-async fn fixture_with(secrets: Secrets) -> Fixture {
-    let (api_base, blumint) = fake_blumint().await;
-    let bridge = Bridge::start_with(
-        |config| {
-            config.tenants.push(config::Tenant {
-                id: "bm".into(),
-                name: "BluMint".into(),
-                connections: vec![config::Connection {
-                    id: CONNECTION.into(),
-                    kind: "blumint".into(),
-                    environment: "staging".into(),
-                    display_name: "BluMint (test)".into(),
-                    enabled: true,
-                    api_base: Some(api_base),
-                    discord_lookup: false,
-                    disputes: None,
-                    results_url: None,
-                    rooms: None,
-                }],
-            });
-        },
-        secrets,
-    )
-    .await;
-    let provider = bridge.provider(CONNECTION).await;
-    let organizer = bridge.organizer("bm").await;
-    let (mut kate, mut sam) = (bridge.player(1), bridge.player(2));
-    bridge.open_session(&mut kate).await;
-    bridge.open_session(&mut sam).await;
-    // Both connected Discord (tests/discord.rs covers the sign-in itself).
-    for (user_id, name, player) in [(KATE, "kate", &kate), (SAM, "sam", &sam)] {
-        let ember_id = player.id().as_str().to_owned();
-        bridge
-            .state()
-            .db
-            .write(move |tx| {
-                tx.execute(
-                    "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, 1)",
-                    rusqlite::params![user_id, ember_id, name],
-                )?;
-                Ok(())
-            })
-            .await
-            .unwrap();
-    }
-    Fixture {
-        bridge,
-        blumint,
-        provider,
-        organizer,
-        kate,
-        sam,
-    }
-}
-
-async fn lookup(f: &Fixture, body: Json) -> Json {
-    let (status, found) = f.bridge.post(&f.provider, "/v1/blumint/lookup", body).await;
-    assert_eq!(status, StatusCode::OK, "{found}");
-    found
-}
-
-async fn create(f: &Fixture, settings: Json) -> (StatusCode, Json) {
-    f.bridge
-        .post(
-            &f.provider,
-            "/v1/blumint/matches",
-            json!({
-                "teams": [ { "players": [ { "inGameId": f.kate.id() } ] }, { "players": [ { "playerId": f.sam.id() } ] } ],
-                "matchSettings": settings,
-            }),
-        )
-        .await
-}
-
-async fn match_status(f: &Fixture, id: &str) -> Json {
-    let (status, body) = f
-        .bridge
-        .get(
-            &f.provider,
-            &format!("/v1/blumint/matches/status?matchId={id}"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    body
-}
-
-fn submitted(f: &Fixture) -> Vec<Json> {
-    let received = f.blumint.lock().unwrap();
-    received
-        .calls
-        .iter()
-        .filter(|(path, key, _)| path == "/api/tournaments/match/submit" && key == "bm-key")
-        .map(|(_, _, body)| body.clone())
-        .collect()
-}
-
-async fn win(f: &Fixture, id: &str, slot: u8, key: &str) {
-    results::win(&f.bridge, &f.provider, &f.organizer, id, slot, key).await;
-}
-
-async fn void_last(f: &Fixture, id: &str, key: &str) -> StatusCode {
-    results::void_last(&f.bridge, &f.provider, &f.organizer, id, key)
-        .await
-        .0
-}
-
-async fn status_revision(f: &Fixture, id: &str) -> String {
-    let (_, found) = f
-        .bridge
-        .get(&f.provider, &format!("/v1/matches/{id}"))
-        .await;
-    found["revision"].as_str().unwrap().to_owned()
-}
+use serde_json::json;
 
 #[tokio::test]
 async fn lookup_finds_players_by_their_discord_accounts() {
@@ -243,66 +54,120 @@ async fn lookup_finds_players_by_their_discord_accounts() {
 async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     let f = fixture().await;
     // A player BluMint never looked up cannot be put in a match.
-    let (status, _) = create(&f, json!({})).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (status, _) = f
-        .bridge
-        .post(
-            &f.provider,
-            "/v1/blumint/matches",
-            json!({ "teams": [ { "players": [ { "inGameId": f.kate.id() } ] } ] }),
-        )
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    for refused in [0, 11, 300] {
-        let (status, _) = create(&f, json!({ "gamesToWin": refused })).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
-    }
-    // One player on both sides is refused, and nothing is created.
-    let (status, refused) = f
-        .bridge
-        .post(
-            &f.provider,
-            "/v1/blumint/matches",
-            json!({ "teams": [ { "players": [ { "inGameId": f.kate.id() } ] }, { "players": [ { "inGameId": f.kate.id() } ] } ] }),
-        )
-        .await;
+    let (status, refused) = create(&f, "create-1", 1).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
-    let matches: i64 = f
-        .bridge
-        .state()
-        .db
-        .read(|tx| Ok(tx.query_row("SELECT COUNT(*) FROM matches", [], |row| row.get(0))?))
-        .await
-        .unwrap();
-    assert_eq!(matches, 0);
+    assert_eq!(refusal(&refused), "player_unlinked");
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let mut alone = request(&f, 1);
+    alone["teams"] = json!([team("kate", f.kate.id())]);
+    let (status, refused) = create_with(&f, "create-1", alone).await;
+    assert_eq!(
+        (status, refusal(&refused)),
+        (StatusCode::BAD_REQUEST, "match_unsupported")
+    );
+    // The set's length is required and whole; one longer than Ember plays is
+    // BluMint's to run instead.
+    for (games, code) in [
+        (json!(0), "invalid_request"),
+        (json!(1.5), "invalid_request"),
+        (json!("2"), "invalid_request"),
+        (json!(11), "match_unsupported"),
+        (json!(300), "match_unsupported"),
+    ] {
+        let mut body = request(&f, 1);
+        body["series"]["gamesToWin"] = games.clone();
+        let (status, refused) = create_with(&f, "create-1", body).await;
+        assert_eq!(
+            (status, refusal(&refused)),
+            (StatusCode::BAD_REQUEST, code),
+            "{games}"
+        );
+    }
+    let mut endless = request(&f, 1);
+    endless.as_object_mut().unwrap().remove("series");
+    let (status, refused) = create_with(&f, "create-1", endless).await;
+    assert_eq!(
+        (status, refusal(&refused)),
+        (StatusCode::BAD_REQUEST, "invalid_request")
+    );
+    // One player on both sides is refused, and nothing is created.
+    let mut twice = request(&f, 1);
+    twice["teams"][1] = team("kate again", f.kate.id());
+    let (status, refused) = create_with(&f, "create-1", twice).await;
+    assert_eq!(
+        (status, refusal(&refused)),
+        (StatusCode::BAD_REQUEST, "invalid_request")
+    );
+    assert_eq!(matches(&f).await, 0);
 
-    let (status, created) = create(&f, json!({ "gamesToWin": 1, "gravity": 1.1 })).await;
+    // Spectators, team names, match settings and identities from other
+    // sign-in methods are BluMint's own, and do not change the match.
+    let mut body = request(&f, 1);
+    body["spectators"] = json!([{ "identities": [ { "inGameId": "emb1_watcher" } ] }]);
+    body["matchSettings"] = json!({ "gravity": 1.1 });
+    body["teams"][0]["players"][0]["identities"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "provider": "discord", "inGameId": KATE }));
+    let (status, created) = create_with(&f, "create-1", body).await;
     assert_eq!(status, StatusCode::OK, "{created}");
     let id = created["matchId"].as_str().unwrap().to_owned();
-    // BluMint lost the answer and asks again: the same match. A different
-    // request for the same players is refused while it is on. A first to 4
-    // (best of 7) passes the length check and meets the match that is on.
+    // BluMint lost the answer and asks again under the same key: the same
+    // match, even with its teams renamed. The key cannot ask for another
+    // set, and a new key for the same players is refused while the match is
+    // on. A first to 4 (best of 7) passes the length check.
     assert_eq!(
-        create(&f, json!({ "gamesToWin": 1, "gravity": 1.1 })).await,
+        create(&f, "create-1", 1).await,
         (StatusCode::OK, created.clone())
     );
+    // Each registration issues BluMint a new credential, and the key belongs
+    // to the connection, so a replay under the new credential answers the
+    // same match.
+    let fresh = f.bridge.provider(CONNECTION).await;
     assert_eq!(
-        create(&f, json!({ "gamesToWin": 4 })).await.0,
-        StatusCode::CONFLICT
+        f.bridge
+            .post_keyed(
+                &fresh,
+                "/v1/blumint/matches",
+                request(&f, 1),
+                Some("create-1")
+            )
+            .await,
+        (StatusCode::OK, created.clone())
+    );
+    let mut renamed = request(&f, 1);
+    renamed["teams"][0]["name"] = json!("kate (sub)");
+    assert_eq!(
+        create_with(&f, "create-1", renamed).await,
+        (StatusCode::OK, created.clone())
+    );
+    let (status, refused) = create(&f, "create-1", 4).await;
+    assert_eq!(
+        (status, refused),
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    let (status, refused) = create(&f, "create-2", 4).await;
+    assert_eq!(status, StatusCode::LOCKED, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_busy", "players": [f.kate.id(), f.sam.id()] })
+    );
+    let (status, refused) = f
+        .bridge
+        .post(&f.provider, "/v1/blumint/matches", request(&f, 1))
+        .await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::BAD_REQUEST,
+            json!({ "code": "invalid_request" })
+        )
     );
     assert_eq!(
         created["matchUrl"],
         format!("https://embernetplay.link/m#{}/{id}", f.bridge.bridge_id).as_str()
     );
-    let before = match_status(&f, &id).await;
-    assert_eq!(before["status"], "pending");
-    assert_eq!(
-        before["teams"][0]["players"][0],
-        json!({ "inGameId": f.kate.id(), "status": "absent" })
-    );
-    assert_eq!(before["teams"][1]["score"], 0);
+    assert_eq!(match_state(&f, &id).await, "awaiting_players");
 
     // Nothing is sent before the match ends.
     ember_bridge::deliver_results(f.bridge.state()).await;
@@ -311,7 +176,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     // bridge's own worker runs alongside these passes; either may send.
     f.blumint.lock().unwrap().fail = 1;
     win(&f, &id, 1, "game-1").await;
-    assert_eq!(match_status(&f, &id).await["status"], "complete");
+    assert_eq!(match_state(&f, &id).await, "completed");
     results::until(&f.bridge, &id, |(state, attempts)| {
         state == "retrying" && attempts == 1
     })
@@ -326,292 +191,10 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     );
     assert_eq!(
         submitted(&f),
-        vec![json!({ "matchId": id, "teams": [
-            { "score": 0, "players": [ { "inGameId": f.kate.id() } ] },
-            { "score": 1, "players": [ { "inGameId": f.sam.id() } ] },
-        ] })]
+        vec![json!({ "mode": "result", "matchId": id, "teams": teams(&f, [0, 1]) })]
     );
-}
-
-#[tokio::test]
-async fn a_completed_match_says_its_result_is_to_be_sent() {
-    // Without a key nothing is sent, so the state stays as completion left it.
-    let f = fixture_with(Secrets::default()).await;
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (_, created) = create(&f, json!({ "gamesToWin": 1 })).await;
-    let id = created["matchId"].as_str().unwrap().to_owned();
-    win(&f, &id, 0, "game-1").await;
-    let completed: Vec<Json> = f
-        .bridge
-        .events(&f.provider, "0")
-        .await
-        .into_iter()
-        .filter(|event| event["type"] == "io.ember.tournament.match.completed.v1")
-        .collect();
-    assert_eq!(completed.len(), 1);
-    assert_eq!(completed[0]["data"]["provider_delivery_state"], "queued");
-    let (_, snapshot) = f
-        .bridge
-        .get(&f.provider, &format!("/v1/matches/{id}"))
-        .await;
-    assert_eq!(snapshot["provider_delivery_state"], "queued");
-}
-
-#[tokio::test]
-async fn a_result_is_final_once_it_is_being_sent() {
-    // Without a key nothing is sent yet: a correction still reopens the match.
-    let f = fixture_with(Secrets::default()).await;
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (_, created) = create(&f, json!({ "gamesToWin": 1 })).await;
-    let id = created["matchId"].as_str().unwrap().to_owned();
-    win(&f, &id, 0, "game-1").await;
-    assert_eq!(void_last(&f, &id, "void-1").await, StatusCode::CREATED);
-    assert_eq!(match_status(&f, &id).await["status"], "running");
-    win(&f, &id, 1, "game-2").await;
-
-    // Once the bridge starts sending the result, it stands, sent or not.
-    let state = f.bridge.state();
-    let keyed = AppState::new(
-        (*state.config).clone(),
-        Keys::generate(),
-        keyed(),
-        state.db.clone(),
-        f.bridge.clock.clone(),
-    );
-    f.blumint.lock().unwrap().fail = 1;
-    ember_bridge::deliver_results(&keyed).await;
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("retrying".into(), 1)
-    );
-    assert_eq!(void_last(&f, &id, "void-2").await, StatusCode::CONFLICT);
-    f.bridge.clock.advance(11);
-    ember_bridge::deliver_results(&keyed).await;
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("delivered".into(), 2)
-    );
-    assert_eq!(void_last(&f, &id, "void-3").await, StatusCode::CONFLICT);
-    assert_eq!(
-        submitted(&f),
-        vec![json!({ "matchId": id, "teams": [
-            { "score": 0, "players": [ { "inGameId": f.kate.id() } ] },
-            { "score": 1, "players": [ { "inGameId": f.sam.id() } ] },
-        ] })]
-    );
-}
-
-#[tokio::test]
-async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
-    // BluMint's key is configured only after these matches end.
-    let f = fixture_with(Secrets::default()).await;
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (_, created) = create(&f, json!({})).await;
-    let first = created["matchId"].as_str().unwrap().to_owned();
-    let (status, _) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            &format!("/v1/matches/{first}/cancel"),
-            json!({ "reason": "No show", "expected_revision": status_revision(&f, &first).await }),
-            Some("cancel-1"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK);
-
-    // A match that would wait for an organizer's review has none at BluMint:
-    // removing Sam's link cancels it here and frees its players.
-    let (_, created) = create(&f, json!({})).await;
-    let second = created["matchId"].as_str().unwrap().to_owned();
-    let sam = f.sam.id().to_string();
-    let link: String = f
-        .bridge
-        .state()
-        .db
-        .read(move |tx| {
-            Ok(tx.query_row(
-                "SELECT id FROM links WHERE ember_id = ?1 AND connection_id = ?2 AND revoked_at IS NULL",
-                [sam.as_str(), CONNECTION],
-                |row| row.get(0),
-            )?)
-        })
-        .await
-        .unwrap();
-    let removed = f
-        .bridge
-        .client
-        .delete(f.bridge.url(&format!("/v1/links/{link}")))
-        .bearer_auth(&f.provider)
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(removed.status(), StatusCode::OK);
-    assert_eq!(match_status(&f, &second).await["status"], "cancelled");
-
-    // Without the key nothing is sent; with it, both restarts are.
-    ember_bridge::deliver_results(f.bridge.state()).await;
-    assert!(submitted(&f).is_empty());
-    let state = f.bridge.state();
-    let with_key = AppState::new(
-        (*state.config).clone(),
-        Keys::generate(),
-        keyed(),
-        state.db.clone(),
-        f.bridge.clock.clone(),
-    );
-    ember_bridge::deliver_results(&with_key).await;
-    let mut sent = submitted(&f);
-    sent.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
-    let mut restarts = vec![
-        json!({ "matchId": first, "mustRestart": true }),
-        json!({ "matchId": second, "mustRestart": true }),
-    ];
-    restarts.sort_by_key(|body| body["matchId"].as_str().unwrap().to_owned());
-    assert_eq!(sent, restarts);
-
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (status, _) = create(&f, json!({})).await;
-    assert_eq!(
-        status,
-        StatusCode::OK,
-        "the restarted match could not be created"
-    );
-}
-
-#[tokio::test]
-async fn a_match_keeps_its_platforms_policy_after_the_connection_leaves_the_configuration() {
-    let f = fixture().await;
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (_, created) = create(&f, json!({})).await;
-    let id = created["matchId"].as_str().unwrap().to_owned();
-    // A game was permitted and neither player reported it.
-    let match_id = id.clone();
-    f.bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO attempts (id, match_id, assignment_generation, seq, source, state, created_at, start_by, permit_id)
-                 VALUES ('att_silent', ?1, 1, 1, 'player_agreement', 'permitted', 0, 0, 'pmt_silent')",
-                [&match_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
-    // BluMint's connection leaves the configuration; then the game times out.
-    let mut config = (*f.bridge.state().config).clone();
-    config.tenants.retain(|tenant| tenant.id != "bm");
-    let state = AppState::new(
-        config,
-        Keys::generate(),
-        Secrets::default(),
-        f.bridge.state().db.clone(),
-        f.bridge.clock.clone(),
-    );
-    ember_bridge::sync_config(&state).await.unwrap();
-    f.bridge.clock.advance(31 * 60);
-    ember_bridge::maintain(&state).await;
-    let match_id = id.clone();
-    let (match_state, delivery): (String, String) = state
-        .db
-        .read(move |tx| {
-            Ok(tx.query_row(
-                "SELECT state, delivery_state FROM matches WHERE id = ?1",
-                [&match_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )?)
-        })
-        .await
-        .unwrap();
-    assert_eq!(
-        (match_state.as_str(), delivery.as_str()),
-        ("cancelled", "queued")
-    );
-}
-
-#[tokio::test]
-async fn a_disabled_connection_sends_nothing_until_enabled_again() {
-    // The bridge's own worker has no key here, so only these passes send.
-    let f = fixture_with(Secrets::default()).await;
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (_, created) = create(&f, json!({})).await;
-    let id = created["matchId"].as_str().unwrap().to_owned();
-    let (status, _) = f
-        .bridge
-        .post_keyed(
-            &f.provider,
-            &format!("/v1/matches/{id}/cancel"),
-            json!({ "reason": "No show", "expected_revision": status_revision(&f, &id).await }),
-            Some("cancel-1"),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK);
-    // A bridge with the key, configured with the connection enabled or not.
-    let keyed_state = |enabled: bool| {
-        let state = f.bridge.state();
-        let mut config = (*state.config).clone();
-        for tenant in &mut config.tenants {
-            for connection in &mut tenant.connections {
-                if connection.id == CONNECTION {
-                    connection.enabled = enabled;
-                }
-            }
-        }
-        AppState::new(
-            config,
-            Keys::generate(),
-            keyed(),
-            state.db.clone(),
-            f.bridge.clock.clone(),
-        )
-    };
-    let disabled = keyed_state(false);
-    ember_bridge::sync_config(&disabled).await.unwrap();
-    let credentials = || async {
-        f.bridge
-            .state()
-            .db
-            .read(|tx| {
-                Ok(tx.query_row(
-                    "SELECT COUNT(*) FROM service_credentials WHERE connection_id = ?1",
-                    [CONNECTION],
-                    |row| row.get::<_, i64>(0),
-                )?)
-            })
-            .await
-            .unwrap()
-    };
-    let issued = credentials().await;
-    ember_bridge::deliver_results(&disabled).await;
-    assert!(
-        ember_bridge::register_blumint(&disabled, CONNECTION)
-            .await
-            .is_err()
-    );
-    // A bridge still configured with it enabled finds it disabled when leasing
-    // and when registering.
-    let stale = keyed_state(true);
-    ember_bridge::deliver_results(&stale).await;
-    assert!(
-        ember_bridge::register_blumint(&stale, CONNECTION)
-            .await
-            .is_err()
-    );
-    assert!(f.blumint.lock().unwrap().calls.is_empty());
-    assert_eq!(credentials().await, issued);
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("queued".into(), 0)
-    );
-
-    let enabled = keyed_state(true);
-    ember_bridge::sync_config(&enabled).await.unwrap();
-    ember_bridge::deliver_results(&enabled).await;
-    assert_eq!(
-        submitted(&f),
-        vec![json!({ "matchId": id, "mustRestart": true })]
-    );
+    // The key still answers the match it made, now that it is over.
+    assert_eq!(create(&f, "create-1", 1).await, (StatusCode::OK, created));
 }
 
 #[tokio::test]
@@ -625,14 +208,11 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
         .iter()
         .map(|(path, key, body)| {
             assert_eq!(key, "bm-key");
-            let field = [
-                "lookupPlayerUrl",
-                "createMatchUrl",
-                "retrieveMatchStatusUrl",
-            ]
-            .into_iter()
-            .find(|field| body.get(field).is_some())
-            .unwrap();
+            assert!(body.get("retrieveMatchStatusUrl").is_none(), "{body}");
+            let field = ["lookupPlayerUrl", "createMatchUrl", "closeMatchUrl"]
+                .into_iter()
+                .find(|field| body.get(field).is_some())
+                .unwrap();
             (
                 path.clone(),
                 body[field].as_str().unwrap().to_owned(),
@@ -640,19 +220,43 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
             )
         })
         .collect();
-    assert_eq!(urls[0].1, f.bridge.url("/v1/blumint/lookup"));
-    assert_eq!(urls[1].1, f.bridge.url("/v1/blumint/matches"));
-    assert_eq!(urls[2].1, f.bridge.url("/v1/blumint/matches/status"));
-    let authentication = &urls[0].2;
+    let paths: Vec<_> = urls
+        .iter()
+        .map(|(path, url, _)| (path.as_str(), url.clone()))
+        .collect();
     assert_eq!(
-        authentication["config"],
-        json!({ "location": "header", "key": "Authorization", "valuePrefix": "Bearer " })
+        paths,
+        [
+            (
+                "/api/tournaments/setLookupPlayer",
+                f.bridge.url("/v1/blumint/lookup")
+            ),
+            (
+                "/api/tournaments/match/setCreate",
+                f.bridge.url("/v1/blumint/matches")
+            ),
+            (
+                "/api/tournaments/match/setClose",
+                f.bridge.url("/v1/blumint/matches/close")
+            ),
+        ]
     );
-    // BluMint calls back with the credential it was handed.
-    let token = authentication["apiKey"].as_str().unwrap();
+    // BluMint stores a credential per route, so every row carries the same
+    // working one, as its secret and never as `apiKey`.
+    let token = urls[0].2["secret"].as_str().unwrap().to_owned();
+    for (path, _, authentication) in &urls {
+        assert_eq!(
+            authentication,
+            &json!({
+                "config": { "location": "header", "key": "Authorization", "valuePrefix": "Bearer " },
+                "secret": token,
+            }),
+            "{path}"
+        );
+    }
     let (status, _) = f
         .bridge
-        .post(token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))
+        .post(&token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))
         .await;
     assert_eq!(status, StatusCode::OK);
     // A connection that is not BluMint's is refused.
@@ -663,73 +267,665 @@ async fn registration_tells_blumint_where_to_call_with_a_working_credential() {
     );
 }
 
-// BluMint's result format has no way to say a match was never played, and a
-// restart would be a request it never made, so an expired match is sent
-// nothing. Its status reads `cancelled` and its players can be matched again.
+// BluMint keeps one credential per route, so once a registration has handed
+// every route a new one, the one an earlier registration handed over calls
+// nothing. A registration that fails partway leaves every credential working,
+// since BluMint may hold either on each route.
 #[tokio::test]
-async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
+async fn a_new_registration_retires_the_credential_an_earlier_one_handed_over() {
     let f = fixture().await;
-    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
-    let (_, created) = create(&f, json!({})).await;
-    let id = created["matchId"].as_str().unwrap().to_owned();
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("queued".into(), 0)
+    let secret = || {
+        f.blumint.lock().unwrap().calls.last().unwrap().2["authentication"]["secret"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let f = &f;
+    let calls_with = |token: String| async move {
+        f.bridge
+            .post(&token, "/v1/blumint/lookup", json!({ "discord": [KATE] }))
+            .await
+            .0
+    };
+    // BluMint's close route is not there yet.
+    f.blumint
+        .lock()
+        .unwrap()
+        .answers
+        .extend([(200, None), (200, None), (404, None)]);
+    assert!(
+        ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+            .await
+            .is_err()
     );
-
-    // The test clock follows the wall clock, so stay a few seconds clear of
-    // the day: a second that passes during the test must not end it early.
-    f.bridge.clock.advance(24 * 60 * 60 - 10);
-    ember_bridge::maintain(f.bridge.state()).await;
-    assert_eq!(match_status(&f, &id).await["status"], "pending");
-    // The same request while it is open still answers with the same match.
-    let (_, again) = create(&f, json!({})).await;
-    assert_eq!(again["matchId"], id.as_str());
-
-    f.bridge.clock.advance(10);
-    ember_bridge::maintain(f.bridge.state()).await;
-    let status = match_status(&f, &id).await;
-    assert_eq!(status["status"], "cancelled");
-    assert_eq!(status["teams"][0]["players"][0]["status"], "absent");
-    // Nothing is queued for BluMint, however many passes run.
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("not_required".into(), 0)
+    let first = secret();
+    assert_eq!(calls_with(first.clone()).await, StatusCode::OK);
+    ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+        .await
+        .unwrap();
+    let second = secret();
+    assert_ne!(first, second);
+    assert_eq!(calls_with(first).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(calls_with(second.clone()).await, StatusCode::OK);
+    f.blumint
+        .lock()
+        .unwrap()
+        .answers
+        .extend([(200, None), (503, None)]);
+    assert!(
+        ember_bridge::register_blumint(f.bridge.state(), CONNECTION)
+            .await
+            .is_err()
     );
-    for _ in 0..3 {
-        ember_bridge::deliver_results(f.bridge.state()).await;
-    }
-    assert_eq!(submitted(&f), Vec::<Json>::new());
-    assert_eq!(
-        results::delivery(&f.bridge, &id).await,
-        ("not_required".into(), 0)
-    );
-
-    // A new request is a new match, not the expired one.
-    let (status, next) = create(&f, json!({})).await;
-    assert_eq!(status, StatusCode::OK, "{next}");
-    assert_ne!(next["matchId"], id.as_str());
-    assert_eq!(
-        match_status(&f, next["matchId"].as_str().unwrap()).await["status"],
-        "pending"
-    );
+    let third = secret();
+    assert_eq!(calls_with(second).await, StatusCode::OK);
+    assert_eq!(calls_with(third).await, StatusCode::OK);
+    // The test's own provider credential is not BluMint's callback one.
+    assert_eq!(calls_with(f.provider.clone()).await, StatusCode::OK);
 }
 
-// A status request without matchId gets the bridge's JSON error, and only
-// after its credential is checked: a caller without one gets 401 first.
+// BluMint looks up every player a refusal names and asks again, so a
+// creation with two players it must look up again names both at once.
 #[tokio::test]
-async fn a_status_request_without_a_match_id_is_refused_as_json_after_authentication() {
+async fn an_unlinked_seat_is_refused_naming_every_unlinked_player() {
     let f = fixture().await;
-    let (status, body) = f
+    let (status, refused) = create(&f, "create-1", 2).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(
+        refused,
+        json!({ "code": "player_unlinked", "players": [f.kate.id(), f.sam.id()] })
+    );
+    // A refusal is not stored against the key: BluMint asks again under it.
+    lookup(&f, json!({ "discord": [SAM] })).await;
+    let (_, refused) = create(&f, "create-1", 2).await;
+    assert_eq!(
+        refused,
+        json!({ "code": "player_unlinked", "players": [f.kate.id()] })
+    );
+    assert_eq!(matches(&f).await, 0);
+    lookup(&f, json!({ "discord": [KATE] })).await;
+    let (status, created) = create(&f, "create-1", 2).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+}
+
+// Every refusal BluMint branches on carries its code at the top level, with
+// nothing else BluMint would have to read.
+#[tokio::test]
+async fn blumint_refusals_carry_the_registry_code_at_the_top_level() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let mut pair = request(&f, 2);
+    let sam = pair["teams"][1]["players"][0].clone();
+    pair["teams"][0]["players"]
+        .as_array_mut()
+        .unwrap()
+        .push(sam);
+    let mut doubled = request(&f, 2);
+    doubled["teams"][0]["players"][0]["identities"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "inGameId": f.sam.id() }));
+    let mut nameless = request(&f, 2);
+    nameless["teams"][1]["players"][0]["identities"] =
+        json!([{ "provider": "discord", "inGameId": SAM }]);
+    // The host's match settings are free-form, so a body can outgrow even
+    // the creation's own cap.
+    let mut oversized = request(&f, 2);
+    oversized["matchSettings"] = json!({ "notes": "n".repeat(257 * 1024) });
+    for (body, code) in [
+        (pair, "match_unsupported"),
+        (doubled, "invalid_request"),
+        (nameless, "invalid_request"),
+        (oversized, "invalid_request"),
+        (json!({ "teams": "kate and sam" }), "invalid_request"),
+    ] {
+        let (status, refused) = create_with(&f, "create-1", body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused, json!({ "code": code }));
+    }
+    let response = f
         .bridge
-        .get(&f.provider, "/v1/blumint/matches/status")
+        .client
+        .post(f.bridge.url("/v1/blumint/matches"))
+        .bearer_auth(&f.provider)
+        .header("content-type", "application/json")
+        .body("{ not json")
+        .send()
+        .await
+        .unwrap();
+    let (status, refused) = common::read(response).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::BAD_REQUEST,
+            json!({ "code": "invalid_request" })
+        )
+    );
+    assert_eq!(matches(&f).await, 0);
+
+    // Long match settings, past the 64 KiB a close may carry, still make a
+    // match.
+    let mut long = request(&f, 2);
+    long["matchSettings"] = json!({ "notes": "n".repeat(200 * 1024) });
+    let (status, created) = create_with(&f, "create-2", long).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    assert_eq!(matches(&f).await, 1);
+}
+
+// BluMint holds a match whose player is still in another one, and asks again
+// under the same key until that match ends, so the refusal names only the
+// players who are busy, and is not stored against the key.
+#[tokio::test]
+async fn a_busy_player_is_refused_until_their_match_ends() {
+    let f = fixture().await;
+    let mut lou = f.bridge.player(3);
+    f.bridge.open_session(&mut lou).await;
+    let lou_id = lou.id().as_str().to_owned();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('99', ?1, 'lou', 1)",
+                [lou_id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 1).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let against_lou = |first: &Player, second: &Player| {
+        let mut body = request(&f, 1);
+        body["teams"] = json!([team("one", first.id()), team("two", second.id())]);
+        body
+    };
+    // A player to look up again is named before a busy one, so BluMint looks
+    // them up at once rather than holding the match first.
+    let (status, refused) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::BAD_REQUEST,
+            json!({ "code": "player_unlinked", "players": [lou.id()] })
+        )
+    );
+    lookup(&f, json!({ "discord": ["99"] })).await;
+    let (status, refused) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::LOCKED,
+            json!({ "code": "player_busy", "players": [f.kate.id()] })
+        )
+    );
+    let (status, refused) = create_with(&f, "set-3", against_lou(&lou, &f.sam)).await;
+    assert_eq!(
+        (status, refused),
+        (
+            StatusCode::LOCKED,
+            json!({ "code": "player_busy", "players": [f.sam.id()] })
+        )
+    );
+    assert_eq!(matches(&f).await, 1);
+    win(&f, &id, 0, "game-1").await;
+    let (status, next) = create_with(&f, "set-2", against_lou(&f.kate, &lou)).await;
+    assert_eq!(status, StatusCode::OK, "{next}");
+    assert_ne!(next["matchId"], id.as_str());
+}
+
+// BluMint closes a match it no longer needs by the key it created it under,
+// and waits for the 200 before it creates the players' next one. A closed
+// match frees its players and is sent nothing more; a closed key makes no
+// match from then on.
+#[tokio::test]
+async fn a_closed_match_sends_nothing() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    win(&f, &id, 0, "game-1").await;
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    let mut revisions = Vec::new();
+    for _ in 0..2 {
+        let (status, closed) = close(
+            &f,
+            json!({ "idempotencyKey": "set-1", "reason": "decided" }),
+        )
         .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    assert_eq!(common::code(&body), "invalid_request", "{body}");
-    let (status, body) = f
+        assert_eq!(status, StatusCode::OK, "{closed}");
+        revisions.push(status_revision(&f, &id).await);
+    }
+    assert_eq!(revisions[0], revisions[1]);
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    assert_eq!(reports(&f, &id).await, vec![progressed(&f, &id, [1, 0])]);
+    assert_eq!(
+        results::delivery(&f.bridge, &id).await,
+        ("not_required".into(), 0)
+    );
+    // The log names the credential that closed it.
+    let closed_by: Vec<(String, String)> = f
         .bridge
-        .get("not-a-credential", "/v1/blumint/matches/status")
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx
+                .prepare("SELECT actor_class, actor_id FROM audit_entries WHERE action = 'blumint.close'")?
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+        .await
+        .unwrap();
+    let provider: String = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx.query_row(
+                "SELECT id FROM service_credentials WHERE connection_id = ?1 AND label = 'test provider'",
+                [CONNECTION],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(closed_by, vec![("service".to_owned(), provider)]);
+
+    // Whatever the reason, the match closes.
+    for (key, reason) in [("set-2", "hostOverride"), ("set-3", "a reason from later")] {
+        let (_, created) = create(&f, key, 2).await;
+        let id = created["matchId"].as_str().unwrap().to_owned();
+        let (status, closed) = close(&f, json!({ "idempotencyKey": key, "reason": reason })).await;
+        assert_eq!(status, StatusCode::OK, "{closed}");
+        assert_eq!(match_state(&f, &id).await, "cancelled");
+        assert!(reports(&f, &id).await.is_empty());
+    }
+
+    // The match made under the key closes, and the key makes no match
+    // again. The key is the connection's, so a credential from a later
+    // registration closes it too.
+    let (_, created) = create(&f, "set-4", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let fresh = f.bridge.provider(CONNECTION).await;
+    let (status, closed) = f
+        .bridge
+        .post_keyed(
+            &fresh,
+            "/v1/blumint/matches/close",
+            json!({ "idempotencyKey": "set-4", "reason": "removed" }),
+            Some("close-set-4"),
+        )
         .await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
-    assert_eq!(common::code(&body), "unauthenticated", "{body}");
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    assert_eq!(
+        create(&f, "set-4", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    // A key whose every creation was refused made no match, and closes all
+    // the same, so a creation still on its way makes nothing.
+    let made = matches(&f).await;
+    assert_eq!(
+        create(&f, "set-5", 11).await,
+        (
+            StatusCode::BAD_REQUEST,
+            json!({ "code": "match_unsupported" })
+        )
+    );
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-5", "reason": "replaced" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(
+        create(&f, "set-5", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    // A key the bridge holds nothing under is unknown, and is closed too.
+    // Asking again, as BluMint does when the first answer is lost, answers
+    // the same, also after a creation the bridge refuses arrives between.
+    for refused_between in [true, false] {
+        assert_eq!(
+            close(
+                &f,
+                json!({ "idempotencyKey": "set-6", "reason": "replaced" })
+            )
+            .await,
+            (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
+        );
+        if refused_between {
+            assert_eq!(
+                create(&f, "set-6", 11).await,
+                (
+                    StatusCode::BAD_REQUEST,
+                    json!({ "code": "match_unsupported" })
+                )
+            );
+        }
+    }
+    // A known key's repeated close answers `200` each time.
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-5", "reason": "replaced" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(
+        create(&f, "set-6", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    assert_eq!(matches(&f).await, made);
+    assert!(reports(&f, &id).await.is_empty());
+
+    // A close names the key, never the match.
+    for body in [
+        json!({ "matchId": id, "reason": "decided" }),
+        json!({ "reason": "decided" }),
+        json!({ "idempotencyKey": "set-4" }),
+        json!({ "idempotencyKey": "set-4", "reason": "" }),
+        json!({ "idempotencyKey": "set-4", "reason": "r".repeat(65) }),
+        json!({ "idempotencyKey": "", "reason": "decided" }),
+        json!({ "idempotencyKey": "k".repeat(129), "reason": "decided" }),
+        json!({ "idempotencyKey": "set-4", "reason": "decided", "padding": "p".repeat(70 * 1024) }),
+    ] {
+        let (status, refused) = close(&f, body.clone()).await;
+        assert_eq!(
+            (status, refused),
+            (
+                StatusCode::BAD_REQUEST,
+                json!({ "code": "invalid_request" })
+            ),
+            "{body}"
+        );
+    }
+}
+
+// The answer under a creation key is forgotten after a day, but the key is
+// kept for as long as its match, as the match's own external ID: a close
+// under it still ends the match, and it still makes no other.
+#[tokio::test]
+async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(found["external_match_id"], "blumint:set-1", "{found}");
+    // The answer is a day old, and the maintenance pass removes it.
+    f.bridge
+        .state()
+        .db
+        .write(|tx| {
+            tx.execute(
+                "UPDATE idempotency_records SET created_at = created_at - 86400",
+                [],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    ember_bridge::maintain(f.bridge.state()).await;
+    let answers: i64 = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx.query_row(
+                "SELECT COUNT(*) FROM idempotency_records WHERE path = '/v1/blumint/matches'",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(answers, 0);
+    assert_eq!(match_state(&f, &id).await, "awaiting_players");
+    assert_eq!(
+        create(&f, "set-1", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-1", "reason": "removed" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    assert_eq!(
+        create(&f, "set-1", 2).await,
+        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+    );
+    assert_eq!(matches(&f).await, 1);
+}
+
+// A close names only a key its own connection created under. Two BluMint
+// connections of one tenant (staging and production, say) can send the same
+// key: a close from one ends nothing the other made or refused under it, and
+// each connection's key makes and closes only its own match.
+#[tokio::test]
+async fn a_close_naming_another_connections_key_ends_nothing() {
+    let f = fixture_adjusted(
+        keyed(),
+        config::DEFAULT_MATCH_EXPIRY_HOURS,
+        second_connection,
+    )
+    .await;
+    let other = f.bridge.provider(OTHER).await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (status, found) = f
+        .bridge
+        .post(
+            &other,
+            "/v1/blumint/lookup",
+            json!({ "discord": [KATE, SAM] }),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    let (status, made) = f
+        .bridge
+        .post_keyed(&other, "/v1/blumint/matches", request(&f, 2), Some("set-1"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{made}");
+    let theirs = made["matchId"].as_str().unwrap().to_owned();
+    let (status, _) = f
+        .bridge
+        .post_keyed(
+            &other,
+            "/v1/blumint/matches",
+            request(&f, 11),
+            Some("set-2"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let state = async || {
+        let (_, found) = f.bridge.get(&other, &format!("/v1/matches/{theirs}")).await;
+        (found["state"].clone(), found["revision"].clone())
+    };
+    let before = state().await;
+
+    for key in ["set-1", "set-2"] {
+        assert_eq!(
+            close(&f, json!({ "idempotencyKey": key, "reason": "decided" })).await,
+            (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" })),
+            "{key}"
+        );
+    }
+    assert_eq!(state().await, before);
+    let (status, created) = create(&f, "set-3", 2).await;
+    assert_eq!(status, StatusCode::OK, "{created}");
+    let ours = created["matchId"].as_str().unwrap().to_owned();
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-3", "reason": "decided" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &ours).await, "cancelled");
+    assert_eq!(state().await, before);
+}
+
+// A match that has ended answers a close with 200 and stays as it is: a
+// completed set whose result BluMint has not taken yet is still sent it.
+#[tokio::test]
+async fn closing_a_match_that_has_ended_changes_nothing() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 1).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    f.blumint.lock().unwrap().fail = 1;
+    win(&f, &id, 0, "game-1").await;
+    results::until(&f.bridge, &id, |(state, attempts)| {
+        state == "retrying" && attempts == 1
+    })
+    .await;
+    let before = status_revision(&f, &id).await;
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-1", "reason": "decided" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
+    assert_eq!(match_state(&f, &id).await, "completed");
+    assert_eq!(status_revision(&f, &id).await, before);
+    f.bridge.clock.advance(11);
+    results::until(&f.bridge, &id, |(state, _)| state == "delivered").await;
+    assert_eq!(submitted(&f), vec![result(&f, &id, [1, 0])]);
+}
+
+// A bridge from before closes by key named its BluMint matches by an ID of
+// its own, which no close can name. Each one still open when the bridge
+// starts again ends as a close ends it: its players are free, and BluMint is
+// sent nothing more for it, not even the score of a game it was not sent
+// yet. A match made under a key goes on.
+#[tokio::test]
+async fn an_upgrade_ends_the_matches_blumint_cannot_close() {
+    let mut f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    let lou = discord_player(&f, 3, "99", "lou").await;
+    let lee = discord_player(&f, 4, "98", "lee").await;
+    lookup(&f, json!({ "discord": [KATE, SAM, "99", "98"] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let old = created["matchId"].as_str().unwrap().to_owned();
+    let mut body = request(&f, 2);
+    body["teams"] = json!([team("lou", lou.id()), team("lee", lee.id())]);
+    let (_, created) = create_with(&f, "set-2", body).await;
+    let keyed = created["matchId"].as_str().unwrap().to_owned();
+    let id = old.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE matches SET external_match_id = 'blumint_old' WHERE id = ?1",
+                [&id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    win(&f, &old, 0, "game-1").await;
+    assert_eq!(progress(&f, &old).await, vec![(1, "queued".to_owned())]);
+    let before = (
+        match_state(&f, &keyed).await,
+        status_revision(&f, &keyed).await,
+    );
+
+    f.bridge.restart(Secrets::default()).await;
+    ember_bridge::deliver_results(&keyed_state(&f)).await;
+    assert_eq!(match_state(&f, &old).await, "cancelled");
+    assert_eq!(results::delivery(&f.bridge, &old).await.0, "not_required");
+    assert_eq!(
+        progress(&f, &old).await,
+        vec![(1, "not_required".to_owned())]
+    );
+    assert!(submitted(&f).is_empty(), "{:?}", submitted(&f));
+    let id = old.clone();
+    let recorded = f
+        .bridge
+        .state()
+        .db
+        .read(move |tx| {
+            let reasons = tx
+                .prepare(
+                    "SELECT json_extract(CAST(body AS TEXT), '$.data.reason') FROM events
+                     WHERE match_id = ?1 AND type LIKE '%.match.cancelled.v1'",
+                )?
+                .query_map([&id], |row| row.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let actor: (String, String) = tx.query_row(
+                "SELECT actor_class, actor_id FROM audit_entries WHERE action = 'blumint.close' AND target = ?1",
+                [&id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            Ok((reasons, actor))
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        recorded,
+        (
+            vec!["closed on upgrade: made before BluMint closed matches by key".to_owned()],
+            ("bridge".to_owned(), "upgrade".to_owned())
+        )
+    );
+    assert_eq!(
+        (
+            match_state(&f, &keyed).await,
+            status_revision(&f, &keyed).await
+        ),
+        before
+    );
+    let (status, next) = create(&f, "set-3", 2).await;
+    assert_eq!(status, StatusCode::OK, "{next}");
+}
+
+// A status the bridge stored but cannot read fails on its own: the other
+// matches' statuses still go out, and the match's next change writes it
+// again from the status as it stands.
+#[tokio::test]
+async fn a_stored_status_that_does_not_parse_fails_alone() {
+    let f = fixture_with(Secrets::default(), config::DEFAULT_MATCH_EXPIRY_HOURS).await;
+    let keyed = keyed_state(&f);
+    let lou = discord_player(&f, 3, "99", "lou").await;
+    let lee = discord_player(&f, 4, "98", "lee").await;
+    lookup(&f, json!({ "discord": [KATE, SAM, "99", "98"] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let broken = created["matchId"].as_str().unwrap().to_owned();
+    let mut body = request(&f, 2);
+    body["teams"] = json!([team("lou", lou.id()), team("lee", lee.id())]);
+    let (_, created) = create_with(&f, "set-2", body).await;
+    let other = created["matchId"].as_str().unwrap().to_owned();
+    claim(&f, &f.kate, &broken, &endpoint(&f.kate), BUILD).await;
+    claim(&f, &lou, &other, &endpoint(&lou), BUILD).await;
+    let id = broken.clone();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE blumint_status SET body = '{ not json' WHERE match_id = ?1",
+                [&id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+
+    ember_bridge::deliver_results(&keyed).await;
+    assert_eq!(status_row(&f, &broken).await, Some((1, "failed".into())));
+    assert!(statuses(&f, &broken).is_empty());
+    assert_eq!(statuses(&f, &other).len(), 1);
+
+    let (status, claimed) = claim(&f, &f.sam, &broken, &endpoint(&f.sam), BUILD).await;
+    assert_eq!(status, StatusCode::OK, "{claimed}");
+    assert_eq!(status_row(&f, &broken).await, Some((2, "queued".into())));
+    ember_bridge::deliver_results(&keyed).await;
+    let sent = statuses(&f, &broken);
+    assert_eq!(sent.len(), 1, "{sent:?}");
+    assert_eq!(sent[0]["revision"], 2);
 }
