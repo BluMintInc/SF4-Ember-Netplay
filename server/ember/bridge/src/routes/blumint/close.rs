@@ -90,7 +90,7 @@ fn close_key(
     key: &str,
 ) -> std::result::Result<Option<Match>, BluMintRefusal> {
     let actor = keys::owner(connection_id);
-    let made = keys::made_under(tx, connection_id, key)?;
+    let made = keys::made_under(tx, &ctx.tenant_of(connection_id)?, connection_id, key)?;
     let known = made.is_some()
         || keys::was_refused(tx, connection_id, key)?
         || idempotency::stored(tx, &actor, MATCHES_PATH, key)?

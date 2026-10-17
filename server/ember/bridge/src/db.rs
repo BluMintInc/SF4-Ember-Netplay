@@ -316,16 +316,16 @@ mod tests {
         let key = |id: &str| -> Option<String> {
             connection
                 .query_row(
-                    "SELECT blumint_key FROM matches WHERE id = ?1",
+                    "SELECT external_match_id FROM matches WHERE id = ?1",
                     [id],
                     |row| row.get(0),
                 )
                 .unwrap()
         };
-        assert_eq!(key("emt_kept").as_deref(), Some("set-1"));
-        assert_eq!(key("emt_gone"), None);
-        assert_eq!(key("emt_shut"), None);
-        assert_eq!(key("emt_other"), None);
+        assert_eq!(key("emt_kept").as_deref(), Some("blumint:set-1"));
+        assert_eq!(key("emt_gone").as_deref(), Some("gone"));
+        assert_eq!(key("emt_shut").as_deref(), Some("shut"));
+        assert_eq!(key("emt_other").as_deref(), Some("other"));
     }
 
     #[test]
