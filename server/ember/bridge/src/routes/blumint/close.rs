@@ -74,10 +74,15 @@ pub async fn close(
     Ok(ok(&json!({ "closed": true })))
 }
 
+/// What a close of a key the bridge held nothing under stores in place of a
+/// digest, so a repeat of that close answers `UnknownMatch` again rather
+/// than reading the first close's own record as the key being known.
+const CLOSED_UNKNOWN: &str = "closed unknown";
+
 /// Marks a creation key closed, and returns the match it made, if any. A key
 /// the bridge holds nothing under (no match, no refused creation, no earlier
-/// close) is `UnknownMatch`, and is still closed, since a creation on its way
-/// would otherwise make a match nobody closes.
+/// close of a known key) is `UnknownMatch`, and is still closed, since a
+/// creation on its way would otherwise make a match nobody closes.
 fn close_key(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -88,8 +93,14 @@ fn close_key(
     let made = keys::made_under(tx, connection_id, key)?;
     let known = made.is_some()
         || keys::was_refused(tx, connection_id, key)?
-        || idempotency::stored(tx, &actor, MATCHES_PATH, key)?.is_some();
-    idempotency::refuse(tx, &actor, MATCHES_PATH, key, ctx.now)?;
+        || idempotency::stored(tx, &actor, MATCHES_PATH, key)?
+            .is_some_and(|stored| stored.digest != CLOSED_UNKNOWN);
+    let mark = if known {
+        idempotency::REFUSED
+    } else {
+        CLOSED_UNKNOWN
+    };
+    idempotency::refuse(tx, &actor, MATCHES_PATH, key, mark, ctx.now)?;
     if !known {
         return Err(BluMintRefusal::UnknownMatch);
     }

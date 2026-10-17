@@ -155,8 +155,8 @@ Authorization: Bearer <credential>
 The match that key made ends, its players are free, and nothing more is
 posted for it. Every reason closes the match, `decided`, `replaced`,
 `removed` and `hostOverride` as well as one the bridge does not know; it is
-kept for the log. A match that already ended, and a second close, answer
-`200` too. The close also closes the key: every later creation under it
+kept for the log. A match that already ended answers `200` too, and a
+second close answers what the first did. The close also closes the key: every later creation under it
 answers `409 key_reused`, also when the bridge never made a match under it,
 so a creation still on its way makes nothing.
 
@@ -168,7 +168,7 @@ The close's own `Idempotency-Key` is not read.
 | Situation | Status | Body |
 |---|---|---|
 | Closed, or already ended; or the key made no match, its creations refused | `200` | `{ "closed": true }` |
-| A key the bridge holds nothing under for your connection; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
+| A key the bridge holds nothing under for your connection, on every close of it; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
 | No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 characters; `reason` missing, empty or longer than 64 characters | `400` | `{ "code": "invalid_request" }` |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 

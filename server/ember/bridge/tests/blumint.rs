@@ -570,14 +570,25 @@ async fn a_closed_match_sends_nothing() {
         (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
     );
     // A key the bridge holds nothing under is unknown, and is closed too.
-    assert_eq!(
-        close(
-            &f,
-            json!({ "idempotencyKey": "set-6", "reason": "replaced" })
-        )
-        .await,
-        (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
-    );
+    // Asking again, as BluMint does when the first answer is lost, answers
+    // the same.
+    for _ in 0..2 {
+        assert_eq!(
+            close(
+                &f,
+                json!({ "idempotencyKey": "set-6", "reason": "replaced" })
+            )
+            .await,
+            (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
+        );
+    }
+    // A known key's repeated close answers `200` each time.
+    let (status, closed) = close(
+        &f,
+        json!({ "idempotencyKey": "set-5", "reason": "replaced" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(
         create(&f, "set-6", 2).await,
         (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
