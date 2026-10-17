@@ -53,6 +53,22 @@ jobs:
       - name: Run the bridge workspace tests
         working-directory: server/ember
         run: cargo test --locked
+      # The SDK asks for Node 22.18 or later, newer than some runner images.
+      - name: Install Node for the SDK tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # The same gate as the BridgeSdk ctest (cmake/RunSdkTests.cmake): the
+      # SDK suite against the bridge this commit builds.
+      - name: Run the SDK tests against the bridge
+        working-directory: sdk/typescript
+        run: |
+          set -euo pipefail
+          # From server/ember, so rustup picks its pinned toolchain.
+          (cd ../../server/ember && cargo build --locked -p ember-bridge)
+          npm ci --ignore-scripts
+          npm run build
+          EMBER_BRIDGE_TEST_BINARY="$GITHUB_WORKSPACE/server/ember/target/debug/ember-bridge" npm test
       - name: Run the helper's tournament tests
         working-directory: rust/sf4-net
         run: cargo test --locked --lib tournament
