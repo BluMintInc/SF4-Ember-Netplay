@@ -65,6 +65,8 @@ impl BluMint {
         })
     }
 
+    /// Posts a report's `body` with the connection's key, and reads the
+    /// answer; a request that gets none is an outcome of its own.
     pub async fn post(&self, body: Vec<u8>) -> std::result::Result<Answer, Outcome> {
         let retry = |error: &str| Outcome::Retry {
             error: error.to_owned(),

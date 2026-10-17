@@ -341,12 +341,12 @@ async fn settle(f: &Fixture, id: &str) {
             .read(move |tx| {
                 Ok(tx.query_row(
                     "SELECT EXISTS (SELECT 1 FROM blumint_progress p JOIN matches m ON m.id = p.match_id
-                       WHERE p.match_id = ?1 AND m.state NOT IN ('completed', 'cancelled', 'expired')
+                       WHERE p.match_id = ?1 AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')
                          AND (p.state IN ('queued', 'delivering') OR (p.state = 'retrying' AND p.next_at <= ?2)))
                      OR EXISTS (SELECT 1 FROM blumint_status s JOIN matches m ON m.id = s.match_id
-                       WHERE s.match_id = ?1 AND m.state NOT IN ('completed', 'cancelled', 'expired')
+                       WHERE s.match_id = ?1 AND m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')
                          AND (s.state IN ('queued', 'delivering') OR (s.state = 'retrying' AND s.next_at <= ?2)))
-                     OR EXISTS (SELECT 1 FROM matches WHERE id = ?1 AND state IN ('completed', 'cancelled', 'expired')
+                     OR EXISTS (SELECT 1 FROM matches WHERE id = ?1 AND state IN ('completed', 'cancelled', 'failed', 'expired')
                          AND (delivery_state IN ('queued', 'delivering')
                            OR (delivery_state = 'retrying' AND delivery_next_at <= ?2)))",
                     rusqlite::params![match_id, now],

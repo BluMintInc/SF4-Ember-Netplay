@@ -6,4 +6,4 @@ CREATE TABLE match_claim_refusals (
     ember_id TEXT NOT NULL,
     refused_at INTEGER NOT NULL,
     PRIMARY KEY (match_id, ember_id)
-);
+) WITHOUT ROWID;

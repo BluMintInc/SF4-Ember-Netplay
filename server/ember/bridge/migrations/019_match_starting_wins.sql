@@ -3,8 +3,8 @@
 -- the score so far (BluMint's startingWins), and the match carries on from
 -- it: the ledger's score is these plus its own accepted games. 0 for every
 -- other match.
-ALTER TABLE matches ADD COLUMN base_p1 INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE matches ADD COLUMN base_p2 INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN starting_wins_p1 INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN starting_wins_p2 INTEGER NOT NULL DEFAULT 0;
 
 -- The latest a match lives to, whatever is played in it: its creation plus
 -- its platform's cap (Policy::max_lifetime_secs). NULL when only its

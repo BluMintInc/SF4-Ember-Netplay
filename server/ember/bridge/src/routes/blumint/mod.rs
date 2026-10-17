@@ -54,6 +54,7 @@ use crate::{
     util::outbound_client,
 };
 
+/// The three callbacks BluMint calls, as `register` tells BluMint them.
 pub const LOOKUP_PATH: &str = "/v1/blumint/lookup";
 pub const MATCHES_PATH: &str = "/v1/blumint/matches";
 pub const CLOSE_PATH: &str = "/v1/blumint/matches/close";

@@ -17,4 +17,4 @@ CREATE TABLE blumint_refused_keys (
     idempotency_key TEXT NOT NULL,
     refused_at INTEGER NOT NULL,
     PRIMARY KEY (connection_id, idempotency_key)
-);
+) WITHOUT ROWID;

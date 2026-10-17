@@ -13,5 +13,5 @@ CREATE TABLE blumint_progress (
     attempts INTEGER NOT NULL DEFAULT 0,
     first_at INTEGER,
     PRIMARY KEY (match_id, games_played)
-);
+) WITHOUT ROWID;
 CREATE INDEX blumint_progress_due ON blumint_progress (state, next_at);

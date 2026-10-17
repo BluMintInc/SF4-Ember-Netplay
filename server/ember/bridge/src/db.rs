@@ -37,7 +37,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (17, include_str!("../migrations/017_creator_region.sql")),
     (18, include_str!("../migrations/018_blumint_progress.sql")),
-    (19, include_str!("../migrations/019_match_base_score.sql")),
+    (
+        19,
+        include_str!("../migrations/019_match_starting_wins.sql"),
+    ),
     (20, include_str!("../migrations/020_blumint_status.sql")),
     (
         21,
@@ -272,7 +275,7 @@ mod tests {
         let expires = |id: &str| -> (i64, i64, [i64; 2], Option<i64>) {
             connection
                 .query_row(
-                    "SELECT expires_at, expiry_secs, base_p1, base_p2, ends_by FROM matches WHERE id = ?1",
+                    "SELECT expires_at, expiry_secs, starting_wins_p1, starting_wins_p2, ends_by FROM matches WHERE id = ?1",
                     [id],
                     |row| {
                         Ok((

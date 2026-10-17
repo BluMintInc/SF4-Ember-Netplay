@@ -176,10 +176,10 @@ Authorization: Bearer <credential>
 The match that key made ends, its players are free, and nothing more is
 posted for it. Every reason closes the match, `decided`, `replaced`,
 `removed` and `hostOverride` as well as one the bridge does not know; it is
-kept for the log. A match that already ended answers `200` too, and a
-second close answers what the first did. The close also closes the key: every later creation under it
-answers `409 key_reused`, also when the bridge never made a match under it,
-so a creation still on its way makes nothing.
+kept for the log. A match that already ended answers `200` too, and a second
+close answers what the first did. The close also closes the key: every later
+creation under it answers `409 key_reused`, also when the bridge never made
+a match under it, so a creation still on its way makes nothing.
 
 The bridge keeps a match's key for as long as it keeps the match, so a close
 finds the match however long ago you created it. A key that made no match is
@@ -197,10 +197,11 @@ The close's own `Idempotency-Key` is not read.
 
 Each bridge posts to its BluMint API's `/tournaments/match/submit`, such as
 `https://staging.blumint.io/api/tournaments/match/submit` from the staging
-bridge, with that environment's BluMint API key. Every report names each player by the Ember ID you
-sent. Each team's `wins`, in a progress report, a result and an abort, is
-the set's running total after that game, counting the `startingWins` the
-match was created with, never that one game's outcome alone.
+bridge, with that environment's BluMint API key. Every report names each
+player by the Ember ID you sent. Each team's `wins`, in a progress report, a
+result and an abort, is the set's running total after that game, counting
+the `startingWins` the match was created with, never that one game's outcome
+alone.
 
 A `status` report each time the match's status changes: as each player
 opens the match in Ember or leaves it, presses Ready or takes it back, as
@@ -225,13 +226,13 @@ from then on, whatever games an organizer recorded. Each player is:
 
 Each player's Ember says whether they have pressed Ready every time it
 claims the match, and claims again as soon as that changes, at most once
-every two seconds, so
-a player waiting for an opponent who never presses Ready reads
-`present-ready` and the opponent `present-not-ready`. A played game's end
-clears both seats at the table, so both read `present-not-ready` until they
-press Ready for the next game. A game called off because one player took
-Ready back leaves the other's Ready as it was. An Ember from before this release does not say, and its
-player reads `present-not-ready` until a game starts.
+every two seconds, so a player waiting for an opponent who never presses
+Ready reads `present-ready` and the opponent `present-not-ready`. A played
+game's end clears both seats at the table, so both read `present-not-ready`
+until they press Ready for the next game. A game called off because one
+player took Ready back leaves the other's Ready as it was. An Ember from
+before this release does not say, and its player reads `present-not-ready`
+until a game starts.
 
 A refused Ember stops claiming the match, so the bridge cannot tell whether
 that player stays: they read `present-not-ready` for the rest of the match,

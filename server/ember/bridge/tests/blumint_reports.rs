@@ -1241,7 +1241,7 @@ async fn an_organizers_game_leaves_the_status_pending() {
 // waits as long as it asks, its own failure is tried again, and a match it
 // does not know is not.
 #[tokio::test]
-async fn answers_from_blumint() {
+async fn a_report_is_settled_as_blumints_answer_to_it_says() {
     let f = fixture().await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let mut set = 0;
