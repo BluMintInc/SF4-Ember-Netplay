@@ -2,7 +2,8 @@
 //! match again ten seconds after each answer while it has it open, so a
 //! claim not renewed within `LEASE_SECS` means it left. Time the bridge was
 //! down is not counted against a claim that was live when it stopped, since
-//! no Ember could claim meanwhile.
+//! no Ember could claim meanwhile: such a claim's lease starts again when the
+//! bridge does (`resume`).
 use rusqlite::{OptionalExtension, Transaction, named_params};
 
 use crate::error::Result;
@@ -26,99 +27,60 @@ const RETRY_SECS: u64 = 5;
 pub const LEASE_SECS: u64 =
     REQUEST_SECS + CLAIM_INTERVAL_SECS + 5 * REQUEST_SECS + RETRY_SECS + 2 * REQUEST_SECS + 1;
 
-/// When claim `c` lapses: a lease after it was made, or after the bridge
-/// started again for a claim still live when it stopped.
-macro_rules! lapses_at {
-    () => {
-        "(MAX(c.claimed_at, CASE WHEN c.claimed_at + :lease > :down_since THEN :resumed_at ELSE 0 END) + :lease)"
-    };
-}
+const CLAIM: &str = "SELECT ready FROM match_claims
+     WHERE match_id = :match AND ember_id = :ember AND claimed_at + :lease > :now";
 
-const CLAIM: &str = concat!(
-    "SELECT c.ready FROM match_claims c WHERE c.match_id = :match AND c.ember_id = :ember AND ",
-    lapses_at!(),
-    " > :now"
-);
+const LAPSED: &str = "SELECT DISTINCT m.id FROM matches m JOIN match_claims c ON c.match_id = m.id
+     WHERE m.state NOT IN ('completed', 'cancelled', 'failed', 'expired')
+       AND c.claimed_at + :lease <= :now AND (:swept_at IS NULL OR c.claimed_at + :lease > :swept_at)";
 
-const LAPSED: &str = concat!(
-    "SELECT DISTINCT m.id FROM matches m JOIN match_claims c ON c.match_id = m.id
-     WHERE m.state NOT IN ('completed', 'cancelled', 'failed', 'expired') AND ",
-    lapses_at!(),
-    " <= :now AND (:swept_at IS NULL OR ",
-    lapses_at!(),
-    " > :swept_at)"
-);
-
-/// The bridge's last sweep, and the last span it heard no claims in.
-pub struct Liveness {
-    swept_at: Option<u64>,
-    down_since: u64,
-    resumed_at: u64,
-}
-
-impl Liveness {
-    pub fn of(tx: &Transaction<'_>) -> Result<Self> {
-        Ok(tx.query_row(
-            "SELECT swept_at, down_since, resumed_at FROM bridge_liveness WHERE id = 1",
-            [],
-            |row| {
-                Ok(Self {
-                    swept_at: row.get(0)?,
-                    down_since: row.get(1)?,
-                    resumed_at: row.get(2)?,
-                })
+/// Whether the fighter's claim on the match is live at `now`, and if so
+/// whether it said they pressed Ready.
+pub fn claim(
+    tx: &Transaction<'_>,
+    match_id: &str,
+    ember_id: &str,
+    now: u64,
+) -> Result<Option<bool>> {
+    Ok(tx
+        .query_row(
+            CLAIM,
+            named_params! {
+                ":match": match_id,
+                ":ember": ember_id,
+                ":lease": LEASE_SECS,
+                ":now": now,
             },
-        )?)
-    }
+            |row| row.get(0),
+        )
+        .optional()?)
+}
 
-    /// Whether the fighter's claim on the match is live at `now`, and if
-    /// so whether it said they pressed Ready.
-    pub fn claim(
-        &self,
-        tx: &Transaction<'_>,
-        match_id: &str,
-        ember_id: &str,
-        now: u64,
-    ) -> Result<Option<bool>> {
-        Ok(tx
-            .query_row(
-                CLAIM,
-                named_params! {
-                    ":match": match_id,
-                    ":ember": ember_id,
-                    ":lease": LEASE_SECS,
-                    ":down_since": self.down_since,
-                    ":resumed_at": self.resumed_at,
-                    ":now": now,
-                },
-                |row| row.get(0),
-            )
-            .optional()?)
-    }
-
-    /// The open matches a claim lapsed on since the last sweep, which is
-    /// then recorded at `now`. Each lapse is swept once, so a pass reads
-    /// only the claims that lapsed since the one before.
-    pub fn sweep(&self, tx: &Transaction<'_>, now: u64) -> Result<Vec<String>> {
-        let ids = tx
-            .prepare(LAPSED)?
-            .query_map(
-                named_params! {
-                    ":lease": LEASE_SECS,
-                    ":down_since": self.down_since,
-                    ":resumed_at": self.resumed_at,
-                    ":now": now,
-                    ":swept_at": self.swept_at,
-                },
-                |row| row.get::<_, String>(0),
-            )?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        tx.execute(
-            "UPDATE bridge_liveness SET swept_at = ?1 WHERE id = 1",
-            [now],
-        )?;
-        Ok(ids)
-    }
+/// The open matches a claim lapsed on since the last sweep, which is then
+/// recorded at `now`. Each lapse is swept once, so a pass reads only the
+/// claims that lapsed since the one before.
+pub fn sweep(tx: &Transaction<'_>, now: u64) -> Result<Vec<String>> {
+    let swept_at: Option<u64> = tx.query_row(
+        "SELECT swept_at FROM bridge_liveness WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )?;
+    let ids = tx
+        .prepare(LAPSED)?
+        .query_map(
+            named_params! {
+                ":lease": LEASE_SECS,
+                ":now": now,
+                ":swept_at": swept_at,
+            },
+            |row| row.get::<_, String>(0),
+        )?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    tx.execute(
+        "UPDATE bridge_liveness SET swept_at = ?1 WHERE id = 1",
+        [now],
+    )?;
+    Ok(ids)
 }
 
 /// The latest time a stopped bridge is known to have been running: its last
@@ -138,16 +100,14 @@ pub fn last_alive(tx: &Transaction<'_>, now: u64) -> Result<Option<u64>> {
 }
 
 /// Records that the bridge starts again at `now`, before it serves, having
-/// last run at `last` and swept up to it: it heard no claims in between, so a
-/// claim live at `last` gets a lease from `now`. While the span of the
-/// restart before is still extending its claims at `last`, that span is kept,
-/// so a claim live through both stops is extended through both.
+/// last run at `last` and swept up to it. It heard no claims in between, so
+/// each claim on an open match still live at `last` starts its lease again
+/// from `now`: `claimed_at` is when the claim's current lease began.
 pub fn resume(tx: &Transaction<'_>, last: u64, now: u64) -> Result<()> {
     tx.execute(
-        "UPDATE bridge_liveness
-         SET down_since = CASE WHEN resumed_at + :lease > :last THEN down_since ELSE :last END,
-             resumed_at = :now
-         WHERE id = 1 AND swept_at IS NOT NULL",
+        "UPDATE match_claims SET claimed_at = MAX(claimed_at, :now)
+         WHERE claimed_at + :lease > :last
+           AND match_id IN (SELECT id FROM matches WHERE state NOT IN ('completed', 'cancelled', 'failed', 'expired'))",
         named_params! { ":lease": LEASE_SECS, ":last": last, ":now": now },
     )?;
     Ok(())
@@ -166,9 +126,7 @@ mod tests {
                 Ok(tx
                     .prepare(&format!("EXPLAIN QUERY PLAN {LAPSED}"))?
                     .query_map(
-                        named_params! {
-                            ":lease": 0, ":down_since": 0, ":resumed_at": 0, ":now": 0, ":swept_at": 0,
-                        },
+                        named_params! { ":lease": 0, ":now": 0, ":swept_at": 0 },
                         |row| row.get::<_, String>(3),
                     )?
                     .collect::<rusqlite::Result<Vec<_>>>()?)

@@ -1,12 +1,9 @@
--- When the bridge last swept for lapsed claims, and the last span it heard
--- no claims in: from the sweep before it stopped to when it started again
--- (routes::blumint::liveness). A claim live when it stopped is not counted
--- lapsed for that span.
+-- When the bridge last swept for lapsed claims (routes::blumint::liveness),
+-- so each pass reads only the claims that lapsed since the one before, and a
+-- bridge that starts again knows when it last ran.
 CREATE TABLE bridge_liveness (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    swept_at INTEGER,
-    down_since INTEGER NOT NULL DEFAULT 0,
-    resumed_at INTEGER NOT NULL DEFAULT 0
+    swept_at INTEGER
 );
 INSERT INTO bridge_liveness (id) VALUES (1);
 
