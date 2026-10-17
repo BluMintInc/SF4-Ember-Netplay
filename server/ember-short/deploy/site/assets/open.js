@@ -4,8 +4,9 @@
 // and connect Discord for tournament sites. A site that names its service
 // (/start#BRIDGE) gets a button that opens Ember's Connect Discord screen for
 // it, and one that also gives its own name (/start#BRIDGE/NAME) is named to
-// the player. Nothing checks that name, so it is only ever shown as text. It reads
-// the link from the URL
+// the player: a name of 1 to 40 letters, digits, spaces and . ' & -, starting
+// with a letter or digit (SITE), is shown as text, and any other is dropped.
+// It reads the link from the URL
 // fragment, which is never sent to the server, makes no requests of its own,
 // and offers the ember: link only on the player's click, never by itself: a
 // browser without Ember's handler would otherwise replace this page with an error.
@@ -135,8 +136,8 @@
     var bridge = parts[0];
     if (!ID.test(bridge) || bridge.slice(0, 4) !== 'brg_' || parts.length > 2) return null;
     var site = parts.length === 2 ? siteName(parts[1]) : null;
-    // Ember reads a connect link without the name, so the address bar keeps
-    // the link a player may copy from it.
+    // An older Ember's Paste link takes a connect link only without the
+    // name, so the address bar keeps the link a player may copy from it.
     if (parts.length === 2 && history.replaceState) history.replaceState(null, '', '/start#' + bridge);
     var finder = site || 'The tournament you signed up for';
     return {

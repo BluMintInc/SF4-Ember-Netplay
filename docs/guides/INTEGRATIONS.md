@@ -230,13 +230,18 @@ Ember ID if needed, trusts Ember's own bridge unless the player removed it,
 and opens Discord's page by itself; a link that arrives during play asks
 first. A platform may add its own name after the bridge ID
 (`/start#<bridge_id>/<name>`, such as `/BluMint`), which the page shows the
-player as the site that finds them; the page checks only that the name is
-plain text, and keeps only the bridge ID in its address and in the link it
+player as the site that finds them. The page shows a name of 1 to 40
+letters, digits, spaces and `.`, `'`, `&` or `-`, starting with a letter or
+digit (percent-encoded in the link, as `%20` for a space); it drops any
+other name without saying so and speaks of "the tournament you signed up
+for" instead. It keeps only the bridge ID in its address and in the link it
 copies. The bridge's Discord pages name the sites that find players by
 Discord account by their tenants' `name`.
 Where the browser cannot open Ember, the player pastes the page's link into
-Connect Discord (Paste link) instead. The link names a bridge only; Ember
-never trusts one by itself. The sign-in:
+Connect Discord (Paste link) instead. Ember reads the link with or without
+the name, though an Ember from before it read the name takes only the link
+without it, as the page's Copy link gives it. The link names a bridge only;
+Ember never trusts one by itself. The sign-in:
 
 1. Ember's helper calls `POST /v1/discord/start` with a `discord.connect`
    proof and opens the returned Discord page in the browser.
