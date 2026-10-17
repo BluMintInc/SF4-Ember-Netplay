@@ -75,7 +75,8 @@ void from_json(const nlohmann::json& json, TournamentBinding& value) {
 		value.fighters[slot].endpoint = ReadText(fighters.at(slot), "endpoint", 64, false);
 		value.fighters[slot].emberId = ReadText(fighters.at(slot), "ember_id", 64, false);
 	}
-	if (const auto found = json.find("starting_wins"); found != json.end()) {
+	const auto found = json.find("starting_wins");
+	if (found != json.end()) {
 		if (!found->is_array() || found->size() != 2) throw std::invalid_argument("room tournament starting wins");
 		for (std::size_t slot = 0; slot < 2; ++slot) {
 			const auto& wins = found->at(slot);
@@ -93,7 +94,7 @@ bool RoomAuthority::BoundTable(const Table& table) const {
 
 void RoomAuthority::SeatBoundFighters() {
 	Table& table = snapshot_.tables[TournamentTable];
-	if (table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused) return;
+	if (GameUnderWay(table)) return;
 	bool changed = false;
 	for (const auto& member : std::vector<Member>(snapshot_.members)) {
 		const int slot = snapshot_.tournament.SlotOf(member.connection.user);
@@ -228,8 +229,7 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 	Table& table = snapshot_.tables[TournamentTable];
 	// A casual game still under way at the table is not the set's, so the
 	// first binding waits for it to end; the state machine offers it again.
-	if (starting && (table.phase == TablePhase::Ready || table.phase == TablePhase::Playing ||
-		table.phase == TablePhase::Paused)) return Reject(RejectReason::WrongPhase);
+	if (starting && GameUnderWay(table)) return Reject(RejectReason::WrongPhase);
 	current = binding;
 	table.rules.format = static_cast<SetFormat>(binding.gamesToWin);
 	// The set starts from the score it carries, 0-0 included, whatever a

@@ -208,9 +208,7 @@ void TournamentPlay::FollowClaim(std::uint64_t nowMs, const RoomView& room, std:
 	if (applied || recent || (current.Active() && !current.SupersededBy(wanted))) return;
 	// A casual game under way at the table holds the first binding back
 	// (RoomAuthority::BindTournament), so it is not offered until that ends.
-	const auto phase = room.snapshot->tables[room::TournamentTable].phase;
-	if (!current.Active() && (phase == room::TablePhase::Ready || phase == room::TablePhase::Playing ||
-		phase == room::TablePhase::Paused)) return;
+	if (!current.Active() && room::GameUnderWay(room.snapshot->tables[room::TournamentTable])) return;
 	auto bind = Make(Output::Kind::Bind);
 	bind.binding = wanted;
 	out.push_back(bind);

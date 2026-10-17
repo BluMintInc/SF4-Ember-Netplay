@@ -328,12 +328,17 @@ inline SeatHold LiveGameHold(const Table& table, bool localPostMatch) {
 	return SeatHold::InProgress;
 }
 
+// A game is under way at the table: Ready, Playing or Paused.
+inline bool GameUnderWay(const Table& table) {
+	return table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
+}
+
 // Why a fighter may not change fighter or appearance now. The table is
-// active while it is Ready, Playing or Paused; a readied fighter has to take
+// active while a game is under way (GameUnderWay); a readied fighter has to take
 // Ready back whatever the phase.
 inline SeatHold ChangingFighterHold(const Table& table, int seat, bool localPostMatch) {
 	if (ReadyCancellable(table, seat)) return SeatHold::UnreadyFirst;
-	const bool active = table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
+	const bool active = GameUnderWay(table);
 	return active ? LiveGameHold(table, localPostMatch) : SeatHold::None;
 }
 
@@ -341,7 +346,7 @@ inline SeatHold ChangingFighterHold(const Table& table, int seat, bool localPost
 // active, or while this client's own game (localGameLive: preparing or playing)
 // is still under way after the table went back to Waiting.
 inline SeatHold LeavingSeatHold(const Table& table, int seat, bool localGameLive, bool localPostMatch) {
-	const bool active = table.phase == TablePhase::Ready || table.phase == TablePhase::Playing || table.phase == TablePhase::Paused;
+	const bool active = GameUnderWay(table);
 	if (!active && !localGameLive) return SeatHold::None;
 	if (ReadyCancellable(table, seat)) return SeatHold::UnreadyFirst;
 	return LiveGameHold(table, localPostMatch);
