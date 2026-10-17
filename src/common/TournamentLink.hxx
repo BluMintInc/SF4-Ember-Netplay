@@ -178,16 +178,33 @@ inline MatchLink ParsePasted(const std::string& text) {
 // names the site's service.
 inline const char* ConnectPagePrefix() { return "https://embernetplay.link/start#"; }
 
+// A site's name after the bridge ID on the page's link: one segment of
+// printable ASCII, as a browser or a mail client gives it, percent-escapes
+// included. Ember shows nothing of it, so it is not decoded or checked further.
+inline bool IsSiteSegment(const std::string& text) {
+	if (text.empty()) return false;
+	for (const char symbol : text) {
+		const unsigned char character = static_cast<unsigned char>(symbol);
+		if (character < 0x21 || character > 0x7E || character == '/') return false;
+	}
+	return true;
+}
+
 // The service a pasted connect link names: the page's own link, as its Copy
-// button gives it, or the ember: link, with stray spaces or quotes; or "".
+// button gives it or with the site's name after the bridge ID (as a site
+// sends it, /start#BRIDGE/NAME), or the ember: link, with stray spaces or
+// quotes; or "".
 inline std::string ParseConnectPasted(const std::string& text) {
 	const std::string trimmed = Trimmed(text);
 	const std::string bridge = ParseConnectLink(trimmed);
 	if (!bridge.empty()) return bridge;
-	if (!PlainText(trimmed) || !StartsWithFolded(trimmed, ConnectPagePrefix())) return std::string();
+	if (trimmed.size() > MaximumUriLength || !StartsWithFolded(trimmed, ConnectPagePrefix())) return std::string();
 	std::string rest = trimmed.substr(std::char_traits<char>::length(ConnectPagePrefix()));
 	if (!rest.empty() && rest[rest.size() - 1] == '/') rest.erase(rest.size() - 1);
-	return IsBridgeId(rest) ? rest : std::string();
+	const std::size_t slash = rest.find('/');
+	if (slash != std::string::npos && !IsSiteSegment(rest.substr(slash + 1))) return std::string();
+	const std::string id = rest.substr(0, slash);
+	return IsBridgeId(id) ? id : std::string();
 }
 
 // A public room of a service, as a bot or a site links to it.
