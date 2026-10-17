@@ -159,7 +159,8 @@ pub async fn poll_rooms(state: &AppState) {
 }
 
 /// One pass of sending finished matches' results to their platforms, and
-/// BluMint's reports on sets in play and on matches' status; tests call it.
+/// the reports on sets in play and on matches' status to the platforms that
+/// hear them; tests call it.
 pub async fn deliver_results(state: &AppState) {
     delivery::pass(state, &Arc::new(delivery::results::Results::new(state))).await;
     delivery::pass(state, &Arc::new(delivery::progress::Progress::new(state))).await;
