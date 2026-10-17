@@ -1,17 +1,14 @@
 -- The `Idempotency-Key` BluMint created each of its matches under
--- (routes::blumint::keys). BluMint closes a match by that key for as long as
--- the match exists, while the answer stored under it is removed after a day,
--- so the key lives on the match. A match made before this takes the key of
--- the answer that names it, where that answer is still kept and no close has
--- replaced it.
-ALTER TABLE matches ADD COLUMN blumint_key TEXT;
-UPDATE matches SET blumint_key = r.idempotency_key
+-- (routes::blumint::keys) is the match's external_match_id, as
+-- 'blumint:<key>'. BluMint closes a match by that key for as long as the
+-- match exists, while the answer stored under it is removed after a day. A
+-- match made before this takes the key of the answer that names it, where
+-- that answer is still kept and no close has replaced it.
+UPDATE matches SET external_match_id = 'blumint:' || r.idempotency_key
   FROM idempotency_records r
  WHERE r.method = 'POST' AND r.path = '/v1/blumint/matches'
    AND r.actor = 'connection:' || matches.connection_id
    AND json_extract(CAST(r.response AS TEXT), '$.matchId') = matches.id;
-CREATE UNIQUE INDEX matches_blumint_key ON matches (connection_id, blumint_key)
-    WHERE blumint_key IS NOT NULL;
 
 -- A key whose creation the bridge refused, which stores no answer. Kept for
 -- the day an answer is, so a close under it closes a key BluMint sent.

@@ -620,14 +620,19 @@ async fn a_closed_match_sends_nothing() {
 }
 
 // The answer under a creation key is forgotten after a day, but the key is
-// kept for as long as its match: a close under it still ends the match, and
-// it still makes no other.
+// kept for as long as its match, as the match's own external ID: a close
+// under it still ends the match, and it still makes no other.
 #[tokio::test]
 async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
     let f = fixture().await;
     lookup(&f, json!({ "discord": [KATE, SAM] })).await;
     let (_, created) = create(&f, "set-1", 2).await;
     let id = created["matchId"].as_str().unwrap().to_owned();
+    let (_, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(found["external_match_id"], "blumint:set-1", "{found}");
     // The answer is a day old, and the maintenance pass removes it.
     f.bridge
         .state()

@@ -186,7 +186,8 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 /// matches nobody played, observes the fighters whose claims lapsed, and
 /// removes stale challenges, sessions, replay records and refused BluMint
 /// keys. Durable domain records (links, matches, attempts, reports, events)
-/// stay, and so does the BluMint key each match was made under.
+/// stay, and with each BluMint match the key it was made under, its
+/// `external_match_id`.
 pub async fn maintenance_once(state: &AppState) {
     // One clock read for the whole pass, so its steps agree on the time.
     let ctx = Ctx::of(state);

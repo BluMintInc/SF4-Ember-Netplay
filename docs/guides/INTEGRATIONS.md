@@ -285,8 +285,8 @@ the connection's provider credential as `Authorization: Bearer`:
   one, of `series.gamesToWin`, starting from the teams' `startingWins`, and
   answers `matchId` and the match's `play_url` as `matchUrl`. Every request
   under one `Idempotency-Key` answers the same match for a day, and the key
-  stays on the match (`matches.blumint_key`), so it makes no other match for
-  as long as the bridge keeps that one. Refusals answer
+  is the match's `external_match_id` (`blumint:<key>`), so it makes no other
+  match for as long as the bridge keeps that one. Refusals answer
   BluMint's registry codes at the top level (`invalid_request`,
   `match_unsupported`, `key_reused`, `player_unlinked` and `423`
   `player_busy`), never the bridge's error envelope.

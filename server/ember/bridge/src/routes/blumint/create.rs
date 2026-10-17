@@ -23,7 +23,6 @@ use crate::{
     error::ApiFailure,
     http::{Body, GENERAL_BODY, idempotency_key},
     routes::matches::{NewMatch, busy, idempotent, insert_match, into_response},
-    util::new_id,
 };
 
 #[derive(Deserialize)]
@@ -200,11 +199,11 @@ fn make(
 ) -> std::result::Result<(StatusCode, Value), BluMintRefusal> {
     let actor = keys::owner(connection_id);
     idempotent(tx, &actor, MATCHES_PATH, key, digest, ctx.now, |tx| {
-        if keys::made_under(tx, connection_id, key)?.is_some() {
+        let tenant_id = ctx.tenant_of(connection_id)?;
+        if keys::made_under(tx, &tenant_id, connection_id, key)?.is_some() {
             return Err(BluMintRefusal::KeyReused);
         }
-        let id = insert(tx, ctx, connection_id, set, digest)?;
-        keys::keep(tx, &id, key)?;
+        let id = insert(tx, ctx, &tenant_id, connection_id, key, set, digest)?;
         Ok((
             StatusCode::OK,
             json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
@@ -212,23 +211,24 @@ fn make(
     })
 }
 
-/// Seats the two players and records the match. Returns its ID.
+/// Seats the two players and records the match `key` made. Returns its ID.
 fn insert(
     tx: &Transaction<'_>,
     ctx: &Ctx,
+    tenant_id: &str,
     connection_id: &str,
+    key: &str,
     set: &Set,
     digest: &str,
 ) -> std::result::Result<String, BluMintRefusal> {
     let roster = seats(tx, connection_id, &set.players)?;
-    let tenant_id = ctx.tenant_of(connection_id)?;
     Ok(insert_match(
         tx,
         ctx,
         &NewMatch {
-            tenant_id: &tenant_id,
+            tenant_id,
             connection_id,
-            external_match_id: &new_id("blumint"),
+            external_match_id: &keys::external_id(key),
             digest,
             rules: &Rules::standard(set.games_to_win, PROFILE),
             required_build_id: "",
