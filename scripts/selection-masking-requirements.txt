@@ -14,7 +14,7 @@ numba==0.67.0
 numpy==2.5.3
 onnxruntime==1.29.0
 packaging==26.3
-pillow==12.3.0
+pillow==13.0.0
 platformdirs==4.11.7
 pooch==1.9.0
 protobuf==7.36.1
